@@ -1,0 +1,277 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { OrderRestoreService } from './order-restore.service';
+import { Order } from '../../domain/order/order';
+import { OrderStatus } from '../../domain/order/order-status';
+import { OrderSide } from '../../domain/order/order-side';
+import { OrderType } from '../../domain/order/order-type';
+import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
+import { Symbol } from '../../domain/common/symbol';
+import { Price } from '../../domain/common/price';
+import { Decimal } from '../../../../../domain/primitives/decimal';
+import { GridId } from '../../domain/grid/grid-id';
+import { OrderId } from '../../domain/order/order-id';
+import { ExchangeOrderStatus } from '../../domain/exchange-order/exchange-order-status';
+import { ExchangeCloid } from '../../domain/exchange-order/exchange-cloid';
+import { Timestamp } from '../../../../../domain/primitives/timestamp';
+
+describe('OrderRestoreService', () => {
+    let service: OrderRestoreService;
+    let mockOrderRepository: {
+        findManyByStatus: ReturnType<typeof vi.fn>;
+        updateExchangeOrderId: ReturnType<typeof vi.fn>;
+        updateStatus: ReturnType<typeof vi.fn>;
+    };
+    let mockConfigService: {
+        get: ReturnType<typeof vi.fn>;
+    };
+
+    const staleThresholdMs = 60000; // 1 minute
+
+    beforeEach(() => {
+        mockOrderRepository = {
+            findManyByStatus: vi.fn(),
+            updateExchangeOrderId: vi.fn(),
+            updateStatus: vi.fn(),
+        };
+
+        mockConfigService = {
+            get: vi.fn((key: string) => {
+                if (key === 'orders') {
+                    return {
+                        pendingCleanupThresholdMs: staleThresholdMs,
+                    };
+                }
+                return undefined;
+            }),
+        };
+
+        service = new OrderRestoreService(mockOrderRepository as any, mockConfigService as any);
+    });
+
+    describe('restoreOrders', () => {
+        const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
+
+        const createPendingOrder = (cloid?: ExchangeCloid, placedAt?: Timestamp): Order =>
+            Order.create({
+                id: OrderId.create(),
+                exchangeOrderId: undefined,
+                cloid,
+                symbol: Symbol.create('BTC'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(50000),
+                amount: Decimal.from(0.01),
+                status: OrderStatus.Pending,
+                gridId: gridId.toString(),
+                levelIndex: 5,
+                placedAt,
+            });
+
+        const createExchangeOrder = (
+            exchangeOrderId: string,
+            cloid?: ExchangeCloid,
+        ): ExchangeOpenOrder => ({
+            id: exchangeOrderId,
+            cloid,
+            symbol: Symbol.create('BTC'),
+            type: OrderType.Limit,
+            side: OrderSide.Buy,
+            price: Price.from(50000),
+            amount: Decimal.from(0.01),
+            filledAmount: Decimal.zero(),
+            status: ExchangeOrderStatus.OPEN,
+            reduceOnly: false,
+            placedAt: Date.now(),
+        });
+
+        it('should return 0 when no pending orders exist', async () => {
+            mockOrderRepository.findManyByStatus.mockResolvedValue([]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.findManyByStatus).toHaveBeenCalledWith(OrderStatus.Pending);
+            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+        });
+
+        it('should restore order by matching cloid', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid);
+            const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([exchangeOrder]);
+
+            expect(result).toBe(1);
+            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+                pendingOrder.id.toString(),
+                'exchange-order-1',
+                OrderStatus.Placed,
+                expect.any(Date),
+            );
+        });
+
+        it('should restore multiple orders with different cloids', async () => {
+            const gridId1 = GridId.from('550e8400-e29b-41d4-a716-446655440000');
+            const gridId2 = GridId.from('550e8400-e29b-41d4-a716-446655440001');
+            const cloid1 = ExchangeCloid.create(gridId1);
+            const cloid2 = ExchangeCloid.create(gridId2);
+
+            const pendingOrder1 = createPendingOrder(cloid1);
+            const pendingOrder2 = createPendingOrder(cloid2);
+            const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
+            const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid2);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder1, pendingOrder2]);
+
+            const result = await service.restoreOrders([exchangeOrder1, exchangeOrder2]);
+
+            expect(result).toBe(2);
+            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not restore order without cloid', async () => {
+            const pendingOrder = createPendingOrder(undefined);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+        });
+
+        it('should not restore when no matching exchange order found', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid);
+            const differentCloid = ExchangeCloid.create(
+                GridId.from('550e8400-e29b-41d4-a716-446655440001'),
+            );
+            const exchangeOrder = createExchangeOrder('exchange-order-1', differentCloid);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([exchangeOrder]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+        });
+
+        it('should skip restoration when multiple exchange orders have same cloid', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid);
+            const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid);
+            const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([exchangeOrder1, exchangeOrder2]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+        });
+
+        it('should mark stale pending order as missing when not found on exchange', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
+            const stalePendingOrder = createPendingOrder(cloid, staleTimestamp);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([stalePendingOrder]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+                stalePendingOrder.id.toString(),
+                OrderStatus.Missing,
+            );
+        });
+
+        it('should not mark fresh pending order as missing', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const freshTimestamp = Timestamp.from(new Date(Date.now() - 1000)); // 1 second ago
+            const freshPendingOrder = createPendingOrder(cloid, freshTimestamp);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([freshPendingOrder]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+        });
+
+        it('should not mark pending order without placedAt as missing', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid, undefined);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+        });
+
+        it('should restore some orders and mark others as missing', async () => {
+            const gridId1 = GridId.from('550e8400-e29b-41d4-a716-446655440000');
+            const gridId2 = GridId.from('550e8400-e29b-41d4-a716-446655440001');
+            const cloid1 = ExchangeCloid.create(gridId1);
+            const cloid2 = ExchangeCloid.create(gridId2);
+
+            const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
+
+            const pendingOrder1 = createPendingOrder(cloid1); // Will be restored
+            const pendingOrder2 = createPendingOrder(cloid2, staleTimestamp); // Will be marked missing
+
+            const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder1, pendingOrder2]);
+
+            const result = await service.restoreOrders([exchangeOrder1]);
+
+            expect(result).toBe(1);
+            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+                pendingOrder1.id.toString(),
+                'exchange-order-1',
+                OrderStatus.Placed,
+                expect.any(Date),
+            );
+            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+                pendingOrder2.id.toString(),
+                OrderStatus.Missing,
+            );
+        });
+
+        it('should handle exchange orders without cloid', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid);
+            const exchangeOrderWithoutCloid = createExchangeOrder('exchange-order-1', undefined);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([exchangeOrderWithoutCloid]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+        });
+
+        it('should match cloid by string comparison', async () => {
+            const cloid = ExchangeCloid.create(gridId);
+            const pendingOrder = createPendingOrder(cloid);
+            const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
+
+            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([exchangeOrder]);
+
+            expect(result).toBe(1);
+            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+                pendingOrder.id.toString(),
+                'exchange-order-1',
+                OrderStatus.Placed,
+                expect.any(Date),
+            );
+        });
+    });
+});

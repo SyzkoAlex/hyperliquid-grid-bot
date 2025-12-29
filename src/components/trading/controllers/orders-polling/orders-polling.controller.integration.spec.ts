@@ -1,0 +1,363 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Test, TestingModule } from '@nestjs/testing';
+import { ScheduleModule } from '@nestjs/schedule';
+import { DatabaseModule, DRIZZLE_DB } from '@infra/database/database.module';
+import { EventBusModule } from '@infra/events/event-bus.module';
+import { HttpModule } from '@infra/http/http.module';
+import { TradingModule } from '../../trading.module';
+import { OrdersPollingController } from './orders-polling.controller';
+import { HyperliquidOrderClient } from '../../secondary/client/hyperliquid/hyperliquid-order.client';
+import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
+import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
+import { PostgresOrderRepository } from '../../secondary/repository/order/postgres-order.repository';
+import { Grid } from '../../core/domain/grid/grid';
+import { Symbol as TradingSymbol } from '../../core/domain/common/symbol';
+import { Price } from '../../core/domain/common/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { GridMode } from '../../core/domain/grid/grid-mode';
+import { Order } from '../../core/domain/order/order';
+import { OrderType } from '../../core/domain/order/order-type';
+import { OrderSide } from '../../core/domain/order/order-side';
+import { OrderStatus } from '../../core/domain/order/order-status';
+import { OrderId } from '../../core/domain/order/order-id';
+import { ExchangeOrderStatus } from '../../core/domain/exchange-order/exchange-order-status';
+import { DatabaseTestHelper } from '@infra/database/database-test-helper';
+import { CacheTestHelper } from '@infra/cache/cache-test-helper';
+import type { DrizzleDb } from '@infra/database/drizzle-db';
+import { AppConfigModule } from '@infra/config/app-config.module';
+
+/**
+ * Integration Tests for OrdersPollingController
+ *
+ * Real integration test that:
+ * - Uses NestJS Test.createTestingModule() to initialize TradingModule
+ * - Uses DatabaseTestHelper for PostgreSQL (real testcontainer)
+ * - Uses CacheTestHelper for Redis (real testcontainer)
+ * - Mocks only Hyperliquid HTTP API calls
+ * - Tests real end-to-end order synchronization flow
+ *
+ * Prerequisites:
+ * - Docker must be running for testcontainers
+ *
+ * Run with: pnpm test:integration orders-monitor
+ */
+describe('OrdersPollingController (Integration)', () => {
+    let module: TestingModule;
+    let monitor: OrdersPollingController;
+    let gridRepository: PostgresGridRepository;
+    let orderRepository: PostgresOrderRepository;
+    let hyperliquidOrderClient: HyperliquidOrderClient;
+    let db: DrizzleDb;
+
+    beforeAll(async () => {
+        await initializeTestModule();
+    });
+
+    afterEach(async () => {
+        // Clean up test data after each test
+        await DatabaseTestHelper.cleanup();
+        await CacheTestHelper.cleanup();
+        vi.clearAllMocks();
+    });
+
+    afterAll(async () => {
+        // Stop monitor
+        if (monitor) {
+            monitor.onModuleDestroy();
+        }
+
+        // Close module
+        if (module) {
+            await module.close();
+        }
+
+        // Close testcontainers
+        await DatabaseTestHelper.close();
+        await CacheTestHelper.close();
+    });
+
+    describe('Order Synchronization Flow', () => {
+        it('should detect filled orders and refill them', async () => {
+            // Create a test grid
+            const grid = Grid.create({
+                symbol: TradingSymbol.create('BTC'),
+                mode: GridMode.Neutral,
+                lowerPrice: Price.from(45000),
+                upperPrice: Price.from(55000),
+                levels: 10,
+                investmentUSDC: Decimal.from(5000),
+                investmentBase: Decimal.from(0.1),
+                trailingEnabled: false,
+                trailingTriggerPercent: 5,
+                trailingStepPercent: 2,
+                trailingPartialClosePercent: 50,
+            });
+
+            grid.start();
+            await gridRepository.save(grid);
+
+            // Create a placed order
+            const order = Order.create({
+                id: OrderId.create(),
+                exchangeOrderId: '12345',
+                symbol: TradingSymbol.create('BTC'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(50000),
+                amount: Decimal.from(0.01),
+                status: OrderStatus.Placed,
+                gridId: grid.id.toString(),
+                levelIndex: 5,
+            });
+
+            await orderRepository.save(order);
+
+            // Mock Hyperliquid responses
+            // 1. getOpenSpotOrders - order is not in open orders (it was filled)
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([]);
+
+            // 2. getOrderStatus - order was filled
+            vi.mocked(hyperliquidOrderClient.getOrderStatus).mockResolvedValue({
+                exchangeOrderId: '12345',
+                status: ExchangeOrderStatus.FILLED,
+                statusTimestamp: Date.now(),
+            });
+
+            // 3. placeSpotOrder - mock successful refill order placement
+            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockResolvedValue({
+                exchangeOrderId: '67890',
+                status: OrderStatus.Placed,
+            });
+
+            // Execute order sync manually (instead of waiting for interval)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (monitor as any).checkOrders();
+
+            // Verify order was marked as filled
+            const updatedOrder = await orderRepository.findOneByExchangeOrderId('12345');
+            expect(updatedOrder?.status).toBe(OrderStatus.Filled);
+            expect(updatedOrder?.filledAt).toBeDefined();
+
+            // Verify refill order was created
+            const allOrders = await orderRepository.findManyActive(grid.id);
+            const newOrders = allOrders.filter((o) => o.id.toString() !== order.id.toString());
+            expect(newOrders.length).toBeGreaterThan(0);
+        });
+
+        it('should handle cancelled orders', async () => {
+            // Create a test grid
+            const grid = Grid.create({
+                symbol: TradingSymbol.create('ETH'),
+                mode: GridMode.Neutral,
+                lowerPrice: Price.from(2500),
+                upperPrice: Price.from(3500),
+                levels: 10,
+                investmentUSDC: Decimal.from(3000),
+                investmentBase: Decimal.from(1),
+                trailingEnabled: false,
+                trailingTriggerPercent: 5,
+                trailingStepPercent: 2,
+                trailingPartialClosePercent: 50,
+            });
+
+            grid.start();
+            await gridRepository.save(grid);
+
+            // Create a placed order
+            const order = Order.create({
+                id: OrderId.create(),
+                exchangeOrderId: '99999',
+                symbol: TradingSymbol.create('ETH'),
+                type: OrderType.Limit,
+                side: OrderSide.Sell,
+                price: Price.from(3000),
+                amount: Decimal.from(0.1),
+                status: OrderStatus.Placed,
+                gridId: grid.id.toString(),
+                levelIndex: 5,
+            });
+
+            await orderRepository.save(order);
+
+            // Mock Hyperliquid responses
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([]);
+
+            vi.mocked(hyperliquidOrderClient.getOrderStatus).mockResolvedValue({
+                exchangeOrderId: '99999',
+                status: ExchangeOrderStatus.CANCELED,
+                statusTimestamp: Date.now(),
+            });
+
+            // Execute order sync
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (monitor as any).checkOrders();
+
+            // Verify order was marked as cancelled
+            const updatedOrder = await orderRepository.findOneByExchangeOrderId('99999');
+            expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
+        });
+
+        it('should handle orders still open on exchange', async () => {
+            // Create a test grid
+            const grid = Grid.create({
+                symbol: TradingSymbol.create('SOL'),
+                mode: GridMode.Neutral,
+                lowerPrice: Price.from(100),
+                upperPrice: Price.from(150),
+                levels: 5,
+                investmentUSDC: Decimal.from(1000),
+                investmentBase: Decimal.from(10),
+                trailingEnabled: false,
+                trailingTriggerPercent: 5,
+                trailingStepPercent: 2,
+                trailingPartialClosePercent: 50,
+            });
+
+            grid.start();
+            await gridRepository.save(grid);
+
+            // Create a placed order
+            const order = Order.create({
+                id: OrderId.create(),
+                exchangeOrderId: '11111',
+                symbol: TradingSymbol.create('SOL'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(120),
+                amount: Decimal.from(1),
+                status: OrderStatus.Placed,
+                gridId: grid.id.toString(),
+                levelIndex: 2,
+            });
+
+            await orderRepository.save(order);
+
+            // Mock order still exists on exchange
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([
+                {
+                    id: '11111',
+                    symbol: TradingSymbol.create('SOL'),
+                    type: OrderType.Limit,
+                    side: OrderSide.Buy,
+                    price: Price.from(120),
+                    amount: Decimal.from(1),
+                    filledAmount: Decimal.zero(),
+                    status: ExchangeOrderStatus.OPEN,
+                    reduceOnly: false,
+                    placedAt: Date.now(),
+                },
+            ]);
+
+            // Execute order sync
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (monitor as any).checkOrders();
+
+            // Verify order status unchanged
+            const updatedOrder = await orderRepository.findOneByExchangeOrderId('11111');
+            expect(updatedOrder?.status).toBe(OrderStatus.Placed);
+        });
+    });
+
+    describe('Error Handling', () => {
+        it('should handle Hyperliquid API errors gracefully', async () => {
+            // Create a test grid
+            const grid = Grid.create({
+                symbol: TradingSymbol.create('AVAX'),
+                mode: GridMode.Neutral,
+                lowerPrice: Price.from(30),
+                upperPrice: Price.from(40),
+                levels: 5,
+                investmentUSDC: Decimal.from(500),
+                investmentBase: Decimal.from(10),
+                trailingEnabled: false,
+                trailingTriggerPercent: 5,
+                trailingStepPercent: 2,
+                trailingPartialClosePercent: 50,
+            });
+
+            grid.start();
+            await gridRepository.save(grid);
+
+            // Mock API failure
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockRejectedValue(
+                new Error('Network timeout'),
+            );
+
+            // Should not throw
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await expect((monitor as any).checkOrders()).resolves.toBeUndefined();
+        });
+    });
+
+    describe('Concurrent Execution Prevention', () => {
+        it('should prevent concurrent sync execution', async () => {
+            // Set processing flag
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (monitor as any).isProcessing = true;
+
+            const spy = vi.spyOn(hyperliquidOrderClient, 'getOpenSpotOrders');
+
+            // Try to execute sync - should be skipped
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (monitor as any).checkOrders();
+
+            // Verify no API calls were made
+            expect(spy).not.toHaveBeenCalled();
+
+            // Reset flag
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (monitor as any).isProcessing = false;
+        });
+    });
+
+    async function initializeTestModule() {
+        // Initialize testcontainers
+        db = await DatabaseTestHelper.initialize();
+        await CacheTestHelper.initialize();
+
+        // Create mocked Hyperliquid client
+        const mockHyperliquidOrderClient = {
+            getOpenSpotOrders: vi.fn(),
+            getOrderStatus: vi.fn(),
+            getUserState: vi.fn(),
+            placeSpotOrder: vi.fn(),
+            cancelSpotOrder: vi.fn(),
+        };
+
+        // Mock websocket client (not needed for this test)
+        const mockHyperliquidUserEventsClient = {
+            onModuleInit: vi.fn(),
+            onModuleDestroy: vi.fn(),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+        };
+
+        // Create NestJS testing module with TradingModule
+        const moduleBuilder = Test.createTestingModule({
+            imports: [
+                ScheduleModule.forRoot(),
+                AppConfigModule.forRoot(),
+                DatabaseModule,
+                HttpModule,
+                EventBusModule,
+                TradingModule,
+            ],
+        });
+
+        // Override providers
+        moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
+        moduleBuilder.overrideProvider(HyperliquidOrderClient).useValue(mockHyperliquidOrderClient);
+        moduleBuilder
+            .overrideProvider(HyperliquidUserEventsClient)
+            .useValue(mockHyperliquidUserEventsClient);
+
+        // Compile module
+        module = await moduleBuilder.compile();
+
+        // Get instances from module
+        monitor = module.get<OrdersPollingController>(OrdersPollingController);
+        gridRepository = module.get<PostgresGridRepository>(PostgresGridRepository);
+        orderRepository = module.get<PostgresOrderRepository>(PostgresOrderRepository);
+        hyperliquidOrderClient = module.get<HyperliquidOrderClient>(HyperliquidOrderClient);
+    }
+});

@@ -1,0 +1,19 @@
+import { GridCreatedSuccessEvent } from '../../../../../../domain/events/grid-created-success.event';
+import { CreateAndStartGridResult } from '../../../../core/use-cases/create-and-start-grid/create-and-start-grid-result';
+
+export class GridCreatedSuccessEventMapper {
+    static fromResult(chatId: number, result: CreateAndStartGridResult): GridCreatedSuccessEvent {
+        return new GridCreatedSuccessEvent(
+            chatId,
+            result.grid.id.toString(),
+            result.grid.symbol.toString(),
+            result.grid.mode,
+            result.grid.lowerPrice.toNumber(),
+            result.grid.upperPrice.toNumber(),
+            result.grid.levels,
+            result.investmentUSDC.toNumber(),
+            result.investmentBase.toNumber(),
+            result.grid.trailingEnabled,
+        );
+    }
+}

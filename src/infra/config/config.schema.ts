@@ -1,0 +1,38 @@
+import { z } from 'zod';
+
+// Individual schemas
+export { appSchema, type AppConfig } from './schemas/app.schema';
+export { databaseSchema, type DatabaseConfig } from './schemas/database.schema';
+export { redisSchema, type RedisConfig } from './schemas/redis.schema';
+export { hyperliquidSchema, type HyperliquidConfig } from './schemas/hyperliquid.schema';
+export { telegramSchema, type TelegramConfig } from './schemas/telegram.schema';
+export { gridSchema, type GridConfig } from './schemas/grid.schema';
+export { ordersSchema, type OrdersConfig } from './schemas/orders.schema';
+export { loggingSchema, type LoggingConfig } from './schemas/logging.schema';
+export { metricsSchema, type MetricsConfig } from './schemas/metrics.schema';
+
+// Import for combined schema
+import { appSchema } from './schemas/app.schema';
+import { databaseSchema } from './schemas/database.schema';
+import { redisSchema } from './schemas/redis.schema';
+import { hyperliquidSchema } from './schemas/hyperliquid.schema';
+import { telegramSchema } from './schemas/telegram.schema';
+import { gridSchema } from './schemas/grid.schema';
+import { ordersSchema } from './schemas/orders.schema';
+import { loggingSchema } from './schemas/logging.schema';
+import { metricsSchema } from './schemas/metrics.schema';
+
+// Combined schema
+export const configSchema = z.object({
+    app: appSchema,
+    database: databaseSchema,
+    redis: redisSchema,
+    hyperliquid: hyperliquidSchema,
+    telegram: telegramSchema,
+    grid: gridSchema,
+    orders: ordersSchema,
+    logging: loggingSchema,
+    metrics: metricsSchema,
+});
+
+export type Config = z.infer<typeof configSchema>;
