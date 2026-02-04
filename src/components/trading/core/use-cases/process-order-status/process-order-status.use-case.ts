@@ -5,7 +5,6 @@ import { PostgresGridRepository } from '../../../secondary/repository/grid/postg
 import { OrderRefillService } from '../../services/order-refill/order-refill.service';
 import { Order } from '../../domain/order/order';
 import { OrderStatus } from '../../domain/order/order-status';
-import { GridId } from '../../domain/grid/grid-id';
 import { GridStatus } from '../../domain/grid/grid-status';
 import { HyperliquidWsOrderStatus } from '../../../secondary/client/hyperliquid/types/hyperliquid-ws-user-event';
 
@@ -145,7 +144,7 @@ export class ProcessOrderStatusUseCase {
         }
 
         // Get the associated grid
-        const grid = await this.gridRepository.findOneById(GridId.from(gridOrder.gridId));
+        const grid = await this.gridRepository.findOneById(gridOrder.gridId);
 
         if (!grid) {
             this.logger.warn({ gridId: gridOrder.gridId }, 'Grid not found for order');

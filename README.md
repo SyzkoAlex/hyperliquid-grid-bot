@@ -13,7 +13,6 @@ Automated SPOT grid trading bot for Hyperliquid with Clean Architecture.
 - **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - How the bot works
 - **[SPOT_GRID_TRADING_ALGORITHM.md](SPOT_GRID_TRADING_ALGORITHM.md)** - Trading strategy explained
-- **[VPS_DEPLOY.md](VPS_DEPLOY.md)** - Deploy to VPS
 - **[AGENTS.md](AGENTS.md)** - Rules for AI agents
 
 ---

@@ -102,7 +102,7 @@ describe('OrdersWebsocketController (Integration)', () => {
                 price: Price.from(3000),
                 amount: Decimal.from(0.1),
                 status: OrderStatus.Placed,
-                gridId: grid.id.toString(),
+                gridId: grid.id,
                 levelIndex: 6,
             });
 
@@ -163,7 +163,7 @@ describe('OrdersWebsocketController (Integration)', () => {
                 price: Price.from(120),
                 amount: Decimal.from(1),
                 status: OrderStatus.Placed,
-                gridId: grid.id.toString(),
+                gridId: grid.id,
                 levelIndex: 4,
             });
 

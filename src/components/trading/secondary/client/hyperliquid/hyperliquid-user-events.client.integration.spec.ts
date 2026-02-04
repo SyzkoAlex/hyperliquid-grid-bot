@@ -16,7 +16,7 @@ import { Symbol as TradingSymbol } from '../../../core/domain/common/symbol';
 import { Price } from '../../../core/domain/common/price';
 import { Decimal } from '@domain/primitives/decimal';
 import { OrderSide } from '../../../core/domain/order/order-side';
-import { GridId } from '../../../core/domain/grid/grid-id';
+import { OrderId } from '../../../core/domain/order/order-id';
 import type { ExchangePlaceOrderParams } from '../../../core/domain/exchange-order/exchange-place-order-params';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
@@ -138,7 +138,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
                 side: OrderSide.Sell,
                 price: Price.from(testPrice),
                 amount: Decimal.from(10),
-                gridId: GridId.create(),
+                orderId: OrderId.create(),
             };
 
             console.log(

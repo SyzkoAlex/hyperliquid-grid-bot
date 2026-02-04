@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { HyperliquidOrderClient } from '../../../secondary/client/hyperliquid/hyperliquid-order.client';
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
 import { Order } from '../../domain/order/order';
+import { OrderId } from '../../domain/order/order-id';
 import { OrderType } from '../../domain/order/order-type';
 import { OrderStatus } from '../../domain/order/order-status';
-import { ExchangeCloid } from '../../domain/exchange-order/exchange-cloid';
 import { ExchangePlaceOrderResult } from '../../domain/exchange-order/exchange-place-order-result';
 import { EventBus } from '../../../../../infra/events/event-bus.service';
 import { TradeExecutedEvent } from '../../../../../domain/events/trade-executed.event';
@@ -36,7 +36,7 @@ export class OrderRefillService {
             }
 
             const refillOrder = await this.createAndSavePendingOrder(grid, refillParams);
-            const placeResult = await this.placeOrderOnExchange(grid, refillParams);
+            const placeResult = await this.placeOrderOnExchange(refillOrder, grid, refillParams);
 
             if (!this.isPlacementSuccessful(placeResult)) {
                 return await this.handlePlacementFailure(refillOrder, placeResult);
@@ -81,16 +81,17 @@ export class OrderRefillService {
         grid: Grid,
         refillParams: RefillParams,
     ): Promise<Order> {
+        const orderId = OrderId.create();
         const refillOrder = Order.create({
+            id: orderId,
             symbol: grid.symbol,
             type: OrderType.Limit,
             side: refillParams.side,
             price: refillParams.price,
             amount: refillParams.amount,
             status: OrderStatus.Pending,
-            gridId: grid.id.toString(),
+            gridId: grid.id,
             levelIndex: refillParams.levelIndex,
-            cloid: ExchangeCloid.create(grid.id),
         });
 
         await this.orderRepository.save(refillOrder);
@@ -103,13 +104,13 @@ export class OrderRefillService {
         return refillOrder;
     }
 
-    private async placeOrderOnExchange(grid: Grid, refillParams: RefillParams) {
+    private async placeOrderOnExchange(refillOrder: Order, grid: Grid, refillParams: RefillParams) {
         return await this.orderClient.placeSpotOrder({
             symbol: grid.symbol,
             side: refillParams.side,
             price: refillParams.price,
             amount: refillParams.amount,
-            gridId: grid.id,
+            orderId: refillOrder.id,
         });
     }
 

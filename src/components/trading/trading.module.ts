@@ -18,7 +18,6 @@ import { UserBalanceExtractorService } from '@components/trading/core/services/u
 import { OrderStatusSyncService } from '@components/trading/core/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/services/order-refill/order-refill.service';
 import { OrderRestoreService } from '@components/trading/core/services/order-restore/order-restore.service';
-import { GridProcessorService } from '@components/trading/core/services/grid-processor/grid-processor.service';
 import { OrderPlacementService } from '@components/trading/core/services/order-placement/order-placement.service';
 import { ProfitCalculatorService } from '@components/trading/core/services/profit-calculator/profit-calculator.service';
 import { GridCommandsController } from '@components/trading/controllers/grid-commands/grid-commands.controller';
@@ -48,7 +47,6 @@ import { OrdersRestoreController } from '@components/trading/controllers/orders-
         OrderStatusSyncService,
         OrderRefillService,
         OrderRestoreService,
-        GridProcessorService,
         OrderPlacementService,
         ProfitCalculatorService,
 

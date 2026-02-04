@@ -7,6 +7,7 @@ import { Price } from '../common/price';
 import { Decimal } from '@domain/primitives/decimal';
 import { Timestamp } from '@domain/primitives/timestamp';
 import { ExchangeCloid } from '../exchange-order/exchange-cloid';
+import { GridId } from '../grid/grid-id';
 
 export interface OrderParams {
     id?: OrderId;
@@ -21,7 +22,7 @@ export interface OrderParams {
     status: OrderStatus;
 
     // Grid fields (required - only grid orders are stored)
-    gridId: string;
+    gridId: GridId;
     levelIndex: number;
 
     placedAt?: Timestamp;
@@ -46,7 +47,7 @@ export class Order {
     private _status: OrderStatus;
 
     // Grid fields (required)
-    private readonly _gridId: string;
+    private readonly _gridId: GridId;
     private readonly _levelIndex: number;
 
     private _placedAt: Timestamp | null;
@@ -127,6 +128,10 @@ export class Order {
     }
 
     get cloid(): ExchangeCloid | null {
+        // Calculate cloid on-the-fly from order ID for pending orders
+        if (this._status === OrderStatus.Pending && !this._exchangeOrderId) {
+            return ExchangeCloid.create(this._id);
+        }
         return this._cloid;
     }
 
@@ -175,7 +180,7 @@ export class Order {
     }
 
     // Grid getters
-    get gridId(): string {
+    get gridId(): GridId {
         return this._gridId;
     }
 

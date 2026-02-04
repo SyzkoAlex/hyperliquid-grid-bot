@@ -202,7 +202,7 @@ export class HyperliquidOrderMapper {
         const isBuy = params.side === OrderSide.Buy;
         const sz = params.amount.toNumber();
         const limitPx = params.price.toNumber();
-        const cloid = params.gridId ? ExchangeCloid.create(params.gridId).toString() : undefined;
+        const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
 
         return {
             coin,

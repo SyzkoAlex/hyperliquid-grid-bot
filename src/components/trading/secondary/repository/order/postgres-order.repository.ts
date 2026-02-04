@@ -12,9 +12,6 @@ import { PostgresOrderMapper } from './postgres-order.mapper';
 /**
  * Postgres Order Repository
  * Secondary Adapter for Order persistence
- *
- * Follows DDD principles - works only with Order domain entity.
- * All orders (including grid orders) are stored in the unified 'orders' table.
  */
 @Injectable()
 export class PostgresOrderRepository {
@@ -194,6 +191,48 @@ export class PostgresOrderRepository {
             return rows.map((row) => this.mapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, status }, 'Failed to find orders by status');
+            throw error;
+        }
+    }
+
+    /**
+     * Find orders by multiple IDs
+     * Used for bulk order lookups when syncing with exchange
+     */
+    async findManyByIds(orderIds: string[]): Promise<Order[]> {
+        if (orderIds.length === 0) return [];
+
+        try {
+            const rows = await this.db.select().from(orders).where(inArray(orders.id, orderIds));
+
+            return rows.map((row) => this.mapper.toDomain(row));
+        } catch (error) {
+            this.logger.error({ error, orderIds }, 'Failed to find orders by IDs');
+            throw error;
+        }
+    }
+
+    /**
+     * Find all placed orders (Pending or Placed status) for multiple grids
+     * Used in order sync to get all active orders that need status checking
+     */
+    async findManyPlacedByGridIds(gridIds: string[]): Promise<Order[]> {
+        if (gridIds.length === 0) return [];
+
+        try {
+            const rows = await this.db
+                .select()
+                .from(orders)
+                .where(
+                    and(
+                        inArray(orders.gridId, gridIds),
+                        inArray(orders.status, [OrderStatus.Pending, OrderStatus.Placed]),
+                    ),
+                );
+
+            return rows.map((row) => this.mapper.toDomain(row));
+        } catch (error) {
+            this.logger.error({ error, gridIds }, 'Failed to find placed orders by grid IDs');
             throw error;
         }
     }

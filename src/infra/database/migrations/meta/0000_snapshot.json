@@ -1,5 +1,5 @@
 {
-  "id": "30b50336-8031-4882-9feb-6de2fe12bf3b",
+  "id": "425bb082-b5fb-4f29-b5d8-537be9a1be78",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -207,12 +207,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "cloid": {
-          "name": "cloid",
-          "type": "varchar(66)",
-          "primaryKey": false,
-          "notNull": false
         },
         "placed_at": {
           "name": "placed_at",

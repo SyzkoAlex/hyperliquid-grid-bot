@@ -2,7 +2,7 @@ import { Symbol } from '../common/symbol';
 import { Price } from '../common/price';
 import { Decimal } from '@domain/primitives/decimal';
 import { OrderSide } from '../order/order-side';
-import { GridId } from '@components/trading/core/domain/grid/grid-id';
+import { OrderId } from '../order/order-id';
 
 /**
  * Exchange Place Order Parameters
@@ -22,6 +22,6 @@ export interface ExchangePlaceOrderParams {
     /** Order amount */
     amount: Decimal;
 
-    /** Grid ID  - used for tracking grid orders via cloid */
-    gridId: GridId;
+    /** Order ID - used for tracking orders via cloid */
+    orderId: OrderId;
 }

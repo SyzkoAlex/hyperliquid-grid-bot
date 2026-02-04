@@ -3,10 +3,10 @@ import { HyperliquidOrderClient } from '../../../secondary/client/hyperliquid/hy
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
 import { Grid } from '../../domain/grid/grid';
 import { Order } from '../../domain/order/order';
+import { OrderId } from '../../domain/order/order-id';
 import { OrderType } from '../../domain/order/order-type';
 import { OrderStatus } from '../../domain/order/order-status';
 import { ExchangePlaceOrderParams } from '../../domain/exchange-order/exchange-place-order-params';
-import { ExchangeCloid } from '../../domain/exchange-order/exchange-cloid';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
 import { GridLevel } from '../grid-levels-calculator/grid-level';
@@ -39,23 +39,24 @@ export class OrderPlacementService {
 
     private async placeOrderForLevel(grid: Grid, level: GridLevel): Promise<boolean> {
         const order = await this.createAndSavePendingOrder(grid, level);
-        const orderParams = this.buildOrderParams(grid, level);
+        const orderParams = this.buildOrderParams(order, grid, level);
         const result = await this.orderClient.placeSpotOrder(orderParams);
 
         return await this.updateOrderStatus(order, level, result);
     }
 
     private async createAndSavePendingOrder(grid: Grid, level: GridLevel): Promise<Order> {
+        const orderId = OrderId.create();
         const order = Order.create({
+            id: orderId,
             exchangeOrderId: undefined,
-            cloid: ExchangeCloid.create(grid.id),
             symbol: grid.symbol,
             type: OrderType.Limit,
             side: level.side,
             price: level.price,
             amount: Decimal.from(level.amountBase!),
             status: OrderStatus.Pending,
-            gridId: grid.id.toString(),
+            gridId: grid.id,
             levelIndex: level.index,
         });
 
@@ -69,13 +70,13 @@ export class OrderPlacementService {
         return order;
     }
 
-    private buildOrderParams(grid: Grid, level: GridLevel): ExchangePlaceOrderParams {
+    private buildOrderParams(order: Order, grid: Grid, level: GridLevel): ExchangePlaceOrderParams {
         return {
             symbol: grid.symbol,
             side: level.side,
             price: level.price,
             amount: Decimal.from(level.amountBase!),
-            gridId: grid.id,
+            orderId: order.id,
         };
     }
 

@@ -113,9 +113,19 @@
 
 ### Technical Improvements
 
-- [ ] Pass order ID to exchange's cloid instead of grid ID
-  - **Current:** Grid ID is used as cloid
-  - **Should be:** Order ID should be used as cloid for better order tracking and reconciliation
+- [x] Pass order ID to exchange's cloid instead of grid ID
+  - **Status:** ✅ Completed
+  - **Implementation:**
+    - ExchangeCloid now uses OrderId instead of GridId
+    - CLOID is calculated on-the-fly from order ID, not stored in database
+    - Optimized sync-orders use case with bulk queries to avoid N+1 problem
+  - **Files changed:**
+    - `exchange-cloid.ts` - changed to use OrderId with parse/create methods
+    - `sync-orders.use-case.ts` - refactored for bulk order fetching and grouping
+    - `postgres-order.repository.ts` - added findManyByIds method
+    - `postgres-grid.repository.ts` - added findManyActiveByIds method
+    - `orders.schema.ts` - removed cloid column (calculated on-the-fly)
+    - All test files updated to reflect new architecture
 
 ### Trailing (Bull Market Feature)
 

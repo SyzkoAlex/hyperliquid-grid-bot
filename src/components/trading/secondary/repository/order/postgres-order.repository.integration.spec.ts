@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PostgresOrderRepository } from './postgres-order.repository';
 import { PostgresOrderMapper } from './postgres-order.mapper';
 import { Order } from '../../../core/domain/order/order';
@@ -9,11 +9,12 @@ import { OrderType } from '../../../core/domain/order/order-type';
 import { Symbol } from '../../../core/domain/common/symbol';
 import { Price } from '../../../core/domain/common/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { GridId } from '../../../core/domain/grid/grid-id';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { orders } from '../../../../../infra/database/schema';
 import { eq } from 'drizzle-orm';
-import { ExchangeCloid } from '../../../core/domain/exchange-order/exchange-cloid';
+import { Grid } from '../../../core/domain/grid/grid';
+import { GridMode } from '../../../core/domain/grid/grid-mode';
+import { PostgresGridRepository } from '../grid/postgres-grid.repository';
 
 /**
  * Integration Tests for PostgresOrderRepository with Testcontainers
@@ -25,19 +26,41 @@ import { ExchangeCloid } from '../../../core/domain/exchange-order/exchange-cloi
  */
 describe('PostgresOrderRepository (Integration)', () => {
     let repository: PostgresOrderRepository;
+    let gridRepository: PostgresGridRepository;
     let mapper: PostgresOrderMapper;
+    let testGrid: Grid;
     const createdOrderIds: string[] = [];
 
     beforeAll(async () => {
         // Initialize testcontainer
         const db = await DatabaseTestHelper.initialize();
 
-        // Create mapper and repository
+        // Create mapper and repositories
         mapper = new PostgresOrderMapper();
         repository = new PostgresOrderRepository(db, mapper);
+        gridRepository = new PostgresGridRepository(db);
 
         console.log('🧪 PostgresOrderRepository test setup complete');
         console.log('🔗 Database connection:', DatabaseTestHelper.getConnectionUri());
+    });
+
+    beforeEach(async () => {
+        // Create a test grid that will be used for orders in each test
+        testGrid = Grid.create({
+            symbol: Symbol.create('BTC'),
+            mode: GridMode.Neutral,
+            lowerPrice: Price.from(45000),
+            upperPrice: Price.from(55000),
+            levels: 11,
+            investmentUSDC: Decimal.from(5000),
+            investmentBase: Decimal.from(0.1),
+            trailingEnabled: false,
+            trailingTriggerPercent: 5,
+            trailingStepPercent: 10,
+            trailingPartialClosePercent: 50,
+        });
+        testGrid.start();
+        await gridRepository.save(testGrid);
     });
 
     afterEach(async () => {
@@ -59,18 +82,18 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('save', () => {
         it('should save a new order to database', async () => {
-            const gridId = GridId.create();
+            const orderId = OrderId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: 'exchange-123',
-                cloid: ExchangeCloid.create(gridId),
                 symbol: Symbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -93,25 +116,25 @@ describe('PostgresOrderRepository (Integration)', () => {
             expect(savedOrder.price!.toNumber()).toBe(50000);
             expect(savedOrder.amount.toNumber()).toBe(0.01);
             expect(savedOrder.status).toBe(OrderStatus.Placed);
-            expect(savedOrder.gridId).toBe(gridId.toString());
+            expect(savedOrder.gridId.equals(gridId)).toBe(true);
             expect(savedOrder.levelIndex).toBe(5);
 
             console.log('✅ Order saved:', order.id.toString());
         });
 
         it('should save order with pending status', async () => {
-            const gridId = GridId.create();
+            const orderId = OrderId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid: ExchangeCloid.create(gridId),
                 symbol: Symbol.create('ETH'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(3000),
                 amount: Decimal.from(0.5),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 3,
             });
 
@@ -124,7 +147,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
             expect(savedOrder).toBeDefined();
             expect(savedOrder!.status).toBe(OrderStatus.Pending);
-            expect(savedOrder!.exchangeOrderId).toBeUndefined();
+            expect(savedOrder!.exchangeOrderId).toBeFalsy();
 
             console.log('✅ Pending order saved');
         });
@@ -132,7 +155,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('findManyActive', () => {
         it('should find active orders for a grid', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
 
             // Create pending order
             const pendingOrder = Order.create({
@@ -143,7 +166,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(49000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 4,
             });
 
@@ -157,7 +180,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(51000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 6,
             });
 
@@ -171,7 +194,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Filled,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -190,13 +213,13 @@ describe('PostgresOrderRepository (Integration)', () => {
             expect(activeOrders.length).toBe(2);
             expect(activeOrders.some((o) => o.status === OrderStatus.Pending)).toBe(true);
             expect(activeOrders.some((o) => o.status === OrderStatus.Placed)).toBe(true);
-            expect(activeOrders.every((o) => o.gridId === gridId.toString())).toBe(true);
+            expect(activeOrders.every((o) => o.gridId.equals(gridId))).toBe(true);
 
             console.log('✅ Active orders found:', activeOrders.length);
         });
 
         it('should return empty array when no active orders', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const activeOrders = await repository.findManyActive(gridId);
 
             expect(activeOrders).toBeInstanceOf(Array);
@@ -208,7 +231,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('findOneByExchangeOrderId', () => {
         it('should find order by exchange order id', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'unique-exchange-id',
@@ -218,7 +241,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -245,7 +268,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('updateStatus', () => {
         it('should update order status to filled', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-to-fill',
@@ -255,7 +278,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -273,7 +296,7 @@ describe('PostgresOrderRepository (Integration)', () => {
         });
 
         it('should update order status to cancelled', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-to-cancel',
@@ -283,7 +306,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -302,18 +325,18 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('updateExchangeOrderId', () => {
         it('should update exchange order id after placement', async () => {
-            const gridId = GridId.create();
+            const orderId = OrderId.create();
+            const gridId = testGrid.id;
             const order = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid: ExchangeCloid.create(gridId),
                 symbol: Symbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -341,7 +364,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('findManyPendingByGridId', () => {
         it('should find pending orders for a grid', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
 
             const pendingOrder = Order.create({
                 id: OrderId.create(),
@@ -351,7 +374,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -362,7 +385,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
             expect(pendingOrders.length).toBeGreaterThan(0);
             expect(pendingOrders.every((o) => o.status === OrderStatus.Pending)).toBe(true);
-            expect(pendingOrders.every((o) => o.gridId === gridId.toString())).toBe(true);
+            expect(pendingOrders.every((o) => o.gridId.equals(gridId))).toBe(true);
 
             console.log('✅ Pending orders found for grid');
         });
@@ -370,7 +393,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('findManyStalePending', () => {
         it('should find stale pending orders older than threshold', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const staleOrder = Order.create({
                 id: OrderId.create(),
                 symbol: Symbol.create('BTC'),
@@ -379,7 +402,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -401,7 +424,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('findManyByStatus', () => {
         it('should find all orders with specific status', async () => {
-            const gridId = GridId.create();
+            const gridId = testGrid.id;
             const filledOrder = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-filled-1',
@@ -411,7 +434,7 @@ describe('PostgresOrderRepository (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Filled,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -431,20 +454,19 @@ describe('PostgresOrderRepository (Integration)', () => {
 
     describe('domain mapping', () => {
         it('should correctly map domain object to database and back', async () => {
-            const gridId = GridId.create();
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
+            const gridId = testGrid.id;
 
             const originalOrder = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: 'exchange-mapping-test',
-                cloid,
                 symbol: Symbol.create('SOL'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(125.5),
                 amount: Decimal.from(10),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 7,
             });
 
@@ -461,7 +483,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
             expect(retrievedOrder.id.toString()).toBe(originalOrder.id.toString());
             expect(retrievedOrder.exchangeOrderId).toBe(originalOrder.exchangeOrderId);
-            expect(retrievedOrder.cloid?.toString()).toBe(cloid.toString());
+            // cloid is not stored separately, it can be derived from orderId
             expect(retrievedOrder.symbol.toString()).toBe(originalOrder.symbol.toString());
             expect(retrievedOrder.type).toBe(originalOrder.type);
             expect(retrievedOrder.side).toBe(originalOrder.side);
@@ -473,7 +495,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             expect(retrievedOrder.price.toNumber()).toBe(originalOrder.price.toNumber());
             expect(retrievedOrder.amount.toNumber()).toBe(originalOrder.amount.toNumber());
             expect(retrievedOrder.status).toBe(originalOrder.status);
-            expect(retrievedOrder.gridId).toBe(originalOrder.gridId);
+            expect(retrievedOrder.gridId.equals(originalOrder.gridId)).toBe(true);
             expect(retrievedOrder.levelIndex).toBe(originalOrder.levelIndex);
 
             console.log('✅ Domain mapping verified');

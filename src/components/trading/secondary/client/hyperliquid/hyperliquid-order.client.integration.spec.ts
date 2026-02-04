@@ -9,7 +9,7 @@ import { Decimal } from '@domain/primitives/decimal';
 import { OrderSide } from '../../../core/domain/order/order-side';
 import { OrderStatus } from '../../../core/domain/order/order-status';
 import { ExchangePlaceOrderParams } from '../../../core/domain/exchange-order/exchange-place-order-params';
-import { GridId } from '../../../core/domain/grid/grid-id';
+import { OrderId } from '../../../core/domain/order/order-id';
 import { HyperliquidOrderClient } from './hyperliquid-order.client';
 import { HyperliquidSdkService } from './hyperliquid-sdk.service';
 import { HyperliquidOrderMapper } from './hyperliquid-order.mapper';
@@ -157,7 +157,7 @@ describe('HyperliquidOrderClient (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(testAmount),
-                gridId: GridId.create(),
+                orderId: OrderId.create(),
             };
 
             const placeResult = await client.placeSpotOrder(orderParams);
@@ -226,7 +226,7 @@ describe('HyperliquidOrderClient (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(1), // 1 HYPE ≈ $25
-                gridId: GridId.create(),
+                orderId: OrderId.create(),
             };
 
             const result = await client.placeSpotOrder(orderParams);
@@ -263,7 +263,7 @@ describe('HyperliquidOrderClient (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(1),
-                gridId: GridId.create(),
+                orderId: OrderId.create(),
             };
 
             const placeResult = await client.placeSpotOrder(orderParams);

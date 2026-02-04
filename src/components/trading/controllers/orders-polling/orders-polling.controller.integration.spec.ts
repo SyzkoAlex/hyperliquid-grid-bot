@@ -21,6 +21,7 @@ import { OrderSide } from '../../core/domain/order/order-side';
 import { OrderStatus } from '../../core/domain/order/order-status';
 import { OrderId } from '../../core/domain/order/order-id';
 import { ExchangeOrderStatus } from '../../core/domain/exchange-order/exchange-order-status';
+import { ExchangeCloid } from '../../core/domain/exchange-order/exchange-cloid';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
 import type { DrizzleDb } from '@infra/database/drizzle-db';
@@ -106,7 +107,7 @@ describe('OrdersPollingController (Integration)', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: grid.id.toString(),
+                gridId: grid.id,
                 levelIndex: 5,
             });
 
@@ -173,7 +174,7 @@ describe('OrdersPollingController (Integration)', () => {
                 price: Price.from(3000),
                 amount: Decimal.from(0.1),
                 status: OrderStatus.Placed,
-                gridId: grid.id.toString(),
+                gridId: grid.id,
                 levelIndex: 5,
             });
 
@@ -217,8 +218,9 @@ describe('OrdersPollingController (Integration)', () => {
             await gridRepository.save(grid);
 
             // Create a placed order
+            const orderId = OrderId.create();
             const order = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: '11111',
                 symbol: TradingSymbol.create('SOL'),
                 type: OrderType.Limit,
@@ -226,7 +228,7 @@ describe('OrdersPollingController (Integration)', () => {
                 price: Price.from(120),
                 amount: Decimal.from(1),
                 status: OrderStatus.Placed,
-                gridId: grid.id.toString(),
+                gridId: grid.id,
                 levelIndex: 2,
             });
 
@@ -236,6 +238,7 @@ describe('OrdersPollingController (Integration)', () => {
             vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([
                 {
                     id: '11111',
+                    cloid: ExchangeCloid.create(orderId),
                     symbol: TradingSymbol.create('SOL'),
                     type: OrderType.Limit,
                     side: OrderSide.Buy,

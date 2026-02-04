@@ -6,6 +6,7 @@ import { OrderType } from '../../domain/order/order-type';
 import { OrderSide } from '../../domain/order/order-side';
 import { OrderStatus } from '../../domain/order/order-status';
 import { Grid } from '../../domain/grid/grid';
+import { GridId } from '../../domain/grid/grid-id';
 import { GridMode } from '../../domain/grid/grid-mode';
 import { Symbol } from '../../domain/common/symbol';
 import { Price } from '../../domain/common/price';
@@ -43,7 +44,7 @@ describe('OrderRefillService', () => {
     const createTestBuyOrder = (): Order =>
         Order.create({
             id: OrderId.create(),
-            gridId: 'grid-456',
+            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             exchangeOrderId: 'exchange-789',
             symbol: Symbol.create('BTC'),
             type: OrderType.Limit,
@@ -57,7 +58,7 @@ describe('OrderRefillService', () => {
     const createTestSellOrder = (): Order =>
         Order.create({
             id: OrderId.create(),
-            gridId: 'grid-456',
+            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             exchangeOrderId: 'exchange-012',
             symbol: Symbol.create('BTC'),
             type: OrderType.Limit,
@@ -188,7 +189,7 @@ describe('OrderRefillService', () => {
             const grid = createTestGrid();
             const filledBuyOrder = Order.create({
                 id: OrderId.create(),
-                gridId: 'grid-456',
+                gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
                 exchangeOrderId: 'exchange-top',
                 symbol: Symbol.create('BTC'),
                 type: OrderType.Limit,
@@ -213,7 +214,7 @@ describe('OrderRefillService', () => {
             const grid = createTestGrid();
             const filledSellOrder = Order.create({
                 id: OrderId.create(),
-                gridId: 'grid-456',
+                gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
                 exchangeOrderId: 'exchange-bottom',
                 symbol: Symbol.create('BTC'),
                 type: OrderType.Limit,

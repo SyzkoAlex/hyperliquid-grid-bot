@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule, DRIZZLE_DB } from '@infra/database/database.module';
@@ -17,9 +17,11 @@ import { OrderId } from '../../core/domain/order/order-id';
 import { Symbol as TradingSymbol } from '../../core/domain/common/symbol';
 import { Price } from '../../core/domain/common/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { GridId } from '../../core/domain/grid/grid-id';
+import { Grid } from '../../core/domain/grid/grid';
+import { GridMode } from '../../core/domain/grid/grid-mode';
 import { ExchangeOrderStatus } from '../../core/domain/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '../../core/domain/exchange-order/exchange-cloid';
+import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
 import type { DrizzleDb } from '@infra/database/drizzle-db';
@@ -45,11 +47,49 @@ describe('OrdersRestoreController (Integration)', () => {
     let module: TestingModule;
     let controller: OrdersRestoreController;
     let orderRepository: PostgresOrderRepository;
+    let gridRepository: PostgresGridRepository;
     let hyperliquidOrderClient: HyperliquidOrderClient;
     let db: DrizzleDb;
+    let testGrid1: Grid;
+    let testGrid2: Grid;
 
     beforeAll(async () => {
         await initializeTestModule();
+    });
+
+    beforeEach(async () => {
+        // Create test grids that will be used for orders in each test
+        testGrid1 = Grid.create({
+            symbol: TradingSymbol.create('BTC'),
+            mode: GridMode.Neutral,
+            lowerPrice: Price.from(45000),
+            upperPrice: Price.from(55000),
+            levels: 11,
+            investmentUSDC: Decimal.from(5000),
+            investmentBase: Decimal.from(0.1),
+            trailingEnabled: false,
+            trailingTriggerPercent: 5,
+            trailingStepPercent: 10,
+            trailingPartialClosePercent: 50,
+        });
+        testGrid1.start();
+        await gridRepository.save(testGrid1);
+
+        testGrid2 = Grid.create({
+            symbol: TradingSymbol.create('ETH'),
+            mode: GridMode.Neutral,
+            lowerPrice: Price.from(2500),
+            upperPrice: Price.from(3500),
+            levels: 11,
+            investmentUSDC: Decimal.from(3000),
+            investmentBase: Decimal.from(1),
+            trailingEnabled: false,
+            trailingTriggerPercent: 5,
+            trailingStepPercent: 10,
+            trailingPartialClosePercent: 50,
+        });
+        testGrid2.start();
+        await gridRepository.save(testGrid2);
     });
 
     afterEach(async () => {
@@ -77,21 +117,21 @@ describe('OrdersRestoreController (Integration)', () => {
 
     describe('Order Restoration Flow', () => {
         it('should restore pending order by matching cloid', async () => {
-            const gridId = GridId.create();
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
+            const gridId = testGrid1.id;
+            const cloid = ExchangeCloid.create(orderId);
 
             // Create pending order with cloid
             const pendingOrder = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid,
                 symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -128,41 +168,42 @@ describe('OrdersRestoreController (Integration)', () => {
             expect(restoredOrder.id.toString()).toBe(pendingOrder.id.toString());
             expect(restoredOrder.exchangeOrderId).toBe('exchange-order-123');
             expect(restoredOrder.status).toBe(OrderStatus.Placed);
-            expect(restoredOrder.cloid?.toString()).toBe(cloid.toString());
+            // Note: cloid is not persisted in DB, it's only derivable for pending orders
+            // After restoration, order status changes to Placed so cloid getter returns null
         });
 
         it('should restore multiple pending orders with different cloids', async () => {
-            const gridId1 = GridId.create();
-            const gridId2 = GridId.create();
-            const cloid1 = ExchangeCloid.create(gridId1);
-            const cloid2 = ExchangeCloid.create(gridId2);
+            const orderId1 = OrderId.create();
+            const orderId2 = OrderId.create();
+            const gridId1 = testGrid1.id;
+            const gridId2 = testGrid2.id;
+            const cloid1 = ExchangeCloid.create(orderId1);
+            const cloid2 = ExchangeCloid.create(orderId2);
 
             // Create two pending orders
             const pendingOrder1 = Order.create({
-                id: OrderId.create(),
+                id: orderId1,
                 exchangeOrderId: undefined,
-                cloid: cloid1,
                 symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(49000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId1.toString(),
+                gridId: gridId1,
                 levelIndex: 4,
             });
 
             const pendingOrder2 = Order.create({
-                id: OrderId.create(),
+                id: orderId2,
                 exchangeOrderId: undefined,
-                cloid: cloid2,
                 symbol: TradingSymbol.create('ETH'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(3000),
                 amount: Decimal.from(0.1),
                 status: OrderStatus.Pending,
-                gridId: gridId2.toString(),
+                gridId: gridId2,
                 levelIndex: 6,
             });
 
@@ -216,22 +257,21 @@ describe('OrdersRestoreController (Integration)', () => {
         });
 
         it('should mark stale pending orders as missing', async () => {
-            const gridId = GridId.create();
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
+            const gridId = testGrid1.id;
 
-            // Create stale pending order (older than threshold)
-            const staleTimestamp = Timestamp.from(new Date(Date.now() - 120000)); // 2 minutes ago
+            // Create stale pending order (older than threshold of 5 minutes)
+            const staleTimestamp = Timestamp.from(new Date(Date.now() - 400000)); // 6.67 minutes ago
             const stalePendingOrder = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid,
                 symbol: TradingSymbol.create('SOL'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(120),
                 amount: Decimal.from(1),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 3,
                 placedAt: staleTimestamp,
             });
@@ -258,22 +298,21 @@ describe('OrdersRestoreController (Integration)', () => {
         });
 
         it('should not mark fresh pending order as missing', async () => {
-            const gridId = GridId.create();
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
+            const gridId = testGrid1.id;
 
             // Create fresh pending order
             const freshTimestamp = Timestamp.from(new Date(Date.now() - 5000)); // 5 seconds ago
             const freshPendingOrder = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid,
                 symbol: TradingSymbol.create('AVAX'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(35),
                 amount: Decimal.from(1),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 2,
                 placedAt: freshTimestamp,
             });
@@ -311,20 +350,19 @@ describe('OrdersRestoreController (Integration)', () => {
 
     describe('Error Handling', () => {
         it('should handle Hyperliquid API errors gracefully', async () => {
-            const gridId = GridId.create();
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
+            const gridId = testGrid1.id;
 
             const pendingOrder = Order.create({
-                id: OrderId.create(),
+                id: orderId,
                 exchangeOrderId: undefined,
-                cloid,
                 symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -409,6 +447,7 @@ describe('OrdersRestoreController (Integration)', () => {
         // Get instances from module
         controller = module.get<OrdersRestoreController>(OrdersRestoreController);
         orderRepository = module.get<PostgresOrderRepository>(PostgresOrderRepository);
+        gridRepository = module.get<PostgresGridRepository>(PostgresGridRepository);
         hyperliquidOrderClient = module.get<HyperliquidOrderClient>(HyperliquidOrderClient);
     }
 });

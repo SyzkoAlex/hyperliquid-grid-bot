@@ -60,7 +60,7 @@ describe('ProcessOrderStatusUseCase', () => {
             price: Price.from(50000),
             amount: Decimal.from(0.01),
             status,
-            gridId: gridId.toString(),
+            gridId: gridId,
             levelIndex: 5,
         });
 

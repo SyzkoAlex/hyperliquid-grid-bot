@@ -51,21 +51,22 @@ describe('OrderRestoreService', () => {
     describe('restoreOrders', () => {
         const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
 
-        const createPendingOrder = (cloid?: ExchangeCloid, placedAt?: Timestamp): Order =>
-            Order.create({
-                id: OrderId.create(),
+        const createPendingOrder = (orderId?: OrderId, placedAt?: Timestamp): Order => {
+            const id = orderId ?? OrderId.create();
+            return Order.create({
+                id,
                 exchangeOrderId: undefined,
-                cloid,
                 symbol: Symbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
                 placedAt,
             });
+        };
 
         const createExchangeOrder = (
             exchangeOrderId: string,
@@ -95,8 +96,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore order by matching cloid', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid);
+            const orderId = OrderId.create();
+            const cloid = ExchangeCloid.create(orderId);
+            const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
@@ -113,13 +115,13 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore multiple orders with different cloids', async () => {
-            const gridId1 = GridId.from('550e8400-e29b-41d4-a716-446655440000');
-            const gridId2 = GridId.from('550e8400-e29b-41d4-a716-446655440001');
-            const cloid1 = ExchangeCloid.create(gridId1);
-            const cloid2 = ExchangeCloid.create(gridId2);
+            const orderId1 = OrderId.create();
+            const orderId2 = OrderId.create();
+            const cloid1 = ExchangeCloid.create(orderId1);
+            const cloid2 = ExchangeCloid.create(orderId2);
 
-            const pendingOrder1 = createPendingOrder(cloid1);
-            const pendingOrder2 = createPendingOrder(cloid2);
+            const pendingOrder1 = createPendingOrder(orderId1);
+            const pendingOrder2 = createPendingOrder(orderId2);
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
             const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid2);
 
@@ -143,11 +145,10 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not restore when no matching exchange order found', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid);
-            const differentCloid = ExchangeCloid.create(
-                GridId.from('550e8400-e29b-41d4-a716-446655440001'),
-            );
+            const orderId = OrderId.create();
+            const differentOrderId = OrderId.create();
+            const pendingOrder = createPendingOrder(orderId);
+            const differentCloid = ExchangeCloid.create(differentOrderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', differentCloid);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
@@ -159,8 +160,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should skip restoration when multiple exchange orders have same cloid', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid);
+            const orderId = OrderId.create();
+            const cloid = ExchangeCloid.create(orderId);
+            const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid);
             const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid);
 
@@ -173,9 +175,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should mark stale pending order as missing when not found on exchange', async () => {
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
             const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
-            const stalePendingOrder = createPendingOrder(cloid, staleTimestamp);
+            const stalePendingOrder = createPendingOrder(orderId, staleTimestamp);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([stalePendingOrder]);
 
@@ -189,9 +191,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not mark fresh pending order as missing', async () => {
-            const cloid = ExchangeCloid.create(gridId);
+            const orderId = OrderId.create();
             const freshTimestamp = Timestamp.from(new Date(Date.now() - 1000)); // 1 second ago
-            const freshPendingOrder = createPendingOrder(cloid, freshTimestamp);
+            const freshPendingOrder = createPendingOrder(orderId, freshTimestamp);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([freshPendingOrder]);
 
@@ -202,8 +204,8 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not mark pending order without placedAt as missing', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid, undefined);
+            const orderId = OrderId.create();
+            const pendingOrder = createPendingOrder(orderId, undefined);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
 
@@ -214,15 +216,14 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore some orders and mark others as missing', async () => {
-            const gridId1 = GridId.from('550e8400-e29b-41d4-a716-446655440000');
-            const gridId2 = GridId.from('550e8400-e29b-41d4-a716-446655440001');
-            const cloid1 = ExchangeCloid.create(gridId1);
-            const cloid2 = ExchangeCloid.create(gridId2);
+            const orderId1 = OrderId.create();
+            const orderId2 = OrderId.create();
+            const cloid1 = ExchangeCloid.create(orderId1);
 
             const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
 
-            const pendingOrder1 = createPendingOrder(cloid1); // Will be restored
-            const pendingOrder2 = createPendingOrder(cloid2, staleTimestamp); // Will be marked missing
+            const pendingOrder1 = createPendingOrder(orderId1); // Will be restored
+            const pendingOrder2 = createPendingOrder(orderId2, staleTimestamp); // Will be marked missing
 
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
 
@@ -244,8 +245,8 @@ describe('OrderRestoreService', () => {
         });
 
         it('should handle exchange orders without cloid', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid);
+            const orderId = OrderId.create();
+            const pendingOrder = createPendingOrder(orderId);
             const exchangeOrderWithoutCloid = createExchangeOrder('exchange-order-1', undefined);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
@@ -257,8 +258,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should match cloid by string comparison', async () => {
-            const cloid = ExchangeCloid.create(gridId);
-            const pendingOrder = createPendingOrder(cloid);
+            const orderId = OrderId.create();
+            const cloid = ExchangeCloid.create(orderId);
+            const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
 
             mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);

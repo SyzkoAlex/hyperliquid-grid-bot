@@ -8,8 +8,8 @@ import { Symbol } from '../../../core/domain/common/symbol';
 import { Price } from '../../../core/domain/common/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { Timestamp } from '../../../../../domain/primitives/timestamp';
-import { ExchangeCloid } from '../../../core/domain/exchange-order/exchange-cloid';
 import { OrderDbRecord } from '../../../../../infra/database/schema';
+import { GridId } from '../../../core/domain/grid/grid-id';
 
 /**
  * Postgres Order Mapper
@@ -21,14 +21,9 @@ export class PostgresOrderMapper {
      * Convert database row to domain entity
      */
     toDomain(row: OrderDbRecord): Order {
-        // Parse cloid from database (hex string) back to ExchangeCloid value object
-        const parsedGridId = ExchangeCloid.parse(row.cloid ?? undefined);
-        const cloid = parsedGridId ? ExchangeCloid.create(parsedGridId) : undefined;
-
         return Order.create({
             id: OrderId.from(row.id),
             exchangeOrderId: row.exchangeOrderId ?? undefined,
-            cloid,
             symbol: Symbol.create(row.symbol || 'UNKNOWN'),
             type: (row.type as OrderType) || OrderType.Limit,
             side: row.side as OrderSide,
@@ -36,7 +31,7 @@ export class PostgresOrderMapper {
             amount: Decimal.from(row.amount),
             filledAmount: Decimal.from(row.filledAmount ?? '0'),
             status: row.status as OrderStatus,
-            gridId: row.gridId,
+            gridId: GridId.from(row.gridId),
             levelIndex: row.levelIndex,
             placedAt: row.placedAt ? Timestamp.from(row.placedAt) : undefined,
             filledAt: row.filledAt ? Timestamp.from(row.filledAt) : undefined,
@@ -51,7 +46,6 @@ export class PostgresOrderMapper {
         return {
             id: order.id.toString(),
             exchangeOrderId: order.exchangeOrderId ?? null,
-            cloid: order.cloid ? order.cloid.toString() : null,
             symbol: order.symbol.toString(),
             type: order.type,
             side: order.side,
@@ -59,7 +53,7 @@ export class PostgresOrderMapper {
             amount: order.amount.toString(),
             filledAmount: order.filledAmount.toString(),
             status: order.status,
-            gridId: order.gridId,
+            gridId: order.gridId.toString(),
             levelIndex: order.levelIndex,
             placedAt: order.placedAt?.toDate() ?? null,
             filledAt: order.filledAt?.toDate() ?? null,

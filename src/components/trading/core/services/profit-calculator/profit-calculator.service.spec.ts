@@ -6,6 +6,7 @@ import { OrderSide } from '../../domain/order/order-side';
 import { OrderType } from '../../domain/order/order-type';
 import { OrderStatus } from '../../domain/order/order-status';
 import { Grid } from '../../domain/grid/grid';
+import { GridId } from '../../domain/grid/grid-id';
 import { GridMode } from '../../domain/grid/grid-mode';
 import { Symbol } from '../../domain/common/symbol';
 import { Price } from '../../domain/common/price';
@@ -46,7 +47,7 @@ describe('ProfitCalculatorService', () => {
             price: Price.from(50000),
             amount: Decimal.from(amount),
             status: OrderStatus.Filled,
-            gridId: 'grid-123',
+            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             levelIndex: 1,
         });
     }

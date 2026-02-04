@@ -5,7 +5,7 @@ import { Grid } from '../../../core/domain/grid/grid';
 import { GridId } from '../../../core/domain/grid/grid-id';
 import { GridStatus } from '../../../core/domain/grid/grid-status';
 import { grids } from '../../../../../infra/database/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { logger } from '../../../../../infra/logger/logger';
 import { PostgresGridMapper } from './postgres-grid.mapper';
 
@@ -60,6 +60,22 @@ export class PostgresGridRepository {
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error }, 'Failed to find active grids');
+            return [];
+        }
+    }
+
+    async findManyActiveByIds(gridIds: string[]): Promise<Grid[]> {
+        if (gridIds.length === 0) return [];
+
+        try {
+            const result = await this.db
+                .select()
+                .from(grids)
+                .where(and(inArray(grids.id, gridIds), eq(grids.status, GridStatus.Running)));
+
+            return result.map((row) => PostgresGridMapper.toDomain(row));
+        } catch (error) {
+            this.logger.error({ error, gridIds }, 'Failed to find active grids by IDs');
             return [];
         }
     }

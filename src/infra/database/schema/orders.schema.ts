@@ -22,10 +22,6 @@ export const orders = pgTable('orders', {
         .references(() => grids.id, { onDelete: 'cascade' }),
     levelIndex: integer('level_index').notNull(),
 
-    // CLOID (Client Order ID) - hex-encoded gridId sent to exchange
-    // Format: 0x{gridId without dashes}
-    cloid: varchar('cloid', { length: 66 }),
-
     placedAt: timestamp('placed_at'),
     filledAt: timestamp('filled_at'),
     cancelledAt: timestamp('cancelled_at'),

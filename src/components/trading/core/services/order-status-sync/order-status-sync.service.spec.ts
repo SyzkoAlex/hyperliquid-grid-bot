@@ -64,7 +64,7 @@ describe('OrderStatusSyncService', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Placed,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 
@@ -235,7 +235,7 @@ describe('OrderStatusSyncService', () => {
                 price: Price.from(50000),
                 amount: Decimal.from(0.01),
                 status: OrderStatus.Pending,
-                gridId: gridId.toString(),
+                gridId: gridId,
                 levelIndex: 5,
             });
 

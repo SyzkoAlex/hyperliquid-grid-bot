@@ -22,6 +22,7 @@ import { CacheTestHelper } from '@infra/cache/cache-test-helper';
 import { UserState } from '../../core/domain/user-state/user-state';
 import { AssetPosition } from '../../core/domain/user-state/asset-position';
 import { Symbol as TradingSymbol } from '../../core/domain/common/symbol';
+import { Price } from '../../core/domain/common/price';
 import { OrderStatus } from '../../core/domain/order/order-status';
 
 /**
@@ -87,6 +88,7 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock successful order placements
@@ -168,6 +170,7 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(3500));
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
@@ -228,6 +231,7 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(125));
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
@@ -275,6 +279,9 @@ describe('GridCommandsController (Integration)', () => {
     describe('Error Handling', () => {
         it('should publish error event when API fails', async () => {
             // Mock API failure
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockRejectedValue(
+                new Error('Network timeout'),
+            );
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockRejectedValue(
                 new Error('Network timeout'),
             );
@@ -317,6 +324,7 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             const errorHandler = vi.fn();
@@ -356,6 +364,7 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock order placement failure
@@ -407,6 +416,12 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
+            // Mock different prices for different symbols
+            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockImplementation(async (symbol) => {
+                if (symbol.toString() === 'BTC') return Price.from(50000);
+                if (symbol.toString() === 'ETH') return Price.from(3500);
+                return Price.from(100);
+            });
             vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
@@ -483,6 +498,7 @@ async function setupTestEnvironment() {
         getOpenSpotOrders: vi.fn(),
         getOrderStatus: vi.fn(),
         getUserSpotState: vi.fn(),
+        getCurrentPrice: vi.fn(),
         placeSpotOrder: vi.fn(),
         cancelSpotOrder: vi.fn(),
     };
