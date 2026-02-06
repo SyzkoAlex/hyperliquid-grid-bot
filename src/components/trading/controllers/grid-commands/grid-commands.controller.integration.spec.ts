@@ -11,10 +11,10 @@ import { HyperliquidOrderClient } from '../../secondary/client/hyperliquid/hyper
 import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
 import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
 import { EventBus } from '@infra/events/event-bus.service';
+import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
+import { GridCreatedSuccessEvent } from '@domain/events/trading/grid-created-success.event';
+import { GridCreatedErrorEvent } from '@domain/events/trading/grid-created-error.event';
 import { EventType } from '@domain/events/event-type';
-import { CreateGridCommandEvent } from '@domain/events/create-grid-command.event';
-import { GridCreatedSuccessEvent } from '@domain/events/grid-created-success.event';
-import { GridCreatedErrorEvent } from '@domain/events/grid-created-error.event';
 import { Decimal } from '@domain/primitives/decimal';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
@@ -38,8 +38,6 @@ describe('GridCommandsController (Integration)', () => {
     let gridRepository: PostgresGridRepository;
     let hyperliquidOrderClient: HyperliquidOrderClient;
     let eventBus: EventBus;
-
-    const mockChatId = 123456;
 
     beforeAll(async () => {
         const env = await setupTestEnvironment();
@@ -113,7 +111,6 @@ describe('GridCommandsController (Integration)', () => {
 
             // Create and publish command
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -123,7 +120,7 @@ describe('GridCommandsController (Integration)', () => {
                 trailing: false,
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             // Wait for success event and ensure grid is fully persisted
             const successEvent = await successEventPromise;
@@ -146,7 +143,6 @@ describe('GridCommandsController (Integration)', () => {
             expect(hyperliquidOrderClient.placeSpotOrder).toHaveBeenCalled();
 
             // Verify success event data
-            expect(successEvent.chatId).toBe(mockChatId);
             expect(successEvent.symbol).toBe('BTC');
             expect(successEvent.mode).toBe('neutral');
             expect(successEvent.lowerPrice).toBe(45000);
@@ -194,13 +190,12 @@ describe('GridCommandsController (Integration)', () => {
 
             // Command with only required params (uses defaults)
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             await successEventPromise;
             unsubscribe?.();
@@ -254,7 +249,6 @@ describe('GridCommandsController (Integration)', () => {
             });
 
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'SOL',
                 lowerPrice: 100,
                 upperPrice: 150,
@@ -262,7 +256,7 @@ describe('GridCommandsController (Integration)', () => {
                 trailing: true,
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             await successEventPromise;
             unsubscribe?.();
@@ -291,20 +285,18 @@ describe('GridCommandsController (Integration)', () => {
             eventBus.subscribe(EventType.GridCreatedError, errorHandler);
 
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             // Verify error event was published
             expect(errorHandler).toHaveBeenCalledTimes(1);
             const errorEvent = errorHandler.mock.calls[0][0] as GridCreatedErrorEvent;
-            expect(errorEvent.chatId).toBe(mockChatId);
             expect(errorEvent.error).toContain('Network timeout');
 
             // Verify no grid was created
@@ -332,21 +324,18 @@ describe('GridCommandsController (Integration)', () => {
 
             // Try to create grid with more capital than available
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 totalInvestmentUSDC: 10000, // More than available balance
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             // Verify error event was published
             expect(errorHandler).toHaveBeenCalledTimes(1);
-            const errorEvent = errorHandler.mock.calls[0][0] as GridCreatedErrorEvent;
-            expect(errorEvent.chatId).toBe(mockChatId);
 
             // Verify no grid was created
             const grids = await gridRepository.findManyActive();
@@ -376,20 +365,18 @@ describe('GridCommandsController (Integration)', () => {
             eventBus.subscribe(EventType.GridCreatedError, errorHandler);
 
             const command = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
             });
 
-            eventBus.publish(command);
+            await eventBus.publish(command);
 
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             // Verify error event was published
             expect(errorHandler).toHaveBeenCalledTimes(1);
             const errorEvent = errorHandler.mock.calls[0][0] as GridCreatedErrorEvent;
-            expect(errorEvent.chatId).toBe(mockChatId);
             expect(errorEvent.error).toContain(
                 'Neutral mode requires both quote and base investment',
             );
@@ -449,25 +436,23 @@ describe('GridCommandsController (Integration)', () => {
 
             // Create first grid (BTC)
             const command1 = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 5,
             });
 
-            eventBus.publish(command1);
+            await eventBus.publish(command1);
 
             // Create second grid (ETH)
             const command2 = CreateGridCommandEvent.create({
-                chatId: mockChatId,
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
                 levels: 5,
             });
 
-            eventBus.publish(command2);
+            await eventBus.publish(command2);
 
             // Wait for both grids to be created
             await successPromise;

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventBus } from '../../../../../../infra/events/event-bus.service';
-import { CreateGridCommandEvent } from '../../../../../../domain/events/create-grid-command.event';
-import { GridCreatedErrorEvent } from '../../../../../../domain/events/grid-created-error.event';
+import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
+import { GridCreatedErrorEvent } from '@domain/events/trading/grid-created-error.event';
 import { CreateAndStartGridUseCase } from '../../../../core/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { CreateGridParamsMapper } from './create-grid-params.mapper';
 import { GridCreatedSuccessEventMapper } from './grid-created-success-event.mapper';
@@ -31,17 +31,15 @@ export class CreateGridHandler {
 
             this.logger.info({ command }, 'Grid creation completed successfully');
 
-            const successEvent = GridCreatedSuccessEventMapper.fromResult(command.chatId, result);
-            this.eventBus.publish(successEvent);
+            const successEvent = GridCreatedSuccessEventMapper.fromResult(result);
+            await this.eventBus.publish(successEvent);
         } catch (error) {
             this.logger.error({ error, command }, 'Failed to create grid');
 
-            this.eventBus.publish(
-                new GridCreatedErrorEvent(
-                    command.chatId,
-                    error instanceof Error ? error.message : 'Unknown error',
-                ),
+            const errorEvent = new GridCreatedErrorEvent(
+                error instanceof Error ? error.message : 'Unknown error',
             );
+            await this.eventBus.publish(errorEvent);
         }
     }
 }

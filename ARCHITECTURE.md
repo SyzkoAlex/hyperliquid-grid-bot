@@ -33,9 +33,31 @@ The system consists of two independent components communicating via events:
 ```
 
 **1. Trading Component** - Implements grid strategy and order lifecycle management (includes Hyperliquid API integration)
-**2. Notifications Component** - User interface via Telegram Bot
+**2. Telegram Component** - User interface via Telegram Bot and notifications
 
 **Communication**: All components are decoupled through an in-memory EventBus. No direct dependencies between components.
+
+### Deployment Modes
+
+The system supports three deployment modes:
+
+**1. All-In-One Mode (`all-in-one`)** - Single process running both components
+- Both Trading and Telegram components in one Node.js process
+- In-memory EventBus enables communication between components
+- Simplest deployment for development and small-scale usage
+- Command: `pnpm start:all-in-one` or `APP_TYPE=all-in-one`
+
+**2. Trading Bot Only (`trading-bot`)** - Trading component standalone
+- Runs only grid trading logic and order processing
+- Requires external EventBus (future: Redis/Kafka) for production multi-process setup
+- Command: `pnpm start:trading-bot` or `APP_TYPE=trading-bot`
+
+**3. Telegram Control Only (`telegram-ctrl`)** - Telegram interface standalone
+- Runs only Telegram bot for notifications and commands
+- Requires external EventBus (future: Redis/Kafka) for production multi-process setup
+- Command: `pnpm start:telegram-ctrl` or `APP_TYPE=telegram-ctrl`
+
+**Current Limitation**: Since EventBus is in-memory, separate processes (modes 2 & 3) cannot communicate. For production deployment with separate processes, use All-In-One mode OR implement distributed EventBus adapter (planned).
 
 ---
 

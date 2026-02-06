@@ -7,7 +7,8 @@ import { OrderType } from '../../domain/order/order-type';
 import { OrderStatus } from '../../domain/order/order-status';
 import { ExchangePlaceOrderResult } from '../../domain/exchange-order/exchange-place-order-result';
 import { EventBus } from '../../../../../infra/events/event-bus.service';
-import { TradeExecutedEvent } from '../../../../../domain/events/trade-executed.event';
+import { OrderOpenedEvent } from '@domain/events/trading/order-opened.event';
+import { OrderClosedEvent } from '@domain/events/trading/order-closed.event';
 import { logger } from '../../../../../infra/logger/logger';
 import { OrderRefillResult } from './order-refill-result';
 import { RefillParams } from './refill-params';
@@ -159,20 +160,35 @@ export class OrderRefillService {
     ): Promise<void> {
         const filledPrice = filledOrder.price?.toNumber() ?? 0;
         const filledAmount = filledOrder.amount.toNumber();
+        const total = filledPrice * filledAmount;
 
-        this.eventBus.publish(
-            new TradeExecutedEvent(
+        if (profit !== null) {
+            const closedEvent = new OrderClosedEvent(
                 grid.id.toString(),
                 grid.symbol.toString(),
                 filledOrder.side,
                 filledPrice,
                 filledAmount,
-                filledPrice * filledAmount,
-                profit?.toNumber() ?? null,
+                total,
+                profit.toNumber(),
                 filledOrder.levelIndex,
                 grid.levels,
-            ),
+            );
+            await this.eventBus.publish(closedEvent);
+            return;
+        }
+
+        const openedEvent = new OrderOpenedEvent(
+            grid.id.toString(),
+            grid.symbol.toString(),
+            filledOrder.side,
+            filledPrice,
+            filledAmount,
+            total,
+            filledOrder.levelIndex,
+            grid.levels,
         );
+        await this.eventBus.publish(openedEvent);
     }
 
     private logSuccess(

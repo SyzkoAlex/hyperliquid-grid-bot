@@ -8,7 +8,13 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "start": "node dist/src/main.js",
-        "start:dev": "tsx watch src/main.ts",
+        "start:dev": "node --watch -r @swc-node/register src/main.ts",
+        "start:trading-bot": "APP_TYPE=trading-bot node dist/src/main.js",
+        "start:trading-bot:dev": "APP_TYPE=trading-bot node --watch -r @swc-node/register src/main.ts",
+        "start:telegram-ctrl": "APP_TYPE=telegram-ctrl node dist/src/main.js",
+        "start:telegram-ctrl:dev": "APP_TYPE=telegram-ctrl node --watch -r @swc-node/register src/main.ts",
+        "start:all-in-one": "APP_TYPE=all-in-one node dist/src/main.js",
+        "start:all-in-one:dev": "APP_TYPE=all-in-one node --watch -r @swc-node/register src/main.ts",
         "lint": "eslint \"src/**/*.ts\" --quiet",
         "lint:fix": "eslint \"src/**/*.ts\" --fix",
         "format": "prettier --write \"src/**/*.ts\"",
@@ -60,6 +66,7 @@
     },
     "devDependencies": {
         "@nestjs/testing": "^11.1.10",
+        "@swc-node/register": "^1.11.1",
         "@swc/core": "^1.15.8",
         "@testcontainers/postgresql": "^11.11.0",
         "@types/js-yaml": "^4.0.9",

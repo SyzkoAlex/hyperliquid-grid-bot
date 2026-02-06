@@ -1,11 +1,10 @@
-import { CreateGridCommandEvent } from '../../../../../../domain/events/create-grid-command.event';
+import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { CreateAndStartGridParams } from '../../../../core/use-cases/create-and-start-grid/create-and-start-grid-params';
 import { GridMode } from '../../../../core/domain/grid/grid-mode';
 
 export class CreateGridParamsMapper {
     static fromCommand(command: CreateGridCommandEvent, address: string): CreateAndStartGridParams {
         return {
-            chatId: command.chatId,
             address,
             symbol: command.symbol,
             mode: this.parseMode(command.mode),

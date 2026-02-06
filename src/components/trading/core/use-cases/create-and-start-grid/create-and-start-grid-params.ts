@@ -1,7 +1,6 @@
 import { GridMode } from '../../domain/grid/grid-mode';
 
 export interface CreateAndStartGridParams {
-    chatId: number;
     address: string;
     symbol: string;
     mode: GridMode;

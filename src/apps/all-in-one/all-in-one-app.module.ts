@@ -8,18 +8,18 @@ import { MetricsModule } from '../../infra/metrics/metrics.module';
 import { HealthModule } from '../../infra/health/health.module';
 import { EventBusModule } from '../../infra/events/event-bus.module';
 import { TradingModule } from '../../components/trading/trading.module';
-import { NotificationsModule } from '../../components/notifications/notifications.module';
+import { TelegramModule } from '../../components/telegram/telegram.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 /**
- * Bot Application Module
+ * All-In-One Application Module
  *
- * Main application for Grid Trading Bot.
- * Control via Telegram Bot only (no REST API).
+ * Runs both Trading Bot and Telegram Control in a single Node.js process.
+ * Required for in-memory EventBus to enable communication between components.
  *
  * Component Architecture:
  * - Components are INDEPENDENT (no cross-component imports)
- * - Communication via EventBus
+ * - Communication via EventBus (in-memory, single process)
  */
 @Module({
     imports: [
@@ -34,9 +34,9 @@ import { ScheduleModule } from '@nestjs/schedule';
         HealthModule,
         EventBusModule,
 
-        // Independent Components
+        // Components
         TradingModule,
-        NotificationsModule,
+        TelegramModule,
     ],
 })
-export class BotAppModule {}
+export class AllInOneAppModule {}

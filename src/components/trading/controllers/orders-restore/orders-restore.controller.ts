@@ -33,7 +33,7 @@ export class OrdersRestoreController implements OnModuleInit, OnModuleDestroy {
 
         // Schedule periodic restore
         const config = this.configService.get('orders', { infer: true });
-        const intervalMs = config.restoreIntervalMs;
+        const intervalMs = config.recoveryIntervalMs;
 
         const interval = setInterval(() => {
             this.runRestore();

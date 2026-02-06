@@ -1,8 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { EventBus } from '../../../../infra/events/event-bus.service';
-import { EventType } from '../../../../domain/events/event-type';
-import { CreateGridCommandEvent } from '../../../../domain/events/create-grid-command.event';
+import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { CreateGridHandler } from './handlers/create-grid/create-grid.handler';
+import { EventType } from '@domain/events/event-type';
 import { logger } from '../../../../infra/logger/logger';
 
 @Injectable()
@@ -22,8 +22,8 @@ export class GridCommandsController implements OnModuleInit {
     private subscribeToCommands() {
         this.eventBus.subscribe(
             EventType.CreateGridCommand,
-            async (command: CreateGridCommandEvent) => {
-                await this.createGridHandler.handle(command);
+            async (event: CreateGridCommandEvent) => {
+                await this.createGridHandler.handle(event);
             },
         );
     }

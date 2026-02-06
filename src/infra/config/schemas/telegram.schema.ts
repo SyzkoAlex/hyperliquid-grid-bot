@@ -28,7 +28,7 @@ export const telegramRateLimitSchema = z.object({
 export const telegramSchema = z.object({
     enabled: z.coerce.boolean(),
     botToken: z.string().min(1),
-    allowedChatIds: z.array(z.coerce.number().int()),
+    notificationChatId: z.coerce.number().int(),
     mode: z.enum(['polling', 'webhook']),
     webhook: telegramWebhookSchema,
     notifications: telegramNotificationsSchema,

@@ -1,68 +1,81 @@
 import { Injectable } from '@nestjs/common';
+import { SerializableEvent } from '@domain/events/trading/trading-event';
+import { EventType } from '@domain/events/event-type';
+import { EventDeserializerService } from './event-deserializer.service';
 import { logger } from '../logger/logger';
+import { IEventBus } from './event-bus.interface';
 
-type EventHandler = (event: any) => void | Promise<void>;
+type EventHandler<T extends SerializableEvent = SerializableEvent> = (
+    event: T,
+) => void | Promise<void>;
 
 /**
- * Simple Event Bus for inter-component communication
- * Allows components to communicate without direct dependencies
+ * Local in-memory event bus implementation.
+ *
+ * TODO: Migrate to external queue system (Kafka/NATS)
+ * This implementation is ready for migration:
+ * - All events are serializable (SerializableEvent with serialize/deserialize)
+ * - Interface is async (returns Promise<void>)
+ * - EventDeserializerService handles deserialization by EventType
+ * - Just need to replace in-memory Map with external queue adapter
  */
 @Injectable()
-export class EventBus {
+export class EventBus implements IEventBus {
     private readonly logger = logger.child({ context: EventBus.name });
     private handlers = new Map<string, EventHandler[]>();
 
-    /**
-     * Publish an event
-     */
-    publish(event: any): void {
-        const eventName = event.constructor.name;
+    constructor(private readonly eventDeserializer: EventDeserializerService) {}
 
-        this.logger.debug({ eventName }, 'Publishing event');
+    async publish(event: SerializableEvent): Promise<void> {
+        const eventType = event.eventType;
+        const eventJson = event.serialize();
 
-        const handlers = this.handlers.get(eventName) || [];
+        this.logger.debug({ eventType }, 'Publishing event');
 
-        for (const handler of handlers) {
-            try {
-                const result = handler(event);
-                if (result instanceof Promise) {
-                    result.catch((error) => {
-                        this.logger.error({ error, eventName }, 'Error in async event handler');
-                    });
+        const handlers = this.handlers.get(eventType) || [];
+
+        await Promise.all(
+            handlers.map(async (handler) => {
+                try {
+                    const deserializedEvent = this.eventDeserializer.deserialize(
+                        eventType,
+                        eventJson,
+                    );
+                    await handler(deserializedEvent);
+                } catch (error) {
+                    this.logger.error({ error, eventType }, 'Error in event handler');
                 }
-            } catch (error) {
-                this.logger.error({ error, eventName }, 'Error in sync event handler');
-            }
-        }
+            }),
+        );
     }
 
     /**
      * Subscribe to an event
      */
-    subscribe(eventName: string, handler: EventHandler): () => void {
-        if (!this.handlers.has(eventName)) {
-            this.handlers.set(eventName, []);
+    subscribe<T extends SerializableEvent = SerializableEvent>(
+        eventType: EventType,
+        handler: EventHandler<T>,
+    ): () => void {
+        if (!this.handlers.has(eventType)) {
+            this.handlers.set(eventType, []);
         }
 
-        this.handlers.get(eventName)!.push(handler);
+        this.handlers.get(eventType)!.push(handler as EventHandler);
 
-        this.logger.debug({ eventName }, 'Handler subscribed');
+        this.logger.debug({ eventType }, 'Handler subscribed');
 
         // Return unsubscribe function
         return () => {
-            const handlers = this.handlers.get(eventName) || [];
-            const index = handlers.indexOf(handler);
+            const handlers = this.handlers.get(eventType) || [];
+            const index = handlers.indexOf(handler as EventHandler);
             if (index > -1) {
                 handlers.splice(index, 1);
             }
         };
     }
 
-    /**
-     * Subscribe using decorator syntax
-     */
     on(_eventName: string): MethodDecorator {
-        return (target: any, propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
+        return (_target: any, _propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
             const originalMethod = descriptor.value;
 
             descriptor.value = function (...args: any[]) {

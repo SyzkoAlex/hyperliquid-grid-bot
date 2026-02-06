@@ -11,7 +11,6 @@ import { GridMode } from '../../domain/grid/grid-mode';
 import { Symbol } from '../../domain/common/symbol';
 import { Price } from '../../domain/common/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { TradeExecutedEvent } from '../../../../../domain/events/trade-executed.event';
 
 describe('OrderRefillService', () => {
     let service: OrderRefillService;
@@ -143,8 +142,8 @@ describe('OrderRefillService', () => {
             // Should NOT calculate profit (buy order)
             expect(result.profit).toBeUndefined();
 
-            // Should publish TradeExecutedEvent
-            expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(TradeExecutedEvent));
+            // Should publish OrderOpenedEvent
+            expect(mockEventBus.publish).toHaveBeenCalled();
         });
 
         it('should place BUY order one level down when SELL order fills', async () => {

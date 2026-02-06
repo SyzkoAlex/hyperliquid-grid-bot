@@ -274,6 +274,30 @@ class Price {
 }
 ```
 
+## Configuration Access
+
+- IF accessing configuration → THEN use ONLY typed ConfigService with Config type from `@infra/config/config.schema`
+- IF reading config in constructor → THEN extract value to private readonly field
+- ❌ NEVER use `configService.get<string>('path.to.value')` with generic type
+- ❌ NEVER use `configService.get('path.to.value')` without type
+
+**Pattern:**
+
+```typescript
+import { ConfigService } from '@nestjs/config';
+import { Config } from '@infra/config/config.schema';
+
+class MyService {
+    private readonly notificationChatId: number;
+
+    constructor(
+        configService: ConfigService<Config, true>,
+    ) {
+        this.notificationChatId = configService.get('telegram', { infer: true }).notificationChatId;
+    }
+}
+```
+
 ## Logging
 
 - IF make log, print somthing to console → THEN do NOT use `console.log` or direct `logger` calls
