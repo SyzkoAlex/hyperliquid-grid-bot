@@ -12,8 +12,6 @@ export const telegramNotificationsSchema = z.object({
     gridStarted: z.coerce.boolean(),
     gridStopped: z.coerce.boolean(),
     errors: z.coerce.boolean(),
-    fundingPayment: z.coerce.boolean(),
-    liquidationAlert: z.coerce.boolean(),
 });
 
 export const telegramFormattingSchema = z.object({
@@ -25,6 +23,10 @@ export const telegramRateLimitSchema = z.object({
     maxMessagesPerMinute: z.coerce.number().int().positive(),
 });
 
+export const telegramSessionSchema = z.object({
+    ttlSeconds: z.coerce.number().int().positive(),
+});
+
 export const telegramSchema = z.object({
     enabled: z.coerce.boolean(),
     botToken: z.string().min(1),
@@ -34,6 +36,7 @@ export const telegramSchema = z.object({
     notifications: telegramNotificationsSchema,
     formatting: telegramFormattingSchema,
     rateLimit: telegramRateLimitSchema,
+    session: telegramSessionSchema,
 });
 
 export type TelegramConfig = z.infer<typeof telegramSchema>;

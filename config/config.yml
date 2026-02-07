@@ -47,13 +47,13 @@ telegram:
         gridStarted: true
         gridStopped: true
         errors: true
-        fundingPayment: true
-        liquidationAlert: true
     formatting:
         parseMode: HTML
         disableWebPagePreview: true
     rateLimit:
         maxMessagesPerMinute: 20
+    session:
+        ttlSeconds: 86400
 
 grid:
     defaultLevels: ${GRID_DEFAULT_LEVELS:20}
