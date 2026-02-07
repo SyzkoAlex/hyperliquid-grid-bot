@@ -1,27 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { SerializableEvent } from '@domain/events/trading/trading-event';
 import { EventType } from '@domain/events/event-type';
-import { EventDeserializerService } from './event-deserializer.service';
+import { EventDeserializerService } from '@domain/events/event-deserializer.service';
 import { logger } from '../logger/logger';
-import { IEventBus } from './event-bus.interface';
+import { EventBus } from './event-bus.port';
 
 type EventHandler<T extends SerializableEvent = SerializableEvent> = (
     event: T,
 ) => void | Promise<void>;
 
-/**
- * Local in-memory event bus implementation.
- *
- * TODO: Migrate to external queue system (Kafka/NATS)
- * This implementation is ready for migration:
- * - All events are serializable (SerializableEvent with serialize/deserialize)
- * - Interface is async (returns Promise<void>)
- * - EventDeserializerService handles deserialization by EventType
- * - Just need to replace in-memory Map with external queue adapter
- */
 @Injectable()
-export class EventBus implements IEventBus {
-    private readonly logger = logger.child({ context: EventBus.name });
+export class EventBusService implements EventBus {
+    private readonly logger = logger.child({ context: EventBusService.name });
     private handlers = new Map<string, EventHandler[]>();
 
     constructor(private readonly eventDeserializer: EventDeserializerService) {}
@@ -49,9 +39,6 @@ export class EventBus implements IEventBus {
         );
     }
 
-    /**
-     * Subscribe to an event
-     */
     subscribe<T extends SerializableEvent = SerializableEvent>(
         eventType: EventType,
         handler: EventHandler<T>,
@@ -64,7 +51,6 @@ export class EventBus implements IEventBus {
 
         this.logger.debug({ eventType }, 'Handler subscribed');
 
-        // Return unsubscribe function
         return () => {
             const handlers = this.handlers.get(eventType) || [];
             const index = handlers.indexOf(handler as EventHandler);
@@ -74,28 +60,10 @@ export class EventBus implements IEventBus {
         };
     }
 
-    on(_eventName: string): MethodDecorator {
-        return (_target: any, _propertyKey: string | symbol, descriptor: PropertyDescriptor) => {
-            const originalMethod = descriptor.value;
-
-            descriptor.value = function (...args: any[]) {
-                return originalMethod.apply(this, args);
-            };
-
-            return descriptor;
-        };
-    }
-
-    /**
-     * Get subscriber count for an event
-     */
     getSubscriberCount(eventName: string): number {
         return this.handlers.get(eventName)?.length || 0;
     }
 
-    /**
-     * Clear all handlers for an event
-     */
     clear(eventName?: string): void {
         if (eventName) {
             this.handlers.delete(eventName);

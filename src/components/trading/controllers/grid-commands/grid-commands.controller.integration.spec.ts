@@ -10,7 +10,7 @@ import { GridCommandsController } from './grid-commands.controller';
 import { HyperliquidOrderClient } from '../../secondary/client/hyperliquid/hyperliquid-order.client';
 import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
 import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
-import { EventBus } from '@infra/events/event-bus.service';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { GridCreatedSuccessEvent } from '@domain/events/trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from '@domain/events/trading/grid-created-error.event';
@@ -523,7 +523,7 @@ async function setupTestEnvironment() {
     // Get instances from module
     const gridRepository = module.get<PostgresGridRepository>(PostgresGridRepository);
     const hyperliquidOrderClient = module.get<HyperliquidOrderClient>(HyperliquidOrderClient);
-    const eventBus = module.get<EventBus>(EventBus);
+    const eventBus = module.get<EventBus>(EVENT_BUS);
 
     // Manually initialize only the GridCommandsController to set up event subscriptions
     // (we don't call module.init() to avoid starting the OrderRestoreMonitor which blocks)

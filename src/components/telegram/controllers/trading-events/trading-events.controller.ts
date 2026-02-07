@@ -1,5 +1,5 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { EventBus } from '@infra/events/event-bus.service';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { OrderOpenedEvent } from '@domain/events/trading/order-opened.event';
 import { OrderClosedEvent } from '@domain/events/trading/order-closed.event';
 import { GridCreatedSuccessEvent } from '@domain/events/trading/grid-created-success.event';
@@ -18,7 +18,7 @@ export class TradingEventsController implements OnModuleInit {
     private readonly logger = logger.child({ context: TradingEventsController.name });
 
     constructor(
-        private readonly eventBus: EventBus,
+        @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly notifyUser: NotifyUserUseCase,
     ) {}
 

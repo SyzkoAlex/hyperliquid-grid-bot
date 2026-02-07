@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HyperliquidOrderClient } from '../../../secondary/client/hyperliquid/hyperliquid-order.client';
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
 import { Order } from '../../domain/order/order';
@@ -6,15 +6,15 @@ import { OrderId } from '../../domain/order/order-id';
 import { OrderType } from '../../domain/order/order-type';
 import { OrderStatus } from '../../domain/order/order-status';
 import { ExchangePlaceOrderResult } from '../../domain/exchange-order/exchange-place-order-result';
-import { EventBus } from '../../../../../infra/events/event-bus.service';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { OrderOpenedEvent } from '@domain/events/trading/order-opened.event';
 import { OrderClosedEvent } from '@domain/events/trading/order-closed.event';
-import { logger } from '../../../../../infra/logger/logger';
+import { logger } from '@infra/logger/logger';
 import { OrderRefillResult } from './order-refill-result';
 import { RefillParams } from './refill-params';
 import { Grid } from '@components/trading/core/domain/grid/grid';
 import { ProfitCalculatorService } from '../profit-calculator/profit-calculator.service';
-import { Decimal } from '../../../../../domain/primitives/decimal';
+import { Decimal } from '@domain/primitives/decimal';
 
 @Injectable()
 export class OrderRefillService {
@@ -23,7 +23,7 @@ export class OrderRefillService {
     constructor(
         private readonly orderClient: HyperliquidOrderClient,
         private readonly orderRepository: PostgresOrderRepository,
-        private readonly eventBus: EventBus,
+        @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly profitCalculator: ProfitCalculatorService,
     ) {}
 

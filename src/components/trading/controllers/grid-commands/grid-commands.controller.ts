@@ -1,16 +1,16 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { EventBus } from '../../../../infra/events/event-bus.service';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { CreateGridHandler } from './handlers/create-grid/create-grid.handler';
 import { EventType } from '@domain/events/event-type';
-import { logger } from '../../../../infra/logger/logger';
+import { logger } from '@infra/logger/logger';
 
 @Injectable()
 export class GridCommandsController implements OnModuleInit {
     private readonly logger = logger.child({ context: GridCommandsController.name });
 
     constructor(
-        private readonly eventBus: EventBus,
+        @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly createGridHandler: CreateGridHandler,
     ) {}
 

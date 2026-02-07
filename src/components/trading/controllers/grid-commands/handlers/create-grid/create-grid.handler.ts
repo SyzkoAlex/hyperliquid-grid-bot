@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EventBus } from '../../../../../../infra/events/event-bus.service';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { GridCreatedErrorEvent } from '@domain/events/trading/grid-created-error.event';
 import { CreateAndStartGridUseCase } from '../../../../core/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { CreateGridParamsMapper } from './create-grid-params.mapper';
 import { GridCreatedSuccessEventMapper } from './grid-created-success-event.mapper';
-import { logger } from '../../../../../../infra/logger/logger';
+import { logger } from '@infra/logger/logger';
 import { Config } from '@/infra/config/config.schema';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class CreateGridHandler {
     private readonly accountAddress: string;
 
     constructor(
-        private readonly eventBus: EventBus,
+        @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly createAndStartGrid: CreateAndStartGridUseCase,
         configService: ConfigService<Config, true>,
     ) {
