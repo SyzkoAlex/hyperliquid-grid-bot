@@ -1,31 +1,45 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Context, Telegraf } from 'telegraf';
+import { Telegraf, Scenes, session } from 'telegraf';
+import { Config } from '@infra/config/config.schema';
 import { logger } from '@infra/logger/logger';
+import { BotContext } from './types/bot-context';
+import { SessionData } from './types/session-data';
+import { RedisSessionStore } from './redis-session-store';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
-    private bot: Telegraf;
+    private bot: Telegraf<BotContext>;
+    private readonly stage = new Scenes.Stage<BotContext>([]);
     private readonly logger = logger.child({ context: TelegramBotService.name });
+    private readonly enabled: boolean;
+    private readonly botToken: string;
 
-    constructor(private readonly configService: ConfigService) {}
+    constructor(
+        configService: ConfigService<Config, true>,
+        private readonly sessionStore: RedisSessionStore,
+    ) {
+        const telegramConfig = configService.get('telegram', { infer: true });
+        this.enabled = telegramConfig.enabled;
+        this.botToken = telegramConfig.botToken;
+    }
 
     async onModuleInit() {
-        const enabled = this.configService.get<boolean>('TELEGRAM_ENABLED', true);
-
-        if (!enabled) {
+        if (!this.enabled) {
             this.logger.info('Telegram bot disabled');
             return;
         }
 
-        const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+        this.bot = new Telegraf<BotContext>(this.botToken);
 
-        if (!token) {
-            this.logger.warn('TELEGRAM_BOT_TOKEN not configured');
-            return;
-        }
+        this.bot.use(
+            session<SessionData, BotContext>({
+                store: this.sessionStore,
+                defaultSession: () => ({}),
+            }),
+        );
+        this.bot.use(this.stage.middleware());
 
-        this.bot = new Telegraf(token);
         this.logger.info('Telegram bot service initialized');
     }
 
@@ -36,7 +50,11 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    getBot(): Telegraf {
+    registerScene(scene: Scenes.BaseScene<BotContext>): void {
+        this.stage.register(scene);
+    }
+
+    getBot(): Telegraf<BotContext> {
         return this.bot;
     }
 
@@ -55,19 +73,19 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    onCommand(command: string, handler: (ctx: Context) => Promise<void>): void {
+    onCommand(command: string, handler: (ctx: BotContext) => Promise<void>): void {
         if (this.bot) {
             this.bot.command(command, handler);
         }
     }
 
-    onAction(action: string, handler: (ctx: Context) => Promise<void>): void {
+    onAction(action: string, handler: (ctx: BotContext) => Promise<void>): void {
         if (this.bot) {
             this.bot.action(action, handler);
         }
     }
 
-    useMiddleware(middleware: (ctx: Context, next: () => Promise<void>) => Promise<void>): void {
+    useMiddleware(middleware: (ctx: BotContext, next: () => Promise<void>) => Promise<void>): void {
         if (this.bot) {
             this.bot.use(middleware);
         }

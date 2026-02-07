@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Config } from '@infra/config/config.schema';
 import { logger } from '@infra/logger/logger';
 import { TelegramBotService } from '../../secondary/services/telegram-bot/telegram-bot.service';
+import { BotContext } from '../../secondary/services/telegram-bot/types/bot-context';
 
 @Injectable()
 export class TelegramCommandsController implements OnModuleInit {
@@ -23,7 +24,7 @@ export class TelegramCommandsController implements OnModuleInit {
     }
 
     private registerMiddleware() {
-        this.telegramBot.useMiddleware(async (ctx, next) => {
+        this.telegramBot.useMiddleware(async (ctx: BotContext, next) => {
             const chatId = ctx.chat?.id;
 
             if (!chatId || chatId !== this.notificationChatId) {

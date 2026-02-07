@@ -1,10 +1,8 @@
 export enum TelegramCommand {
-    Start = 'start',
-    Help = 'help',
-    Grid = 'grid',
-    Info = 'info',
-    Status = 'status',
-    Stop = 'stop',
+    Grids = 'grids',
+    Balance = 'balance',
+    Stats = 'stats',
+    Settings = 'settings',
 }
 
 export enum TelegramAction {
