@@ -1,4 +1,4 @@
-import { OrderStatus } from '../order/order-status';
+import { OrderStatus } from '@domain/order/order-status';
 import { ExchangeOrderStatus } from './exchange-order-status';
 
 /**

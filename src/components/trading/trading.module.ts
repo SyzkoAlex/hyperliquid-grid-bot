@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { HyperliquidSdkService } from '@components/trading/secondary/client/hyperliquid/hyperliquid-sdk.service';
+import { HyperliquidModule } from '@infra/hyperliquid/hyperliquid.module';
 import { HyperliquidOrderClient } from '@components/trading/secondary/client/hyperliquid/hyperliquid-order.client';
+import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { HyperliquidOrderMapper } from '@components/trading/secondary/client/hyperliquid/hyperliquid-order.mapper';
-import { HyperliquidUserStateMapper } from '@components/trading/secondary/client/hyperliquid/hyperliquid-user-state.mapper';
-import { HyperliquidUserEventsClient } from '@components/trading/secondary/client/hyperliquid/hyperliquid-user-events.client';
+import { HyperliquidUserStateMapper } from '@components/shared/secondary/mappers/hyperliquid-user-state.mapper';
+import { OrderEventsListener } from '@components/trading/secondary/client/hyperliquid/order-events.listener';
 import { PostgresGridRepository } from '@components/trading/secondary/repository/grid/postgres-grid.repository';
-import { PostgresGridMapper } from '@components/trading/secondary/repository/grid/postgres-grid.mapper';
 import { PostgresOrderRepository } from '@components/trading/secondary/repository/order/postgres-order.repository';
-import { PostgresOrderMapper } from '@components/trading/secondary/repository/order/postgres-order.mapper';
 import { CreateAndStartGridUseCase } from '@components/trading/core/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { SyncOrdersUseCase } from '@components/trading/core/use-cases/sync-orders/sync-orders.use-case';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/use-cases/process-order-status/process-order-status.use-case';
@@ -27,16 +26,15 @@ import { OrdersWebsocketController } from '@components/trading/controllers/order
 import { OrdersRestoreController } from '@components/trading/controllers/orders-restore/orders-restore.controller';
 
 @Module({
+    imports: [HyperliquidModule],
     providers: [
-        HyperliquidSdkService,
         HyperliquidOrderClient,
+        HyperliquidInfoClient,
         HyperliquidOrderMapper,
         HyperliquidUserStateMapper,
-        HyperliquidUserEventsClient,
+        OrderEventsListener,
         PostgresGridRepository,
-        PostgresGridMapper,
         PostgresOrderRepository,
-        PostgresOrderMapper,
         CreateAndStartGridUseCase,
         SyncOrdersUseCase,
         ProcessOrderStatusUseCase,

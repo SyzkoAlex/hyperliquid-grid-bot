@@ -3,26 +3,27 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'path';
-import { HyperliquidUserEventsClient } from './hyperliquid-user-events.client';
+import { OrderEventsListener } from './order-events.listener';
 import { HyperliquidOrderClient } from './hyperliquid-order.client';
-import { HyperliquidSdkService } from './hyperliquid-sdk.service';
 import { HyperliquidOrderMapper } from './hyperliquid-order.mapper';
-import { HyperliquidUserStateMapper } from './hyperliquid-user-state.mapper';
-import { HttpService } from '../../../../../infra/http/http.service';
-import { loadConfiguration } from '../../../../../infra/config/configuration';
-import type { HyperliquidWsOrderStatus } from './types/hyperliquid-ws-user-event';
+import { HyperliquidUserStateMapper } from '@components/shared/secondary/mappers/hyperliquid-user-state.mapper';
+import { HyperliquidModule } from '@infra/hyperliquid/hyperliquid.module';
+import { HyperliquidSdkService } from '@infra/hyperliquid/hyperliquid-sdk.service';
+import { HyperliquidWsClient } from '@infra/hyperliquid/hyperliquid-ws.client';
+import type { HyperliquidWsOrderStatus } from '@infra/hyperliquid/types/hyperliquid-ws-user-event';
+import { loadConfiguration } from '@infra/config/configuration';
 import type { Config } from '@infra/config/config.schema';
-import { Symbol as TradingSymbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { OrderSide } from '../../../core/domain/order/order-side';
-import { OrderId } from '../../../core/domain/order/order-id';
-import type { ExchangePlaceOrderParams } from '../../../core/domain/exchange-order/exchange-place-order-params';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderId } from '@domain/order/order-id';
+import type { ExchangePlaceOrderParams } from '@components/trading/core/domain/exchange-order/exchange-place-order-params';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
 /**
- * Integration Tests for HyperliquidUserEventsClient
+ * Integration Tests for OrderEventsListener
  *
  * These tests verify real WebSocket connection with Hyperliquid Testnet.
  *
@@ -41,8 +42,9 @@ loadEnv({ path: resolve(process.cwd(), '.env.test') });
  * - Creates sell orders above market (won't fill immediately)
  * - Cancels all test orders after completion
  */
-describe('HyperliquidUserEventsClient (Integration)', () => {
-    let client: HyperliquidUserEventsClient;
+describe('OrderEventsListener (Integration)', () => {
+    let adapter: OrderEventsListener;
+    let wsClient: HyperliquidWsClient;
     let orderClient: HyperliquidOrderClient;
     let sdkService: HyperliquidSdkService;
     let testingModule: TestingModule;
@@ -53,8 +55,12 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
     });
 
     afterAll(async () => {
-        if (client) {
-            client.onModuleDestroy();
+        if (adapter) {
+            adapter.onModuleDestroy();
+        }
+
+        if (wsClient) {
+            wsClient.onModuleDestroy();
         }
 
         if (testingModule) {
@@ -66,7 +72,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
         it('should connect to Hyperliquid testnet WebSocket', async () => {
             await waitForConnection(5000);
 
-            expect(client.isConnected()).toBe(true);
+            expect(wsClient.isConnected()).toBe(true);
         });
 
         it('should maintain connection after initialization', async () => {
@@ -74,7 +80,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
 
             await sleep(1000);
 
-            expect(client.isConnected()).toBe(true);
+            expect(wsClient.isConnected()).toBe(true);
         });
     });
 
@@ -83,7 +89,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
             await waitForConnection(5000);
 
             const mockHandler = vi.fn();
-            const unsubscribe = client.onOrderStatus(mockHandler);
+            const unsubscribe = adapter.onOrderStatus(mockHandler);
 
             expect(unsubscribe).toBeInstanceOf(Function);
 
@@ -94,7 +100,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
             await waitForConnection(5000);
 
             const mockHandler = vi.fn();
-            const unsubscribe = client.onOrderStatus(mockHandler);
+            const unsubscribe = adapter.onOrderStatus(mockHandler);
 
             unsubscribe();
 
@@ -107,8 +113,8 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
             const handler1 = vi.fn();
             const handler2 = vi.fn();
 
-            const unsubscribe1 = client.onOrderStatus(handler1);
-            const unsubscribe2 = client.onOrderStatus(handler2);
+            const unsubscribe1 = adapter.onOrderStatus(handler1);
+            const unsubscribe2 = adapter.onOrderStatus(handler2);
 
             expect(unsubscribe1).toBeInstanceOf(Function);
             expect(unsubscribe2).toBeInstanceOf(Function);
@@ -128,7 +134,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
 
             const receivedStatuses: HyperliquidWsOrderStatus[] = [];
 
-            const unsubscribe = client.onOrderStatus((status) => {
+            const unsubscribe = adapter.onOrderStatus((status) => {
                 receivedStatuses.push(status);
                 console.log('📥 Received order status:', status.status, 'OID:', status.order.oid);
             });
@@ -196,7 +202,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
                 throw new Error('Handler error');
             });
 
-            const unsubscribe = client.onOrderStatus(failingHandler);
+            const unsubscribe = adapter.onOrderStatus(failingHandler);
 
             await sleep(2000);
 
@@ -211,27 +217,28 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
                     isGlobal: true,
                     load: [loadConfiguration],
                 }),
+                HyperliquidModule,
             ],
             providers: [
-                HttpService,
-                HyperliquidSdkService,
                 HyperliquidOrderMapper,
                 HyperliquidUserStateMapper,
                 HyperliquidOrderClient,
-                HyperliquidUserEventsClient,
+                OrderEventsListener,
             ],
         }).compile();
 
         await testingModule.init();
 
-        client = testingModule.get<HyperliquidUserEventsClient>(HyperliquidUserEventsClient);
+        adapter = testingModule.get<OrderEventsListener>(OrderEventsListener);
+        wsClient = testingModule.get<HyperliquidWsClient>(HyperliquidWsClient);
         orderClient = testingModule.get<HyperliquidOrderClient>(HyperliquidOrderClient);
         sdkService = testingModule.get<HyperliquidSdkService>(HyperliquidSdkService);
 
         const configService = testingModule.get<ConfigService<Config, true>>(ConfigService);
         testWalletAddress = configService.get('hyperliquid', { infer: true }).accountAddress;
 
-        client.onModuleInit();
+        wsClient.onModuleInit();
+        adapter.onModuleInit();
 
         console.log('🧪 Test setup complete');
         console.log(`📍 Testnet WebSocket: ${process.env.HYPERLIQUID_WEBSOCKET_URL}`);
@@ -241,7 +248,7 @@ describe('HyperliquidUserEventsClient (Integration)', () => {
     async function waitForConnection(timeout: number): Promise<void> {
         const startTime = Date.now();
 
-        while (!client.isConnected()) {
+        while (!wsClient.isConnected()) {
             if (Date.now() - startTime > timeout) {
                 throw new Error(`WebSocket connection timeout after ${timeout}ms`);
             }

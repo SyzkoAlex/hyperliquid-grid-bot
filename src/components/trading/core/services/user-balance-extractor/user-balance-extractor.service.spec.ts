@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { Symbol as TradingSymbol } from '../../domain/common/symbol';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
 import { Decimal } from '@domain/primitives/decimal';
 import { UserBalanceExtractorService } from './user-balance-extractor.service';
-import { UserState } from '../../domain/user-state/user-state';
-import { AssetPosition } from '../../domain/user-state/asset-position';
+import { UserState } from '@domain/user-state/user-state';
+import { AssetPosition } from '@domain/user-state/asset-position';
 
 describe('UserBalanceExtractorService', () => {
     let service: UserBalanceExtractorService;

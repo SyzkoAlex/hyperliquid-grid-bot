@@ -1,14 +1,14 @@
 import { GridId } from './grid-id';
 import { GridMode } from './grid-mode';
 import { GridStatus } from './grid-status';
-import { Symbol } from '../common/symbol';
-import { Price } from '../common/price';
-import { Decimal } from '../../../../../domain/primitives/decimal';
-import { Timestamp } from '../../../../../domain/primitives/timestamp';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { Timestamp } from '@domain/primitives/timestamp';
 
 export interface GridCreateParams {
     id?: GridId;
-    symbol: Symbol;
+    symbol: TradingSymbol;
     mode: GridMode;
     status?: GridStatus;
     lowerPrice: Price;

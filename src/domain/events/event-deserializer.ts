@@ -8,7 +8,7 @@ import { GridCreatedErrorEvent } from '@domain/events/trading/grid-created-error
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 
 @Injectable()
-export class EventDeserializerService {
+export class EventDeserializer {
     deserialize(eventType: EventType, eventJson: string): SerializableEvent {
         switch (eventType) {
             case EventType.CreateGridCommand:

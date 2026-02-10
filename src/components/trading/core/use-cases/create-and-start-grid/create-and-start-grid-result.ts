@@ -1,4 +1,4 @@
-import { Grid } from '../../domain/grid/grid';
+import { Grid } from '@domain/grid/grid';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 export class CreateAndStartGridResult {

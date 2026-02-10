@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
-import { OrderStatus } from '../../domain/order/order-status';
-import { Order } from '../../domain/order/order';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
+import { OrderStatus } from '@domain/order/order-status';
+import { Order } from '@domain/order/order';
 import { logger } from '../../../../../infra/logger/logger';
 import { HyperliquidOrderClient } from '../../../secondary/client/hyperliquid/hyperliquid-order.client';
 import { Config } from '../../../../../infra/config/config.schema';
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
-import { ExchangeOrderInfo } from '../../domain/exchange-order/exchange-order-info';
+import { ExchangeOrderInfo } from '@components/trading/core/domain/exchange-order/exchange-order-info';
 import { OrderStatusSyncResult } from './order-status-sync-result';
-import { ExchangeStatusMapper } from '../../domain/exchange-order/exchange-status.mapper';
+import { ExchangeStatusMapper } from '@components/trading/core/domain/exchange-order/exchange-status.mapper';
 
 @Injectable()
 export class OrderStatusSyncService {

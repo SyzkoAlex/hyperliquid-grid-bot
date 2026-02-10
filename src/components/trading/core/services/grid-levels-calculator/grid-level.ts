@@ -1,5 +1,5 @@
-import { Price } from '../../domain/common/price';
-import { OrderSide } from '../../domain/order/order-side';
+import { Price } from '@domain/primitives/price';
+import { OrderSide } from '@domain/order/order-side';
 
 export interface GridLevel {
     index: number;

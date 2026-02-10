@@ -1,33 +1,22 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { logger } from '../../../../../infra/logger/logger';
-import { WebSocketClient } from '../../../../../infra/websocket/websocket-client';
+import { logger } from '../logger/logger';
+import { WebSocketClient } from '../websocket/websocket-client';
 import {
     HyperliquidWsOrderStatus,
     HyperliquidWsUserEventsEvent,
     HyperliquidWsUserSubscription,
 } from './types/hyperliquid-ws-user-event';
-import { Config } from '../../../../../infra/config/config.schema';
+import { Config } from '../config/config.schema';
 
-type OrderStatusHandler = (status: HyperliquidWsOrderStatus) => void;
+type OrderUpdateHandler = (status: HyperliquidWsOrderStatus) => void;
 
-/**
- * Hyperliquid Order Updates WebSocket Client
- *
- * Secondary Adapter for real-time order status notifications.
- * Subscribes to "orderUpdates" channel for all order status changes.
- *
- * ## Status handling:
- * - open → order placed successfully
- * - filled → trigger grid refill logic
- * - canceled → remove order from active orders
- */
 @Injectable()
-export class HyperliquidUserEventsClient implements OnModuleInit, OnModuleDestroy {
-    private readonly logger = logger.child({ context: HyperliquidUserEventsClient.name });
+export class HyperliquidWsClient implements OnModuleInit, OnModuleDestroy {
+    private readonly logger = logger.child({ context: HyperliquidWsClient.name });
     private readonly wsClient: WebSocketClient;
     private readonly accountAddress: string;
-    private orderStatusHandlers: Set<OrderStatusHandler> = new Set();
+    private orderUpdateHandlers: Set<OrderUpdateHandler> = new Set();
 
     constructor(configService: ConfigService<Config, true>) {
         const hyperliquidConfig = configService.get('hyperliquid', { infer: true });
@@ -51,9 +40,9 @@ export class HyperliquidUserEventsClient implements OnModuleInit, OnModuleDestro
         this.wsClient.disconnect();
     }
 
-    onOrderStatus(handler: OrderStatusHandler): () => void {
-        this.orderStatusHandlers.add(handler);
-        return () => this.orderStatusHandlers.delete(handler);
+    onOrderUpdate(handler: OrderUpdateHandler): () => void {
+        this.orderUpdateHandlers.add(handler);
+        return () => this.orderUpdateHandlers.delete(handler);
     }
 
     isConnected(): boolean {
@@ -98,13 +87,13 @@ export class HyperliquidUserEventsClient implements OnModuleInit, OnModuleDestro
                 'Order status update',
             );
 
-            this.orderStatusHandlers.forEach((handler) => {
+            this.orderUpdateHandlers.forEach((handler) => {
                 try {
                     handler(orderStatus);
                 } catch (error) {
                     this.logger.error(
                         { error, oid: orderStatus.order.oid },
-                        'Error in order status handler',
+                        'Error in order update handler',
                     );
                 }
             });

@@ -1,7 +1,7 @@
-import { Order } from '../../domain/order/order';
-import { OrderSide } from '../../domain/order/order-side';
-import { Grid } from '@components/trading/core/domain/grid/grid';
-import { Price } from '../../domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderSide } from '@domain/order/order-side';
+import { Grid } from '@domain/grid/grid';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 /**

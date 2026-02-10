@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateAndStartGridUseCase } from './create-and-start-grid.use-case';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Price } from '../../domain/common/price';
+import { GridMode } from '@domain/grid/grid-mode';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 describe('CreateAndStartGridUseCase', () => {
     let useCase: CreateAndStartGridUseCase;
-    let orderClient: any;
+    let infoClient: any;
     let gridRepository: any;
     let capitalCalculator: any;
     let gridLevelsCalculator: any;
@@ -14,10 +14,9 @@ describe('CreateAndStartGridUseCase', () => {
     let orderPlacement: any;
 
     beforeEach(() => {
-        orderClient = {
+        infoClient = {
             getUserSpotState: vi.fn(),
             getCurrentPrice: vi.fn(),
-            placeSpotOrder: vi.fn(),
         };
 
         gridRepository = {
@@ -41,7 +40,7 @@ describe('CreateAndStartGridUseCase', () => {
         };
 
         useCase = new CreateAndStartGridUseCase(
-            orderClient,
+            infoClient,
             gridRepository,
             capitalCalculator,
             gridLevelsCalculator,
@@ -100,8 +99,8 @@ describe('CreateAndStartGridUseCase', () => {
             ];
 
             // Setup mocks
-            orderClient.getUserSpotState.mockResolvedValue(userState);
-            orderClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            infoClient.getUserSpotState.mockResolvedValue(userState);
+            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             gridRepository.save.mockResolvedValue(undefined);
@@ -120,7 +119,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(result.investmentBase).toEqual(distribution.investmentBase);
 
             // Verify getUserState was called
-            expect(orderClient.getUserSpotState).toHaveBeenCalledWith('0x123');
+            expect(infoClient.getUserSpotState).toHaveBeenCalledWith('0x123');
 
             // Verify balance extraction
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
@@ -141,7 +140,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(gridRepository.save).toHaveBeenCalledWith(result.grid);
 
             // Verify current price was fetched early
-            expect(orderClient.getCurrentPrice).toHaveBeenCalledWith(
+            expect(infoClient.getCurrentPrice).toHaveBeenCalledWith(
                 expect.objectContaining({ value: 'BTC' }),
             );
 
@@ -202,8 +201,8 @@ describe('CreateAndStartGridUseCase', () => {
             ];
 
             // Setup mocks
-            orderClient.getUserSpotState.mockResolvedValue(userState);
-            orderClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            infoClient.getUserSpotState.mockResolvedValue(userState);
+            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             gridRepository.save.mockResolvedValue(undefined);
@@ -260,8 +259,8 @@ describe('CreateAndStartGridUseCase', () => {
             ];
 
             // Setup mocks
-            orderClient.getUserSpotState.mockResolvedValue(userState);
-            orderClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            infoClient.getUserSpotState.mockResolvedValue(userState);
+            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             gridRepository.save.mockResolvedValue(undefined);

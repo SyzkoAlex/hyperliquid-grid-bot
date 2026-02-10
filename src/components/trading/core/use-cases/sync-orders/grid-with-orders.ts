@@ -1,6 +1,6 @@
-import { Grid } from '../../domain/grid/grid';
-import { Order } from '../../domain/order/order';
-import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
+import { Grid } from '@domain/grid/grid';
+import { Order } from '@domain/order/order';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
 
 /**
  * Aggregates grid with its related orders from both DB and exchange

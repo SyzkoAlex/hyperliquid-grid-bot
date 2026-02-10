@@ -1,5 +1,5 @@
 app:
-    type: bot
+    type: ${APP_TYPE:all-in-one}
     name: hyperliquid-grid-bot
     port: ${APP_PORT:3000}
     host: ${APP_HOST:0.0.0.0}
@@ -40,7 +40,7 @@ telegram:
     webhook:
         url: ${TELEGRAM_WEBHOOK_URL:}
         path: /telegram/webhook
-    notifications:
+    notifications: # TODO sync with NotifyUserUseCase
         tradeOpened: true
         tradeClosed: true
         stopLoss: true

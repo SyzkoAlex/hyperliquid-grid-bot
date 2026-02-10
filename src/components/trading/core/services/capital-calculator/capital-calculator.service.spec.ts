@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CapitalCalculatorService } from './capital-calculator.service';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Price } from '../../domain/common/price';
+import { GridMode } from '@domain/grid/grid-mode';
+import { Price } from '@domain/primitives/price';
 
 describe('CapitalCalculatorService', () => {
     let service: CapitalCalculatorService;

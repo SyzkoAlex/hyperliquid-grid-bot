@@ -2,10 +2,10 @@ import { GridId } from './grid-id';
 import { GridStatus } from './grid-status';
 import { GridMode } from './grid-mode';
 import { GridCreateParams } from './grid-create-params';
-import { Symbol } from '../common/symbol';
-import { Price } from '../common/price';
-import { Decimal } from '../../../../../domain/primitives/decimal';
-import { Timestamp } from '../../../../../domain/primitives/timestamp';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { Timestamp } from '@domain/primitives/timestamp';
 
 /**
  * Grid Entity for SPOT Trading
@@ -22,7 +22,7 @@ import { Timestamp } from '../../../../../domain/primitives/timestamp';
  */
 export class Grid {
     private readonly _id: GridId;
-    private readonly _symbol: Symbol;
+    private readonly _symbol: TradingSymbol;
     private readonly _mode: GridMode;
     private _status: GridStatus;
     private _lowerPrice: Price;
@@ -181,7 +181,7 @@ export class Grid {
         return minutesSinceLastTrailing >= cooldownMinutes;
     }
 
-    get symbol(): Symbol {
+    get symbol(): TradingSymbol {
         return this._symbol;
     }
 

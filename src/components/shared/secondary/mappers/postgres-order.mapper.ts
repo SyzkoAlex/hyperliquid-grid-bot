@@ -1,30 +1,28 @@
-import { Injectable } from '@nestjs/common';
-import { Order } from '../../../core/domain/order/order';
-import { OrderId } from '../../../core/domain/order/order-id';
-import { OrderSide } from '../../../core/domain/order/order-side';
-import { OrderType } from '../../../core/domain/order/order-type';
-import { OrderStatus } from '../../../core/domain/order/order-status';
-import { Symbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
-import { Decimal } from '../../../../../domain/primitives/decimal';
-import { Timestamp } from '../../../../../domain/primitives/timestamp';
-import { OrderDbRecord } from '../../../../../infra/database/schema';
-import { GridId } from '../../../core/domain/grid/grid-id';
+import { Order } from '@domain/order/order';
+import { OrderId } from '@domain/order/order-id';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { OrderStatus } from '@domain/order/order-status';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { Timestamp } from '@domain/primitives/timestamp';
+import { OrderDbRecord } from '@infra/database/schema';
+import { GridId } from '@domain/grid/grid-id';
 
 /**
  * Postgres Order Mapper
  * Maps between Order domain entities and database records
  */
-@Injectable()
 export class PostgresOrderMapper {
     /**
      * Convert database row to domain entity
      */
-    toDomain(row: OrderDbRecord): Order {
+    static toDomain(row: OrderDbRecord): Order {
         return Order.create({
             id: OrderId.from(row.id),
             exchangeOrderId: row.exchangeOrderId ?? undefined,
-            symbol: Symbol.create(row.symbol || 'UNKNOWN'),
+            symbol: TradingSymbol.create(row.symbol || 'UNKNOWN'),
             type: (row.type as OrderType) || OrderType.Limit,
             side: row.side as OrderSide,
             price: row.price ? Price.from(parseFloat(row.price)) : undefined,
@@ -42,7 +40,7 @@ export class PostgresOrderMapper {
     /**
      * Convert domain entity to database record
      */
-    toDbRecord(order: Order): Omit<OrderDbRecord, 'createdAt' | 'updatedAt'> {
+    static toDbRecord(order: Order): Omit<OrderDbRecord, 'createdAt' | 'updatedAt'> {
         return {
             id: order.id.toString(),
             exchangeOrderId: order.exchangeOrderId ?? null,

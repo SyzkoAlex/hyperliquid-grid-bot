@@ -1,4 +1,4 @@
-import { GridMode } from '../../domain/grid/grid-mode';
+import { GridMode } from '@domain/grid/grid-mode';
 
 export interface CreateAndStartGridParams {
     address: string;

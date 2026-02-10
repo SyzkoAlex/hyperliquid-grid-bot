@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OrderPlacementService } from './order-placement.service';
-import { Grid } from '../../domain/grid/grid';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { OrderStatus } from '../../domain/order/order-status';
-import { OrderSide } from '../../domain/order/order-side';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Grid } from '@domain/grid/grid';
+import { GridMode } from '@domain/grid/grid-mode';
+import { OrderStatus } from '@domain/order/order-status';
+import { OrderSide } from '@domain/order/order-side';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { GridLevel } from '../grid-levels-calculator/grid-level';
 
@@ -31,7 +31,7 @@ describe('OrderPlacementService', () => {
     describe('placeGridOrders', () => {
         it('should place all orders successfully and return count', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -78,7 +78,7 @@ describe('OrderPlacementService', () => {
 
         it('should handle buy order with correct amount', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -117,7 +117,7 @@ describe('OrderPlacementService', () => {
 
         it('should handle sell order with correct amount', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -156,7 +156,7 @@ describe('OrderPlacementService', () => {
 
         it('should handle partial failures and return only successful count', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('ETH'),
+                symbol: TradingSymbol.create('ETH'),
                 mode: GridMode.Long,
                 lowerPrice: Price.from(2500),
                 upperPrice: Price.from(3500),
@@ -216,7 +216,7 @@ describe('OrderPlacementService', () => {
 
         it('should mark order as failed when exchangeOrderId is empty', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('SOL'),
+                symbol: TradingSymbol.create('SOL'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(100),
                 upperPrice: Price.from(150),
@@ -258,7 +258,7 @@ describe('OrderPlacementService', () => {
 
         it('should continue placing orders even if one fails with exception', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -307,7 +307,7 @@ describe('OrderPlacementService', () => {
 
         it('should save orders with pending status before placing', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -348,7 +348,7 @@ describe('OrderPlacementService', () => {
 
         it('should handle empty levels array', async () => {
             const mockGrid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),

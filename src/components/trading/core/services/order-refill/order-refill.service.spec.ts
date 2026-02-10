@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderRefillService } from './order-refill.service';
-import { Order } from '../../domain/order/order';
-import { OrderId } from '../../domain/order/order-id';
-import { OrderType } from '../../domain/order/order-type';
-import { OrderSide } from '../../domain/order/order-side';
-import { OrderStatus } from '../../domain/order/order-status';
-import { Grid } from '../../domain/grid/grid';
-import { GridId } from '../../domain/grid/grid-id';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderId } from '@domain/order/order-id';
+import { OrderType } from '@domain/order/order-type';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderStatus } from '@domain/order/order-status';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridMode } from '@domain/grid/grid-mode';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 describe('OrderRefillService', () => {
@@ -29,7 +29,7 @@ describe('OrderRefillService', () => {
     // Test grid configuration
     const createTestGrid = (): Grid => {
         return Grid.create({
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             mode: GridMode.Neutral,
             lowerPrice: Price.from(45000),
             upperPrice: Price.from(55000),
@@ -45,7 +45,7 @@ describe('OrderRefillService', () => {
             id: OrderId.create(),
             gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             exchangeOrderId: 'exchange-789',
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             type: OrderType.Limit,
             price: Price.from(50000), // Level 5
             levelIndex: 5,
@@ -59,7 +59,7 @@ describe('OrderRefillService', () => {
             id: OrderId.create(),
             gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             exchangeOrderId: 'exchange-012',
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             type: OrderType.Limit,
             price: Price.from(51000), // Level 6
             levelIndex: 6,
@@ -190,7 +190,7 @@ describe('OrderRefillService', () => {
                 id: OrderId.create(),
                 gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
                 exchangeOrderId: 'exchange-top',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 price: Price.from(55000),
                 levelIndex: 10, // Top level (last level in 11-level grid)
@@ -215,7 +215,7 @@ describe('OrderRefillService', () => {
                 id: OrderId.create(),
                 gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
                 exchangeOrderId: 'exchange-bottom',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 price: Price.from(45000),
                 levelIndex: 0, // Bottom level

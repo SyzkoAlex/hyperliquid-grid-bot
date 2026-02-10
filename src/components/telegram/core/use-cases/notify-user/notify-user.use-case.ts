@@ -20,6 +20,8 @@ export class NotifyUserUseCase {
     async execute(params: NotifyUserParams): Promise<void> {
         const { event } = params;
 
+        // TODO check configService.get('telegram', { infer: true }).notifications for skip notification
+
         const message = this.messageFactory.buildFromEvent(event);
         await this.notificationService.sendMessage(this.notificationChatId, message.toString());
     }

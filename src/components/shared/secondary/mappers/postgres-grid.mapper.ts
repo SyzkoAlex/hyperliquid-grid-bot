@@ -1,13 +1,13 @@
-import { Grid } from '../../../core/domain/grid/grid';
-import { GridId } from '../../../core/domain/grid/grid-id';
-import { GridStatus } from '../../../core/domain/grid/grid-status';
-import { GridMode } from '../../../core/domain/grid/grid-mode';
-import { Symbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
-import { Decimal } from '../../../../../domain/primitives/decimal';
-import { Timestamp } from '../../../../../domain/primitives/timestamp';
-import { GridDbRecord } from '../../../../../infra/database/schema';
-import { logger } from '../../../../../infra/logger/logger';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridStatus } from '@domain/grid/grid-status';
+import { GridMode } from '@domain/grid/grid-mode';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { Timestamp } from '@domain/primitives/timestamp';
+import { GridDbRecord } from '@infra/database/schema';
+import { logger } from '@infra/logger/logger';
 
 export class PostgresGridMapper {
     private static readonly logger = logger.child({ context: PostgresGridMapper.name });
@@ -44,7 +44,7 @@ export class PostgresGridMapper {
         try {
             const params = {
                 id: GridId.from(row.id),
-                symbol: Symbol.create(row.symbol),
+                symbol: TradingSymbol.create(row.symbol),
                 mode: row.mode as GridMode,
                 status: row.status as GridStatus,
                 lowerPrice: Price.from(parseFloat(row.lowerPrice)),

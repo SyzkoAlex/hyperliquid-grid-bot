@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Symbol as TradingSymbol } from '../../../core/domain/common/symbol';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
 import { Decimal } from '@domain/primitives/decimal';
-import { UserState } from '../../../core/domain/user-state/user-state';
-import { AssetPosition } from '../../../core/domain/user-state/asset-position';
-import {
-    HyperliquidSpotUserStateResponse,
-    HyperliquidSpotBalance,
-} from './types/hyperliquid-user-state-response';
+import { UserState } from '@domain/user-state/user-state';
+import { AssetPosition } from '@domain/user-state/asset-position';
+import { HyperliquidUserStateResponse } from '@infra/hyperliquid/types/hyperliquid-user-state-response';
+
+type HyperliquidSpotBalance = HyperliquidUserStateResponse['balances'][number];
 
 /**
  * Hyperliquid User State Mapper
@@ -18,7 +17,7 @@ export class HyperliquidUserStateMapper {
     /**
      * Map Hyperliquid spotClearinghouseState API response to domain UserState
      */
-    toUserState(response: HyperliquidSpotUserStateResponse): UserState {
+    toUserState(response: HyperliquidUserStateResponse): UserState {
         const usdcBalance = this.findUsdcBalance(response.balances);
         const assetPositions = this.toAssetPositions(response.balances);
 

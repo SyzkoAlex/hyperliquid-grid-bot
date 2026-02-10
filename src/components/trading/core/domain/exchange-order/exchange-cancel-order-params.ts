@@ -1,4 +1,4 @@
-import { Symbol } from '../common/symbol';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
 
 /**
  * Exchange Cancel Order Parameters
@@ -7,7 +7,7 @@ import { Symbol } from '../common/symbol';
  */
 export interface ExchangeCancelOrderParams {
     /** Trading symbol */
-    symbol: Symbol;
+    symbol: TradingSymbol;
 
     /** Exchange order ID to cancel */
     exchangeOrderId: string;

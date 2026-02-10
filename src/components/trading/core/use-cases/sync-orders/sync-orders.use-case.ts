@@ -8,10 +8,10 @@ import { OrderRefillService } from '../../services/order-refill/order-refill.ser
 import { logger } from '../../../../../infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { Config } from '../../../../../infra/config/config.schema';
-import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
-import { Order } from '../../domain/order/order';
-import { OrderStatus } from '../../domain/order/order-status';
-import { Grid } from '../../domain/grid/grid';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
+import { Order } from '@domain/order/order';
+import { OrderStatus } from '@domain/order/order-status';
+import { Grid } from '@domain/grid/grid';
 import { GridWithOrders } from './grid-with-orders';
 
 @Injectable()

@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { Symbol as TradingSymbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { Grid } from '../../../core/domain/grid/grid';
-import { GridId } from '../../../core/domain/grid/grid-id';
-import { GridMode } from '../../../core/domain/grid/grid-mode';
-import { GridStatus } from '../../../core/domain/grid/grid-status';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridMode } from '@domain/grid/grid-mode';
+import { GridStatus } from '@domain/grid/grid-status';
 import { PostgresGridRepository } from './postgres-grid.repository';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { grids } from '../../../../../infra/database/schema';

@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncOrdersUseCase } from './sync-orders.use-case';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Grid } from '../../domain/grid/grid';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { GridMode } from '@domain/grid/grid-mode';
+import { Grid } from '@domain/grid/grid';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { Order } from '../../domain/order/order';
-import { OrderId } from '../../domain/order/order-id';
-import { OrderType } from '../../domain/order/order-type';
-import { OrderSide } from '../../domain/order/order-side';
-import { OrderStatus } from '../../domain/order/order-status';
-import { ExchangeCloid } from '../../domain/exchange-order/exchange-cloid';
-import { ExchangeOrderStatus } from '../../domain/exchange-order/exchange-order-status';
+import { Order } from '@domain/order/order';
+import { OrderId } from '@domain/order/order-id';
+import { OrderType } from '@domain/order/order-type';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderStatus } from '@domain/order/order-status';
+import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
+import { ExchangeOrderStatus } from '@components/trading/core/domain/exchange-order/exchange-order-status';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
@@ -24,7 +24,7 @@ describe('SyncOrdersUseCase', () => {
 
     const createTestGrid = () => {
         return Grid.create({
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             mode: GridMode.Neutral,
             lowerPrice: Price.from(45000),
             upperPrice: Price.from(55000),
@@ -94,7 +94,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order = Order.create({
                 id: orderId,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -107,7 +107,7 @@ describe('SyncOrdersUseCase', () => {
             const exchangeOrder = {
                 id: 'exchange-123',
                 cloid,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -148,7 +148,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order = Order.create({
                 id: orderId,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -161,7 +161,7 @@ describe('SyncOrdersUseCase', () => {
             const exchangeOrder = {
                 id: 'exchange-123',
                 cloid,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -204,7 +204,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order1 = Order.create({
                 id: orderId1,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -216,7 +216,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order2 = Order.create({
                 id: orderId2,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -229,7 +229,7 @@ describe('SyncOrdersUseCase', () => {
             const exchangeOrder1 = {
                 id: 'exchange-123',
                 cloid: cloid1,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -243,7 +243,7 @@ describe('SyncOrdersUseCase', () => {
             const exchangeOrder2 = {
                 id: 'exchange-456',
                 cloid: cloid2,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -277,7 +277,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order = Order.create({
                 id: orderId,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -290,7 +290,7 @@ describe('SyncOrdersUseCase', () => {
             const exchangeOrder = {
                 id: 'exchange-123',
                 cloid,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -303,7 +303,7 @@ describe('SyncOrdersUseCase', () => {
 
             const order2 = Order.create({
                 id: OrderId.create(),
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),

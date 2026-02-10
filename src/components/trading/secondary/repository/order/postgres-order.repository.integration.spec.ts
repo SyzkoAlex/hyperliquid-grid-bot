@@ -1,19 +1,18 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PostgresOrderRepository } from './postgres-order.repository';
-import { PostgresOrderMapper } from './postgres-order.mapper';
-import { Order } from '../../../core/domain/order/order';
-import { OrderId } from '../../../core/domain/order/order-id';
-import { OrderStatus } from '../../../core/domain/order/order-status';
-import { OrderSide } from '../../../core/domain/order/order-side';
-import { OrderType } from '../../../core/domain/order/order-type';
-import { Symbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderId } from '@domain/order/order-id';
+import { OrderStatus } from '@domain/order/order-status';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { orders } from '../../../../../infra/database/schema';
 import { eq } from 'drizzle-orm';
-import { Grid } from '../../../core/domain/grid/grid';
-import { GridMode } from '../../../core/domain/grid/grid-mode';
+import { Grid } from '@domain/grid/grid';
+import { GridMode } from '@domain/grid/grid-mode';
 import { PostgresGridRepository } from '../grid/postgres-grid.repository';
 
 /**
@@ -27,7 +26,6 @@ import { PostgresGridRepository } from '../grid/postgres-grid.repository';
 describe('PostgresOrderRepository (Integration)', () => {
     let repository: PostgresOrderRepository;
     let gridRepository: PostgresGridRepository;
-    let mapper: PostgresOrderMapper;
     let testGrid: Grid;
     const createdOrderIds: string[] = [];
 
@@ -35,9 +33,8 @@ describe('PostgresOrderRepository (Integration)', () => {
         // Initialize testcontainer
         const db = await DatabaseTestHelper.initialize();
 
-        // Create mapper and repositories
-        mapper = new PostgresOrderMapper();
-        repository = new PostgresOrderRepository(db, mapper);
+        // Create repositories
+        repository = new PostgresOrderRepository(db);
         gridRepository = new PostgresGridRepository(db);
 
         console.log('🧪 PostgresOrderRepository test setup complete');
@@ -47,7 +44,7 @@ describe('PostgresOrderRepository (Integration)', () => {
     beforeEach(async () => {
         // Create a test grid that will be used for orders in each test
         testGrid = Grid.create({
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             mode: GridMode.Neutral,
             lowerPrice: Price.from(45000),
             upperPrice: Price.from(55000),
@@ -87,7 +84,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: orderId,
                 exchangeOrderId: 'exchange-123',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -128,7 +125,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: orderId,
                 exchangeOrderId: undefined,
-                symbol: Symbol.create('ETH'),
+                symbol: TradingSymbol.create('ETH'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(3000),
@@ -160,7 +157,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             // Create pending order
             const pendingOrder = Order.create({
                 id: OrderId.create(),
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(49000),
@@ -174,7 +171,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const placedOrder = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-placed',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(51000),
@@ -188,7 +185,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const filledOrder = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-filled',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -235,7 +232,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'unique-exchange-id',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -272,7 +269,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-to-fill',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -300,7 +297,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-to-cancel',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -330,7 +327,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const order = Order.create({
                 id: orderId,
                 exchangeOrderId: undefined,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -368,7 +365,7 @@ describe('PostgresOrderRepository (Integration)', () => {
 
             const pendingOrder = Order.create({
                 id: OrderId.create(),
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -396,7 +393,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const gridId = testGrid.id;
             const staleOrder = Order.create({
                 id: OrderId.create(),
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -428,7 +425,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const filledOrder = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: 'exchange-filled-1',
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -460,7 +457,7 @@ describe('PostgresOrderRepository (Integration)', () => {
             const originalOrder = Order.create({
                 id: orderId,
                 exchangeOrderId: 'exchange-mapping-test',
-                symbol: Symbol.create('SOL'),
+                symbol: TradingSymbol.create('SOL'),
                 type: OrderType.Limit,
                 side: OrderSide.Sell,
                 price: Price.from(125.5),

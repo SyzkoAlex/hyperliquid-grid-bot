@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ExchangeCloid } from './exchange-cloid';
-import { OrderId } from '../order/order-id';
+import { OrderId } from '@domain/order/order-id';
 
 describe('ExchangeCloid', () => {
     describe('create', () => {

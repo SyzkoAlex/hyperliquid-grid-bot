@@ -2,18 +2,18 @@ import { OrderId } from './order-id';
 import { OrderSide } from './order-side';
 import { OrderType } from './order-type';
 import { OrderStatus } from './order-status';
-import { Symbol } from '../common/symbol';
-import { Price } from '../common/price';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
 import { Timestamp } from '@domain/primitives/timestamp';
-import { ExchangeCloid } from '../exchange-order/exchange-cloid';
+import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
 import { GridId } from '../grid/grid-id';
 
 export interface OrderParams {
     id?: OrderId;
     exchangeOrderId?: string;
     cloid?: ExchangeCloid;
-    symbol: Symbol;
+    symbol: TradingSymbol;
     type: OrderType;
     side: OrderSide;
     price?: Price;
@@ -38,7 +38,7 @@ export class Order {
     private readonly _id: OrderId;
     private readonly _exchangeOrderId: string | null;
     private readonly _cloid: ExchangeCloid | null;
-    private readonly _symbol: Symbol;
+    private readonly _symbol: TradingSymbol;
     private readonly _type: OrderType;
     private readonly _side: OrderSide;
     private readonly _price: Price | null;
@@ -135,7 +135,7 @@ export class Order {
         return this._cloid;
     }
 
-    get symbol(): Symbol {
+    get symbol(): TradingSymbol {
         return this._symbol;
     }
 

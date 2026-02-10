@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SerializableEvent } from '@domain/events/trading/trading-event';
 import { EventType } from '@domain/events/event-type';
-import { EventDeserializerService } from '@domain/events/event-deserializer.service';
+import { EventDeserializer } from '@domain/events/event-deserializer';
 import { logger } from '../logger/logger';
 import { EventBus } from './event-bus.port';
 
@@ -14,7 +14,7 @@ export class EventBusService implements EventBus {
     private readonly logger = logger.child({ context: EventBusService.name });
     private handlers = new Map<string, EventHandler[]>();
 
-    constructor(private readonly eventDeserializer: EventDeserializerService) {}
+    constructor(private readonly eventDeserializer: EventDeserializer) {}
 
     async publish(event: SerializableEvent): Promise<void> {
         const eventType = event.eventType;

@@ -3,19 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { Config } from '@infra/config/config.schema';
 import { AppTypes } from '@infra/config/app.types';
 import { EventBusService } from './event-bus.service';
-import { EventDeserializerService } from '@domain/events/event-deserializer.service';
+import { EventDeserializer } from '@domain/events/event-deserializer';
 import { ExternalEventBusStub } from './external-event-bus.stub';
 import { EVENT_BUS, EventBus } from './event-bus.port';
 
 @Global()
 @Module({
     providers: [
-        EventDeserializerService,
+        EventDeserializer,
         {
             provide: EVENT_BUS,
             useFactory: (
                 configService: ConfigService<Config, true>,
-                eventDeserializer: EventDeserializerService,
+                eventDeserializer: EventDeserializer,
             ): EventBus => {
                 const appType = configService.get('app.type', { infer: true });
 
@@ -25,7 +25,7 @@ import { EVENT_BUS, EventBus } from './event-bus.port';
 
                 return new ExternalEventBusStub();
             },
-            inject: [ConfigService, EventDeserializerService],
+            inject: [ConfigService, EventDeserializer],
         },
     ],
     exports: [EVENT_BUS],

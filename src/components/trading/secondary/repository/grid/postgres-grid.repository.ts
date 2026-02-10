@@ -1,13 +1,13 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { DrizzleDb } from '../../../../../infra/database/drizzle-db';
 import { DRIZZLE_DB } from '../../../../../infra/database/database.module';
-import { Grid } from '../../../core/domain/grid/grid';
-import { GridId } from '../../../core/domain/grid/grid-id';
-import { GridStatus } from '../../../core/domain/grid/grid-status';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridStatus } from '@domain/grid/grid-status';
 import { grids } from '../../../../../infra/database/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 import { logger } from '../../../../../infra/logger/logger';
-import { PostgresGridMapper } from './postgres-grid.mapper';
+import { PostgresGridMapper } from '@components/shared/secondary/mappers/postgres-grid.mapper';
 
 /**
  * Postgres Grid Repository

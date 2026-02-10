@@ -1,8 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { logger } from '../../../../infra/logger/logger';
-import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
+import { logger } from '@infra/logger/logger';
+import { OrderEventsListener } from '../../secondary/client/hyperliquid/order-events.listener';
 import { ProcessOrderStatusUseCase } from '../../core/use-cases/process-order-status/process-order-status.use-case';
-import { HyperliquidWsOrderStatus } from '../../secondary/client/hyperliquid/types/hyperliquid-ws-user-event';
+import { HyperliquidWsOrderStatus } from '@infra/hyperliquid/types/hyperliquid-ws-user-event';
 
 /**
  * Orders WebSocket Controller
@@ -23,12 +23,12 @@ export class OrdersWebsocketController implements OnModuleInit, OnModuleDestroy 
     private unsubscribeStatus?: () => void;
 
     constructor(
-        private readonly userEventsClient: HyperliquidUserEventsClient,
+        private readonly orderEventsAdapter: OrderEventsListener,
         private readonly processOrderStatus: ProcessOrderStatusUseCase,
     ) {}
 
     onModuleInit(): void {
-        this.unsubscribeStatus = this.userEventsClient.onOrderStatus((status) =>
+        this.unsubscribeStatus = this.orderEventsAdapter.onOrderStatus((status) =>
             this.handleOrderStatus(status),
         );
 

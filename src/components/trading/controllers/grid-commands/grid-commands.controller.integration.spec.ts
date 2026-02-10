@@ -8,7 +8,8 @@ import { AppConfigModule } from '@infra/config/app-config.module';
 import { TradingModule } from '../../trading.module';
 import { GridCommandsController } from './grid-commands.controller';
 import { HyperliquidOrderClient } from '../../secondary/client/hyperliquid/hyperliquid-order.client';
-import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
+import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
+import { OrderEventsListener } from '../../secondary/client/hyperliquid/order-events.listener';
 import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
 import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
@@ -19,11 +20,11 @@ import { Decimal } from '@domain/primitives/decimal';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
 
-import { UserState } from '../../core/domain/user-state/user-state';
-import { AssetPosition } from '../../core/domain/user-state/asset-position';
-import { Symbol as TradingSymbol } from '../../core/domain/common/symbol';
-import { Price } from '../../core/domain/common/price';
-import { OrderStatus } from '../../core/domain/order/order-status';
+import { UserState } from '@domain/user-state/user-state';
+import { AssetPosition } from '@domain/user-state/asset-position';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { OrderStatus } from '@domain/order/order-status';
 
 /**
  * Integration Tests for GridCommandsController
@@ -37,6 +38,7 @@ describe('GridCommandsController (Integration)', () => {
     let module: TestingModule;
     let gridRepository: PostgresGridRepository;
     let hyperliquidOrderClient: HyperliquidOrderClient;
+    let hyperliquidInfoClient: HyperliquidInfoClient;
     let eventBus: EventBus;
 
     beforeAll(async () => {
@@ -44,6 +46,7 @@ describe('GridCommandsController (Integration)', () => {
         module = env.module;
         gridRepository = env.gridRepository;
         hyperliquidOrderClient = env.hyperliquidOrderClient;
+        hyperliquidInfoClient = env.hyperliquidInfoClient;
         eventBus = env.eventBus;
     });
 
@@ -86,8 +89,8 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock successful order placements
             let orderIdCounter = 1;
@@ -166,8 +169,8 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(3500));
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(3500));
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
             vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
@@ -226,8 +229,8 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(125));
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(125));
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
             vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
@@ -273,10 +276,10 @@ describe('GridCommandsController (Integration)', () => {
     describe('Error Handling', () => {
         it('should publish error event when API fails', async () => {
             // Mock API failure
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockRejectedValue(
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockRejectedValue(
                 new Error('Network timeout'),
             );
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockRejectedValue(
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockRejectedValue(
                 new Error('Network timeout'),
             );
 
@@ -316,8 +319,8 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             const errorHandler = vi.fn();
             eventBus.subscribe(EventType.GridCreatedError, errorHandler);
@@ -353,8 +356,8 @@ describe('GridCommandsController (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock order placement failure
             vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockRejectedValue(
@@ -404,12 +407,12 @@ describe('GridCommandsController (Integration)', () => {
             });
 
             // Mock different prices for different symbols
-            vi.mocked(hyperliquidOrderClient.getCurrentPrice).mockImplementation(async (symbol) => {
+            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockImplementation(async (symbol) => {
                 if (symbol.toString() === 'BTC') return Price.from(50000);
                 if (symbol.toString() === 'ETH') return Price.from(3500);
                 return Price.from(100);
             });
-            vi.mocked(hyperliquidOrderClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
             vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
@@ -478,18 +481,21 @@ async function setupTestEnvironment() {
     const db = await DatabaseTestHelper.initialize();
     await CacheTestHelper.initialize();
 
-    // Create mocked Hyperliquid client
+    // Create mocked Hyperliquid clients
     const mockHyperliquidOrderClient = {
         getOpenSpotOrders: vi.fn(),
         getOrderStatus: vi.fn(),
-        getUserSpotState: vi.fn(),
-        getCurrentPrice: vi.fn(),
         placeSpotOrder: vi.fn(),
         cancelSpotOrder: vi.fn(),
     };
 
+    const mockHyperliquidInfoClient = {
+        getUserSpotState: vi.fn(),
+        getCurrentPrice: vi.fn(),
+    };
+
     // Mock websocket client (not needed for this test)
-    const mockHyperliquidUserEventsClient = {
+    const mockOrderEventsListener = {
         onModuleInit: vi.fn(),
         onModuleDestroy: vi.fn(),
         connect: vi.fn(),
@@ -513,9 +519,8 @@ async function setupTestEnvironment() {
     // Override providers
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
     moduleBuilder.overrideProvider(HyperliquidOrderClient).useValue(mockHyperliquidOrderClient);
-    moduleBuilder
-        .overrideProvider(HyperliquidUserEventsClient)
-        .useValue(mockHyperliquidUserEventsClient);
+    moduleBuilder.overrideProvider(HyperliquidInfoClient).useValue(mockHyperliquidInfoClient);
+    moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
 
     // Compile module
     const module = await moduleBuilder.compile();
@@ -523,6 +528,7 @@ async function setupTestEnvironment() {
     // Get instances from module
     const gridRepository = module.get<PostgresGridRepository>(PostgresGridRepository);
     const hyperliquidOrderClient = module.get<HyperliquidOrderClient>(HyperliquidOrderClient);
+    const hyperliquidInfoClient = module.get<HyperliquidInfoClient>(HyperliquidInfoClient);
     const eventBus = module.get<EventBus>(EVENT_BUS);
 
     // Manually initialize only the GridCommandsController to set up event subscriptions
@@ -534,6 +540,7 @@ async function setupTestEnvironment() {
         module,
         gridRepository,
         hyperliquidOrderClient,
+        hyperliquidInfoClient,
         eventBus,
         db,
     };

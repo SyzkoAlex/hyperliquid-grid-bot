@@ -1,22 +1,20 @@
-import { Symbol as TradingSymbol } from '../../../../core/domain/common/symbol';
-
 /**
  * Hyperliquid Symbol Formatter
  *
- * Handles conversion between domain symbols and Hyperliquid-specific symbol formats.
+ * Handles conversion between string symbols and Hyperliquid-specific symbol formats.
  * Single source of truth for Hyperliquid symbol formatting.
  */
 export class HyperliquidSymbol {
     /**
-     * Convert domain symbol to Hyperliquid SPOT format
-     * @param symbol - Domain trading symbol (e.g., ETH)
-     * @returns Hyperliquid SPOT symbol (e.g., ETH-SPOT)
+     * Convert symbol to Hyperliquid SPOT format
+     * @param symbol - Symbol string (e.g., 'ETH')
+     * @returns Hyperliquid SPOT symbol (e.g., 'ETH-SPOT')
      *
      * @example
-     * HyperliquidSymbol.toSpotFormat(Symbol.create('ETH')) // => 'ETH-SPOT'
+     * HyperliquidSymbol.toSpotFormat('ETH') // => 'ETH-SPOT'
      */
-    static toSpotFormat(symbol: TradingSymbol): string {
-        return `${symbol.toString()}-SPOT`;
+    static toSpotFormat(symbol: string): string {
+        return `${symbol}-SPOT`;
     }
 
     /**

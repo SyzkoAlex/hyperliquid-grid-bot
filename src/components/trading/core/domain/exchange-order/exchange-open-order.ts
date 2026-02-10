@@ -1,10 +1,10 @@
-import { Symbol } from '../common/symbol';
-import { Price } from '../common/price';
-import { Decimal } from '../../../../../domain/primitives/decimal';
-import { OrderSide } from '../order/order-side';
-import { OrderType } from '../order/order-type';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
+import { Decimal } from '@domain/primitives/decimal';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
 import { ExchangeOrderStatus } from './exchange-order-status';
-import { ExchangeCloid } from './exchange-cloid';
+import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
 
 /**
  * Open Order
@@ -22,7 +22,7 @@ export interface ExchangeOpenOrder {
     cloid?: ExchangeCloid;
 
     /** Trading symbol */
-    symbol: Symbol;
+    symbol: TradingSymbol;
 
     /** Order type */
     type: OrderType;

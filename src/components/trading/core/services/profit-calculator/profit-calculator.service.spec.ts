@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfitCalculatorService } from './profit-calculator.service';
-import { Order } from '../../domain/order/order';
-import { OrderSide } from '../../domain/order/order-side';
-import { OrderType } from '../../domain/order/order-type';
-import { OrderStatus } from '../../domain/order/order-status';
-import { Grid } from '../../domain/grid/grid';
-import { GridId } from '../../domain/grid/grid-id';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { OrderStatus } from '@domain/order/order-status';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridMode } from '@domain/grid/grid-mode';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 describe('ProfitCalculatorService', () => {
@@ -25,7 +25,7 @@ describe('ProfitCalculatorService', () => {
 
     function createGrid(lowerPrice: number, upperPrice: number, levels: number): Grid {
         return Grid.create({
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             mode: GridMode.Neutral,
             lowerPrice: Price.from(lowerPrice),
             upperPrice: Price.from(upperPrice),
@@ -41,7 +41,7 @@ describe('ProfitCalculatorService', () => {
 
     function createOrder(side: OrderSide, amount: number): Order {
         return Order.create({
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             type: OrderType.Limit,
             side,
             price: Price.from(50000),

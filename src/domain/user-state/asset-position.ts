@@ -1,4 +1,4 @@
-import { Symbol as TradingSymbol } from '../common/symbol';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
 import { Decimal } from '@domain/primitives/decimal';
 
 /**

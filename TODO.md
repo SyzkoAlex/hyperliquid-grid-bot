@@ -100,7 +100,7 @@
 
 ### Grid Monitoring Controllers
 
-- [ ] Implement OrdersWebSocketConsumer for real-time order updates
+- [x] Implement OrdersWebSocketConsumer for real-time order updates
 - [ ] Implement OrdersMonitorController for periodic sync
 - [ ] Implement OrderRestoreMonitorController for restoring lost orders
 

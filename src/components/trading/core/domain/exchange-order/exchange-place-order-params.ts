@@ -1,8 +1,8 @@
-import { Symbol } from '../common/symbol';
-import { Price } from '../common/price';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { OrderSide } from '../order/order-side';
-import { OrderId } from '../order/order-id';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderId } from '@domain/order/order-id';
 
 /**
  * Exchange Place Order Parameters
@@ -11,7 +11,7 @@ import { OrderId } from '../order/order-id';
  */
 export interface ExchangePlaceOrderParams {
     /** Trading symbol */
-    symbol: Symbol;
+    symbol: TradingSymbol;
 
     /** Order side (buy/sell) */
     side: OrderSide;

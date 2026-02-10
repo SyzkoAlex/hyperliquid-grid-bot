@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
-import { Symbol as TradingSymbol } from '../../../core/domain/common/symbol';
-import { Price } from '../../../core/domain/common/price';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { ExchangePlaceOrderParams } from '../../../core/domain/exchange-order/exchange-place-order-params';
-import { ExchangePlaceOrderResult } from '../../../core/domain/exchange-order/exchange-place-order-result';
-import { ExchangeOpenOrder } from '../../../core/domain/exchange-order/exchange-open-order';
-import { OrderSide } from '../../../core/domain/order/order-side';
-import { OrderType } from '../../../core/domain/order/order-type';
-import { OrderStatus } from '../../../core/domain/order/order-status';
-import { HyperliquidPlaceOrderRequest } from './types/hyperliquid-place-order-request';
-import { HyperliquidPlaceOrderResponse } from './types/hyperliquid-place-order-response';
-import { HyperliquidOpenOrder } from './types/hyperliquid-open-order';
-import { HyperliquidHistoricalOrder } from './types/hyperliquid-historical-order';
-import { HyperliquidOrderStatusFound } from './types/hyperliquid-order-status-response';
-import { ExchangeOrderInfo } from '../../../core/domain/exchange-order/exchange-order-info';
-import { ExchangeOrderStatus } from '../../../core/domain/exchange-order/exchange-order-status';
-import { HyperliquidSymbol } from './types/hyperliquid-symbol';
-import { ExchangeCloid } from '../../../core/domain/exchange-order/exchange-cloid';
-import { HyperliquidSdkService } from './hyperliquid-sdk.service';
-import { HyperliquidSdkPlaceOrderResponse } from './types/hyperliquid-sdk-place-order-response';
+import { ExchangePlaceOrderParams } from '@components/trading/core/domain/exchange-order/exchange-place-order-params';
+import { ExchangePlaceOrderResult } from '@components/trading/core/domain/exchange-order/exchange-place-order-result';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { OrderStatus } from '@domain/order/order-status';
+import { ExchangeOrderInfo } from '@components/trading/core/domain/exchange-order/exchange-order-info';
+import { ExchangeOrderStatus } from '@components/trading/core/domain/exchange-order/exchange-order-status';
+import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
+import { HyperliquidSdkService } from '@infra/hyperliquid/hyperliquid-sdk.service';
+import { HyperliquidPlaceOrderRequest } from '@infra/hyperliquid/types/hyperliquid-place-order-request';
+import { HyperliquidPlaceOrderResponse } from '@infra/hyperliquid/types/hyperliquid-place-order-response';
+import { HyperliquidOpenOrder } from '@infra/hyperliquid/types/hyperliquid-open-order';
+import { HyperliquidHistoricalOrder } from '@infra/hyperliquid/types/hyperliquid-historical-order';
+import { HyperliquidOrderStatusFound } from '@infra/hyperliquid/types/hyperliquid-order-status-response';
+import { HyperliquidSymbol } from '@infra/hyperliquid/types/hyperliquid-symbol';
+import { HyperliquidSdkPlaceOrderResponse } from '@infra/hyperliquid/types/hyperliquid-sdk-place-order-response';
 
 /**
  * Hyperliquid Order Mapper
@@ -198,7 +198,7 @@ export class HyperliquidOrderMapper {
         reduce_only: boolean;
         cloid?: string;
     } {
-        const coin = HyperliquidSymbol.toSpotFormat(params.symbol);
+        const coin = HyperliquidSymbol.toSpotFormat(params.symbol.toString());
         const isBuy = params.side === OrderSide.Buy;
         const sz = params.amount.toNumber();
         const limitPx = params.price.toNumber();
@@ -230,7 +230,7 @@ export class HyperliquidOrderMapper {
         o: number;
     } {
         return {
-            coin: HyperliquidSymbol.toSpotFormat(symbol),
+            coin: HyperliquidSymbol.toSpotFormat(symbol.toString()),
             o: parseInt(exchangeOrderId, 10),
         };
     }
@@ -242,6 +242,6 @@ export class HyperliquidOrderMapper {
      * @returns Hyperliquid coin identifier for cancel all operation
      */
     toSdkCancelAllRequest(symbol: TradingSymbol): string {
-        return HyperliquidSymbol.toSpotFormat(symbol);
+        return HyperliquidSymbol.toSpotFormat(symbol.toString());
     }
 }

@@ -1,4 +1,4 @@
-import { Order } from '../../domain/order/order';
+import { Order } from '@domain/order/order';
 
 export class OrderStatusSyncResult {
     public processed: number;

@@ -1,5 +1,5 @@
-import { GridId } from '../grid/grid-id';
-import { OrderId } from '../order/order-id';
+import { GridId } from '@domain/grid/grid-id';
+import { OrderId } from '@domain/order/order-id';
 
 /**
  * Exchange CLOID

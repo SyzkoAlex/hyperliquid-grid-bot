@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderStatusSyncService } from './order-status-sync.service';
-import { Order } from '../../domain/order/order';
-import { OrderStatus } from '../../domain/order/order-status';
-import { OrderSide } from '../../domain/order/order-side';
-import { OrderType } from '../../domain/order/order-type';
-import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderStatus } from '@domain/order/order-status';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { GridId } from '../../domain/grid/grid-id';
-import { OrderId } from '../../domain/order/order-id';
-import { ExchangeOrderStatus } from '../../domain/exchange-order/exchange-order-status';
+import { GridId } from '@domain/grid/grid-id';
+import { OrderId } from '@domain/order/order-id';
+import { ExchangeOrderStatus } from '@components/trading/core/domain/exchange-order/exchange-order-status';
 
 describe('OrderStatusSyncService', () => {
     let service: OrderStatusSyncService;
@@ -58,7 +58,7 @@ describe('OrderStatusSyncService', () => {
             Order.create({
                 id: OrderId.create(),
                 exchangeOrderId,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),
@@ -70,7 +70,7 @@ describe('OrderStatusSyncService', () => {
 
         const createExchangeOrder = (exchangeOrderId: string): ExchangeOpenOrder => ({
             id: exchangeOrderId,
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             type: OrderType.Limit,
             side: OrderSide.Buy,
             price: Price.from(50000),
@@ -229,7 +229,7 @@ describe('OrderStatusSyncService', () => {
             const orderWithoutId = Order.create({
                 id: OrderId.create(),
                 exchangeOrderId: undefined,
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
                 price: Price.from(50000),

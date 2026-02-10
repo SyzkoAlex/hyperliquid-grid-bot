@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, lt } from 'drizzle-orm';
 import type { DrizzleDb } from '../../../../../infra/database/drizzle-db';
 import { DRIZZLE_DB } from '../../../../../infra/database/database.module';
-import { Order } from '../../../core/domain/order/order';
-import { OrderStatus } from '../../../core/domain/order/order-status';
+import { Order } from '@domain/order/order';
+import { OrderStatus } from '@domain/order/order-status';
 import { OrderDbRecord, orders } from '../../../../../infra/database/schema';
 import { logger } from '../../../../../infra/logger/logger';
-import { GridId } from '@components/trading/core/domain/grid/grid-id';
-import { PostgresOrderMapper } from './postgres-order.mapper';
+import { GridId } from '@domain/grid/grid-id';
+import { PostgresOrderMapper } from '@components/shared/secondary/mappers/postgres-order.mapper';
 
 /**
  * Postgres Order Repository
@@ -17,17 +17,14 @@ import { PostgresOrderMapper } from './postgres-order.mapper';
 export class PostgresOrderRepository {
     private readonly logger = logger.child({ context: PostgresOrderRepository.name });
 
-    constructor(
-        @Inject(DRIZZLE_DB) private readonly db: DrizzleDb,
-        private readonly mapper: PostgresOrderMapper,
-    ) {}
+    constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb) {}
 
     /**
      * Save a new order
      */
     async save(order: Order): Promise<void> {
         try {
-            await this.db.insert(orders).values(this.mapper.toDbRecord(order));
+            await this.db.insert(orders).values(PostgresOrderMapper.toDbRecord(order));
             this.logger.debug({ orderId: order.id.toString() }, 'Order saved');
         } catch (error) {
             this.logger.error({ error, orderId: order.id.toString() }, 'Failed to save order');
@@ -50,7 +47,7 @@ export class PostgresOrderRepository {
                     ),
                 );
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, gridId }, 'Failed to find active grid orders');
             throw error;
@@ -74,7 +71,7 @@ export class PostgresOrderRepository {
 
             const row = rows[0];
 
-            return this.mapper.toDomain(row);
+            return PostgresOrderMapper.toDomain(row);
         } catch (error) {
             this.logger.error(
                 { error, exchangeOrderId },
@@ -122,7 +119,7 @@ export class PostgresOrderRepository {
                 .from(orders)
                 .where(and(eq(orders.gridId, gridId), eq(orders.status, OrderStatus.Pending)));
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, gridId }, 'Failed to find pending orders by grid ID');
             throw error;
@@ -173,7 +170,7 @@ export class PostgresOrderRepository {
                     and(eq(orders.status, OrderStatus.Pending), lt(orders.createdAt, olderThan)),
                 );
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, olderThan }, 'Failed to find stale pending orders');
             throw error;
@@ -188,7 +185,7 @@ export class PostgresOrderRepository {
         try {
             const rows = await this.db.select().from(orders).where(eq(orders.status, status));
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, status }, 'Failed to find orders by status');
             throw error;
@@ -205,7 +202,7 @@ export class PostgresOrderRepository {
         try {
             const rows = await this.db.select().from(orders).where(inArray(orders.id, orderIds));
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, orderIds }, 'Failed to find orders by IDs');
             throw error;
@@ -230,7 +227,7 @@ export class PostgresOrderRepository {
                     ),
                 );
 
-            return rows.map((row) => this.mapper.toDomain(row));
+            return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, gridIds }, 'Failed to find placed orders by grid IDs');
             throw error;

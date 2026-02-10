@@ -10,8 +10,14 @@ import { NOTIFICATION_SERVICE } from './core/services/notification.service';
 import { COMMAND_REGISTRAR } from './core/services/command-registrar.service';
 import { NotificationMessageFactory } from './core/services/notification-message.factory';
 import { NotifyUserUseCase } from './core/use-cases/notify-user/notify-user.use-case';
+import { HyperliquidModule } from '@infra/hyperliquid/hyperliquid.module';
+import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
+import { HyperliquidUserStateMapper } from '@components/shared/secondary/mappers/hyperliquid-user-state.mapper';
+import { PostgresGridRepository } from './secondary/repository/grid/postgres-grid.repository';
+import { PostgresOrderRepository } from './secondary/repository/order/postgres-order.repository';
 
 @Module({
+    imports: [HyperliquidModule],
     providers: [
         RedisSessionStore,
         TelegramBotService,
@@ -24,6 +30,10 @@ import { NotifyUserUseCase } from './core/use-cases/notify-user/notify-user.use-
         MainMenuHandler,
         TelegramCommandsController,
         TradingEventsController,
+        HyperliquidInfoClient,
+        HyperliquidUserStateMapper,
+        PostgresGridRepository,
+        PostgresOrderRepository,
     ],
     exports: [TelegramCommandsController],
 })

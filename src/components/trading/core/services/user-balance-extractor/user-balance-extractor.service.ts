@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
 import { UserBalances } from './user-balances';
-import { UserState } from '../../domain/user-state/user-state';
+import { UserState } from '@domain/user-state/user-state';
 
 /**
  * User Balance Extractor Service

@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { GridLevelsCalculatorService } from './grid-levels-calculator.service';
-import { Grid } from '../../domain/grid/grid';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Grid } from '@domain/grid/grid';
+import { GridMode } from '@domain/grid/grid-mode';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { OrderSide } from '../../domain/order/order-side';
+import { OrderSide } from '@domain/order/order-side';
 
 describe('GridLevelsCalculatorService', () => {
     let service: GridLevelsCalculatorService;
@@ -31,7 +31,7 @@ describe('GridLevelsCalculatorService', () => {
     describe('calculateLevelsWithSizes', () => {
         it('should calculate levels and sizes for neutral grid', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(55000),
@@ -77,7 +77,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should distribute capital evenly across buy levels', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(40000),
                 upperPrice: Price.from(50000),
@@ -110,7 +110,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should distribute base tokens evenly across sell levels', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Long,
                 lowerPrice: Price.from(50000),
                 upperPrice: Price.from(60000),
@@ -143,7 +143,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should split orders at current price', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('ETH'),
+                symbol: TradingSymbol.create('ETH'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(2000),
                 upperPrice: Price.from(3000),
@@ -172,7 +172,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should handle all sell levels when price below lower bound', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('SOL'),
+                symbol: TradingSymbol.create('SOL'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(100),
                 upperPrice: Price.from(150),
@@ -196,7 +196,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should calculate correct amounts for buy orders', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Neutral,
                 lowerPrice: Price.from(45000),
                 upperPrice: Price.from(50000),
@@ -226,7 +226,7 @@ describe('GridLevelsCalculatorService', () => {
 
         it('should calculate correct amounts for sell orders', () => {
             const grid = Grid.create({
-                symbol: Symbol.create('BTC'),
+                symbol: TradingSymbol.create('BTC'),
                 mode: GridMode.Long,
                 lowerPrice: Price.from(50000),
                 upperPrice: Price.from(55000),

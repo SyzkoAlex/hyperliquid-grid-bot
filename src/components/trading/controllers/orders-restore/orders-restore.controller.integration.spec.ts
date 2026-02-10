@@ -7,20 +7,20 @@ import { HttpModule } from '@infra/http/http.module';
 import { TradingModule } from '../../trading.module';
 import { OrdersRestoreController } from './orders-restore.controller';
 import { HyperliquidOrderClient } from '../../secondary/client/hyperliquid/hyperliquid-order.client';
-import { HyperliquidUserEventsClient } from '../../secondary/client/hyperliquid/hyperliquid-user-events.client';
+import { OrderEventsListener } from '../../secondary/client/hyperliquid/order-events.listener';
 import { PostgresOrderRepository } from '../../secondary/repository/order/postgres-order.repository';
-import { Order } from '../../core/domain/order/order';
-import { OrderType } from '../../core/domain/order/order-type';
-import { OrderSide } from '../../core/domain/order/order-side';
-import { OrderStatus } from '../../core/domain/order/order-status';
-import { OrderId } from '../../core/domain/order/order-id';
-import { Symbol as TradingSymbol } from '../../core/domain/common/symbol';
-import { Price } from '../../core/domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderType } from '@domain/order/order-type';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderStatus } from '@domain/order/order-status';
+import { OrderId } from '@domain/order/order-id';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '@domain/primitives/decimal';
-import { Grid } from '../../core/domain/grid/grid';
-import { GridMode } from '../../core/domain/grid/grid-mode';
-import { ExchangeOrderStatus } from '../../core/domain/exchange-order/exchange-order-status';
-import { ExchangeCloid } from '../../core/domain/exchange-order/exchange-cloid';
+import { Grid } from '@domain/grid/grid';
+import { GridMode } from '@domain/grid/grid-mode';
+import { ExchangeOrderStatus } from '@components/trading/core/domain/exchange-order/exchange-order-status';
+import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
 import { PostgresGridRepository } from '../../secondary/repository/grid/postgres-grid.repository';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
@@ -415,7 +415,7 @@ describe('OrdersRestoreController (Integration)', () => {
         };
 
         // Mock websocket client (not needed for this test)
-        const mockHyperliquidUserEventsClient = {
+        const mockOrderEventsListener = {
             onModuleInit: vi.fn(),
             onModuleDestroy: vi.fn(),
             connect: vi.fn(),
@@ -437,9 +437,7 @@ describe('OrdersRestoreController (Integration)', () => {
         // Override providers
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(HyperliquidOrderClient).useValue(mockHyperliquidOrderClient);
-        moduleBuilder
-            .overrideProvider(HyperliquidUserEventsClient)
-            .useValue(mockHyperliquidUserEventsClient);
+        moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
 
         // Compile module
         module = await moduleBuilder.compile();

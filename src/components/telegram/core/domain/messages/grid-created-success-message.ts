@@ -1,4 +1,5 @@
 import { TelegramMessage } from './telegram-message';
+import { GridCreatedSuccessEvent } from '@domain/events/trading/grid-created-success.event';
 
 interface GridCreatedSuccessProps {
     gridId: string;
@@ -30,5 +31,19 @@ export class GridCreatedSuccessMessage extends TelegramMessage {
             `<b>Orders:</b> Placed successfully\n` +
             `<b>Grid ID:</b> <code>${props.gridId}</code>\n\n` +
             `Grid is now active and will trade automatically!`;
+    }
+
+    static fromEvent(event: GridCreatedSuccessEvent): GridCreatedSuccessMessage {
+        return new GridCreatedSuccessMessage({
+            gridId: event.gridId,
+            symbol: event.symbol,
+            mode: event.mode,
+            lowerPrice: event.lowerPrice,
+            upperPrice: event.upperPrice,
+            levels: event.levels,
+            investmentUSDC: event.investmentUSDC,
+            investmentBase: event.investmentBase,
+            trailingEnabled: event.trailingEnabled,
+        });
     }
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Order } from '../../domain/order/order';
-import { OrderSide } from '../../domain/order/order-side';
-import { Grid } from '../../domain/grid/grid';
+import { Order } from '@domain/order/order';
+import { OrderSide } from '@domain/order/order-side';
+import { Grid } from '@domain/grid/grid';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 
 @Injectable()

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
-import { ExchangeOpenOrder } from '../../domain/exchange-order/exchange-open-order';
-import { OrderStatus } from '../../domain/order/order-status';
-import { Order } from '../../domain/order/order';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
+import { OrderStatus } from '@domain/order/order-status';
+import { Order } from '@domain/order/order';
 import { logger } from '../../../../../infra/logger/logger';
 import { Config } from '../../../../../infra/config/config.schema';
 

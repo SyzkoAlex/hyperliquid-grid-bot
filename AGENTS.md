@@ -59,6 +59,17 @@ function validateEmail(email: string): boolean {
 - IF technical concern (lock, cache, metrics, etc.) → THEN place in `infra/`
 - IF business logic → THEN place in `core/`
 - IF external system integration → THEN place in `secondary/`
+- IF domain entity shared between components → THEN move to `src/domain/`
+- IF code CANNOT be in domain/infra AND duplication is critical → THEN ⚠️ LAST RESORT: `src/components/shared/`
+
+**Decision tree for shared code:**
+```
+Need to share code between components?
+  ├─ Is it a domain entity? → src/domain/
+  ├─ Is it a technical concern? → src/infra/
+  ├─ Can we duplicate it? → YES, duplicate in each component
+  └─ Is duplication TRULY critical? → ⚠️ src/components/shared/ (LAST RESORT)
+```
 
 ## Unknown Code Discovery
 
@@ -280,6 +291,7 @@ class Price {
 - IF reading config in constructor → THEN extract value to private readonly field
 - ❌ NEVER use `configService.get<string>('path.to.value')` with generic type
 - ❌ NEVER use `configService.get('path.to.value')` without type
+- ❌ NEVER use `.default()` in zod schemas (`src/infra/config/schemas/`) — единственный источник значений: `config/config.yml`
 
 **Pattern:**
 
@@ -322,8 +334,34 @@ this.logger.error()
 ### Component Independence
 
 - Components in `src/components/` are INDEPENDENT
-- NO imports between components
+- NO imports between components (except `components/shared/`)
 - Communication via EventBus only
+
+**Shared Components (⚠️ LAST RESORT):**
+
+```
+src/components/shared/    # NO module, only code
+  └── mappers/            # Example: Postgres mappers
+```
+
+**When to use `components/shared/`:**
+- ✅ When code CANNOT go to `src/domain/` (violates clean architecture, e.g., DB mappers)
+- ✅ When code CANNOT go to `src/infra/` (not a technical concern, component-specific)
+- ✅ When code duplication is TRULY critical (not just inconvenient)
+- ✅ Example: Postgres mappers (DB knowledge → not domain, but component-specific → not infra)
+
+**When NOT to use:**
+- ❌ Domain entities → use `src/domain/`
+- ❌ HTTP clients, DB utils → use `src/infra/`
+- ❌ Business logic → keep in each component
+- ❌ "Convenient to reuse" ≠ "critical necessity"
+
+**Priority order:**
+> `src/domain/` → `src/infra/` → code duplication → `components/shared/` (last resort)
+
+**ESLint protection:**
+- ✅ Imports from `components/shared/` are ALLOWED
+- ❌ Imports from other components `secondary/` are FORBIDDEN
 
 ### Call Chain
 

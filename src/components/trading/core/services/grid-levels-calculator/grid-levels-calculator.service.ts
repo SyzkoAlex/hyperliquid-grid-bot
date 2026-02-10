@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Grid } from '../../domain/grid/grid';
-import { Price } from '../../domain/common/price';
+import { Grid } from '@domain/grid/grid';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
 import { Config } from '../../../../../infra/config/config.schema';
 import { GridLevel } from './grid-level';
-import { OrderSide } from '../../domain/order/order-side';
+import { OrderSide } from '@domain/order/order-side';
 
 /**
  * Grid Levels Calculator Service

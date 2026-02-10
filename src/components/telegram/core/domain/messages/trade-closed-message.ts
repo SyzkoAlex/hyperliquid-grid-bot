@@ -1,4 +1,5 @@
 import { TelegramMessage } from './telegram-message';
+import { OrderClosedEvent } from '@domain/events/trading/order-closed.event';
 
 interface TradeClosedProps {
     symbol: string;
@@ -26,5 +27,19 @@ export class TradeClosedMessage extends TelegramMessage {
             `<b>Profit:</b> ${props.profit >= 0 ? '+' : ''}$${props.profit} (${props.profitPercent}%)\n` +
             `<b>Grid Level:</b> ${props.level}/${props.totalLevels}\n` +
             `<b>Status:</b> ✅ Active`;
+    }
+
+    static fromEvent(event: OrderClosedEvent): TradeClosedMessage {
+        return new TradeClosedMessage({
+            symbol: event.symbol,
+            side: event.side,
+            price: event.price,
+            amount: event.amount,
+            total: event.total,
+            profit: event.profit,
+            profitPercent: ((event.profit / event.total) * 100).toFixed(2),
+            level: event.level,
+            totalLevels: event.totalLevels,
+        });
     }
 }

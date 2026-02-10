@@ -3,10 +3,10 @@ import { logger } from '../../../../../infra/logger/logger';
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
 import { PostgresGridRepository } from '../../../secondary/repository/grid/postgres-grid.repository';
 import { OrderRefillService } from '../../services/order-refill/order-refill.service';
-import { Order } from '../../domain/order/order';
-import { OrderStatus } from '../../domain/order/order-status';
-import { GridStatus } from '../../domain/grid/grid-status';
-import { HyperliquidWsOrderStatus } from '../../../secondary/client/hyperliquid/types/hyperliquid-ws-user-event';
+import { Order } from '@domain/order/order';
+import { OrderStatus } from '@domain/order/order-status';
+import { GridStatus } from '@domain/grid/grid-status';
+import { HyperliquidWsOrderStatus } from '@infra/hyperliquid/types/hyperliquid-ws-user-event';
 
 export interface ProcessOrderStatusParams {
     orderStatus: HyperliquidWsOrderStatus;

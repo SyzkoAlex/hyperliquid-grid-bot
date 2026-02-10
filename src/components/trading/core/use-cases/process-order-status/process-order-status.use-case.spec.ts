@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessOrderStatusUseCase } from './process-order-status.use-case';
-import { Order } from '../../domain/order/order';
-import { OrderId } from '../../domain/order/order-id';
-import { OrderStatus } from '../../domain/order/order-status';
-import { OrderSide } from '../../domain/order/order-side';
-import { OrderType } from '../../domain/order/order-type';
-import { Grid } from '../../domain/grid/grid';
-import { GridId } from '../../domain/grid/grid-id';
-import { GridMode } from '../../domain/grid/grid-mode';
-import { GridStatus } from '../../domain/grid/grid-status';
-import { Symbol } from '../../domain/common/symbol';
-import { Price } from '../../domain/common/price';
+import { Order } from '@domain/order/order';
+import { OrderId } from '@domain/order/order-id';
+import { OrderStatus } from '@domain/order/order-status';
+import { OrderSide } from '@domain/order/order-side';
+import { OrderType } from '@domain/order/order-type';
+import { Grid } from '@domain/grid/grid';
+import { GridId } from '@domain/grid/grid-id';
+import { GridMode } from '@domain/grid/grid-mode';
+import { GridStatus } from '@domain/grid/grid-status';
+import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { Price } from '@domain/primitives/price';
 import { Decimal } from '../../../../../domain/primitives/decimal';
-import { HyperliquidWsOrderStatus } from '../../../secondary/client/hyperliquid/types/hyperliquid-ws-user-event';
+import { HyperliquidWsOrderStatus } from '@infra/hyperliquid/types/hyperliquid-ws-user-event';
 
 describe('ProcessOrderStatusUseCase', () => {
     let useCase: ProcessOrderStatusUseCase;
@@ -54,7 +54,7 @@ describe('ProcessOrderStatusUseCase', () => {
         Order.create({
             id: OrderId.create(),
             exchangeOrderId: '123',
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             type: OrderType.Limit,
             side: OrderSide.Buy,
             price: Price.from(50000),
@@ -67,7 +67,7 @@ describe('ProcessOrderStatusUseCase', () => {
     const createGrid = (status: GridStatus = GridStatus.Running): Grid =>
         Grid.create({
             id: gridId,
-            symbol: Symbol.create('BTC'),
+            symbol: TradingSymbol.create('BTC'),
             mode: GridMode.Neutral,
             status,
             lowerPrice: Price.from(45000),

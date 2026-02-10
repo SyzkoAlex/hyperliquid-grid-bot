@@ -32,7 +32,7 @@ export interface HyperliquidSpotBalance {
  *
  * Response from: POST /info with type: "spotClearinghouseState"
  */
-export interface HyperliquidSpotUserStateResponse {
+export interface HyperliquidUserStateResponse {
     /** List of token balances */
     balances: HyperliquidSpotBalance[];
 }
