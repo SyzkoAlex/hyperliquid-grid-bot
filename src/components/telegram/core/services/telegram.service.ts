@@ -1,9 +1,11 @@
 import { MessageContext } from '../domain/message-context';
+import { SceneHandler } from '../domain/scene';
 
-export const COMMAND_REGISTRAR = Symbol('CommandRegistrar');
+export const TELEGRAM_SERVICE = Symbol('TelegramService');
 
-export interface CommandRegistrar {
+export interface TelegramService {
     onCommand(command: string, handler: (ctx: MessageContext) => Promise<void>): void;
     onAction(action: string, handler: (ctx: MessageContext) => Promise<void>): void;
+    registerScene(scene: SceneHandler): void;
     launch(): Promise<void>;
 }

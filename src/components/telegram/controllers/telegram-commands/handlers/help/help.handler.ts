@@ -1,8 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-    COMMAND_REGISTRAR,
-    CommandRegistrar,
-} from '../../../../core/services/command-registrar.service';
+import { TELEGRAM_SERVICE, TelegramService } from '../../../../core/services/telegram.service';
 import { MessageContext } from '../../../../core/domain/message-context';
 import { TelegramCommand, TelegramAction } from '../../../../core/domain/telegram-command.enum';
 import { HelpMessage } from '../../../../core/domain/messages/help-message';
@@ -11,11 +8,11 @@ import { backToMenuKeyboard } from '../main-menu.keyboard';
 
 @Injectable()
 export class HelpHandler implements Handler {
-    constructor(@Inject(COMMAND_REGISTRAR) private readonly registrar: CommandRegistrar) {}
+    constructor(@Inject(TELEGRAM_SERVICE) private readonly telegramService: TelegramService) {}
 
     register(): void {
-        this.registrar.onCommand(TelegramCommand.Help, (ctx) => this.handle(ctx));
-        this.registrar.onAction(TelegramAction.ShowHelp, (ctx) => this.handleAction(ctx));
+        this.telegramService.onCommand(TelegramCommand.Help, (ctx) => this.handle(ctx));
+        this.telegramService.onAction(TelegramAction.ShowHelp, (ctx) => this.handleAction(ctx));
     }
 
     private async handle(ctx: MessageContext): Promise<void> {

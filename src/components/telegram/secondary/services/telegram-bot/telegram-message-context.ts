@@ -5,9 +5,11 @@ import { BotContext } from './types/bot-context';
 
 export class TelegramMessageContext implements MessageContext {
     readonly chatId: number | undefined;
+    readonly scene: BotContext['scene'];
 
     constructor(private readonly ctx: BotContext) {
         this.chatId = ctx.chat?.id;
+        this.scene = ctx.scene;
     }
 
     async reply(text: string, keyboard?: InlineButton[][]): Promise<void> {

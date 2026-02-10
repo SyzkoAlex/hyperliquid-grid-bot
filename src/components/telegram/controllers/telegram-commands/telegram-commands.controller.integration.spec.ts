@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessageContext } from '../../core/domain/message-context';
-import { COMMAND_REGISTRAR, CommandRegistrar } from '../../core/services/command-registrar.service';
+import { TELEGRAM_SERVICE, TelegramService } from '../../core/services/telegram.service';
 import { TelegramCommandsController } from './telegram-commands.controller';
 import { StartHandler } from './handlers/start/start.handler';
 import { HelpHandler } from './handlers/help/help.handler';
@@ -17,7 +17,7 @@ describe('TelegramCommandsController (Integration)', () => {
     let controller: TelegramCommandsController;
     let registeredCommands: Map<string, HandlerFn>;
     let registeredActions: Map<string, HandlerFn>;
-    let mockRegistrar: CommandRegistrar;
+    let mockRegistrar: TelegramService;
 
     beforeEach(async () => {
         registeredCommands = new Map();
@@ -30,12 +30,13 @@ describe('TelegramCommandsController (Integration)', () => {
             onAction: vi.fn((action: string, handler: HandlerFn) => {
                 registeredActions.set(action, handler);
             }),
+            registerScene: vi.fn(),
             launch: vi.fn(),
         };
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
-                { provide: COMMAND_REGISTRAR, useValue: mockRegistrar },
+                { provide: TELEGRAM_SERVICE, useValue: mockRegistrar },
                 StartHandler,
                 HelpHandler,
                 MainMenuHandler,
@@ -53,6 +54,11 @@ describe('TelegramCommandsController (Integration)', () => {
             reply: vi.fn(),
             editMessage: vi.fn(),
             answerCallback: vi.fn(),
+            scene: {
+                enter: vi.fn(),
+                leave: vi.fn(),
+                reenter: vi.fn(),
+            } as any,
         };
     }
 

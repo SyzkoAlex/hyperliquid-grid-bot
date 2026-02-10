@@ -110,6 +110,42 @@ async findActive(): Promise<Grid[]>
 async findByExchangeOrderId(exchangeOrderId: string): Promise<Order | null>
 ```
 
+## TypeScript Type Safety
+
+- IF function parameter or variable → THEN use explicit types (interfaces, types, classes)
+- ❌ NEVER use `any` type
+- ✅ Use `unknown` if type is truly unknown (then narrow with type guards)
+- ✅ Use proper union types (`Type | undefined`, `Type1 | Type2`)
+- ✅ Import domain types and interfaces
+
+**Examples:**
+
+❌ BAD (using any):
+```typescript
+function validateState(state: any): boolean {
+  return !!state?.field
+}
+```
+
+✅ GOOD (explicit type):
+```typescript
+import { WizardState } from './types/wizard-state';
+
+function validateState(state: WizardState | undefined): boolean {
+  return !!state?.field
+}
+```
+
+✅ GOOD (unknown with type guard):
+```typescript
+function handleError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  return String(error)
+}
+```
+
 ## Code Clarity
 
 - IF code → THEN prefer clear code over commented code

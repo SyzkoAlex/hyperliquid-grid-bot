@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { Telegraf, Scenes, session } from 'telegraf';
 import { Config } from '@infra/config/config.schema';
 import { logger } from '@infra/logger/logger';
-import { CommandRegistrar } from '../../../core/services/command-registrar.service';
+import { TelegramService } from '../../../core/services/telegram.service';
+import { SceneHandler } from '../../../core/domain/scene';
+import { TelegrafSceneAdapter } from './scene-adapter';
 import { MessageContext } from '../../../core/domain/message-context';
 import { BotContext } from './types/bot-context';
 import { SessionData } from './types/session-data';
@@ -11,7 +13,7 @@ import { RedisSessionStore } from './redis-session-store';
 import { TelegramMessageContext } from './telegram-message-context';
 
 @Injectable()
-export class TelegramBotService implements CommandRegistrar, OnModuleInit, OnModuleDestroy {
+export class TelegramBotService implements TelegramService, OnModuleInit, OnModuleDestroy {
     private bot: Telegraf<BotContext>;
     private readonly stage = new Scenes.Stage<BotContext>([]);
     private readonly logger = logger.child({ context: TelegramBotService.name });
@@ -57,8 +59,14 @@ export class TelegramBotService implements CommandRegistrar, OnModuleInit, OnMod
         }
     }
 
-    registerScene(scene: Scenes.BaseScene<BotContext>): void {
-        this.stage.register(scene);
+    registerScene(sceneHandler: SceneHandler): void {
+        if (sceneHandler instanceof TelegrafSceneAdapter) {
+            this.stage.register(sceneHandler.getScene());
+        } else {
+            throw new Error(
+                `Scene handler must extend TelegrafSceneAdapter, got: ${sceneHandler.constructor.name}`,
+            );
+        }
     }
 
     getBot(): Telegraf<BotContext> {

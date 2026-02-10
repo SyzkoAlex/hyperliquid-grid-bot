@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@infra/config/config.schema';
 import { NOTIFICATION_SERVICE, NotificationService } from '../../services/notification.service';
-import { NotificationMessageFactory } from '../../services/notification-message.factory';
+import { NotificationMessageFactory } from '../../domain/messages/notification-message.factory';
 import { NotifyUserParams } from './notify-user-params';
 
 @Injectable()
