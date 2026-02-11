@@ -1,35 +1,37 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { logger } from '@infra/logger/logger';
-import { TELEGRAM_SERVICE, TelegramService } from '../../core/services/telegram.service';
-import { StartHandler } from './handlers/start/start.handler';
-import { HelpHandler } from './handlers/help/help.handler';
-import { MainMenuHandler } from './handlers/main-menu/main-menu.handler';
-import { CREATE_GRID_SCENE_ID } from './scenes/create-grid/create-grid.scene';
-import { TelegrafCreateGridSceneAdapter } from '../../secondary/services/telegram-bot/scenes/telegraf-create-grid-scene.adapter';
+import { TelegramBotService } from '../../core/services/telegram-bot/telegram-bot.service';
+import { StartHandler } from '../../core/services/telegram-bot/handlers/start/start.handler';
+import { HelpHandler } from '../../core/services/telegram-bot/handlers/help/help.handler';
+import { MainMenuHandler } from '../../core/services/telegram-bot/handlers/main-menu/main-menu.handler';
+import {
+    CREATE_GRID_SCENE_ID,
+    CreateGridSceneHandler,
+} from '../../core/services/telegram-bot/scenes/create-grid/create-grid.scene';
 import { TelegramAction } from '../../core/domain/telegram-command.enum';
-import { MessageContext } from '../../core/domain/message-context';
+import { BotContext } from '../../core/services/telegram-bot/types/bot-context';
 
 @Injectable()
 export class TelegramCommandsController implements OnModuleInit {
     private readonly logger = logger.child({ context: TelegramCommandsController.name });
 
     constructor(
-        @Inject(TELEGRAM_SERVICE) private readonly telegramService: TelegramService,
+        private readonly telegramBotService: TelegramBotService,
         private readonly startHandler: StartHandler,
         private readonly helpHandler: HelpHandler,
         private readonly mainMenuHandler: MainMenuHandler,
-        private readonly createGridSceneAdapter: TelegrafCreateGridSceneAdapter,
+        private readonly createGridSceneHandler: CreateGridSceneHandler,
     ) {}
 
     async onModuleInit() {
         this.registerScenes();
         this.registerHandlers();
-        await this.telegramService.launch();
+        await this.telegramBotService.launch();
         this.logger.info('Telegram bot controller initialized');
     }
 
     private registerScenes() {
-        this.telegramService.registerScene(this.createGridSceneAdapter);
+        this.telegramBotService.registerScene(this.createGridSceneHandler);
     }
 
     private registerHandlers() {
@@ -40,13 +42,13 @@ export class TelegramCommandsController implements OnModuleInit {
     }
 
     private registerCreateGridHandler() {
-        this.telegramService.onAction(TelegramAction.CreateGrid, (ctx: MessageContext) =>
+        this.telegramBotService.onAction(TelegramAction.CreateGrid, (ctx: BotContext) =>
             this.handleCreateGrid(ctx),
         );
     }
 
-    private async handleCreateGrid(ctx: MessageContext): Promise<void> {
-        await ctx.answerCallback();
+    private async handleCreateGrid(ctx: BotContext): Promise<void> {
+        await ctx.answerCbQuery();
         await ctx.scene.enter(CREATE_GRID_SCENE_ID);
     }
 }

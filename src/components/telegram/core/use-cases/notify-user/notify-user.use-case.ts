@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@infra/config/config.schema';
-import { NOTIFICATION_SERVICE, NotificationService } from '../../services/notification.service';
+import { TelegramBotService } from '../../services/telegram-bot/telegram-bot.service';
 import { NotificationMessageFactory } from '../../domain/messages/notification-message.factory';
 import { NotifyUserParams } from './notify-user-params';
 
@@ -10,7 +10,7 @@ export class NotifyUserUseCase {
     private readonly notificationChatId: number;
 
     constructor(
-        @Inject(NOTIFICATION_SERVICE) private readonly notificationService: NotificationService,
+        private readonly telegramBotService: TelegramBotService,
         private readonly messageFactory: NotificationMessageFactory,
         configService: ConfigService<Config, true>,
     ) {
@@ -23,6 +23,6 @@ export class NotifyUserUseCase {
         // TODO check configService.get('telegram', { infer: true }).notifications for skip notification
 
         const message = this.messageFactory.buildFromEvent(event);
-        await this.notificationService.sendMessage(this.notificationChatId, message.toString());
+        await this.telegramBotService.sendMessage(this.notificationChatId, message.toString());
     }
 }
