@@ -30,6 +30,22 @@ describe('SelectPairStep', () => {
             );
         });
 
+        it('should accept HYPE token and set in session', async () => {
+            const ctx = createMockContext();
+            vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(true);
+
+            const result = await step.handlePairSelection(ctx, 'HYPE');
+
+            expect(result).toBe('mode');
+            expect(ctx.session.createGrid).toEqual(expect.objectContaining({ symbol: 'HYPE' }));
+            expect(mockHyperliquidClient.pairExists).toHaveBeenCalledWith(
+                expect.objectContaining({ toString: expect.any(Function) }),
+            );
+            expect(ctx.reply).toHaveBeenCalledWith('✅ Selected: HYPE/USDC', {
+                parse_mode: 'HTML',
+            });
+        });
+
         it('should reject invalid symbol', async () => {
             const ctx = createMockContext();
             vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(false);
@@ -48,6 +64,17 @@ describe('SelectPairStep', () => {
             const result = await step.handlePairSelection(ctx, '');
 
             expect(result).toBe('invalid');
+        });
+
+        it('should handle empty symbol string', async () => {
+            const ctx = createMockContext();
+
+            const result = await step.handlePairSelection(ctx, '');
+
+            expect(result).toBe('invalid');
+            expect(ctx.reply).toHaveBeenCalledWith(
+                '❌ Invalid token format. Please try another token.',
+            );
         });
     });
 

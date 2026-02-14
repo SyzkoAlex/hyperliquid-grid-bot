@@ -1,11 +1,14 @@
+import { Inject, Injectable } from '@nestjs/common';
 import { replyWithKeyboard } from '../helpers/keyboard.helper';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
-import { EventBus } from '@infra/events/event-bus.port';
+import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
+import { logger } from '@infra/logger/logger';
 
+@Injectable()
 export class ConfirmStep {
-    constructor(private readonly eventBus: EventBus) {}
+    constructor(@Inject(EVENT_BUS) private readonly eventBus: EventBus) {}
 
     async execute(ctx: BotContext): Promise<void> {
         const session = ctx.session;
@@ -24,10 +27,12 @@ export class ConfirmStep {
                 lowerPrice: state!.lowerPrice!,
                 levels: state!.levels!,
                 totalInvestmentUSDC: state!.totalInvestmentUSDC,
-                mode: state!.mode || 'neutral',
+                mode: 'neutral',
             });
 
             await this.eventBus.publish(event);
+
+            await this.deleteLastMessages(ctx, 2);
 
             await replyWithKeyboard(
                 ctx,
@@ -57,5 +62,23 @@ export class ConfirmStep {
             state?.levels &&
             state?.totalInvestmentUSDC
         );
+    }
+
+    private async deleteLastMessages(ctx: BotContext, count: number): Promise<void> {
+        const messageIds = ctx.session.createGrid?.messageIds;
+        if (!messageIds || messageIds.length === 0) {
+            return;
+        }
+
+        for (let i = 0; i < count && messageIds.length > 0; i++) {
+            const messageId = messageIds.pop();
+            if (messageId) {
+                try {
+                    await ctx.deleteMessage(messageId);
+                } catch (error) {
+                    logger.warn({ error, messageId }, 'Failed to delete message in confirm step');
+                }
+            }
+        }
     }
 }

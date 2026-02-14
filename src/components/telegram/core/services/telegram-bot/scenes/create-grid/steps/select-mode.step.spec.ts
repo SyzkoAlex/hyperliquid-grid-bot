@@ -13,6 +13,7 @@ describe('SelectModeStep', () => {
     describe('handleModeSelection', () => {
         it('should set quick mode in session', async () => {
             const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
 
             const result = await step.handleModeSelection(ctx, CreateGridMode.Quick);
 
@@ -33,10 +34,10 @@ describe('SelectModeStep', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = undefined;
 
-            await step.handleModeSelection(ctx, CreateGridMode.Quick);
+            await step.handleModeSelection(ctx, CreateGridMode.Advanced);
 
             expect(ctx.session.createGrid).toBeDefined();
-            expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Quick);
+            expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Advanced);
         });
     });
 

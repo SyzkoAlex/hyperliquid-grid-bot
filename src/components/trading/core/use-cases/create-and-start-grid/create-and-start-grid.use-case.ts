@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { PostgresGridRepository } from '../../../secondary/repository/grid/postgres-grid.repository';
-import { CapitalCalculatorService } from '../../services/capital-calculator/capital-calculator.service';
+import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '../../services/grid-levels-calculator/grid-levels-calculator.service';
-import { UserBalanceExtractorService } from '../../services/user-balance-extractor/user-balance-extractor.service';
+import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderPlacementService } from '../../services/order-placement/order-placement.service';
 import { Grid } from '@domain/grid/grid';
 import { Decimal } from '../../../../../domain/primitives/decimal';

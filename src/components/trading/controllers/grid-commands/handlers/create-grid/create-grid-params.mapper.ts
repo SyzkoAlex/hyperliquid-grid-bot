@@ -22,8 +22,6 @@ export class CreateGridParamsMapper {
                 return GridMode.Neutral;
             case 'long':
                 return GridMode.Long;
-            case 'short':
-                return GridMode.Short;
             default:
                 throw new Error(`Invalid grid mode: ${mode}`);
         }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TelegramParseMode } from '@components/telegram/core/domain/telegram-parse-mode.enum';
 
 export const telegramWebhookSchema = z.object({
     url: z.string().optional(),
@@ -15,7 +16,7 @@ export const telegramNotificationsSchema = z.object({
 });
 
 export const telegramFormattingSchema = z.object({
-    parseMode: z.enum(['HTML', 'Markdown', 'MarkdownV2']),
+    parseMode: z.nativeEnum(TelegramParseMode),
     disableWebPagePreview: z.coerce.boolean(),
 });
 
@@ -30,6 +31,7 @@ export const telegramSessionSchema = z.object({
 export const telegramSchema = z.object({
     enabled: z.coerce.boolean(),
     botToken: z.string().min(1),
+    allowedManagerChatId: z.coerce.number().int(),
     notificationChatId: z.coerce.number().int(),
     mode: z.enum(['polling', 'webhook']),
     webhook: telegramWebhookSchema,

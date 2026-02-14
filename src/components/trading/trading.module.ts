@@ -11,9 +11,9 @@ import { CreateAndStartGridUseCase } from '@components/trading/core/use-cases/cr
 import { SyncOrdersUseCase } from '@components/trading/core/use-cases/sync-orders/sync-orders.use-case';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/use-cases/process-order-status/process-order-status.use-case';
 import { RestoreOrdersUseCase } from '@components/trading/core/use-cases/restore-orders/restore-orders.use-case';
-import { CapitalCalculatorService } from '@components/trading/core/services/capital-calculator/capital-calculator.service';
+import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/services/grid-levels-calculator/grid-levels-calculator.service';
-import { UserBalanceExtractorService } from '@components/trading/core/services/user-balance-extractor/user-balance-extractor.service';
+import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderStatusSyncService } from '@components/trading/core/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/services/order-refill/order-refill.service';
 import { OrderRestoreService } from '@components/trading/core/services/order-restore/order-restore.service';

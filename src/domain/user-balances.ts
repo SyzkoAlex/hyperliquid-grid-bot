@@ -1,4 +1,4 @@
-import { Decimal } from '../../../../../domain/primitives/decimal';
+import { Decimal } from './primitives/decimal';
 
 export interface UserBalances {
     usdcBalance: Decimal;

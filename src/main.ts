@@ -30,7 +30,11 @@ function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error) => {
-    logger.fatal({ error }, 'Failed to start application');
+    logger.fatal(
+        { error, message: error.message, stack: error.stack },
+        'Failed to start application',
+    );
+    console.error('Bootstrap error:', error);
     process.exit(1);
 });
 

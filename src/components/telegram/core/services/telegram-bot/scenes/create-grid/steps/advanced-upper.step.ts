@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { replyWithKeyboard } from '../helpers/keyboard.helper';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '../../../../../domain/inline-button';
@@ -5,6 +6,7 @@ import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { TradingSymbol } from '@domain/primitives/trading-symbol';
 
+@Injectable()
 export class AdvancedUpperStep {
     constructor(private readonly hyperliquidClient: HyperliquidInfoClient) {}
 
@@ -59,6 +61,5 @@ export class AdvancedUpperStep {
 
     async handleCancel(ctx: BotContext): Promise<void> {
         await ctx.scene.leave();
-        await ctx.reply('❌ Grid creation cancelled');
     }
 }

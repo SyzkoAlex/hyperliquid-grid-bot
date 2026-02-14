@@ -7,6 +7,7 @@ import { BotContext } from './types/bot-context';
 import { SessionData } from './types/session-data';
 import { RedisSessionStore } from './redis-session-store';
 import { CreateGridSceneHandler } from './scenes/create-grid/create-grid.scene';
+import { TelegramParseMode } from '../../domain/telegram-parse-mode.enum';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -15,7 +16,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = logger.child({ context: TelegramBotService.name });
     private readonly enabled: boolean;
     private readonly botToken: string;
+    private readonly allowedManagerChatId: number;
     private readonly notificationChatId: number;
+    private readonly parseMode: TelegramParseMode;
 
     constructor(
         configService: ConfigService<Config, true>,
@@ -24,7 +27,9 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         const telegramConfig = configService.get('telegram', { infer: true });
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
+        this.allowedManagerChatId = telegramConfig.allowedManagerChatId;
         this.notificationChatId = telegramConfig.notificationChatId;
+        this.parseMode = telegramConfig.formatting.parseMode;
     }
 
     async onModuleInit() {
@@ -69,8 +74,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
     async sendMessage(chatId: number, message: string): Promise<void> {
         await this.bot.telegram.sendMessage(chatId, message, {
-            parse_mode: 'HTML',
+            parse_mode: this.parseMode,
         });
+    }
+
+    getParseMode(): TelegramParseMode {
+        return this.parseMode;
     }
 
     onCommand(command: string, handler: (ctx: BotContext) => Promise<void>): void {
@@ -85,7 +94,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         this.bot.use(async (ctx: BotContext, next) => {
             const chatId = ctx.chat?.id;
 
-            if (!chatId || chatId !== this.notificationChatId) {
+            if (!chatId || chatId !== this.allowedManagerChatId) {
+                this.logger.warn(
+                    `Unauthorized access attempt from chatId: ${chatId}, expected: ${this.allowedManagerChatId}`,
+                );
                 await ctx.reply('⛔ Unauthorized access');
                 return;
             }

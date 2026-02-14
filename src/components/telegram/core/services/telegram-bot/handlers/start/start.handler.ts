@@ -20,6 +20,9 @@ export class StartHandler implements Handler {
         const markup = Markup.inlineKeyboard(
             keyboard.map((row) => row.map((btn) => Markup.button.callback(btn.text, btn.action))),
         );
-        await ctx.reply(new WelcomeMessage().toString(), markup);
+        await ctx.reply(new WelcomeMessage().toString(), {
+            parse_mode: this.telegramBotService.getParseMode(),
+            ...markup,
+        });
     }
 }

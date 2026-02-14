@@ -1,10 +1,15 @@
+import { Injectable } from '@nestjs/common';
 import { replyWithKeyboard } from '../helpers/keyboard.helper';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '../../../../../domain/inline-button';
 import { CreateGridMode } from '../create-grid-mode';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
+import { logger } from '@infra/logger/logger';
 
+@Injectable()
 export class SelectModeStep {
+    constructor() {}
+
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
             [{ text: '⚡️ Quick start', action: CREATE_GRID_ACTIONS.MODE_QUICK }],
@@ -31,8 +36,23 @@ export class SelectModeStep {
         }
         session.createGrid.mode = mode;
 
+        const messageIds = ctx.session.createGrid?.messageIds || [];
+        if (messageIds.length > 0) {
+            const modeSelectionMessageId = messageIds.pop();
+            if (modeSelectionMessageId) {
+                try {
+                    await ctx.deleteMessage(modeSelectionMessageId);
+                } catch (error) {
+                    logger.warn(
+                        { error, messageId: modeSelectionMessageId },
+                        'Failed to delete mode selection message',
+                    );
+                }
+            }
+        }
+
         if (mode === CreateGridMode.Quick) {
-            await replyWithKeyboard(ctx, '✅ Quick start mode selected');
+            await replyWithKeyboard(ctx, `✅ Quick start mode selected`);
             return 'quick';
         } else {
             await replyWithKeyboard(ctx, '✅ Advanced mode selected');
@@ -49,6 +69,5 @@ export class SelectModeStep {
 
     async handleCancel(ctx: BotContext): Promise<void> {
         await ctx.scene.leave();
-        await replyWithKeyboard(ctx, '❌ Grid creation cancelled');
     }
 }

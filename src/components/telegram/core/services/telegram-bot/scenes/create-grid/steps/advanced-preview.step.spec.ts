@@ -2,12 +2,53 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdvancedPreviewStep } from './advanced-preview.step';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
+import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
+import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
+import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
+import { ConfigService } from '@nestjs/config';
+import { Config } from '@infra/config/config.schema';
+import { Decimal } from '@domain/primitives/decimal';
+import { UserState } from '@domain/user-state/user-state';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
+    let mockHyperliquidClient: HyperliquidInfoClient;
+    let mockUserBalanceExtractor: UserBalanceExtractorService;
+    let mockCapitalCalculator: CapitalCalculatorService;
+    let mockConfigService: ConfigService<Config, true>;
 
     beforeEach(() => {
-        step = new AdvancedPreviewStep();
+        mockHyperliquidClient = {
+            getUserSpotState: vi.fn(),
+            getCurrentPrice: vi.fn().mockResolvedValue(Decimal.from(50000)),
+        } as unknown as HyperliquidInfoClient;
+
+        mockUserBalanceExtractor = {
+            extractBalances: vi.fn().mockReturnValue({
+                usdcBalance: Decimal.from(10000),
+                baseBalance: Decimal.from(1),
+            }),
+        } as unknown as UserBalanceExtractorService;
+
+        mockCapitalCalculator = {
+            calculateDistribution: vi.fn().mockReturnValue({
+                investmentUSDC: Decimal.from(500),
+                investmentBase: Decimal.from(0.01),
+            }),
+        } as unknown as CapitalCalculatorService;
+
+        mockConfigService = {
+            get: vi.fn().mockReturnValue('0x123'),
+        } as unknown as ConfigService<Config, true>;
+
+        step = new AdvancedPreviewStep(
+            mockHyperliquidClient,
+            mockUserBalanceExtractor,
+            mockCapitalCalculator,
+            mockConfigService,
+        );
+
+        vi.mocked(mockHyperliquidClient.getUserSpotState).mockResolvedValue({} as UserState);
     });
 
     describe('enter', () => {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
-import { UserBalances } from './user-balances';
+import { UserBalances } from '@domain/user-balances';
 import { UserState } from '@domain/user-state/user-state';
 
 /**

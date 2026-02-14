@@ -23,6 +23,8 @@ import { AdvancedLevelsStep } from './core/services/telegram-bot/scenes/create-g
 import { AdvancedInvestmentStep } from './core/services/telegram-bot/scenes/create-grid/steps/advanced-investment.step';
 import { AdvancedPreviewStep } from './core/services/telegram-bot/scenes/create-grid/steps/advanced-preview.step';
 import { ConfirmStep } from './core/services/telegram-bot/scenes/create-grid/steps/confirm.step';
+import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
+import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
 
 @Module({
     imports: [HyperliquidModule],
@@ -40,6 +42,8 @@ import { ConfirmStep } from './core/services/telegram-bot/scenes/create-grid/ste
         HyperliquidUserStateMapper,
         PostgresGridRepository,
         PostgresOrderRepository,
+        UserBalanceExtractorService,
+        CapitalCalculatorService,
         CreateGridSceneHandler,
         SelectPairStep,
         SelectModeStep,

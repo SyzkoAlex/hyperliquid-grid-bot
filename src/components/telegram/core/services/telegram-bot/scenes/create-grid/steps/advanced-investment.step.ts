@@ -53,6 +53,5 @@ export class AdvancedInvestmentStep {
 
     async handleCancel(ctx: BotContext): Promise<void> {
         await ctx.scene.leave();
-        await ctx.reply('❌ Grid creation cancelled');
     }
 }

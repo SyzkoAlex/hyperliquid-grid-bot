@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
-import { CapitalDistribution } from './capital-distribution';
+import { CapitalDistribution } from '@domain/capital-distribution';
 import { GridMode } from '@domain/grid/grid-mode';
 import { Price } from '@domain/primitives/price';
 

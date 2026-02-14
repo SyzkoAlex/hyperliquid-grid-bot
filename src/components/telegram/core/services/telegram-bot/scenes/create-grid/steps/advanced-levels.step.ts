@@ -73,6 +73,5 @@ export class AdvancedLevelsStep {
 
     async handleCancel(ctx: BotContext): Promise<void> {
         await ctx.scene.leave();
-        await replyWithKeyboard(ctx, '❌ Grid creation cancelled');
     }
 }

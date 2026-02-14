@@ -3,17 +3,47 @@ import { QuickStartStep } from './quick-start.step';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { BotContext } from '../../../types/bot-context';
 import { Price } from '@domain/primitives/price';
+import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
+import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
+import { ConfigService } from '@nestjs/config';
+import { Decimal } from '@domain/primitives/decimal';
+import { UserState } from '@domain/user-state/user-state';
+import { Config } from '@infra/config/config.schema';
 
 describe('QuickStartStep', () => {
     let step: QuickStartStep;
     let mockHyperliquidClient: HyperliquidInfoClient;
+    let mockUserBalanceExtractor: UserBalanceExtractorService;
+    let mockCapitalCalculator: CapitalCalculatorService;
+    let mockConfigService: ConfigService<Config, true>;
 
     beforeEach(() => {
         mockHyperliquidClient = {
             getCurrentPrice: vi.fn(),
+            getUserSpotState: vi.fn(),
         } as unknown as HyperliquidInfoClient;
 
-        step = new QuickStartStep(mockHyperliquidClient);
+        mockUserBalanceExtractor = {
+            extractBalances: vi.fn(),
+        } as unknown as UserBalanceExtractorService;
+
+        mockCapitalCalculator = {
+            calculateDistribution: vi.fn().mockReturnValue({
+                investmentUSDC: Decimal.from(500),
+                investmentBase: Decimal.from(0.01),
+            }),
+        } as unknown as CapitalCalculatorService;
+
+        mockConfigService = {
+            get: vi.fn().mockReturnValue('0x123'),
+        } as unknown as ConfigService<Config, true>;
+
+        step = new QuickStartStep(
+            mockHyperliquidClient,
+            mockUserBalanceExtractor,
+            mockCapitalCalculator,
+            mockConfigService,
+        );
     });
 
     describe('handleInvestmentInput', () => {
@@ -21,6 +51,11 @@ describe('QuickStartStep', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
             vi.mocked(mockHyperliquidClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(mockHyperliquidClient.getUserSpotState).mockResolvedValue({} as UserState);
+            vi.mocked(mockUserBalanceExtractor.extractBalances).mockReturnValue({
+                usdcBalance: Decimal.from(10000),
+                baseBalance: Decimal.from(1),
+            });
 
             const result = await step.handleInvestmentInput(ctx, '1000');
 
@@ -68,6 +103,25 @@ describe('QuickStartStep', () => {
             const result = await step.handleInvestmentInput(ctx, '1000');
 
             expect(result).toBeNull();
+        });
+
+        it('should proceed even with insufficient USDC balance', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(mockHyperliquidClient.getUserSpotState).mockResolvedValue({} as UserState);
+            vi.mocked(mockUserBalanceExtractor.extractBalances).mockReturnValue({
+                usdcBalance: Decimal.from(100),
+                baseBalance: Decimal.from(1),
+            });
+            vi.mocked(mockCapitalCalculator.calculateDistribution).mockReturnValue({
+                investmentUSDC: Decimal.from(500),
+                investmentBase: Decimal.from(0.01),
+            });
+
+            const result = await step.handleInvestmentInput(ctx, '1000');
+
+            expect(result).toBe('preview');
         });
     });
 

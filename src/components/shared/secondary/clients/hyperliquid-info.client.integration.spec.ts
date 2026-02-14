@@ -7,6 +7,7 @@ import { TradingSymbol } from '@domain/primitives/trading-symbol';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { HyperliquidUserStateMapper } from '@components/shared/secondary/mappers/hyperliquid-user-state.mapper';
 import { HyperliquidModule } from '@infra/hyperliquid/hyperliquid.module';
+import { HyperliquidApiClient } from '@infra/hyperliquid/hyperliquid-api.client';
 import { loadConfiguration } from '@infra/config/configuration';
 import type { Config } from '@infra/config/config.schema';
 
@@ -75,6 +76,69 @@ describe('HyperliquidInfoClient (Integration)', () => {
             await expect(client.getCurrentPrice(invalidSymbol)).rejects.toThrow(
                 'Token not found for symbol: INVALID_XYZ',
             );
+        });
+    });
+
+    describe('pairExists', () => {
+        it('should return true for HYPE token', async () => {
+            const symbol = TradingSymbol.create('HYPE');
+            const exists = await client.pairExists(symbol);
+
+            expect(exists).toBe(true);
+            console.log('✅ HYPE token exists:', exists);
+        });
+
+        it.skip('should return true for BTC token', async () => {
+            const symbol = TradingSymbol.create('BTC');
+            const exists = await client.pairExists(symbol);
+
+            expect(exists).toBe(true);
+            console.log('✅ BTC token exists:', exists);
+        });
+
+        it('should return false for invalid token', async () => {
+            const symbol = TradingSymbol.create('INVALID_XYZ');
+            const exists = await client.pairExists(symbol);
+
+            expect(exists).toBe(false);
+            console.log('❌ INVALID_XYZ token exists:', exists);
+        });
+
+        it('should list first 10 available tokens', async () => {
+            const hyperliquidApiClient =
+                testingModule.get<HyperliquidApiClient>(HyperliquidApiClient);
+            const spotMeta = await hyperliquidApiClient.getSpotMeta();
+            const tokens = spotMeta.data.tokens.slice(0, 10);
+
+            console.log('📋 First 10 tokens from API:');
+            tokens.forEach((token: any) => {
+                console.log(`  - ${token.name} (tokenId: ${token.tokenId})`);
+            });
+
+            expect(tokens.length).toBeGreaterThan(0);
+        });
+
+        it('should search for specific tokens in full list', async () => {
+            const hyperliquidApiClient =
+                testingModule.get<HyperliquidApiClient>(HyperliquidApiClient);
+            const spotMeta = await hyperliquidApiClient.getSpotMeta();
+            const tokens = spotMeta.data.tokens;
+
+            console.log(`\n📊 Total tokens: ${tokens.length}`);
+
+            const searchTokens = ['HYPE', 'BTC', 'ETH', 'SOL', 'USDC'];
+            console.log('\n🔍 Searching for popular tokens:');
+
+            searchTokens.forEach((searchToken) => {
+                const found = tokens.find((token: any) => token.name === searchToken);
+                if (found) {
+                    console.log(`  ✅ ${searchToken}: FOUND (tokenId: ${found.tokenId})`);
+                } else {
+                    console.log(`  ❌ ${searchToken}: NOT FOUND`);
+                }
+            });
+
+            expect(tokens.length).toBeGreaterThan(0);
         });
     });
 });

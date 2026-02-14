@@ -14,6 +14,7 @@ import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
 import { CreateGridWizardState } from './create-grid-wizard-state';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
+import { logger } from '@infra/logger/logger';
 
 export const CREATE_GRID_SCENE_ID = 'create_grid';
 
@@ -117,6 +118,12 @@ export class CreateGridSceneHandler {
         }
 
         const text = ctx.message.text;
+
+        if (text.startsWith('/')) {
+            await ctx.scene.leave();
+            return;
+        }
+
         const currentStep = this.getCurrentStep(ctx.session.createGrid);
 
         let result: string | null = null;
@@ -198,32 +205,44 @@ export class CreateGridSceneHandler {
 
         switch (currentStep) {
             case SceneStep.Mode:
+                await this.deleteLastMessage(ctx);
+                await this.deleteLastMessage(ctx);
                 await this.selectModeStep.handleBack(ctx);
                 await this.selectPairStep.enter(ctx);
                 break;
             case SceneStep.Quick:
+                await this.deleteLastMessage(ctx);
+                await this.deleteLastMessage(ctx);
+                await this.deleteLastMessage(ctx);
                 await this.quickStartStep.handleBack(ctx);
                 await this.selectModeStep.enter(ctx);
                 break;
             case SceneStep.Upper:
+                await this.deleteLastMessage(ctx);
                 await this.advancedUpperStep.handleBack(ctx);
                 await this.selectModeStep.enter(ctx);
                 break;
             case SceneStep.Lower:
+                await this.deleteLastMessage(ctx);
                 await this.advancedLowerStep.handleBack(ctx);
                 await this.advancedUpperStep.enter(ctx);
                 break;
             case SceneStep.Levels:
+                await this.deleteLastMessage(ctx);
                 await this.advancedLevelsStep.handleBack(ctx);
                 await this.advancedLowerStep.enter(ctx);
                 break;
             case SceneStep.Investment:
+                await this.deleteLastMessage(ctx);
                 await this.advancedInvestmentStep.handleBack(ctx);
                 await this.advancedLevelsStep.enter(ctx);
                 break;
             case SceneStep.Preview:
+                await this.deleteLastMessage(ctx);
                 await this.advancedPreviewStep.handleBack(ctx);
                 if (ctx.session.createGrid?.mode === CreateGridMode.Quick) {
+                    await this.deleteLastMessage(ctx);
+                    await this.deleteLastMessage(ctx);
                     await this.quickStartStep.enter(ctx);
                 } else {
                     await this.advancedInvestmentStep.enter(ctx);
@@ -233,9 +252,40 @@ export class CreateGridSceneHandler {
     }
 
     private async handleCancel(ctx: BotContext): Promise<void> {
+        const messageIds = ctx.session.createGrid?.messageIds || [];
+        for (const messageId of messageIds) {
+            try {
+                await ctx.deleteMessage(messageId);
+            } catch (error) {
+                logger.warn({ error, messageId }, 'Failed to delete message during cleanup');
+            }
+        }
+
+        const shouldShowCancellationMessage =
+            ctx.session.createGrid?.totalInvestmentUSDC !== undefined;
+
         delete ctx.session.createGrid;
         await ctx.scene.leave();
-        await ctx.reply('❌ Grid creation cancelled');
+
+        if (shouldShowCancellationMessage) {
+            await ctx.reply('❌ Grid creation cancelled');
+        }
+    }
+
+    private async deleteLastMessage(ctx: BotContext): Promise<void> {
+        const messageIds = ctx.session.createGrid?.messageIds;
+        if (!messageIds || messageIds.length === 0) {
+            return;
+        }
+
+        const lastMessageId = messageIds.pop();
+        if (lastMessageId) {
+            try {
+                await ctx.deleteMessage(lastMessageId);
+            } catch (error) {
+                logger.warn({ error, messageId: lastMessageId }, 'Failed to delete last message');
+            }
+        }
     }
 
     private getCurrentStep(state: CreateGridWizardState | undefined): SceneStep {

@@ -7,4 +7,5 @@ export interface CreateGridWizardState {
     lowerPrice?: number;
     levels?: number;
     totalInvestmentUSDC?: number;
+    messageIds?: number[];
 }
