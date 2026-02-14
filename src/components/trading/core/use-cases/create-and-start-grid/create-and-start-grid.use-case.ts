@@ -56,7 +56,7 @@ export class CreateAndStartGridUseCase {
             params.symbol,
         );
 
-        return this.capitalCalculator.calculateDistribution({
+        const distribution = this.capitalCalculator.calculateDistribution({
             mode: params.mode,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance,
@@ -65,6 +65,36 @@ export class CreateAndStartGridUseCase {
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
         });
+
+        if (usdcBalance.lt(distribution.investmentUSDC)) {
+            const error = new Error(
+                `Insufficient USDC balance. Required: ${distribution.investmentUSDC.toString()}, Available: ${usdcBalance.toString()}`,
+            );
+            this.logger.error(
+                {
+                    required: distribution.investmentUSDC.toString(),
+                    available: usdcBalance.toString(),
+                },
+                'Insufficient USDC balance',
+            );
+            throw error;
+        }
+
+        if (baseBalance.lt(distribution.investmentBase)) {
+            const error = new Error(
+                `Insufficient base token balance. Required: ${distribution.investmentBase.toString()}, Available: ${baseBalance.toString()}`,
+            );
+            this.logger.error(
+                {
+                    required: distribution.investmentBase.toString(),
+                    available: baseBalance.toString(),
+                },
+                'Insufficient base token balance',
+            );
+            throw error;
+        }
+
+        return distribution;
     }
 
     private async createAndSaveGrid(

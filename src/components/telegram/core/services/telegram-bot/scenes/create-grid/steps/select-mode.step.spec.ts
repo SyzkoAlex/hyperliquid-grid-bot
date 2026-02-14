@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SelectModeStep } from './select-mode.step';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
+import { SceneStep } from '../create-grid-scene-step';
 
 describe('SelectModeStep', () => {
     let step: SelectModeStep;
+    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
-        step = new SelectModeStep();
+        mockMessageManager = {
+            sendEnterMessage: vi.fn(),
+        } as unknown as WizardMessageManager;
+
+        step = new SelectModeStep(mockMessageManager);
     });
 
     describe('handleModeSelection', () => {
@@ -17,7 +24,10 @@ describe('SelectModeStep', () => {
 
             const result = await step.handleModeSelection(ctx, CreateGridMode.Quick);
 
-            expect(result).toBe('quick');
+            expect(result).toEqual({
+                nextStep: SceneStep.Quick,
+                confirmations: ['✅ Quick start mode selected'],
+            });
             expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Quick);
         });
 
@@ -26,7 +36,10 @@ describe('SelectModeStep', () => {
 
             const result = await step.handleModeSelection(ctx, CreateGridMode.Advanced);
 
-            expect(result).toBe('advanced');
+            expect(result).toEqual({
+                nextStep: SceneStep.Upper,
+                confirmations: ['✅ Advanced mode selected'],
+            });
             expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Advanced);
         });
 
@@ -41,21 +54,9 @@ describe('SelectModeStep', () => {
         });
     });
 
-    describe('handleBack', () => {
-        it('should remove mode from session', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { mode: CreateGridMode.Quick };
-
-            await step.handleBack(ctx);
-
-            expect(ctx.session.createGrid!.mode).toBeUndefined();
-        });
-    });
-
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {
-            reply: vi.fn(),
             session,
             scene: { leave: vi.fn() },
         } as unknown as BotContext;

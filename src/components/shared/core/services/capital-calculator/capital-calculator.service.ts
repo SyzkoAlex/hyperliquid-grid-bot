@@ -43,16 +43,6 @@ import { Price } from '@domain/primitives/price';
  * ```
  * The division by price converts USD value to token quantity.
  *
- * ### 3. Balance Adjustment
- * If user has insufficient base tokens, we use available balance:
- * ```
- * if (availableBase < requiredBase):
- *     investmentBase = availableBase  (use all available tokens)
- *     investmentUSDC = unchanged      (keep USDC allocation)
- * ```
- *
- * This ensures grid can start even with partial balance.
- *
  * ### Example (GridMode.Neutral, BTC):
  * ```
  * totalInvestmentUSDC = 10,000 USDC
@@ -114,7 +104,6 @@ export class CapitalCalculatorService {
         const result = this.calculate({
             mode: params.mode,
             capital: totalInvestmentUSDC,
-            availableBase: params.baseBalance,
             currentPrice: params.currentPrice,
         });
 
@@ -134,13 +123,12 @@ export class CapitalCalculatorService {
     private calculate(params: {
         mode: GridMode;
         capital: Decimal;
-        availableBase: Decimal;
         currentPrice: Price;
     }): CapitalDistribution {
         if (params.mode === GridMode.Neutral) {
-            return this.calculateNeutral(params.capital, params.availableBase, params.currentPrice);
+            return this.calculateNeutral(params.capital, params.currentPrice);
         } else if (params.mode === GridMode.Long) {
-            return this.calculateLong(params.capital, params.availableBase, params.currentPrice);
+            return this.calculateLong(params.capital, params.currentPrice);
         } else {
             throw new Error(
                 `Invalid mode: ${params.mode}. Available: ${GridMode.Neutral}, ${GridMode.Long}`,
@@ -155,17 +143,13 @@ export class CapitalCalculatorService {
      * - investmentUSDC = 5,000 USDC (for buy orders below current price)
      * - investmentBase = 0.1 BTC (for sell orders above current price)
      */
-    private calculateNeutral(
-        capital: Decimal,
-        availableBase: Decimal,
-        currentPrice: Price,
-    ): CapitalDistribution {
+    private calculateNeutral(capital: Decimal, currentPrice: Price): CapitalDistribution {
         const investmentUSDC = capital.mul(Decimal.from(this.NEUTRAL_USDC_RATIO));
         const investmentBase = capital
             .mul(Decimal.from(this.NEUTRAL_BASE_RATIO))
             .div(Decimal.from(currentPrice.toNumber()));
 
-        return this.adjustForAvailableBalance(investmentUSDC, investmentBase, availableBase);
+        return { investmentUSDC, investmentBase };
     }
 
     /**
@@ -177,52 +161,11 @@ export class CapitalCalculatorService {
      * - investmentUSDC = 3,000 USDC (for buy orders)
      * - investmentBase = 0.14 BTC (for sell orders)
      */
-    private calculateLong(
-        capital: Decimal,
-        availableBase: Decimal,
-        currentPrice: Price,
-    ): CapitalDistribution {
+    private calculateLong(capital: Decimal, currentPrice: Price): CapitalDistribution {
         const investmentUSDC = capital.mul(Decimal.from(this.LONG_USDC_RATIO));
         const investmentBase = capital
             .mul(Decimal.from(this.LONG_BASE_RATIO))
             .div(Decimal.from(currentPrice.toNumber()));
-
-        return this.adjustForAvailableBalance(investmentUSDC, investmentBase, availableBase);
-    }
-
-    /**
-     * Adjust distribution if user has insufficient base token balance
-     *
-     * If user doesn't have enough base tokens:
-     * - Use all available base tokens (instead of calculated amount)
-     * - Keep USDC allocation unchanged
-     *
-     * Example: Need 0.1 BTC, but user has only 0.05 BTC
-     * - investmentBase = 0.05 BTC (use all available)
-     * - investmentUSDC = unchanged
-     *
-     * This allows grid to start with partial balance,
-     * but sell-side will have fewer orders.
-     */
-    private adjustForAvailableBalance(
-        investmentUSDC: Decimal,
-        investmentBase: Decimal,
-        availableBase: Decimal,
-    ): CapitalDistribution {
-        // Check if user has enough base tokens
-        if (availableBase.lt(investmentBase)) {
-            this.logger.warn(
-                {
-                    required: investmentBase.toString(),
-                    available: availableBase.toString(),
-                },
-                'Insufficient base tokens, using available balance',
-            );
-            return {
-                investmentUSDC,
-                investmentBase: availableBase, // Use all available tokens
-            };
-        }
 
         return { investmentUSDC, investmentBase };
     }

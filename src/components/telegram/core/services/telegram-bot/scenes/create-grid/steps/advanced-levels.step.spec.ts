@@ -1,12 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AdvancedLevelsStep } from './advanced-levels.step';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
+import { SceneStep } from '../create-grid-scene-step';
 
 describe('AdvancedLevelsStep', () => {
     let step: AdvancedLevelsStep;
+    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
-        step = new AdvancedLevelsStep();
+        mockMessageManager = {
+            sendEnterMessage: vi.fn(),
+        } as unknown as WizardMessageManager;
+
+        step = new AdvancedLevelsStep(mockMessageManager);
     });
 
     describe('handleLevelsSelection', () => {
@@ -16,7 +23,10 @@ describe('AdvancedLevelsStep', () => {
 
             const result = await step.handleLevelsSelection(ctx, 10);
 
-            expect(result).toBe('investment');
+            expect(result).toEqual({
+                nextStep: SceneStep.Investment,
+                confirmations: ['✅ Grid levels set: 10'],
+            });
             expect(ctx.session.createGrid?.levels).toBe(10);
         });
 
@@ -26,7 +36,8 @@ describe('AdvancedLevelsStep', () => {
 
             const result = await step.handleLevelsSelection(ctx, 2);
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should reject levels above maximum', async () => {
@@ -35,7 +46,8 @@ describe('AdvancedLevelsStep', () => {
 
             const result = await step.handleLevelsSelection(ctx, 101);
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should return null if no lower price set', async () => {
@@ -55,7 +67,10 @@ describe('AdvancedLevelsStep', () => {
 
             const result = await step.handleTextInput(ctx, '15');
 
-            expect(result).toBe('investment');
+            expect(result).toEqual({
+                nextStep: SceneStep.Investment,
+                confirmations: ['✅ Grid levels set: 15'],
+            });
             expect(ctx.session.createGrid?.levels).toBe(15);
         });
 
@@ -65,14 +80,14 @@ describe('AdvancedLevelsStep', () => {
 
             const result = await step.handleTextInput(ctx, 'abc');
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
     });
 
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {
-            reply: vi.fn(),
             session,
             scene: { leave: vi.fn() },
         } as unknown as BotContext;

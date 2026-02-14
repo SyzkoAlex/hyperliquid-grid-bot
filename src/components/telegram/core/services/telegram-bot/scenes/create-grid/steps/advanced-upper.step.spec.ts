@@ -1,19 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AdvancedUpperStep } from './advanced-upper.step';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { Price } from '@domain/primitives/price';
+import { SceneStep } from '../create-grid-scene-step';
 
 describe('AdvancedUpperStep', () => {
     let step: AdvancedUpperStep;
     let mockHyperliquidClient: HyperliquidInfoClient;
+    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
         mockHyperliquidClient = {
             getCurrentPrice: vi.fn(),
         } as unknown as HyperliquidInfoClient;
 
-        step = new AdvancedUpperStep(mockHyperliquidClient);
+        mockMessageManager = {
+            sendEnterMessage: vi.fn(),
+        } as unknown as WizardMessageManager;
+
+        step = new AdvancedUpperStep(mockHyperliquidClient, mockMessageManager);
     });
 
     describe('enter', () => {
@@ -24,7 +31,7 @@ describe('AdvancedUpperStep', () => {
 
             await step.enter(ctx);
 
-            expect(ctx.reply).toHaveBeenCalled();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should handle price fetch error gracefully', async () => {
@@ -36,18 +43,21 @@ describe('AdvancedUpperStep', () => {
 
             await step.enter(ctx);
 
-            expect(ctx.reply).toHaveBeenCalled();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
     });
 
-    describe('handlePriceInput', () => {
+    describe('handleTextInput', () => {
         it('should accept valid upper price', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            const result = await step.handlePriceInput(ctx, '55000');
+            const result = await step.handleTextInput(ctx, '55000');
 
-            expect(result).toBe('lower');
+            expect(result).toEqual({
+                nextStep: SceneStep.Lower,
+                confirmations: ['✅ Upper price set: 55000.0000'],
+            });
             expect(ctx.session.createGrid?.upperPrice).toBe(55000);
         });
 
@@ -55,25 +65,27 @@ describe('AdvancedUpperStep', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            const result = await step.handlePriceInput(ctx, '0');
+            const result = await step.handleTextInput(ctx, '0');
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should reject non-numeric input', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            const result = await step.handlePriceInput(ctx, 'abc');
+            const result = await step.handleTextInput(ctx, 'abc');
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should return null if session not initialized', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = undefined;
 
-            const result = await step.handlePriceInput(ctx, '55000');
+            const result = await step.handleTextInput(ctx, '55000');
 
             expect(result).toBeNull();
         });
@@ -82,7 +94,6 @@ describe('AdvancedUpperStep', () => {
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {
-            reply: vi.fn(),
             session,
             scene: { leave: vi.fn() },
         } as unknown as BotContext;

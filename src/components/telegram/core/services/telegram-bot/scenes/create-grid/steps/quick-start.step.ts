@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { replyWithKeyboard } from '../helpers/keyboard.helper';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '../../../../../domain/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
@@ -12,19 +11,25 @@ import { GridMode } from '@domain/grid/grid-mode';
 import { Config } from '@infra/config/config.schema';
 import { Decimal } from '@domain/primitives/decimal';
 import { logger } from '@infra/logger/logger';
+import { WizardStep } from '../wizard/wizard-step';
+import { SceneStep } from '../create-grid-scene-step';
+import { StepResult } from '../wizard/step-result';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 
 const MIN_INVESTMENT = 10;
 const PRICE_RANGE_PERCENT = 20;
 const DEFAULT_LEVELS = 10;
 
 @Injectable()
-export class QuickStartStep {
+export class QuickStartStep implements WizardStep {
+    readonly id = SceneStep.Quick;
     private readonly accountAddress: string;
 
     constructor(
         private readonly hyperliquidClient: HyperliquidInfoClient,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
         private readonly capitalCalculator: CapitalCalculatorService,
+        private readonly messageManager: WizardMessageManager,
         configService: ConfigService<Config, true>,
     ) {
         this.accountAddress = configService.get('hyperliquid.accountAddress', { infer: true });
@@ -41,7 +46,7 @@ export class QuickStartStep {
             ],
         ];
 
-        let message = `How much USDC do you want to invest?\n\nMinimum: ${MIN_INVESTMENT} USDC`;
+        let message = `How much USDC do you want to invest?\n\nMinimum: ${MIN_INVESTMENT} USDC per order`;
 
         if (symbol) {
             try {
@@ -56,25 +61,30 @@ export class QuickStartStep {
                 const tradingSymbol = TradingSymbol.fromString(symbol);
                 const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
                 const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
+                const totalBalance = usdcBalance.add(baseInUsdc);
+
+                const minBalance = usdcBalance.lt(baseInUsdc) ? usdcBalance : baseInUsdc;
+                const suggestedMax = minBalance.mul(Decimal.from(2)).toNumber();
+                const suggestedMaxRounded = Math.floor(suggestedMax);
 
                 message =
                     `💵 Your balance:\n` +
                     `  • USDC: ${usdcBalance.toString()}\n` +
-                    `  • ${symbol}: ${baseBalance.toString()} (~${baseInUsdc.toFixed(2)} USDC)\n\n` +
+                    `  • ${symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n` +
+                    `${symbol} price: $${currentPrice.toNumber().toFixed(2)}\n\n` +
+                    `Total balance: ${totalBalance.toFixed(2)} USDC\n\n` +
                     `How much USDC do you want to invest?\n\n` +
-                    `Minimum: ${MIN_INVESTMENT} USDC`;
+                    `Minimum: ${MIN_INVESTMENT} USDC per order\n\n` +
+                    `💡 Suggested max: ~${suggestedMaxRounded} USDC (for ${DEFAULT_LEVELS} levels, neutral mode)`;
             } catch (error) {
                 logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
         }
 
-        await replyWithKeyboard(ctx, message, keyboard);
+        await this.messageManager.sendEnterMessage(ctx, message, keyboard);
     }
 
-    async handleInvestmentInput(
-        ctx: BotContext,
-        text: string,
-    ): Promise<'preview' | 'invalid' | null> {
+    async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
         const session = ctx.session;
         if (!session.createGrid?.symbol) {
             return null;
@@ -83,10 +93,32 @@ export class QuickStartStep {
         const investment = parseFloat(text);
 
         if (isNaN(investment) || investment < MIN_INVESTMENT) {
-            await ctx.reply(
+            await this.messageManager.sendEnterMessage(
+                ctx,
                 `❌ Invalid amount. Minimum investment: ${MIN_INVESTMENT} USDC\n\nPlease enter a valid amount:`,
             );
-            return 'invalid';
+            return null;
+        }
+
+        // Validate per-order amount
+        const perOrderAmount = investment / DEFAULT_LEVELS;
+        if (perOrderAmount < MIN_INVESTMENT) {
+            const keyboard: InlineButton[][] = [
+                [
+                    { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
+                    { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                ],
+            ];
+            session.createGrid.showingValidationError = true;
+            await this.messageManager.sendEnterMessage(
+                ctx,
+                `❌ Order size too small!\n\n` +
+                    `With ${DEFAULT_LEVELS} levels, each order would be ${perOrderAmount.toFixed(2)} USDC.\n` +
+                    `Minimum per order: ${MIN_INVESTMENT} USDC\n\n` +
+                    `Please increase your investment to at least ${MIN_INVESTMENT * DEFAULT_LEVELS} USDC.`,
+                keyboard,
+            );
+            return null;
         }
 
         try {
@@ -112,65 +144,74 @@ export class QuickStartStep {
                 upperPrice,
             });
 
+            // Validate balance sufficiency
+            const usdcShortfall = distribution.investmentUSDC.sub(usdcBalance);
+            const baseShortfall = distribution.investmentBase.sub(baseBalance);
+            const hasInsufficientBalance =
+                usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
+
+            if (hasInsufficientBalance) {
+                const keyboard: InlineButton[][] = [
+                    [
+                        { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
+                        { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                    ],
+                ];
+
+                let errorMessage = `❌ Insufficient balance!\n\n`;
+                errorMessage += `💵 Your balance:\n`;
+                errorMessage += `  • USDC: ${usdcBalance.toString()}\n`;
+                const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
+                errorMessage += `  • ${session.createGrid.symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n`;
+                const totalBalance = usdcBalance.add(baseInUsdc);
+                errorMessage += `${session.createGrid.symbol} price: $${currentPrice.toNumber().toFixed(2)}\n`;
+                errorMessage += `Total balance: ${totalBalance.toFixed(2)} USDC\n\n`;
+                errorMessage += `📈 Required for full grid:\n`;
+                errorMessage += `  • USDC: ${distribution.investmentUSDC.toString()}\n`;
+                errorMessage += `  • ${session.createGrid.symbol}: ${distribution.investmentBase.toString()}\n\n`;
+
+                if (usdcShortfall.gt(Decimal.zero())) {
+                    errorMessage += `⚠️ USDC shortfall: ${usdcShortfall.toFixed(2)} USDC\n`;
+                }
+                if (baseShortfall.gt(Decimal.zero())) {
+                    const baseShortfallUsdc = baseShortfall.mul(
+                        Decimal.from(currentPrice.toNumber()),
+                    );
+                    errorMessage += `⚠️ ${session.createGrid.symbol} shortfall: ${baseShortfall.toFixed(6)} (~${baseShortfallUsdc.toFixed(2)} USDC)\n`;
+                }
+
+                errorMessage += `\nPlease reduce your investment or add more funds.`;
+
+                session.createGrid.showingValidationError = true;
+                await this.messageManager.sendEnterMessage(ctx, errorMessage, keyboard);
+                return null;
+            }
+
             session.createGrid.totalInvestmentUSDC = investment;
             session.createGrid.upperPrice = upperPrice;
             session.createGrid.lowerPrice = lowerPrice;
             session.createGrid.levels = DEFAULT_LEVELS;
+            session.createGrid.gridMode = GridMode.Neutral;
 
-            const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-
-            await this.deleteLastMessages(ctx, 1);
-
-            await replyWithKeyboard(ctx, `✅ You are investing ${investment} USDC`);
-
-            await replyWithKeyboard(
-                ctx,
-                `💵 Your balance:\n` +
-                    `  • USDC: ${usdcBalance.toString()}\n` +
-                    `  • ${session.createGrid.symbol}: ${baseBalance.toString()} (~${baseInUsdc.toFixed(2)} USDC)\n\n` +
-                    `📈 Required for grid:\n` +
-                    `  • USDC: ${distribution.investmentUSDC.toString()}\n` +
-                    `  • ${session.createGrid.symbol}: ${distribution.investmentBase.toString()}`,
-            );
-
-            return 'preview';
+            return {
+                nextStep: SceneStep.Preview,
+                confirmations: [`✅ Investment set: ${investment} USDC`],
+            };
         } catch (error) {
-            await ctx.reply(
+            await this.messageManager.sendEnterMessage(
+                ctx,
                 `❌ Failed to fetch data for ${session.createGrid.symbol}. Please try again later.`,
             );
-            return 'invalid';
+            return null;
         }
     }
 
-    async handleBack(ctx: BotContext): Promise<void> {
-        const session = ctx.session;
-        if (session.createGrid) {
-            delete session.createGrid.mode;
-        }
-    }
-
-    async handleCancel(ctx: BotContext): Promise<void> {
-        await ctx.scene.leave();
-    }
-
-    private async deleteLastMessages(ctx: BotContext, count: number): Promise<void> {
-        const messageIds = ctx.session.createGrid?.messageIds;
-        if (!messageIds || messageIds.length === 0) {
-            return;
-        }
-
-        for (let i = 0; i < count && messageIds.length > 0; i++) {
-            const messageId = messageIds.pop();
-            if (messageId) {
-                try {
-                    await ctx.deleteMessage(messageId);
-                } catch (error) {
-                    logger.warn(
-                        { error, messageId },
-                        'Failed to delete message in quick start step',
-                    );
-                }
-            }
+    rollbackState(ctx: BotContext): void {
+        if (ctx.session.createGrid) {
+            delete ctx.session.createGrid.totalInvestmentUSDC;
+            delete ctx.session.createGrid.upperPrice;
+            delete ctx.session.createGrid.lowerPrice;
+            delete ctx.session.createGrid.levels;
         }
     }
 }

@@ -25,6 +25,8 @@ import { AdvancedPreviewStep } from './core/services/telegram-bot/scenes/create-
 import { ConfirmStep } from './core/services/telegram-bot/scenes/create-grid/steps/confirm.step';
 import { UserBalanceExtractorService } from '@components/shared/core/services/user-balance-extractor/user-balance-extractor.service';
 import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
+import { WizardNavigator } from './core/services/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
+import { WizardMessageManager } from './core/services/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 
 @Module({
     imports: [HyperliquidModule],
@@ -44,6 +46,8 @@ import { CapitalCalculatorService } from '@components/shared/core/services/capit
         PostgresOrderRepository,
         UserBalanceExtractorService,
         CapitalCalculatorService,
+        WizardNavigator,
+        WizardMessageManager,
         CreateGridSceneHandler,
         SelectPairStep,
         SelectModeStep,

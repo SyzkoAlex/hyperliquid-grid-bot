@@ -1,11 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SelectPairStep } from './select-pair.step';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
+import { SceneStep } from '../create-grid-scene-step';
 
 describe('SelectPairStep', () => {
     let step: SelectPairStep;
     let mockHyperliquidClient: HyperliquidInfoClient;
+    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
         mockHyperliquidClient = {
@@ -13,7 +16,11 @@ describe('SelectPairStep', () => {
             getCurrentPrice: vi.fn(),
         } as unknown as HyperliquidInfoClient;
 
-        step = new SelectPairStep(mockHyperliquidClient);
+        mockMessageManager = {
+            sendEnterMessage: vi.fn(),
+        } as unknown as WizardMessageManager;
+
+        step = new SelectPairStep(mockHyperliquidClient, mockMessageManager);
     });
 
     describe('handlePairSelection', () => {
@@ -23,7 +30,10 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, 'BTC');
 
-            expect(result).toBe('mode');
+            expect(result).toEqual({
+                nextStep: SceneStep.Mode,
+                confirmations: ['✅ Selected: BTC/USDC'],
+            });
             expect(ctx.session.createGrid).toEqual({ symbol: 'BTC' });
             expect(mockHyperliquidClient.pairExists).toHaveBeenCalledWith(
                 expect.objectContaining({ toString: expect.any(Function) }),
@@ -36,14 +46,14 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, 'HYPE');
 
-            expect(result).toBe('mode');
+            expect(result).toEqual({
+                nextStep: SceneStep.Mode,
+                confirmations: ['✅ Selected: HYPE/USDC'],
+            });
             expect(ctx.session.createGrid).toEqual(expect.objectContaining({ symbol: 'HYPE' }));
             expect(mockHyperliquidClient.pairExists).toHaveBeenCalledWith(
                 expect.objectContaining({ toString: expect.any(Function) }),
             );
-            expect(ctx.reply).toHaveBeenCalledWith('✅ Selected: HYPE/USDC', {
-                parse_mode: 'HTML',
-            });
         });
 
         it('should reject invalid symbol', async () => {
@@ -52,7 +62,8 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, 'INVALID');
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should handle TradingSymbol creation error', async () => {
@@ -63,7 +74,8 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, '');
 
-            expect(result).toBe('invalid');
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
 
         it('should handle empty symbol string', async () => {
@@ -71,8 +83,9 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, '');
 
-            expect(result).toBe('invalid');
-            expect(ctx.reply).toHaveBeenCalledWith(
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
+                ctx,
                 '❌ Invalid token format. Please try another token.',
             );
         });
@@ -86,7 +99,10 @@ describe('SelectPairStep', () => {
 
             const result = await step.handleTextInput(ctx, 'btc');
 
-            expect(result).toBe('mode');
+            expect(result).toEqual({
+                nextStep: SceneStep.Mode,
+                confirmations: ['✅ Selected: BTC/USDC'],
+            });
             expect(ctx.session.createGrid?.symbol).toBe('BTC');
         });
 
@@ -103,7 +119,6 @@ describe('SelectPairStep', () => {
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {
-            reply: vi.fn(),
             session,
             scene: { leave: vi.fn() },
         } as unknown as BotContext;

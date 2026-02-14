@@ -1,9 +1,18 @@
-import { replyWithKeyboard } from '../helpers/keyboard.helper';
+import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '../../../../../domain/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
+import { WizardStep } from '../wizard/wizard-step';
+import { SceneStep } from '../create-grid-scene-step';
+import { StepResult } from '../wizard/step-result';
+import { WizardMessageManager } from '../wizard/wizard-message-manager';
 
-export class AdvancedLowerStep {
+@Injectable()
+export class AdvancedLowerStep implements WizardStep {
+    readonly id = SceneStep.Lower;
+
+    constructor(private readonly messageManager: WizardMessageManager) {}
+
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
             [
@@ -18,10 +27,10 @@ export class AdvancedLowerStep {
             message += `\n\nUpper price: ${session.createGrid.upperPrice.toFixed(4)}`;
         }
 
-        await replyWithKeyboard(ctx, message, keyboard);
+        await this.messageManager.sendEnterMessage(ctx, message, keyboard);
     }
 
-    async handlePriceInput(ctx: BotContext, text: string): Promise<'levels' | 'invalid' | null> {
+    async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
         const session = ctx.session;
         if (!session.createGrid?.upperPrice) {
             return null;
@@ -30,30 +39,31 @@ export class AdvancedLowerStep {
         const price = parseFloat(text);
 
         if (isNaN(price) || price <= 0) {
-            await ctx.reply('❌ Invalid price. Please enter a positive number:');
-            return 'invalid';
+            await this.messageManager.sendEnterMessage(
+                ctx,
+                '❌ Invalid price. Please enter a positive number:',
+            );
+            return null;
         }
 
         if (price >= session.createGrid.upperPrice) {
-            await ctx.reply(
+            await this.messageManager.sendEnterMessage(
+                ctx,
                 `❌ Lower price must be less than upper price (${session.createGrid.upperPrice.toFixed(4)})\n\nPlease enter a valid price:`,
             );
-            return 'invalid';
+            return null;
         }
 
         session.createGrid.lowerPrice = price;
-        await ctx.reply(`✅ Lower price set: ${price.toFixed(4)}`);
-        return 'levels';
+        return {
+            nextStep: SceneStep.Levels,
+            confirmations: [`✅ Lower price set: ${price.toFixed(4)}`],
+        };
     }
 
-    async handleBack(ctx: BotContext): Promise<void> {
-        const session = ctx.session;
-        if (session.createGrid) {
-            delete session.createGrid.upperPrice;
+    rollbackState(ctx: BotContext): void {
+        if (ctx.session.createGrid) {
+            delete ctx.session.createGrid.lowerPrice;
         }
-    }
-
-    async handleCancel(ctx: BotContext): Promise<void> {
-        await ctx.scene.leave();
     }
 }

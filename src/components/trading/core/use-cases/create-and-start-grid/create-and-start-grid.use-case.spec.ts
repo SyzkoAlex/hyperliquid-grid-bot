@@ -174,7 +174,7 @@ describe('CreateAndStartGridUseCase', () => {
             const userState = { withdrawable: '5000', assetPositions: [] };
             const balances = {
                 usdcBalance: Decimal.from(5000),
-                baseBalance: Decimal.zero(),
+                baseBalance: Decimal.from(1),
             };
             const distribution = {
                 investmentUSDC: Decimal.from(3000),
@@ -239,7 +239,7 @@ describe('CreateAndStartGridUseCase', () => {
             const userState = { withdrawable: '3000', assetPositions: [] };
             const balances = {
                 usdcBalance: Decimal.from(3000),
-                baseBalance: Decimal.zero(),
+                baseBalance: Decimal.from(15),
             };
             const distribution = {
                 investmentUSDC: Decimal.from(1500),

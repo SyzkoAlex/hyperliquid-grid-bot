@@ -69,22 +69,19 @@ describe('CapitalCalculatorService', () => {
             expect(result.investmentBase.toNumber()).toBeCloseTo(0.1, 5);
         });
 
-        it('should adjust for insufficient base balance', () => {
+        it('should calculate distribution even with insufficient balance', () => {
             const result = service.calculateDistribution({
                 mode: GridMode.Neutral,
                 totalInvestmentUSDC: 10000,
-                usdcBalance: Decimal.from(10000),
-                baseBalance: Decimal.from(0.05), // Only 0.05 BTC available, needs 0.1
+                usdcBalance: Decimal.from(3000),
+                baseBalance: Decimal.from(0.05),
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
             });
 
-            // USDC investment unchanged
             expect(result.investmentUSDC.toNumber()).toBe(5000);
-
-            // Base investment limited to available balance
-            expect(result.investmentBase.toNumber()).toBe(0.05);
+            expect(result.investmentBase.toNumber()).toBeCloseTo(0.1, 5);
         });
 
         it('should throw error for invalid mode', () => {
