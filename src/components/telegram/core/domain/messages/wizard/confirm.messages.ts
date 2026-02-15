@@ -1,4 +1,5 @@
 import { EMOJI } from '../../constants/emoji.constants';
+import { PriceFormatter } from '../../formatters/price.formatter';
 
 export class ConfirmMessages {
     static success(
@@ -11,7 +12,7 @@ export class ConfirmMessages {
         return (
             `${EMOJI.SUCCESS} <b>Grid creation started!</b>\n\n` +
             `Symbol: ${symbol}\n` +
-            `Price Range: ${lowerPrice.toFixed(4)} - ${upperPrice.toFixed(4)}\n` +
+            `Price Range: ${PriceFormatter.format(lowerPrice)} - ${PriceFormatter.format(upperPrice)}\n` +
             `Levels: ${levels}\n` +
             `Investment: ${totalInvestment} USDC\n\n` +
             `You'll receive notifications when orders are placed.`

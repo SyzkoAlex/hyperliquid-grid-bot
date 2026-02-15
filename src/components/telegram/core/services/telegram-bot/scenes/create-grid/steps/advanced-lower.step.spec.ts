@@ -25,7 +25,7 @@ describe('AdvancedLowerStep', () => {
 
             expect(result).toEqual({
                 nextStep: SceneStep.Levels,
-                confirmations: ['✅ Lower price set: 45000.0000'],
+                confirmations: ['✅ Lower price set: 45000'],
             });
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
         });

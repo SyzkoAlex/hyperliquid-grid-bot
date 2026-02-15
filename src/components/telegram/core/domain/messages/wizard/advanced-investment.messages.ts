@@ -22,10 +22,10 @@ export class AdvancedInvestmentMessages {
             `  • USDC: ${usdcBalance.toString()}\n` +
             `  • ${symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n` +
             `${symbol} price: $${currentPrice.toFixed(2)}\n\n` +
-            `Total balance: ${totalBalance.toFixed(2)} USDC\n` +
-            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels, neutral mode)\n\n` +
+            `Total balance: ${totalBalance.toFixed(2)} USDC\n\n` +
             `How much USDC do you want to invest?\n\n` +
-            `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order`
+            `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
+            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels, neutral mode)`
         );
     }
 

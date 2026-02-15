@@ -56,7 +56,7 @@ describe('AdvancedUpperStep', () => {
 
             expect(result).toEqual({
                 nextStep: SceneStep.Lower,
-                confirmations: ['✅ Upper price set: 55000.0000'],
+                confirmations: ['✅ Upper price set: 55000'],
             });
             expect(ctx.session.createGrid?.upperPrice).toBe(55000);
         });

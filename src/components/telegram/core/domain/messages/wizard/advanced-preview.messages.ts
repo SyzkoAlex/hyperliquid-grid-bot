@@ -1,4 +1,5 @@
 import { EMOJI } from '../../constants/emoji.constants';
+import { PriceFormatter } from '../../formatters/price.formatter';
 
 export class AdvancedPreviewMessages {
     static preview(
@@ -12,14 +13,14 @@ export class AdvancedPreviewMessages {
         orderSize: string,
     ): string {
         const currentPriceText = currentPrice
-            ? `${EMOJI.DIAMOND} Current Price: ${currentPrice.toFixed(2)}\n`
+            ? `${EMOJI.DIAMOND} Current Price: ${PriceFormatter.format(currentPrice)}\n`
             : '';
 
         return (
             `<b>${EMOJI.CLIPBOARD} Grid Configuration Preview</b>\n\n` +
             `${EMOJI.DIAMOND} Symbol: ${symbol}\n` +
             `${EMOJI.DIAMOND} Mode: ${mode}\n` +
-            `${EMOJI.DIAMOND} Price Range: ${lowerPrice.toFixed(4)} - ${upperPrice.toFixed(4)}\n` +
+            `${EMOJI.DIAMOND} Price Range: ${PriceFormatter.format(lowerPrice)} - ${PriceFormatter.format(upperPrice)}\n` +
             currentPriceText +
             `${EMOJI.DIAMOND} Levels: ${levels}\n` +
             `${EMOJI.DIAMOND} Investment: ${totalInvestment} USDC\n` +

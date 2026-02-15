@@ -1,5 +1,6 @@
 import { EMOJI } from '../../constants/emoji.constants';
 import { Decimal } from '@domain/primitives/decimal';
+import { PriceFormatter } from '../../formatters/price.formatter';
 
 export class ValidationMessages {
     static invalidPrice(): string {
@@ -15,7 +16,7 @@ export class ValidationMessages {
     }
 
     static lowerPriceMustBeLess(upperPrice: number): string {
-        return `${EMOJI.ERROR} Lower price must be less than upper price (${upperPrice.toFixed(4)})\n\nPlease enter a valid price:`;
+        return `${EMOJI.ERROR} Lower price must be less than upper price (${PriceFormatter.format(upperPrice)})\n\nPlease enter a valid price:`;
     }
 
     static invalidLevelsRange(min: number, max: number): string {
