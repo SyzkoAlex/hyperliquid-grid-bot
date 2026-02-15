@@ -15,10 +15,10 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-
-const MIN_INVESTMENT = 10;
-const PRICE_RANGE_PERCENT = 20;
-const DEFAULT_LEVELS = 10;
+import { WIZARD_CONFIG } from '../../../../../domain/constants/wizard-config';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { QuickStartMessages } from '../../../../../domain/messages/wizard/quick-start.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class QuickStartStep implements WizardStep {
@@ -41,12 +41,12 @@ export class QuickStartStep implements WizardStep {
 
         const keyboard: InlineButton[][] = [
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
-        let message = `How much USDC do you want to invest?\n\nMinimum: ${MIN_INVESTMENT} USDC per order`;
+        let message = QuickStartMessages.promptWithoutBalance();
 
         if (symbol) {
             try {
@@ -67,15 +67,15 @@ export class QuickStartStep implements WizardStep {
                 const suggestedMax = minBalance.mul(Decimal.from(2)).toNumber();
                 const suggestedMaxRounded = Math.floor(suggestedMax);
 
-                message =
-                    `💵 Your balance:\n` +
-                    `  • USDC: ${usdcBalance.toString()}\n` +
-                    `  • ${symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n` +
-                    `${symbol} price: $${currentPrice.toNumber().toFixed(2)}\n\n` +
-                    `Total balance: ${totalBalance.toFixed(2)} USDC\n\n` +
-                    `How much USDC do you want to invest?\n\n` +
-                    `Minimum: ${MIN_INVESTMENT} USDC per order\n\n` +
-                    `💡 Suggested max: ~${suggestedMaxRounded} USDC (for ${DEFAULT_LEVELS} levels, neutral mode)`;
+                message = QuickStartMessages.promptWithBalance(
+                    symbol,
+                    usdcBalance,
+                    baseBalance,
+                    baseInUsdc,
+                    totalBalance,
+                    currentPrice.toNumber(),
+                    suggestedMaxRounded,
+                );
             } catch (error) {
                 logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
@@ -92,30 +92,30 @@ export class QuickStartStep implements WizardStep {
 
         const investment = parseFloat(text);
 
-        if (isNaN(investment) || investment < MIN_INVESTMENT) {
+        if (isNaN(investment) || investment < WIZARD_CONFIG.MIN_INVESTMENT) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                `❌ Invalid amount. Minimum investment: ${MIN_INVESTMENT} USDC\n\nPlease enter a valid amount:`,
+                ValidationMessages.invalidAmount(WIZARD_CONFIG.MIN_INVESTMENT),
             );
             return null;
         }
 
-        // Validate per-order amount
-        const perOrderAmount = investment / DEFAULT_LEVELS;
-        if (perOrderAmount < MIN_INVESTMENT) {
+        const perOrderAmount = investment / WIZARD_CONFIG.DEFAULT_LEVELS;
+        if (perOrderAmount < WIZARD_CONFIG.MIN_INVESTMENT) {
             const keyboard: InlineButton[][] = [
                 [
-                    { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                    { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                    { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                    { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
                 ],
             ];
             session.createGrid.showingValidationError = true;
             await this.messageManager.sendEnterMessage(
                 ctx,
-                `❌ Order size too small!\n\n` +
-                    `With ${DEFAULT_LEVELS} levels, each order would be ${perOrderAmount.toFixed(2)} USDC.\n` +
-                    `Minimum per order: ${MIN_INVESTMENT} USDC\n\n` +
-                    `Please increase your investment to at least ${MIN_INVESTMENT * DEFAULT_LEVELS} USDC.`,
+                ValidationMessages.orderSizeTooSmall(
+                    WIZARD_CONFIG.DEFAULT_LEVELS,
+                    perOrderAmount,
+                    WIZARD_CONFIG.MIN_INVESTMENT,
+                ),
                 keyboard,
             );
             return null;
@@ -124,7 +124,7 @@ export class QuickStartStep implements WizardStep {
         try {
             const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
             const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-            const priceOffset = currentPrice.toNumber() * (PRICE_RANGE_PERCENT / 100);
+            const priceOffset = currentPrice.toNumber() * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
             const upperPrice = currentPrice.toNumber() + priceOffset;
             const lowerPrice = currentPrice.toNumber() - priceOffset;
 
@@ -153,34 +153,26 @@ export class QuickStartStep implements WizardStep {
             if (hasInsufficientBalance) {
                 const keyboard: InlineButton[][] = [
                     [
-                        { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                        { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                        { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                        { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
                     ],
                 ];
 
-                let errorMessage = `❌ Insufficient balance!\n\n`;
-                errorMessage += `💵 Your balance:\n`;
-                errorMessage += `  • USDC: ${usdcBalance.toString()}\n`;
                 const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-                errorMessage += `  • ${session.createGrid.symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n`;
                 const totalBalance = usdcBalance.add(baseInUsdc);
-                errorMessage += `${session.createGrid.symbol} price: $${currentPrice.toNumber().toFixed(2)}\n`;
-                errorMessage += `Total balance: ${totalBalance.toFixed(2)} USDC\n\n`;
-                errorMessage += `📈 Required for full grid:\n`;
-                errorMessage += `  • USDC: ${distribution.investmentUSDC.toString()}\n`;
-                errorMessage += `  • ${session.createGrid.symbol}: ${distribution.investmentBase.toString()}\n\n`;
 
-                if (usdcShortfall.gt(Decimal.zero())) {
-                    errorMessage += `⚠️ USDC shortfall: ${usdcShortfall.toFixed(2)} USDC\n`;
-                }
-                if (baseShortfall.gt(Decimal.zero())) {
-                    const baseShortfallUsdc = baseShortfall.mul(
-                        Decimal.from(currentPrice.toNumber()),
-                    );
-                    errorMessage += `⚠️ ${session.createGrid.symbol} shortfall: ${baseShortfall.toFixed(6)} (~${baseShortfallUsdc.toFixed(2)} USDC)\n`;
-                }
-
-                errorMessage += `\nPlease reduce your investment or add more funds.`;
+                const errorMessage = ValidationMessages.insufficientBalance(
+                    session.createGrid.symbol,
+                    usdcBalance,
+                    baseBalance,
+                    baseInUsdc,
+                    totalBalance,
+                    currentPrice.toNumber(),
+                    distribution.investmentUSDC,
+                    distribution.investmentBase,
+                    usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
+                    baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
+                );
 
                 session.createGrid.showingValidationError = true;
                 await this.messageManager.sendEnterMessage(ctx, errorMessage, keyboard);
@@ -190,17 +182,17 @@ export class QuickStartStep implements WizardStep {
             session.createGrid.totalInvestmentUSDC = investment;
             session.createGrid.upperPrice = upperPrice;
             session.createGrid.lowerPrice = lowerPrice;
-            session.createGrid.levels = DEFAULT_LEVELS;
+            session.createGrid.levels = WIZARD_CONFIG.DEFAULT_LEVELS;
             session.createGrid.gridMode = GridMode.Neutral;
 
             return {
                 nextStep: SceneStep.Preview,
-                confirmations: [`✅ Investment set: ${investment} USDC`],
+                confirmations: [QuickStartMessages.confirmation(investment)],
             };
         } catch (error) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                `❌ Failed to fetch data for ${session.createGrid.symbol}. Please try again later.`,
+                ValidationMessages.fetchDataFailed(session.createGrid.symbol),
             );
             return null;
         }

@@ -8,8 +8,10 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-
-const POPULAR_TOKENS = ['HYPE', 'BTC', 'ETH', 'SOL'];
+import { WIZARD_CONFIG } from '../../../../../domain/constants/wizard-config';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { SelectPairMessages } from '../../../../../domain/messages/wizard/select-pair.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class SelectPairStep implements WizardStep {
@@ -22,16 +24,14 @@ export class SelectPairStep implements WizardStep {
 
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
-            ...POPULAR_TOKENS.map((token) => [{ text: token, action: buildPairAction(token) }]),
-            [{ text: '🔍 Other token', action: CREATE_GRID_ACTIONS.OTHER_PAIR }],
-            [{ text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL }],
+            ...WIZARD_CONFIG.POPULAR_TOKENS.map((token) => [
+                { text: token, action: buildPairAction(token) },
+            ]),
+            [{ text: BUTTON_LABELS.OTHER_TOKEN, action: CREATE_GRID_ACTIONS.OTHER_PAIR }],
+            [{ text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL }],
         ];
 
-        await this.messageManager.sendEnterMessage(
-            ctx,
-            'Select token (all pairs trade against USDC):',
-            keyboard,
-        );
+        await this.messageManager.sendEnterMessage(ctx, SelectPairMessages.PROMPT, keyboard);
     }
 
     async handlePairSelection(ctx: BotContext, symbol: string): Promise<StepResult> {
@@ -42,7 +42,7 @@ export class SelectPairStep implements WizardStep {
             if (!exists) {
                 await this.messageManager.sendEnterMessage(
                     ctx,
-                    `❌ Token ${symbol} not found. Please try another token.`,
+                    ValidationMessages.tokenNotFound(symbol),
                 );
                 return null;
             }
@@ -54,22 +54,19 @@ export class SelectPairStep implements WizardStep {
 
             return {
                 nextStep: SceneStep.Mode,
-                confirmations: [`✅ Selected: ${symbol}/USDC`],
+                confirmations: [SelectPairMessages.confirmation(symbol)],
             };
         } catch (error) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                '❌ Invalid token format. Please try another token.',
+                ValidationMessages.invalidTokenFormat(),
             );
             return null;
         }
     }
 
     async handleOtherPair(ctx: BotContext): Promise<void> {
-        await this.messageManager.sendEnterMessage(
-            ctx,
-            'Enter token symbol (e.g., HYPE, BTC, ETH):',
-        );
+        await this.messageManager.sendEnterMessage(ctx, SelectPairMessages.OTHER_TOKEN_PROMPT);
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {

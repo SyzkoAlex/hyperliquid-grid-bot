@@ -7,6 +7,8 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { SelectModeMessages } from '../../../../../domain/messages/wizard/select-mode.messages';
 
 @Injectable()
 export class SelectModeStep implements WizardStep {
@@ -16,18 +18,17 @@ export class SelectModeStep implements WizardStep {
 
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
-            [{ text: '⚡️ Quick start', action: CREATE_GRID_ACTIONS.MODE_QUICK }],
-            [{ text: '⚙️ Advanced', action: CREATE_GRID_ACTIONS.MODE_ADVANCED }],
+            [{ text: BUTTON_LABELS.MODE_QUICK, action: CREATE_GRID_ACTIONS.MODE_QUICK }],
+            [{ text: BUTTON_LABELS.MODE_ADVANCED, action: CREATE_GRID_ACTIONS.MODE_ADVANCED }],
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
         await this.messageManager.sendEnterMessage(
             ctx,
-            '⚡️ <b>Quick start</b>: Auto-configuration with ±20% price range and 10 levels\n' +
-                '⚙️ <b>Advanced</b>: Manual configuration of all parameters',
+            SelectModeMessages.PROMPT,
             keyboard,
             'HTML',
         );
@@ -42,8 +43,8 @@ export class SelectModeStep implements WizardStep {
 
         const confirmText =
             mode === CreateGridMode.Quick
-                ? '✅ Quick start mode selected'
-                : '✅ Advanced mode selected';
+                ? SelectModeMessages.QUICK_MODE_CONFIRMATION
+                : SelectModeMessages.ADVANCED_MODE_CONFIRMATION;
         const nextStep = mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Upper;
 
         return {

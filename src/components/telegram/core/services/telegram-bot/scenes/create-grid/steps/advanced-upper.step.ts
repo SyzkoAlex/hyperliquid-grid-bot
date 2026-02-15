@@ -8,6 +8,9 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { AdvancedUpperMessages } from '../../../../../domain/messages/wizard/advanced-upper.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class AdvancedUpperStep implements WizardStep {
@@ -21,22 +24,23 @@ export class AdvancedUpperStep implements WizardStep {
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
         const session = ctx.session;
-        let message = 'Enter upper price for the grid:';
+        let message: string;
         if (session.createGrid?.symbol) {
             try {
                 const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
                 const price = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-                const currentPrice = price.toNumber();
-                message += `\n\nCurrent ${session.createGrid.symbol} price: ${currentPrice.toFixed(4)}`;
+                message = AdvancedUpperMessages.prompt(session.createGrid.symbol, price.toNumber());
             } catch (error) {
-                message += `\n\n⚠️ Could not fetch current price`;
+                message = AdvancedUpperMessages.prompt(session.createGrid.symbol);
             }
+        } else {
+            message = AdvancedUpperMessages.prompt();
         }
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard);
@@ -51,17 +55,14 @@ export class AdvancedUpperStep implements WizardStep {
         const price = parseFloat(text);
 
         if (isNaN(price) || price <= 0) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                '❌ Invalid price. Please enter a positive number:',
-            );
+            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidPrice());
             return null;
         }
 
         session.createGrid.upperPrice = price;
         return {
             nextStep: SceneStep.Lower,
-            confirmations: [`✅ Upper price set: ${price.toFixed(4)}`],
+            confirmations: [AdvancedUpperMessages.confirmation(price)],
         };
     }
 

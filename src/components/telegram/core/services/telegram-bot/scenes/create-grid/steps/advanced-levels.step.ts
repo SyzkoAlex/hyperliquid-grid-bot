@@ -6,10 +6,10 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-
-const MIN_LEVELS = 3;
-const MAX_LEVELS = 100;
-const PRESET_LEVELS = [5, 10, 20, 50];
+import { WIZARD_CONFIG } from '../../../../../domain/constants/wizard-config';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { AdvancedLevelsMessages } from '../../../../../domain/messages/wizard/advanced-levels.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class AdvancedLevelsStep implements WizardStep {
@@ -19,20 +19,16 @@ export class AdvancedLevelsStep implements WizardStep {
 
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
-            ...PRESET_LEVELS.map((level) => [
+            ...WIZARD_CONFIG.PRESET_LEVELS.map((level) => [
                 { text: level.toString(), action: buildLevelsAction(level) },
             ]),
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
-        await this.messageManager.sendEnterMessage(
-            ctx,
-            `How many grid levels?\n\nSelect preset or enter custom value (${MIN_LEVELS}-${MAX_LEVELS}):`,
-            keyboard,
-        );
+        await this.messageManager.sendEnterMessage(ctx, AdvancedLevelsMessages.PROMPT, keyboard);
     }
 
     async handleLevelsSelection(ctx: BotContext, levels: number): Promise<StepResult> {
@@ -41,10 +37,13 @@ export class AdvancedLevelsStep implements WizardStep {
             return null;
         }
 
-        if (levels < MIN_LEVELS || levels > MAX_LEVELS) {
+        if (levels < WIZARD_CONFIG.MIN_LEVELS || levels > WIZARD_CONFIG.MAX_LEVELS) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                `❌ Invalid number of levels. Must be between ${MIN_LEVELS} and ${MAX_LEVELS}`,
+                ValidationMessages.invalidLevelsRange(
+                    WIZARD_CONFIG.MIN_LEVELS,
+                    WIZARD_CONFIG.MAX_LEVELS,
+                ),
             );
             return null;
         }
@@ -52,7 +51,7 @@ export class AdvancedLevelsStep implements WizardStep {
         session.createGrid.levels = levels;
         return {
             nextStep: SceneStep.Investment,
-            confirmations: [`✅ Grid levels set: ${levels}`],
+            confirmations: [AdvancedLevelsMessages.confirmation(levels)],
         };
     }
 
@@ -65,10 +64,7 @@ export class AdvancedLevelsStep implements WizardStep {
         const levels = parseInt(text, 10);
 
         if (isNaN(levels)) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                '❌ Invalid input. Please enter a number:',
-            );
+            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidNumber());
             return null;
         }
 

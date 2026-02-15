@@ -6,6 +6,9 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { AdvancedLowerMessages } from '../../../../../domain/messages/wizard/advanced-lower.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class AdvancedLowerStep implements WizardStep {
@@ -16,16 +19,13 @@ export class AdvancedLowerStep implements WizardStep {
     async enter(ctx: BotContext): Promise<void> {
         const keyboard: InlineButton[][] = [
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
         const session = ctx.session;
-        let message = 'Enter lower price for the grid:';
-        if (session.createGrid?.upperPrice) {
-            message += `\n\nUpper price: ${session.createGrid.upperPrice.toFixed(4)}`;
-        }
+        const message = AdvancedLowerMessages.prompt(session.createGrid?.upperPrice);
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard);
     }
@@ -39,17 +39,14 @@ export class AdvancedLowerStep implements WizardStep {
         const price = parseFloat(text);
 
         if (isNaN(price) || price <= 0) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                '❌ Invalid price. Please enter a positive number:',
-            );
+            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidPrice());
             return null;
         }
 
         if (price >= session.createGrid.upperPrice) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                `❌ Lower price must be less than upper price (${session.createGrid.upperPrice.toFixed(4)})\n\nPlease enter a valid price:`,
+                ValidationMessages.lowerPriceMustBeLess(session.createGrid.upperPrice),
             );
             return null;
         }
@@ -57,7 +54,7 @@ export class AdvancedLowerStep implements WizardStep {
         session.createGrid.lowerPrice = price;
         return {
             nextStep: SceneStep.Levels,
-            confirmations: [`✅ Lower price set: ${price.toFixed(4)}`],
+            confirmations: [AdvancedLowerMessages.confirmation(price)],
         };
     }
 

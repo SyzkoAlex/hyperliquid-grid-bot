@@ -3,6 +3,8 @@ import { BotContext } from '../../../types/bot-context';
 import { CreateGridCommandEvent } from '@domain/events/commands/create-grid-command.event';
 import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
+import { ConfirmMessages } from '../../../../../domain/messages/wizard/confirm.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class ConfirmStep {
@@ -13,7 +15,7 @@ export class ConfirmStep {
         const state = session.createGrid;
 
         if (!this.validateState(state)) {
-            await ctx.reply('❌ Invalid grid configuration. Please start over.');
+            await ctx.reply(ValidationMessages.invalidGridConfig());
             return;
         }
 
@@ -29,12 +31,13 @@ export class ConfirmStep {
         await this.eventBus.publish(event);
 
         await ctx.reply(
-            `✅ <b>Grid creation started!</b>\n\n` +
-                `Symbol: ${state!.symbol}\n` +
-                `Price Range: ${state!.lowerPrice?.toFixed(4)} - ${state!.upperPrice?.toFixed(4)}\n` +
-                `Levels: ${state!.levels}\n` +
-                `Investment: ${state!.totalInvestmentUSDC} USDC\n\n` +
-                `You'll receive notifications when orders are placed.`,
+            ConfirmMessages.success(
+                state!.symbol!,
+                state!.lowerPrice!,
+                state!.upperPrice!,
+                state!.levels!,
+                state!.totalInvestmentUSDC,
+            ),
             { parse_mode: 'HTML' },
         );
     }

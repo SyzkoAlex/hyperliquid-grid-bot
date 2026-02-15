@@ -8,6 +8,9 @@ import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { CreateGridMode } from '../create-grid-mode';
 import { HyperliquidInfoClient } from '@components/shared/secondary/clients/hyperliquid-info.client';
 import { TradingSymbol } from '@domain/primitives/trading-symbol';
+import { BUTTON_LABELS } from '../../../../../domain/constants/button-labels.constants';
+import { AdvancedPreviewMessages } from '../../../../../domain/messages/wizard/advanced-preview.messages';
+import { ValidationMessages } from '../../../../../domain/messages/wizard/validation.messages';
 
 @Injectable()
 export class AdvancedPreviewStep implements WizardStep {
@@ -20,7 +23,7 @@ export class AdvancedPreviewStep implements WizardStep {
 
     async enter(ctx: BotContext): Promise<void> {
         if (!this.validateState(ctx)) {
-            await this.messageManager.sendEnterMessage(ctx, '❌ Invalid state. Please start over.');
+            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidState());
             await ctx.scene.leave();
             return;
         }
@@ -33,32 +36,32 @@ export class AdvancedPreviewStep implements WizardStep {
                 : 'N/A';
 
         const keyboard: InlineButton[][] = [
-            [{ text: '✅ Confirm', action: CREATE_GRID_ACTIONS.CONFIRM }],
+            [{ text: BUTTON_LABELS.CONFIRM, action: CREATE_GRID_ACTIONS.CONFIRM }],
             [
-                { text: '← Back', action: CREATE_GRID_ACTIONS.BACK },
-                { text: '❌ Cancel', action: CREATE_GRID_ACTIONS.CANCEL },
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
             ],
         ];
 
-        let currentPriceText = '';
+        let currentPrice: number | null = null;
         try {
             const tradingSymbol = TradingSymbol.fromString(state.symbol!);
-            const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-            currentPriceText = `🔸 Current Price: ${currentPrice.toNumber().toFixed(2)}\n`;
+            const price = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
+            currentPrice = price.toNumber();
         } catch {
             // Ignore error, just don't show current price
         }
 
-        const message =
-            `<b>📋 Grid Configuration Preview</b>\n\n` +
-            `🔸 Symbol: ${state.symbol}\n` +
-            `🔸 Mode: ${state.gridMode}\n` +
-            `🔸 Price Range: ${state.lowerPrice?.toFixed(4)} - ${state.upperPrice?.toFixed(4)}\n` +
-            currentPriceText +
-            `🔸 Levels: ${state.levels}\n` +
-            `🔸 Investment: ${state.totalInvestmentUSDC} USDC\n` +
-            `🔸 Order Size: ~${orderSize} USDC per level\n\n` +
-            `Ready to create grid?`;
+        const message = AdvancedPreviewMessages.preview(
+            state.symbol!,
+            state.gridMode!,
+            state.lowerPrice!,
+            state.upperPrice!,
+            currentPrice,
+            state.levels!,
+            state.totalInvestmentUSDC!,
+            orderSize,
+        );
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard, 'HTML');
     }
