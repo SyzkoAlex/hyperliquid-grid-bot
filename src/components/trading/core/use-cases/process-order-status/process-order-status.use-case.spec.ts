@@ -24,7 +24,7 @@ describe('ProcessOrderStatusUseCase', () => {
         findOneById: ReturnType<typeof vi.fn>;
     };
     let mockOrderRefillService: {
-        process: ReturnType<typeof vi.fn>;
+        processOne: ReturnType<typeof vi.fn>;
     };
 
     const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
@@ -40,7 +40,7 @@ describe('ProcessOrderStatusUseCase', () => {
         };
 
         mockOrderRefillService = {
-            process: vi.fn(),
+            processOne: vi.fn(),
         };
 
         useCase = new ProcessOrderStatusUseCase(
@@ -113,7 +113,7 @@ describe('ProcessOrderStatusUseCase', () => {
     });
 
     describe('execute - filled status', () => {
-        it('should process filled order and trigger refill', async () => {
+        it('should handle filled order and trigger refill', async () => {
             const orderStatus = createOrderStatus('filled');
             const order = createOrder(OrderStatus.Placed);
             const grid = createGrid(GridStatus.Running);
@@ -123,7 +123,7 @@ describe('ProcessOrderStatusUseCase', () => {
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(filledOrder);
             mockGridRepository.findOneById.mockResolvedValue(grid);
-            mockOrderRefillService.process.mockResolvedValue({
+            mockOrderRefillService.processOne.mockResolvedValue({
                 success: true,
                 orderId: OrderId.create().toString(),
             });
@@ -138,7 +138,7 @@ describe('ProcessOrderStatusUseCase', () => {
                 OrderStatus.Filled,
                 expect.any(Date),
             );
-            expect(mockOrderRefillService.process).toHaveBeenCalledWith(filledOrder, grid);
+            expect(mockOrderRefillService.processOne).toHaveBeenCalledWith(filledOrder, grid);
         });
 
         it('should skip processing if order already filled', async () => {
@@ -153,7 +153,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('filled');
             expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
-            expect(mockOrderRefillService.process).not.toHaveBeenCalled();
+            expect(mockOrderRefillService.processOne).not.toHaveBeenCalled();
         });
 
         it('should return error when grid not found', async () => {
@@ -183,7 +183,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('filled');
-            expect(mockOrderRefillService.process).not.toHaveBeenCalled();
+            expect(mockOrderRefillService.processOne).not.toHaveBeenCalled();
         });
 
         it('should return error when order refetch fails', async () => {
@@ -200,7 +200,7 @@ describe('ProcessOrderStatusUseCase', () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Failed to re-fetch order');
-            expect(mockOrderRefillService.process).not.toHaveBeenCalled();
+            expect(mockOrderRefillService.processOne).not.toHaveBeenCalled();
         });
 
         it('should continue when refill fails', async () => {
@@ -213,7 +213,7 @@ describe('ProcessOrderStatusUseCase', () => {
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(filledOrder);
             mockGridRepository.findOneById.mockResolvedValue(grid);
-            mockOrderRefillService.process.mockResolvedValue({
+            mockOrderRefillService.processOne.mockResolvedValue({
                 success: false,
                 error: 'Insufficient balance',
             });
@@ -227,7 +227,7 @@ describe('ProcessOrderStatusUseCase', () => {
     });
 
     describe('execute - canceled status', () => {
-        it('should process canceled order', async () => {
+        it('should handle canceled order', async () => {
             const orderStatus = createOrderStatus('canceled');
             const order = createOrder(OrderStatus.Placed);
 
@@ -244,7 +244,7 @@ describe('ProcessOrderStatusUseCase', () => {
             );
         });
 
-        it('should process marginCanceled order', async () => {
+        it('should handle marginCanceled order', async () => {
             const orderStatus = createOrderStatus('marginCanceled');
             const order = createOrder(OrderStatus.Placed);
 
@@ -276,7 +276,7 @@ describe('ProcessOrderStatusUseCase', () => {
     });
 
     describe('execute - rejected status', () => {
-        it('should process rejected order', async () => {
+        it('should handle rejected order', async () => {
             const orderStatus = createOrderStatus('rejected');
             const order = createOrder(OrderStatus.Placed);
 

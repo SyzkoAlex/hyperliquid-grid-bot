@@ -75,7 +75,7 @@ orders:
     pendingCleanupThresholdMs: ${ORDERS_PENDING_CLEANUP_THRESHOLD_MS:300000} # 5 minutes
 
 logging:
-    level: ${LOG_LEVEL:info}
+    level: ${LOG_LEVEL:trace}
     pretty: ${LOG_PRETTY:true}
 
 metrics:

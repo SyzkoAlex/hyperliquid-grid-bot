@@ -2,10 +2,6 @@ import { Grid } from '@domain/grid/grid';
 import { Order } from '@domain/order/order';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
 
-/**
- * Aggregates grid with its related orders from both DB and exchange
- * Used in sync-orders use case for easier data passing
- */
 export class GridWithOrders {
     constructor(
         public readonly grid: Grid,
@@ -13,7 +9,53 @@ export class GridWithOrders {
         public readonly exchangeOrders: ExchangeOpenOrder[],
     ) {}
 
+    static buildMany(
+        grids: Grid[],
+        dbOrders: Order[],
+        exchangeOpenOrders: ExchangeOpenOrder[],
+    ): GridWithOrders[] {
+        const exchangeByGridId = GridWithOrders.groupExchangeOrdersByGridId(
+            exchangeOpenOrders,
+            dbOrders,
+        );
+
+        return grids
+            .map((grid) => {
+                const gridId = grid.id.toString();
+                return new GridWithOrders(
+                    grid,
+                    dbOrders.filter((o) => o.gridId.equals(grid.id)),
+                    exchangeByGridId.get(gridId) ?? [],
+                );
+            })
+            .filter((g) => g.hasDbOrders());
+    }
+
     hasDbOrders(): boolean {
         return this.dbOrders.length > 0;
+    }
+
+    private static groupExchangeOrdersByGridId(
+        exchangeOrders: ExchangeOpenOrder[],
+        dbOrders: Order[],
+    ): Map<string, ExchangeOpenOrder[]> {
+        const orderIdToGridId = new Map(
+            dbOrders.map((o) => [o.id.toString(), o.gridId.toString()]),
+        );
+        const result = new Map<string, ExchangeOpenOrder[]>();
+
+        for (const exchangeOrder of exchangeOrders) {
+            const orderId = exchangeOrder.cloid?.toOrderId();
+            if (!orderId) continue;
+
+            const gridId = orderIdToGridId.get(orderId.toString());
+            if (!gridId) continue;
+
+            const existing = result.get(gridId) ?? [];
+            existing.push(exchangeOrder);
+            result.set(gridId, existing);
+        }
+
+        return result;
     }
 }

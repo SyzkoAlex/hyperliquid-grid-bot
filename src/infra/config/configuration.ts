@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
-import { configSchema, Config } from './config.schema';
+import { Config, configSchema } from './config.schema';
 import { logger } from '../logger/logger';
 
 /**

@@ -115,7 +115,7 @@ describe('OrderRefillService', () => {
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.process(filledBuyOrder, grid);
+            const result = await service.processOne(filledBuyOrder, grid);
 
             // Should succeed
             expect(result.success).toBe(true);
@@ -155,7 +155,7 @@ describe('OrderRefillService', () => {
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.process(filledSellOrder, grid);
+            const result = await service.processOne(filledSellOrder, grid);
 
             // Should succeed
             expect(result.success).toBe(true);
@@ -199,7 +199,7 @@ describe('OrderRefillService', () => {
                 status: OrderStatus.Filled,
             });
 
-            const result = await service.process(filledBuyOrder, grid);
+            const result = await service.processOne(filledBuyOrder, grid);
 
             // Should fail (no refill at edge)
             expect(result.success).toBe(false);
@@ -224,7 +224,7 @@ describe('OrderRefillService', () => {
                 status: OrderStatus.Filled,
             });
 
-            const result = await service.process(filledSellOrder, grid);
+            const result = await service.processOne(filledSellOrder, grid);
 
             // Should fail (no refill at edge)
             expect(result.success).toBe(false);
@@ -244,7 +244,7 @@ describe('OrderRefillService', () => {
                 error: 'Insufficient balance',
             });
 
-            const result = await service.process(filledBuyOrder, grid);
+            const result = await service.processOne(filledBuyOrder, grid);
 
             // Should fail
             expect(result.success).toBe(false);
@@ -269,7 +269,7 @@ describe('OrderRefillService', () => {
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.process(filledSellOrder, grid);
+            const result = await service.processOne(filledSellOrder, grid);
 
             // Grid spacing = (55000 - 45000) / 10 = 1000
             // Profit = spacing * amount = 1000 * 0.01 = 10

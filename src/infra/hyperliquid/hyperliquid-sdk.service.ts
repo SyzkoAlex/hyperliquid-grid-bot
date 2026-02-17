@@ -47,8 +47,13 @@ export class HyperliquidSdkService implements OnModuleInit {
             const spotMeta = await this.sdk.info.spot.getSpotMeta();
 
             for (const token of spotMeta.tokens) {
-                const key = `@${token.tokenId}`;
+                // Use index for asset ID mapping (e.g., "@150" for HYPE)
+                const key = `@${token.index}`;
                 this.spotAssetMap.set(key, token.name);
+                this.logger.debug(
+                    { key, name: token.name, index: token.index },
+                    'Added to asset map',
+                );
             }
 
             this.logger.info({ count: this.spotAssetMap.size }, 'Spot asset map loaded');
@@ -71,8 +76,16 @@ export class HyperliquidSdkService implements OnModuleInit {
             const symbol = this.spotAssetMap.get(coin);
             if (symbol) {
                 resolved = symbol;
+                this.logger.debug({ coin, resolved }, 'Resolved spot asset');
             } else {
-                this.logger.warn({ coin }, 'Unknown spot asset ID');
+                this.logger.warn(
+                    {
+                        coin,
+                        mapSize: this.spotAssetMap.size,
+                        sampleKeys: Array.from(this.spotAssetMap.keys()).slice(0, 5),
+                    },
+                    'Unknown spot asset ID - not found in asset map',
+                );
             }
         }
 

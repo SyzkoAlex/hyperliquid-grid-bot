@@ -143,7 +143,7 @@ export class OrderStatusSyncService {
     }
 
     /**
-     * Update process result counters based on order status.
+     * Update result counters based on order status.
      */
     private updateProcessResult(
         result: OrderStatusSyncResult,

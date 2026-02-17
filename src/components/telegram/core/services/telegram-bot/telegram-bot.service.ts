@@ -17,7 +17,6 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     private readonly enabled: boolean;
     private readonly botToken: string;
     private readonly allowedManagerChatId: number;
-    private readonly notificationChatId: number;
     private readonly parseMode: TelegramParseMode;
 
     constructor(
@@ -28,7 +27,6 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
         this.allowedManagerChatId = telegramConfig.allowedManagerChatId;
-        this.notificationChatId = telegramConfig.notificationChatId;
         this.parseMode = telegramConfig.formatting.parseMode;
     }
 
@@ -73,9 +71,30 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     async sendMessage(chatId: number, message: string): Promise<void> {
-        await this.bot.telegram.sendMessage(chatId, message, {
-            parse_mode: this.parseMode,
-        });
+        try {
+            await this.bot.telegram.sendMessage(chatId, message, {
+                parse_mode: this.parseMode,
+            });
+        } catch (error) {
+            if (
+                error.response?.error_code === 400 &&
+                error.response?.description?.includes('chat not found')
+            ) {
+                this.logger.warn(
+                    { chatId, errorDescription: error.response.description },
+                    'Cannot send message - user has not started conversation with bot yet. User must press /start first.',
+                );
+                return;
+            }
+            if (error.response?.error_code === 403) {
+                this.logger.warn(
+                    { chatId, errorDescription: error.response.description },
+                    'Cannot send message - bot was blocked by user',
+                );
+                return;
+            }
+            throw error;
+        }
     }
 
     getParseMode(): TelegramParseMode {

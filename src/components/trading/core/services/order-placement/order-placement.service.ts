@@ -9,6 +9,7 @@ import { OrderStatus } from '@domain/order/order-status';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/exchange-order/exchange-place-order-params';
 import { Decimal } from '../../../../../domain/primitives/decimal';
 import { logger } from '../../../../../infra/logger/logger';
+import { extractErrorDetails } from '../../../../../infra/logger/error-logger.helper';
 import { GridLevel } from '../grid-levels-calculator/grid-level';
 
 @Injectable()
@@ -30,7 +31,10 @@ export class OrderPlacementService {
                     placedCount++;
                 }
             } catch (error) {
-                this.logger.error({ error, level: level.index }, 'Failed to place grid order');
+                this.logger.error(
+                    { ...extractErrorDetails(error), level: level.index },
+                    'Failed to place grid order',
+                );
             }
         }
 

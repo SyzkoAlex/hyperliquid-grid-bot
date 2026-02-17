@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { logger } from '@infra/logger/logger';
+import { extractErrorDetails } from '@infra/logger/error-logger.helper';
 import { HyperliquidApiClient } from '@infra/hyperliquid/hyperliquid-api.client';
 import { HyperliquidSdkClient } from '@infra/hyperliquid/hyperliquid-sdk.client';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/exchange-order/exchange-place-order-params';
@@ -26,7 +27,7 @@ export class HyperliquidOrderClient {
             const response = await this.sdkClient.placeSpotOrder(orderRequest);
             return this.orderMapper.toExchangePlaceOrderResultFromSdk(response);
         } catch (error) {
-            this.logger.error({ error, params }, 'Failed to place order');
+            this.logger.error({ ...extractErrorDetails(error), params }, 'Failed to place order');
             throw error;
         }
     }
@@ -43,7 +44,7 @@ export class HyperliquidOrderClient {
                 success: response?.status === 'ok',
             };
         } catch (error) {
-            this.logger.error({ error, params }, 'Failed to cancel order');
+            this.logger.error({ ...extractErrorDetails(error), params }, 'Failed to cancel order');
             return {
                 exchangeOrderId: params.exchangeOrderId,
                 success: false,
@@ -52,12 +53,16 @@ export class HyperliquidOrderClient {
         }
     }
 
+    async getSpotPrice(symbol: string): Promise<number> {
+        return this.apiReadClient.getSpotPrice(symbol);
+    }
+
     async getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]> {
         try {
             const response = await this.apiReadClient.getOpenSpotOrders(user);
             return this.orderMapper.toOpenOrders(response.data);
         } catch (error) {
-            this.logger.error({ error, user }, 'Failed to get open orders');
+            this.logger.error({ ...extractErrorDetails(error), user }, 'Failed to get open orders');
             throw error;
         }
     }
@@ -79,14 +84,10 @@ export class HyperliquidOrderClient {
             this.logger.debug({ user, oid, response: response.data }, 'Order status retrieved');
             return this.orderMapper.toExchangeOrderInfo(response.data);
         } catch (error) {
-            if (error && typeof error === 'object' && 'response' in error) {
-                const axiosError = error as { response?: { status?: number } };
-                if (axiosError.response?.status === 422) {
-                    this.logger.debug({ user, oid }, 'Order not found (422 response)');
-                    return null;
-                }
-            }
-            this.logger.error({ error, user, oid }, 'Failed to get order status');
+            this.logger.error(
+                { ...extractErrorDetails(error), user, oid },
+                'Failed to get order status',
+            );
             throw error;
         }
     }

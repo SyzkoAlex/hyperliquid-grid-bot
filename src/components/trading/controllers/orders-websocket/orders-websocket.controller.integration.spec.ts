@@ -75,7 +75,7 @@ describe('OrdersWebsocketController (Integration)', () => {
     });
 
     describe('Order Status Event Processing', () => {
-        it('should process filled status event and trigger refill', async () => {
+        it('should handle filled status event and trigger refill', async () => {
             const grid = Grid.create({
                 symbol: TradingSymbol.create('ETH'),
                 mode: GridMode.Long,
@@ -136,7 +136,7 @@ describe('OrdersWebsocketController (Integration)', () => {
             expect(newOrders.length).toBeGreaterThan(0);
         });
 
-        it('should process canceled status event', async () => {
+        it('should handle canceled status event', async () => {
             const grid = Grid.create({
                 symbol: TradingSymbol.create('SOL'),
                 mode: GridMode.Neutral,

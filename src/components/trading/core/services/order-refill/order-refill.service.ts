@@ -3,6 +3,7 @@ import { HyperliquidOrderClient } from '../../../secondary/client/hyperliquid/hy
 import { PostgresOrderRepository } from '../../../secondary/repository/order/postgres-order.repository';
 import { Order } from '@domain/order/order';
 import { OrderId } from '@domain/order/order-id';
+import { OrderSide } from '@domain/order/order-side';
 import { OrderType } from '@domain/order/order-type';
 import { OrderStatus } from '@domain/order/order-status';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/exchange-order/exchange-place-order-result';
@@ -27,7 +28,19 @@ export class OrderRefillService {
         private readonly profitCalculator: ProfitCalculatorService,
     ) {}
 
-    async process(filledOrder: Order, grid: Grid): Promise<OrderRefillResult> {
+    async processMany(filledOrders: Order[], grid: Grid): Promise<number> {
+        const currentPrice = await this.orderClient.getSpotPrice(grid.symbol.toString());
+        const eligible = this.filterEligible(filledOrders, grid, currentPrice);
+
+        let placed = 0;
+        for (const order of eligible) {
+            const result = await this.processOne(order, grid);
+            if (result.success) placed++;
+        }
+        return placed;
+    }
+
+    async processOne(filledOrder: Order, grid: Grid): Promise<OrderRefillResult> {
         this.logOrderProcessing(filledOrder, grid);
 
         try {
@@ -225,5 +238,43 @@ export class OrderRefillService {
         );
 
         return OrderRefillResult.failure(errorMessage);
+    }
+
+    private filterEligible(filledOrders: Order[], grid: Grid, currentPrice: number): Order[] {
+        const seen = new Set<string>();
+        const result: Order[] = [];
+
+        for (const order of filledOrders) {
+            const params = RefillParams.calc(order, grid);
+            if (!params) continue;
+
+            const refillPrice = params.price.toNumber();
+            const isCorrectSide =
+                params.side === OrderSide.Buy
+                    ? refillPrice < currentPrice
+                    : refillPrice > currentPrice;
+
+            if (!isCorrectSide) {
+                this.logger.debug(
+                    { levelIndex: params.levelIndex, side: params.side, refillPrice, currentPrice },
+                    'Refill skipped: wrong side of market',
+                );
+                continue;
+            }
+
+            const key = `${params.levelIndex}-${params.side}`;
+            if (seen.has(key)) {
+                this.logger.debug(
+                    { levelIndex: params.levelIndex, side: params.side },
+                    'Refill skipped: duplicate',
+                );
+                continue;
+            }
+
+            seen.add(key);
+            result.push(order);
+        }
+
+        return result;
     }
 }

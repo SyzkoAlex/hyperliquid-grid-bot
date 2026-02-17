@@ -131,7 +131,7 @@ describe('OrderStatusSyncService', () => {
             expect(mockOrderRepository.updateStatus).toHaveBeenCalledTimes(2);
         });
 
-        it('should process cancelled orders but not return them', async () => {
+        it('should handle cancelled orders but not return them', async () => {
             const order1 = createDbOrder('order-1');
             const dbOrders = [order1];
 

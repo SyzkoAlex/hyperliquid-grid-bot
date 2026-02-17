@@ -12,6 +12,7 @@ import { ExchangeOrderInfo } from '@components/trading/core/domain/exchange-orde
 import { ExchangeOrderStatus } from '@components/trading/core/domain/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@domain/exchange-order/exchange-cloid';
 import { HyperliquidSdkService } from '@infra/hyperliquid/hyperliquid-sdk.service';
+import { HyperliquidApiClient } from '@infra/hyperliquid/hyperliquid-api.client';
 import { HyperliquidPlaceOrderRequest } from '@infra/hyperliquid/types/hyperliquid-place-order-request';
 import { HyperliquidPlaceOrderResponse } from '@infra/hyperliquid/types/hyperliquid-place-order-response';
 import { HyperliquidOpenOrder } from '@infra/hyperliquid/types/hyperliquid-open-order';
@@ -28,7 +29,10 @@ import { HyperliquidSdkPlaceOrderResponse } from '@infra/hyperliquid/types/hyper
  */
 @Injectable()
 export class HyperliquidOrderMapper {
-    constructor(private readonly sdkService: HyperliquidSdkService) {}
+    constructor(
+        private readonly sdkService: HyperliquidSdkService,
+        private readonly apiClient: HyperliquidApiClient,
+    ) {}
     /**
      * Map domain ExchangePlaceOrderParams to Hyperliquid API request
      *
@@ -198,11 +202,15 @@ export class HyperliquidOrderMapper {
         reduce_only: boolean;
         cloid?: string;
     } {
-        const coin = HyperliquidSymbol.toSpotFormat(params.symbol.toString());
+        const symbol = params.symbol.toString();
+        const coin = HyperliquidSymbol.toSpotFormat(symbol);
         const isBuy = params.side === OrderSide.Buy;
-        const sz = params.amount.toNumber();
-        const limitPx = params.price.toNumber();
         const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
+
+        // Get size decimals for this token and round accordingly
+        const szDecimals = this.apiClient.getSzDecimals(symbol);
+        const sz = this.roundToDecimals(params.amount.toNumber(), szDecimals);
+        const limitPx = this.roundToDecimals(params.price.toNumber(), szDecimals);
 
         return {
             coin,
@@ -213,6 +221,14 @@ export class HyperliquidOrderMapper {
             reduce_only: false,
             ...(cloid && { cloid }),
         };
+    }
+
+    /**
+     * Round number to specified decimal places
+     */
+    private roundToDecimals(value: number, decimals: number): number {
+        const multiplier = Math.pow(10, decimals);
+        return Math.round(value * multiplier) / multiplier;
     }
 
     /**

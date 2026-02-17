@@ -92,6 +92,42 @@ export class HyperliquidApiClient implements OnModuleInit {
     }
 
     /**
+     * Get size decimals for a symbol from cached spot meta
+     *
+     * @param symbol - Symbol string (e.g., 'BTC', 'ETH', 'HYPE')
+     * @returns Number of decimal places for order size
+     * @throws Error if symbol not found in cache
+     */
+    getSzDecimals(symbol: string): number {
+        if (!this.spotMetaCache) {
+            throw new Error('Spot meta cache not initialized');
+        }
+
+        this.logger.debug(
+            {
+                symbol,
+                availableTokens: this.spotMetaCache.tokens.map((t) => t.name).slice(0, 10),
+            },
+            'Getting szDecimals for symbol',
+        );
+
+        const token = this.spotMetaCache.tokens.find((t) => t.name === symbol);
+        if (!token) {
+            this.logger.error(
+                {
+                    symbol,
+                    availableTokens: this.spotMetaCache.tokens.map((t) => t.name),
+                },
+                'Token not found in spot meta cache',
+            );
+            throw new Error(`Token not found in spot meta cache: ${symbol}`);
+        }
+
+        this.logger.debug({ symbol, szDecimals: token.szDecimals }, 'Found szDecimals');
+        return token.szDecimals;
+    }
+
+    /**
      * Get spot price for a symbol using L2 order book
      *
      * @param symbol - Symbol string (e.g., 'BTC', 'ETH', 'HYPE')
@@ -212,12 +248,14 @@ export class HyperliquidApiClient implements OnModuleInit {
         oid: number | string,
     ): Promise<AxiosResponse<HyperliquidOrderStatusResponse>> {
         try {
+            const resolvedOid =
+                typeof oid === 'string' && !oid.startsWith('0x') ? Number(oid) : oid;
             return await this.httpService.post<HyperliquidOrderStatusResponse>(
                 `${this.apiUrl}/info`,
                 {
                     type: 'orderStatus',
                     user,
-                    oid,
+                    oid: resolvedOid,
                 },
             );
         } catch (error) {

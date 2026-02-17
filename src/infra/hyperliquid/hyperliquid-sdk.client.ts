@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { logger } from '../logger/logger';
+import { extractErrorDetails } from '../logger/error-logger.helper';
 import { HyperliquidSdkService } from './hyperliquid-sdk.service';
 import { HyperliquidSdkPlaceOrderResponse } from './types/hyperliquid-sdk-place-order-response';
 
@@ -29,7 +30,10 @@ export class HyperliquidSdkClient {
 
             return response;
         } catch (error) {
-            this.logger.error({ error, orderRequest }, 'Failed to place order');
+            this.logger.error(
+                { ...extractErrorDetails(error), orderRequest },
+                'Failed to place order',
+            );
             throw error;
         }
     }
@@ -50,7 +54,10 @@ export class HyperliquidSdkClient {
 
             return response;
         } catch (error) {
-            this.logger.error({ error, symbol, exchangeOrderId }, 'Failed to cancel order');
+            this.logger.error(
+                { ...extractErrorDetails(error), symbol, exchangeOrderId },
+                'Failed to cancel order',
+            );
             throw error;
         }
     }

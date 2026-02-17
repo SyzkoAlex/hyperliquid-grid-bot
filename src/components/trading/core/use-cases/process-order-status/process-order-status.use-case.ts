@@ -204,7 +204,7 @@ export class ProcessOrderStatusUseCase {
         }
 
         // Process refill logic
-        const result = await this.orderRefillService.process(filledOrder, grid);
+        const result = await this.orderRefillService.processOne(filledOrder, grid);
 
         if (!result.success) {
             this.logger.error(

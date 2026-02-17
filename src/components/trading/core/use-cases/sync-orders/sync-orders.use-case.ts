@@ -8,10 +8,6 @@ import { OrderRefillService } from '../../services/order-refill/order-refill.ser
 import { logger } from '../../../../../infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { Config } from '../../../../../infra/config/config.schema';
-import { ExchangeOpenOrder } from '@components/trading/core/domain/exchange-order/exchange-open-order';
-import { Order } from '@domain/order/order';
-import { OrderStatus } from '@domain/order/order-status';
-import { Grid } from '@domain/grid/grid';
 import { GridWithOrders } from './grid-with-orders';
 
 @Injectable()
@@ -33,7 +29,9 @@ export class SyncOrdersUseCase {
     async execute(): Promise<SyncOrdersResult> {
         const result = SyncOrdersResult.empty();
 
-        const exchangeOpenOrders = await this.fetchAllOpenOrders();
+        const exchangeOpenOrders = await this.hyperliquidOrderClient.getOpenSpotOrders(
+            this.accountAddress,
+        );
 
         // Fetch all active grids
         const activeGrids = await this.gridRepository.findManyActive();
@@ -48,10 +46,10 @@ export class SyncOrdersUseCase {
             return result;
         }
 
-        const gridsWithOrders = this.buildGridsWithOrders(
-            exchangeOpenOrders,
-            allActiveDbOrders,
+        const gridsWithOrders = GridWithOrders.buildMany(
             activeGrids,
+            allActiveDbOrders,
+            exchangeOpenOrders,
         );
 
         this.logger.debug(
@@ -67,81 +65,6 @@ export class SyncOrdersUseCase {
         return result;
     }
 
-    private async fetchAllOpenOrders(): Promise<ExchangeOpenOrder[]> {
-        const orders = await this.hyperliquidOrderClient.getOpenSpotOrders(this.accountAddress);
-
-        if (orders.length === 0) {
-            this.logger.debug('No open orders on exchange');
-        }
-
-        return orders;
-    }
-
-    private async fetchActiveDbOrdersByCloid(
-        exchangeOrders: ExchangeOpenOrder[],
-    ): Promise<Order[]> {
-        const orderIds = exchangeOrders
-            .map((exchangeOrder) => exchangeOrder.cloid?.toOrderId())
-            .filter((orderId): orderId is NonNullable<typeof orderId> => orderId !== undefined)
-            .map((orderId) => orderId.toString());
-
-        if (orderIds.length === 0) {
-            this.logger.debug('No valid order IDs found in exchange orders');
-            return [];
-        }
-
-        const dbOrders = await this.orderRepository.findManyByIds(orderIds);
-
-        return dbOrders.filter(
-            (order) => order.status === OrderStatus.Pending || order.status === OrderStatus.Placed,
-        );
-    }
-
-    private buildGridsWithOrders(
-        exchangeOpenOrders: ExchangeOpenOrder[],
-        activeDbOrders: Order[],
-        activeGrids: Grid[],
-    ): GridWithOrders[] {
-        const exchangeOrdersByGridId = this.groupOrdersByGridId(exchangeOpenOrders, activeDbOrders);
-
-        return activeGrids
-            .map((grid) => {
-                const gridId = grid.id.toString();
-                const exchangeOrders = exchangeOrdersByGridId.get(gridId) || [];
-                const dbOrders = activeDbOrders.filter((order) => order.gridId.equals(grid.id));
-
-                return new GridWithOrders(grid, dbOrders, exchangeOrders);
-            })
-            .filter((gridWithOrders) => gridWithOrders.hasDbOrders());
-    }
-
-    private groupOrdersByGridId(
-        exchangeOrders: ExchangeOpenOrder[],
-        dbOrders: Order[],
-    ): Map<string, ExchangeOpenOrder[]> {
-        // Create map of orderId -> gridId (as string) from DB orders
-        const orderIdToGridId = new Map(
-            dbOrders.map((o) => [o.id.toString(), o.gridId.toString()]),
-        );
-
-        // Group exchange orders by gridId
-        const ordersByGridId = new Map<string, ExchangeOpenOrder[]>();
-
-        for (const exchangeOrder of exchangeOrders) {
-            const orderId = exchangeOrder.cloid?.toOrderId();
-            if (!orderId) continue;
-
-            const gridId = orderIdToGridId.get(orderId.toString());
-            if (!gridId) continue;
-
-            const gridOrders = ordersByGridId.get(gridId) || [];
-            gridOrders.push(exchangeOrder);
-            ordersByGridId.set(gridId, gridOrders);
-        }
-
-        return ordersByGridId;
-    }
-
     private async processGrid(
         gridWithOrders: GridWithOrders,
         result: SyncOrdersResult,
@@ -152,7 +75,7 @@ export class SyncOrdersUseCase {
                 gridWithOrders.exchangeOrders,
             );
 
-            const refillsPlaced = await this.processRefills(
+            const refillsPlaced = await this.orderRefillService.processMany(
                 statusSyncResult.filledOrders,
                 gridWithOrders.grid,
             );
@@ -166,20 +89,6 @@ export class SyncOrdersUseCase {
                 'Error processing grid',
             );
         }
-    }
-
-    private async processRefills(filledOrders: Order[], grid: Grid): Promise<number> {
-        let refillsPlaced = 0;
-
-        for (const filledOrder of filledOrders) {
-            const refillResult = await this.orderRefillService.process(filledOrder, grid);
-
-            if (refillResult.success) {
-                refillsPlaced++;
-            }
-        }
-
-        return refillsPlaced;
     }
 
     private logResultIfNeeded(result: SyncOrdersResult): void {

@@ -37,6 +37,7 @@ describe('SyncOrdersUseCase', () => {
     beforeEach(() => {
         mockOrderClient = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
+            getSpotPrice: vi.fn().mockResolvedValue(50500),
         };
 
         mockGridRepository = {
@@ -55,7 +56,7 @@ describe('SyncOrdersUseCase', () => {
         };
 
         mockOrderRefillService = {
-            process: vi.fn().mockResolvedValue({ success: false }),
+            processMany: vi.fn().mockResolvedValue(0),
         };
 
         mockConfigService = {
@@ -85,7 +86,7 @@ describe('SyncOrdersUseCase', () => {
             expect(mockGridRepository.findManyActive).toHaveBeenCalled();
         });
 
-        it('should process active grids and detect fills', async () => {
+        it('should processOne active grids and detect fills', async () => {
             const grid = createTestGrid();
             grid.start();
 
@@ -125,7 +126,7 @@ describe('SyncOrdersUseCase', () => {
                 filled: 1,
                 filledOrders: [order],
             });
-            mockOrderRefillService.process.mockResolvedValue({ success: true });
+            mockOrderRefillService.processMany.mockResolvedValue(1);
 
             const result = await useCase.execute();
 
@@ -136,7 +137,7 @@ describe('SyncOrdersUseCase', () => {
                 [order],
                 [exchangeOrder],
             );
-            expect(mockOrderRefillService.process).toHaveBeenCalledWith(order, grid);
+            expect(mockOrderRefillService.processMany).toHaveBeenCalledWith([order], grid);
         });
 
         it('should skip grids that are not running', async () => {
@@ -268,6 +269,53 @@ describe('SyncOrdersUseCase', () => {
             expect(result.errors[0]).toContain('DB error');
         });
 
+        it('should pass all filled orders to processMany', async () => {
+            const grid = createTestGrid();
+            grid.start();
+            const gridId = grid.id;
+
+            const buyOrder1 = Order.create({
+                id: OrderId.create(),
+                gridId,
+                symbol: TradingSymbol.create('BTC'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(50000),
+                amount: Decimal.from(0.01),
+                status: OrderStatus.Placed,
+                levelIndex: 5,
+            });
+
+            const buyOrder2 = Order.create({
+                id: OrderId.create(),
+                gridId,
+                symbol: TradingSymbol.create('BTC'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(52000),
+                amount: Decimal.from(0.01),
+                status: OrderStatus.Placed,
+                levelIndex: 7,
+            });
+
+            mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
+            mockGridRepository.findManyActive.mockResolvedValue([grid]);
+            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([buyOrder1, buyOrder2]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 2,
+                filledOrders: [buyOrder1, buyOrder2],
+            });
+            mockOrderRefillService.processMany.mockResolvedValue(1);
+
+            const result = await useCase.execute();
+
+            expect(mockOrderRefillService.processMany).toHaveBeenCalledWith(
+                [buyOrder1, buyOrder2],
+                grid,
+            );
+            expect(result.refillsPlaced).toBe(1);
+        });
+
         it('should count refills correctly', async () => {
             const grid = createTestGrid();
             grid.start();
@@ -321,14 +369,12 @@ describe('SyncOrdersUseCase', () => {
                 filled: 2,
                 filledOrders: [order, order2],
             });
-            mockOrderRefillService.process
-                .mockResolvedValueOnce({ success: true })
-                .mockResolvedValueOnce({ success: false });
+            mockOrderRefillService.processMany.mockResolvedValue(1);
 
             const result = await useCase.execute();
 
             expect(result.fillsDetected).toBe(2);
-            expect(result.refillsPlaced).toBe(1); // Only one successful
+            expect(result.refillsPlaced).toBe(1);
         });
     });
 });
