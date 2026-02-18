@@ -27,6 +27,9 @@ import { UserBalanceExtractorService } from '@components/shared/core/services/us
 import { CapitalCalculatorService } from '@components/shared/core/services/capital-calculator/capital-calculator.service';
 import { WizardNavigator } from './core/services/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { WizardMessageManager } from './core/services/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
+import { GridsHandler } from './core/services/telegram-bot/handlers/grids/grids.handler';
+import { GetGridsUseCase } from './core/use-cases/get-grids/get-grids.use-case';
+import { GridMessageBuilderService } from './core/services/grid-message-builder/grid-message-builder.service';
 
 @Module({
     imports: [HyperliquidModule],
@@ -49,6 +52,9 @@ import { WizardMessageManager } from './core/services/telegram-bot/scenes/create
         WizardNavigator,
         WizardMessageManager,
         CreateGridSceneHandler,
+        GetGridsUseCase,
+        GridMessageBuilderService,
+        GridsHandler,
         SelectPairStep,
         SelectModeStep,
         QuickStartStep,

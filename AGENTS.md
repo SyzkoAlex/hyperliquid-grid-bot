@@ -52,6 +52,19 @@ function validateEmail(email: string): boolean {
 - IF file → THEN one exported class/interface/type per file
 - IF file has multiple declarations → THEN allowed ONLY if ONE has `export`
 - IF internal helper → THEN do NOT export
+- IF creating a service → THEN place it in a dedicated directory named after the service (not directly in `services/`), since each service has multiple related files (implementation, spec, types)
+
+**Service directory structure:**
+
+```
+core/services/
+  └── capital-calculator/       ← dedicated directory per service
+      ├── capital-calculator.service.ts
+      ├── capital-calculator.service.spec.ts
+      └── types/
+          ├── capital-distribution.ts
+          └── calculate-params.ts
+```
 
 ## Architecture Placement
 

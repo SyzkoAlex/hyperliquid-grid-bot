@@ -8,9 +8,6 @@ import { eq } from 'drizzle-orm';
 import { logger } from '@infra/logger/logger';
 import { PostgresGridMapper } from '@components/shared/secondary/mappers/postgres-grid.mapper';
 
-/**
- * Postgres Grid Repository (Telegram Component - Read-Only)
- */
 @Injectable()
 export class PostgresGridRepository {
     private readonly logger = logger.child({ context: PostgresGridRepository.name });
@@ -41,6 +38,17 @@ export class PostgresGridRepository {
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, status }, 'Failed to find grids by status');
+            return [];
+        }
+    }
+
+    async findAll(): Promise<Grid[]> {
+        try {
+            const result = await this.db.select().from(grids);
+
+            return result.map((row) => PostgresGridMapper.toDomain(row));
+        } catch (error) {
+            this.logger.error({ error }, 'Failed to find all grids');
             return [];
         }
     }

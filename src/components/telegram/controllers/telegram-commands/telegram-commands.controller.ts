@@ -4,6 +4,7 @@ import { TelegramBotService } from '../../core/services/telegram-bot/telegram-bo
 import { StartHandler } from '../../core/services/telegram-bot/handlers/start/start.handler';
 import { HelpHandler } from '../../core/services/telegram-bot/handlers/help/help.handler';
 import { MainMenuHandler } from '../../core/services/telegram-bot/handlers/main-menu/main-menu.handler';
+import { GridsHandler } from '../../core/services/telegram-bot/handlers/grids/grids.handler';
 import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
@@ -20,6 +21,7 @@ export class TelegramCommandsController implements OnModuleInit {
         private readonly startHandler: StartHandler,
         private readonly helpHandler: HelpHandler,
         private readonly mainMenuHandler: MainMenuHandler,
+        private readonly gridsHandler: GridsHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
     ) {}
 
@@ -38,6 +40,7 @@ export class TelegramCommandsController implements OnModuleInit {
         this.startHandler.register();
         this.helpHandler.register();
         this.mainMenuHandler.register();
+        this.gridsHandler.register();
         this.registerCreateGridHandler();
     }
 
