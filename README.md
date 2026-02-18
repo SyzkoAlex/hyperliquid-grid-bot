@@ -1,109 +1,31 @@
 # Hyperliquid Grid Bot
 
-Automated SPOT grid trading bot for Hyperliquid with Clean Architecture.
+Automated SPOT grid trading bot for Hyperliquid with Hexagonal Architecture.
 
-**📊 SPOT Trading** - Physical tokens, zero liquidation risk  
-**🤖 Telegram Only** - Full control via mobile  
-**🐳 Docker Ready** - Deploy in minutes
-
----
-
-## 🚀 Quick Links
-
-- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 5 minutes
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - How the bot works
-- **[SPOT_GRID_TRADING_ALGORITHM.md](SPOT_GRID_TRADING_ALGORITHM.md)** - Trading strategy explained
-- **[AGENTS.md](AGENTS.md)** - Rules for AI agents
+- **SPOT Trading** — physical tokens, zero liquidation risk
+- **Telegram** — full control via mobile
+- **Docker Ready** — self-hosted deployment
 
 ---
 
-## 🎯 What Is This?
+## What It Does
 
-Grid trading bot that:
-
-- Places buy orders below current price
-- Places sell orders above current price
-- Automatically refills when orders execute
-- Trails up in bull markets to lock profits
-- Operates autonomously 24/7
-
-**Profit from volatility, not direction.**
+Places buy orders below current price and sell orders above it. When an order fills, automatically places the opposite order at the next level. Profits from volatility without predicting direction.
 
 ---
 
-## ⚡ Quick Start
+## Docs
 
-### Docker (Production):
-
-```bash
-cp .env.docker.example .env
-nano .env  # Configure
-./deploy.sh
-```
-
-### Local (Development):
-
-```bash
-pnpm install
-docker-compose up -d postgres redis
-pnpm db:migrate
-pnpm start:dev
-```
-
-See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
+- [docs/QUICKSTART.md](docs/QUICKSTART.md) — installation & setup
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design
+- [docs/HEXAGONAL_ARCHITECTURE.md](docs/HEXAGONAL_ARCHITECTURE.md) — ports & adapters guide
+- [docs/SPOT_GRID_TRADING_ALGORITHM.md](docs/SPOT_GRID_TRADING_ALGORITHM.md) — trading strategy
+- [docs/STYLE_GUIDE.md](docs/STYLE_GUIDE.md) — code style rules
+- [AGENTS.md](AGENTS.md) — AI development rules
 
 ---
 
-## 🤖 Usage
-
-Control everything via Telegram:
-
-- `/grid BTC 45000 55000` - Create grid
-- `/info` - Check position & P&L
-- `/status` - Grid health
-- `/stop` - Stop grid
-
-See [ARCHITECTURE.md](ARCHITECTURE.md#user-interaction) for complete command reference.
-
----
-
-## 🛡️ Why SPOT?
-
-| SPOT (This Bot)    | Perpetuals       |
-| ------------------ | ---------------- |
-| ✅ No liquidation  | ❌ Can liquidate |
-| ✅ No funding fees | ❌ Hourly fees   |
-| ✅ Own tokens      | ❌ Just contract |
-| ⭐⭐⭐⭐⭐ Safe    | ⭐⭐⭐ Risky     |
-
-See [SPOT_GRID_TRADING_ALGORITHM.md](SPOT_GRID_TRADING_ALGORITHM.md#spot-vs-perpetuals) for comparison.
-
----
-
-## 🏗️ Architecture
-
-- **Clean Architecture** - Independent components
-- **Event-Driven** - Components communicate via events
-- **3 Workers** - Price caching, Grid monitoring, Order fills
-- **Simple Domain** - No complex patterns
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for technical details.
-
----
-
-## 📚 Documentation
-
-| Document                                                         | Purpose                 |
-| ---------------------------------------------------------------- | ----------------------- |
-| [QUICKSTART.md](QUICKSTART.md)                                   | Installation & setup    |
-| [ARCHITECTURE.md](ARCHITECTURE.md)                               | System design & workers |
-| [SPOT_GRID_TRADING_ALGORITHM.md](SPOT_GRID_TRADING_ALGORITHM.md) | Trading strategy        |
-| [VPS_DEPLOY.md](VPS_DEPLOY.md)                                   | Production deployment   |
-| [AGENTS.md](AGENTS.md)                                           | AI development rules    |
-
----
-
-## 🔧 Tech Stack
+## Tech Stack
 
 - NestJS 10 + TypeScript 5
 - PostgreSQL 16 + Drizzle ORM
@@ -114,14 +36,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for technical details.
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-Educational purposes only. Trading involves risk of loss.
-
-**Test on testnet first. Start with small amounts. Never risk more than you can afford to lose.**
+Educational purposes only. Trading involves risk of loss. Test on testnet first. Never risk more than you can afford to lose.
 
 ---
 
-## 📝 License
+## License
 
 MIT

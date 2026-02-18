@@ -40,17 +40,20 @@ The system consists of two independent components communicating via events:
 The system supports three deployment modes:
 
 **1. All-In-One Mode (`all-in-one`)** - Single process running both components
+
 - Both Trading and Telegram components in one Node.js process
 - In-memory EventBus enables communication between components
 - Simplest deployment for development and small-scale usage
 - Command: `pnpm start:all-in-one` or `APP_TYPE=all-in-one`
 
 **2. Trading Bot Only (`trading-bot`)** - Trading component standalone
+
 - Runs only grid trading logic and order processing
 - Requires external EventBus (future: Redis/Kafka) for production multi-process setup
 - Command: `pnpm start:trading-bot` or `APP_TYPE=trading-bot`
 
 **3. Telegram Control Only (`telegram-ctrl`)** - Telegram interface standalone
+
 - Runs only Telegram bot for notifications and commands
 - Requires external EventBus (future: Redis/Kafka) for production multi-process setup
 - Command: `pnpm start:telegram-ctrl` or `APP_TYPE=telegram-ctrl`
@@ -66,6 +69,7 @@ The system supports three deployment modes:
 **Trigger**: User sends `/start` command via Telegram
 
 **Flow**:
+
 ```
 Telegram → CreateGridCommand Event → Trading Component
                                            ↓
@@ -92,6 +96,7 @@ Telegram → CreateGridCommand Event → Trading Component
 **Two parallel mechanisms detect order fills:**
 
 #### Mechanism 1: Polling (Reliability)
+
 ```
 Every 10 seconds (configurable):
   1. Fetch all open orders from exchange
@@ -104,6 +109,7 @@ Every 10 seconds (configurable):
 **Advantage**: Guarantees no missed fills, survives WebSocket downtime
 
 #### Mechanism 2: WebSocket (Speed)
+
 ```
 Real-time (100-200ms):
   1. Subscribe to userEvents channel (order status changes)
@@ -122,6 +128,7 @@ Real-time (100-200ms):
 **Trigger**: Order filled (detected by polling or WebSocket)
 
 **Flow**:
+
 ```
 Filled Order Detected
         ↓
@@ -143,10 +150,12 @@ OrderFilled Event → Telegram notification
 ### Phase 4: Crash Recovery (Continuous)
 
 **Trigger**:
+
 - On bot startup (immediate)
 - Every 10 minutes automatically (configurable)
 
 **Flow**:
+
 ```
 1. Fetch all open orders from exchange
 2. For each exchange order:
@@ -181,6 +190,7 @@ OrderFilled Event → Telegram notification
 ```
 
 **Benefits**:
+
 - Components don't know about each other
 - Easy to add new functionality (subscribe to events)
 - Async, non-blocking processing
@@ -193,23 +203,27 @@ OrderFilled Event → Telegram notification
 The system runs four independent workers:
 
 ### 1. Grid Commands Controller
+
 - **Type**: Event-driven controller
 - **Trigger**: `CreateGridCommandEvent` from Telegram bot
 - **Action**: Creates grids, places initial orders
 
 ### 2. Orders Polling Controller
+
 - **Type**: Scheduled controller (interval)
 - **Trigger**: Timer (every 10 seconds, configurable)
 - **Action**: Fetches open orders, compares with DB, detects status changes, triggers refills
 - **Purpose**: Reliable fill detection
 
 ### 3. Orders WebSocket Controller
+
 - **Type**: Real-time WebSocket controller
 - **Trigger**: Hyperliquid userEvents WebSocket channel
 - **Action**: Processes order status events (filled, cancelled, rejected), triggers refills
 - **Purpose**: Fast fill detection (100-200ms)
 
 ### 4. Orders Restore Controller
+
 - **Type**: Scheduled controller (interval + startup)
 - **Trigger**: On startup + Timer (every 10 minutes, configurable)
 - **Action**: Recovers orphaned orders from exchange, cleans stale PENDING records
@@ -250,6 +264,7 @@ System operates on 100ms-10s timescale, not microseconds. Designed for medium-te
 ## 📊 Implementation Status
 
 **Core Grid Trading**: ✅ Complete (~95%)
+
 - Grid creation and initialization
 - Order placement with pre-save pattern
 - Fill detection (polling + WebSocket)
@@ -258,6 +273,7 @@ System operates on 100ms-10s timescale, not microseconds. Designed for medium-te
 - Event-driven notifications
 
 **Advanced Features**: ❌ Planned (~20%)
+
 - Trailing (config exists, logic missing)
 - Grid stop/pause commands
 - Grid status/info queries
@@ -267,17 +283,20 @@ System operates on 100ms-10s timescale, not microseconds. Designed for medium-te
 ## 🎯 System Guarantees
 
 **Reliability Guarantees**:
+
 - No lost orders (pre-save pattern)
 - No missed fills (hybrid detection)
 - Crash recovery (CLOID tracking)
 - State consistency (database persistence)
 
 **Performance Characteristics**:
+
 - Fill detection: 100-200ms (WebSocket) or configurable polling interval (default 10s)
 - Order placement: 200-500ms per order
 - Recovery time: configurable restore interval (default 10 minutes) or immediate on startup
 
 **NOT Guaranteed**:
+
 - Exact fill timing (depends on market)
 - Profit amount (depends on volatility)
 - Protection from price crashes below grid range

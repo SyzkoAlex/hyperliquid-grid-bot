@@ -11,7 +11,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Automatically get list of all components (excluding shared)
 const componentsDir = path.join(__dirname, 'src/components');
 const components = fs.existsSync(componentsDir)
-    ? fs.readdirSync(componentsDir, { withFileTypes: true })
+    ? fs
+          .readdirSync(componentsDir, { withFileTypes: true })
           .filter((dirent) => dirent.isDirectory())
           .filter((dirent) => dirent.name !== 'shared')
           .map((dirent) => dirent.name)
@@ -59,7 +60,7 @@ export default [
         rules: {
             // TypeScript already checks for undefined variables
             'no-undef': 'off',
-            
+
             // Allow unused vars with _ prefix and constructor parameters
             'no-unused-vars': 'off',
             '@typescript-eslint/no-unused-vars': [
@@ -73,7 +74,7 @@ export default [
                     args: 'after-used',
                 },
             ],
-            
+
             // Other rules
             '@typescript-eslint/interface-name-prefix': 'off',
             '@typescript-eslint/explicit-function-return-type': 'off',
@@ -87,4 +88,3 @@ export default [
         ignores: ['dist', 'node_modules', 'coverage', '*.js', '*.mjs'],
     },
 ];
-

@@ -13,13 +13,13 @@
 - Multiple declarations allowed only if ONE has `export`
 - Internal helpers → do NOT export
 - Service → dedicated directory (not directly in `services/`):
-  ```
-  core/services/capital-calculator/
-    ├── capital-calculator.service.ts
-    ├── capital-calculator.service.spec.ts
-    └── types/
-        └── calculate-params.ts
-  ```
+    ```
+    core/services/capital-calculator/
+      ├── capital-calculator.service.ts
+      ├── capital-calculator.service.spec.ts
+      └── types/
+          └── calculate-params.ts
+    ```
 
 ## TypeScript
 
@@ -46,9 +46,16 @@ Use class with methods, not interface with direct mutation:
 
 ```typescript
 export class GridProcessResult {
-  constructor(public fills = 0, public cancellations = 0) {}
-  static empty() { return new GridProcessResult() }
-  incrementFills(v = 1) { this.fills += v }
+    constructor(
+        public fills = 0,
+        public cancellations = 0,
+    ) {}
+    static empty() {
+        return new GridProcessResult();
+    }
+    incrementFills(v = 1) {
+        this.fills += v;
+    }
 }
 ```
 
@@ -57,22 +64,26 @@ export class GridProcessResult {
 - Readonly field with no logic → `readonly` public property (not getter)
 - Setter with no logic → public property
 - Simple field init → constructor parameter properties:
-  ```typescript
-  class RefillParams {
-    constructor(readonly side: OrderSide, readonly price: number) {}
-  }
-  ```
+    ```typescript
+    class RefillParams {
+        constructor(
+            readonly side: OrderSide,
+            readonly price: number,
+        ) {}
+    }
+    ```
 
 ## Configuration
 
 ```typescript
 class MyService {
-  private readonly chatId: number;
-  constructor(config: ConfigService<Config, true>) {
-    this.chatId = config.get('telegram', { infer: true }).chatId;
-  }
+    private readonly chatId: number;
+    constructor(config: ConfigService<Config, true>) {
+        this.chatId = config.get('telegram', { infer: true }).chatId;
+    }
 }
 ```
+
 - Never `configService.get<string>('path')` or `.get('path')` without typed Config
 - Never `.default()` in zod schemas — values come from `config/config.yml`
 
@@ -82,6 +93,7 @@ class MyService {
 private readonly logger = logger.context(ClassName.name)
 // then: this.logger.debug/info/warn/error()
 ```
+
 - Never `console.log` or direct `logger` calls in classes
 - Direct `logger` calls allowed only in bootstrap functions and exception filters
 

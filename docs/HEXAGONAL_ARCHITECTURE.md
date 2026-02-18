@@ -85,7 +85,7 @@ TypeScript interfaces are erased at runtime, so each port needs a Symbol token f
 ```typescript
 // domain/ports/outbound/grid-repository.port.ts
 
-export const GRID_REPOSITORY = Symbol('GRID_REPOSITORY');
+export const GRID_REPOSITORY_PORT = Symbol('GRID_REPOSITORY_PORT');
 
 export interface GridRepositoryPort {
     save(grid: Grid): Promise<void>;
@@ -107,7 +107,7 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
 
 ```typescript
 // module
-{ provide: GRID_REPOSITORY, useClass: PostgresGridRepositoryAdapter }
+{ provide: GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter }
 ```
 
 ### Use case — injects port by token, never the concrete adapter
@@ -115,8 +115,8 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
 ```typescript
 export class CreateGridUseCase {
     constructor(
-        @Inject(GRID_REPOSITORY) private readonly gridRepo: GridRepositoryPort,
-        @Inject(ORDER_CLIENT) private readonly orderClient: OrderClientPort,
+        @Inject(GRID_REPOSITORY_PORT) private readonly gridRepo: GridRepositoryPort,
+        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
     ) {}
 }
 ```
@@ -252,7 +252,7 @@ In practice, controllers can inject the use case class directly.
 ```
 Port interface   →  {feature}.port.ts            interface {Feature}Port
 Adapter impl     →  {tech}-{feature}.adapter.ts  class {Tech}{Feature}Adapter
-DI token         →  same file as port interface   const {FEATURE} = Symbol('{FEATURE}')
+DI token         →  same file as port interface   const {FEATURE}_PORT = Symbol('{FEATURE}_PORT')
 Use case         →  {feature}.use-case.ts         class {Feature}UseCase
 Domain service   →  {feature}.service.ts          class {Feature}Service
 Controller       →  {feature}.controller.ts       class {Feature}Controller
@@ -263,7 +263,7 @@ Controller       →  {feature}.controller.ts       class {Feature}Controller
 ## Checklist
 
 - [ ] Port file ends with `.port.ts` — interface name ends with `Port`
-- [ ] Port file exports a `Symbol` DI token in the same file
+- [ ] Port file exports a `Symbol` DI token in the same file — token name: `{FEATURE}_PORT`
 - [ ] Adapter file ends with `.adapter.ts` — class explicitly `implements XxxPort`
 - [ ] Module provides adapter under port token: `{ provide: TOKEN, useClass: Adapter }`
 - [ ] Use case injects via `@Inject(TOKEN)` typed as port interface, not concrete class

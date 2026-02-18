@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SerializableEvent } from '@domain/events/trading/trading-event';
-import { EventType } from '@domain/events/event-type';
+import { SerializableEvent } from '@domain/models/events/trading/trading-event';
+import { EventType } from '@domain/models/events/event-type';
 import { logger } from '../logger/logger';
 import { EventBus } from './event-bus.port';
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TelegramParseMode } from '@components/telegram/core/domain/telegram-parse-mode.enum';
+import { TelegramParseMode } from '@components/telegram/domain/models/telegram-parse-mode.enum';
 
 export const telegramWebhookSchema = z.object({
     url: z.string().optional(),

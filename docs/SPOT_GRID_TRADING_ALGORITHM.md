@@ -84,6 +84,7 @@ Portfolio: 50% SOL + 50% USDT
 ### The Math Behind It
 
 **Step 1: Calculate Grid Step**
+
 ```
 Step = (Pmax - Pmin) / TotalLevels
      = ($120 - $20) / 50
@@ -91,6 +92,7 @@ Step = (Pmax - Pmin) / TotalLevels
 ```
 
 **Step 2: Count Orders by Zone**
+
 ```
 Sell Orders (above current):
 Nsell = floor((Pmax - Pcurrent) / Step)
@@ -104,6 +106,7 @@ Nbuy = TotalLevels - Nsell
 ```
 
 **Step 3: Convert to Assets**
+
 ```
 If Pcurrent = $40 and you have 1000 USDT:
 
@@ -178,6 +181,7 @@ Why?
 ### Advanced: Geometric vs Arithmetic Grids
 
 **Arithmetic Grid** (Equal $ spacing):
+
 ```
 Range: $20 - $120
 Step: $2 fixed
@@ -189,6 +193,7 @@ Problem: Uneven % distribution!
 ```
 
 **Geometric Grid** (Equal % spacing):
+
 ```
 Range: $20 - $120
 Step: 5% fixed
@@ -200,6 +205,7 @@ Benefit: Consistent % moves = consistent returns!
 ```
 
 **When to use:**
+
 - Narrow ranges (< 2x): Arithmetic is fine
 - Wide ranges (> 2x): Geometric is better
 

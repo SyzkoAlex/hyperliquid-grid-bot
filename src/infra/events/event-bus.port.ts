@@ -1,5 +1,5 @@
-import { SerializableEvent } from '@domain/events/trading/trading-event';
-import { EventType } from '@domain/events/event-type';
+import { SerializableEvent } from '@domain/models/events/trading/trading-event';
+import { EventType } from '@domain/models/events/event-type';
 
 export const EVENT_BUS = Symbol('EVENT_BUS');
 

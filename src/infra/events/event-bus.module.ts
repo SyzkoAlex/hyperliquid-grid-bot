@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Config } from '@infra/config/config.schema';
 import { AppTypes } from '@infra/config/app.types';
 import { EventBusService } from './event-bus.service';
-import { EventDeserializer } from '@domain/events/event-deserializer';
+import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { ExternalEventBusStub } from './external-event-bus.stub';
 import { EVENT_BUS, EventBus } from './event-bus.port';
 

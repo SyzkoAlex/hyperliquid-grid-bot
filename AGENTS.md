@@ -31,6 +31,7 @@ Covers: minimalism, file organization, TypeScript types, naming, comments, resul
 Covers: hexagonal architecture, directory structure, component independence, call chain (Controllers → Use Cases → Services → Adapters), event publishing rules, file/class naming, dependency direction.
 
 **Key rules:**
+
 - Controllers call Use Cases ONLY
 - Use Cases call Services (core or secondary)
 - Components NEVER import each other — event bus only
@@ -45,21 +46,23 @@ Covers: hexagonal architecture, directory structure, component independence, cal
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 ```
+
 - Use `vi.fn()` / `vi.mock()` — never `jest.*`
 - Never use globals — always import from `'vitest'`
 
 ### Test Types by Layer
 
-| Layer | Test type |
-|-------|-----------|
-| `core/use-cases/`, `core/services/`, `core/domain/` | Unit tests — mock all deps |
-| `controllers/` | Integration tests — mock only external systems |
-| `secondary/` | Integration tests — real DB/API via Testcontainers |
+| Layer                                        | Test type                                          |
+| -------------------------------------------- | -------------------------------------------------- |
+| `domain/services/`, `application/use-cases/` | Unit tests — mock all deps via port interfaces     |
+| `infra/adapters/inbound/`                    | Integration tests — mock only external systems     |
+| `infra/adapters/outbound/`                   | Integration tests — real DB/API via Testcontainers |
 
 **Rules:**
-- Core layer → unit tests only
-- Controllers/secondary → integration tests only
-- Repository methods: implement only what's used; each method needs an integration test
+
+- Domain/application layer → unit tests only; inject mocked port interfaces
+- Inbound adapters → integration tests — mock use cases and external triggers
+- Outbound adapters → integration tests — real DB/API; each adapter method needs a test
 - Use `DatabaseTestHelper` from `@infra/database/database-test-helper`
 
 ---
