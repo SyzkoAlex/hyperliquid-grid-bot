@@ -187,6 +187,19 @@ src/
 │   └── all-in-one/      # trading/ + telegram/ in one process
 │
 ├── domain/              # Shared domain entities (Grid, Order, Price, TradingSymbol)
+│   ├── models/          # Entities and Value Objects
+│   │   ├── grid/        # Grid, GridId, GridMode, GridStatus
+│   │   ├── order/       # Order, OrderId, OrderSide, OrderStatus
+│   │   ├── primitives/  # Decimal, Price, Timestamp, TradingSymbol
+│   │   ├── user-state/  # UserState, AssetPosition
+│   │   ├── exchange-order/ # ExchangePlaceOrderParams, ExchangeOpenOrder, ...
+│   │   └── events/      # Domain events (GridCreatedSuccessEvent, OrderOpenedEvent, ...)
+│   ├── ports/
+│   │   └── outbound/
+│   │       └── info-client.port.ts   # InfoClientPort + INFO_CLIENT_PORT token
+│   └── services/        # Domain services shared across components
+│       ├── capital-calculator/
+│       └── user-balance-extractor/
 │
 └── infra/               # Shared technical infrastructure (DB, Redis, logger, HTTP)
     └── events/
