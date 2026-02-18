@@ -6,8 +6,6 @@ Hyperliquid SPOT Grid Bot implements the [SPOT Grid Trading Strategy](./SPOT_GRI
 
 **Core Philosophy**: Reliability over speed. Orders must never be lost, state must always be consistent.
 
-**Architecture Pattern**: Hexagonal Architecture with Domain-Driven Design and Event-Driven Communication
-
 ---
 
 ## 🎯 System Architecture
@@ -166,108 +164,6 @@ OrderFilled Event → Telegram notification
 
 ---
 
-## 🏗️ Architectural Layers
-
-### Hexagonal Architecture Pattern
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│                    Primary Adapters (Inbound)                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐    │
-│  │   Telegram   │  │   Polling    │  │   WebSocket     │    │
-│  │   Events     │  │  Controller  │  │   Controller    │    │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬────────┘    │
-│         │                 │                    │              │
-├─────────▼─────────────────▼────────────────────▼──────────────┤
-│                      Core Domain                              │
-│                                                                │
-│  Grid Creation │ Order Sync │ Status Processing │ Recovery   │
-│                                                                │
-├────────┬───────────────┬─────────────────┬─────────────┬──────┤
-│        │               │                 │             │      │
-│  ┌─────▼──────┐  ┌────▼────┐  ┌─────────▼──────┐  ┌──▼────┐ │
-│  │ PostgreSQL │  │  Redis  │  │  Hyperliquid   │  │Events │ │
-│  │Repository  │  │  Cache  │  │  API Client    │  │ Bus   │ │
-│  └────────────┘  └─────────┘  └────────────────┘  └───────┘ │
-│                  Secondary Adapters (Outbound)                │
-└───────────────────────────────────────────────────────────────┘
-```
-
-**Core Domain**: Pure business logic implementing grid strategy - no infrastructure dependencies (currently directly depends on concrete implementations, see TODO.md for decoupling via interfaces)
-
-**Primary Adapters**: Receive external inputs (commands, time triggers, exchange events)
-
-**Secondary Adapters**: Infrastructure implementations (persistence, exchange API, events)
-
-**Benefit**: Core strategy logic can be tested independently, infrastructure can be swapped without changes to business rules.
-
-### Directory Structure and Naming Conventions
-
-**Hexagonal Architecture Mapping**:
-
-```
-src/components/trading/
-├── controllers/                    # Primary Adapters (Inbound)
-│   ├── grid-commands/             # Event-driven grid creation
-│   ├── orders-polling/            # Scheduled REST polling (sync orders)
-│   ├── orders-websocket/          # Real-time WebSocket events (order status)
-│   └── orders-restore/            # Scheduled maintenance (orphaned orders)
-│
-├── core/                          # Core Domain (Business Logic)
-│   ├── domain/                    # Entities and value objects
-│   │   ├── grid/                  # Grid entity
-│   │   ├── order/                 # Order entity
-│   │   ├── exchange-order/        # Exchange-specific order types
-│   │   ├── common/                # Shared value objects (Price, Symbol)
-│   │   └── user-state/            # User balance and state
-│   │
-│   ├── use-cases/                 # Business use cases
-│   │   ├── create-and-start-grid/ # Grid creation logic
-│   │   ├── sync-orders/           # Order synchronization (polling)
-│   │   ├── process-order-status/  # Order status processing (WebSocket)
-│   │   └── restore-orders/        # Orphaned order recovery
-│   │
-│   └── services/                  # Domain services
-│       ├── capital-calculator/    # Capital distribution (50/50, 30/70)
-│       ├── grid-levels-calculator/# Price level calculations
-│       ├── order-placement/       # Order placement logic
-│       ├── order-refill/          # Refill logic (opposite orders)
-│       ├── order-restore/         # Orphaned order recovery logic
-│       ├── order-status-sync/     # Status sync logic
-│       ├── profit-calculator/     # Profit calculations
-│       └── user-balance-extractor/# User balance extraction
-│
-└── secondary/                     # Secondary Adapters (Outbound)
-    ├── client/hyperliquid/        # Hyperliquid API clients
-    │   ├── hyperliquid-order.client.ts          # REST order operations
-    │   ├── hyperliquid-user-events.client.ts    # WebSocket user events
-    │   └── hyperliquid-sdk.service.ts           # SDK wrapper (to be removed)
-    │
-    └── repository/                # Data persistence
-        ├── grid/                  # Grid repository
-        └── order/                 # Order repository
-```
-
-**Naming Rules**:
-
-- **Controllers** (Primary Adapters): All entry points are named `*.controller.ts`
-  - Event-driven controllers (EventBus, WebSocket)
-  - Scheduled controllers (cron, intervals)
-  - HTTP controllers (future: REST API)
-
-- **Core**: Business logic with no infrastructure dependencies
-  - Use cases: `*.use-case.ts`
-  - Services: `*.service.ts`
-  - Domain models: Plain TypeScript classes
-
-- **Secondary Adapters**: Infrastructure implementations
-  - Clients: `*.client.ts` (external APIs)
-  - Repositories: `*.repository.ts` (data persistence)
-  - Currently use concrete implementations
-  - **Planned**: Add interfaces to decouple core from infrastructure (see TODO.md)
-
----
-
 ## 📡 Event-Driven Communication
 
 ### Event Flow Example: Order Fill
@@ -292,66 +188,6 @@ src/components/trading/
 
 ---
 
-## 🔐 Critical Design Decisions
-
-### 1. Pre-save Pattern: Order Before Exchange
-
-**Problem**: Bot crashes during order placement → orphaned orders on exchange without database records → fills go undetected → broken grid
-
-**Solution**: Save order to database with PENDING status BEFORE placing on exchange
-
-**Recovery**: OrphanedOrderMonitor matches exchange orders with database, creates missing records
-
-**Trade-off**: Slightly more complex flow, but guarantees no lost orders
-
----
-
-### 2. CLOID-based Grid Association
-
-**Problem**: Exchange orders have no grid ownership concept → bot restart loses in-memory state → can't match orders to grids
-
-**Solution**: Send gridId as CLOID (Client Order ID) with each exchange order
-
-**Format**: `0x` + hex-encoded UUID without dashes
-
-**Example**: GridId `550e8400-e29b-41d4-a716-446655440000` → CLOID `0x550e8400e29b41d4a716446655440000`
-
-**Recovery**: Read CLOID from exchange orders → decode to UUID → find grid in database
-
-**Note**: Currently using gridId in CLOID. Future improvement: use orderId for better order tracking (see TODO.md)
-
-**Trade-off**: Exchange must support CLOID (Hyperliquid does)
-
----
-
-### 3. Hybrid Fill Detection
-
-**Problem**:
-- WebSocket only = fast but unreliable (disconnections miss fills)
-- Polling only = reliable but slow (10s latency hurts capital efficiency)
-
-**Solution**: Run both simultaneously
-
-- WebSocket provides speed (100-200ms)
-- Polling provides reliability (guaranteed detection)
-- Database constraints prevent duplicate processing
-
-**Trade-off**: Slightly higher resource usage, but best of both worlds
-
----
-
-### 4. Historical Order API Validation
-
-**Problem**: When order disappears from open orders, is it filled or cancelled?
-
-**Solution**: Query historical orders API to determine exact final status
-
-**Why**: User might manually cancel → assuming filled → incorrect refill → capital leak
-
-**Trade-off**: Extra API call per status change, but guarantees correctness
-
----
-
 ## 🎭 Background Workers
 
 The system runs four independent workers:
@@ -360,27 +196,23 @@ The system runs four independent workers:
 - **Type**: Event-driven controller
 - **Trigger**: `CreateGridCommandEvent` from Telegram bot
 - **Action**: Creates grids, places initial orders
-- **Implementation**: `GridCommandsController`
 
 ### 2. Orders Polling Controller
 - **Type**: Scheduled controller (interval)
 - **Trigger**: Timer (every 10 seconds, configurable)
 - **Action**: Fetches open orders, compares with DB, detects status changes, triggers refills
-- **Implementation**: `OrdersPollingController` + `SyncOrdersUseCase`
 - **Purpose**: Reliable fill detection
 
 ### 3. Orders WebSocket Controller
 - **Type**: Real-time WebSocket controller
 - **Trigger**: Hyperliquid userEvents WebSocket channel
 - **Action**: Processes order status events (filled, cancelled, rejected), triggers refills
-- **Implementation**: `OrdersWebsocketController` + `ProcessOrderStatusUseCase`
 - **Purpose**: Fast fill detection (100-200ms)
 
 ### 4. Orders Restore Controller
 - **Type**: Scheduled controller (interval + startup)
 - **Trigger**: On startup + Timer (every 10 minutes, configurable)
 - **Action**: Recovers orphaned orders from exchange, cleans stale PENDING records
-- **Implementation**: `OrdersRestoreController` + `RestoreOrdersUseCase`
 - **Purpose**: Crash recovery
 
 All workers are independent and idempotent - safe to run concurrently.
@@ -449,7 +281,3 @@ System operates on 100ms-10s timescale, not microseconds. Designed for medium-te
 - Exact fill timing (depends on market)
 - Profit amount (depends on volatility)
 - Protection from price crashes below grid range
-
----
-
-**Architecture optimized for reliability and autonomous operation!** 🏗️✨
