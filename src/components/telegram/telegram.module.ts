@@ -28,16 +28,19 @@ import { CapitalCalculatorService } from '@domain/services/capital-calculator/ca
 import { WizardNavigator } from './infra/adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { WizardMessageManager } from './infra/adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 import { GridsHandler } from './infra/adapters/inbound/telegram-bot/handlers/grids/grids.handler';
-import { GetGridsUseCase } from './application/use-cases/get-grids/get-grids.use-case';
-import { GridMessageBuilderService } from './domain/services/grid-message-builder/grid-message-builder.service';
+import { GetGridsWithPnlUseCase } from './application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
+import { CreateGridUseCase } from './application/use-cases/create-grid/create-grid.use-case';
+import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { INFO_CLIENT_PORT } from '@domain/ports/outbound/info-client.port';
 import { TELEGRAM_GRID_REPOSITORY_PORT } from './domain/ports/outbound/grid-repository.port';
+import { TELEGRAM_ORDER_REPOSITORY_PORT } from './domain/ports/outbound/order-repository.port';
 
 @Module({
     imports: [HyperliquidModule],
     providers: [
         { provide: INFO_CLIENT_PORT, useClass: HyperliquidInfoClientAdapter },
         { provide: TELEGRAM_GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter },
+        { provide: TELEGRAM_ORDER_REPOSITORY_PORT, useClass: PostgresOrderRepositoryAdapter },
         HyperliquidUserStateMapper,
         PostgresOrderRepositoryAdapter,
         RedisSessionStore,
@@ -54,8 +57,9 @@ import { TELEGRAM_GRID_REPOSITORY_PORT } from './domain/ports/outbound/grid-repo
         WizardNavigator,
         WizardMessageManager,
         CreateGridSceneHandler,
-        GetGridsUseCase,
-        GridMessageBuilderService,
+        GetGridsWithPnlUseCase,
+        CreateGridUseCase,
+        GridPnlCalculatorService,
         GridsHandler,
         SelectPairStep,
         SelectModeStep,
