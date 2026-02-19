@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AxiosError } from 'axios';
 import { logger } from '@infra/logger/logger';
 import { extractErrorDetails } from '@infra/logger/error-logger.helper';
 import { HyperliquidApiClient } from '@infra/hyperliquid/hyperliquid-api.client';
@@ -85,6 +86,13 @@ export class HyperliquidOrderClientAdapter implements OrderClientPort {
             this.logger.debug({ user, oid, response: response.data }, 'Order status retrieved');
             return this.orderMapper.toExchangeOrderInfo(response.data);
         } catch (error) {
+            if (error instanceof AxiosError && error.response?.status === 422) {
+                this.logger.debug(
+                    { user, oid },
+                    'Order status 422 (invalid OID), treating as not found',
+                );
+                return null;
+            }
             this.logger.error(
                 { ...extractErrorDetails(error), user, oid },
                 'Failed to get order status',

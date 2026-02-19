@@ -74,7 +74,7 @@ describe('HyperliquidOrderClientAdapter (Integration)', () => {
     });
 
     describe('getCurrentPrice', () => {
-        it.skip('should retrieve current market price for HYPE', async () => {
+        it('should retrieve current market price for HYPE', async () => {
             // Skip: HYPE-SPOT may not be available on testnet API
             const symbol = TradingSymbol.create('HYPE');
 

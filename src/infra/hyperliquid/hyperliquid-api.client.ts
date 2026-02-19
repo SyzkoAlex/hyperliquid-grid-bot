@@ -128,58 +128,51 @@ export class HyperliquidApiClient implements OnModuleInit {
     }
 
     /**
-     * Get spot price for a symbol using L2 order book
+     * Get spot price for a symbol using getAllMids
      *
      * @param symbol - Symbol string (e.g., 'BTC', 'ETH', 'HYPE')
-     * @returns Mid price calculated from best bid/ask
+     * @returns Mid price
      * @throws Error if price not available
      */
     async getSpotPrice(symbol: string): Promise<number> {
-        // Validate symbol exists in spot meta cache
-        if (this.spotMetaCache) {
-            const tokenExists = this.spotMetaCache.tokens.some((token) => token.name === symbol);
-            if (!tokenExists) {
-                throw new Error(`Token not found for symbol: ${symbol}`);
-            }
+        if (!this.spotMetaCache) {
+            throw new Error('Spot meta cache not initialized');
+        }
+
+        const token = this.spotMetaCache.tokens.find((t) => t.name === symbol);
+        if (!token) {
+            throw new Error(`Token not found for symbol: ${symbol}`);
         }
 
         try {
-            // Get L2 order book for spot pair
-            const coin = `${symbol}`;
-            const l2Book = await this.getL2Book(coin);
+            const universeEntry = this.spotMetaCache.universe.find(
+                (u) => u.tokens[0] === token.index,
+            );
 
-            // Validate L2 book response
-            if (!l2Book.data || !l2Book.data.levels) {
+            if (!universeEntry) {
+                throw new Error(`No spot market found for ${symbol}`);
+            }
+
+            const mids = await this.getAllMids();
+            const spotKey = `@${universeEntry.index}`;
+            const priceStr = mids.data[spotKey];
+
+            if (!priceStr) {
                 throw new Error(`Price not available for ${symbol}`);
             }
 
-            // Extract best bid and ask
-            const bids = l2Book.data.levels[0]; // Buy side
-            const asks = l2Book.data.levels[1]; // Sell side
-
-            if (!bids || bids.length === 0 || !asks || asks.length === 0) {
-                throw new Error(`No liquidity for ${symbol}/USDC`);
-            }
-
-            const bestBid = parseFloat(bids[0].px);
-            const bestAsk = parseFloat(asks[0].px);
-
-            // Calculate mid price
-            const midPrice = (bestBid + bestAsk) / 2;
-
-            this.logger.debug(
-                { symbol, coin, bestBid, bestAsk, midPrice },
-                'Spot price calculated from L2 book',
-            );
-
-            return midPrice;
+            const price = parseFloat(priceStr);
+            this.logger.debug({ symbol, spotKey, price }, 'Spot price from mids');
+            return price;
         } catch (error) {
-            // Re-throw if it's already a formatted error message
-            if (error instanceof Error && error.message.startsWith('Price not available')) {
+            if (
+                error instanceof Error &&
+                (error.message.startsWith('Price not available') ||
+                    error.message.startsWith('No spot market'))
+            ) {
                 throw error;
             }
             this.logger.error({ error, symbol }, 'Failed to get spot price');
-            // Wrap with more specific error for L2 book failures
             throw new Error(`Price not available for ${symbol}`);
         }
     }
