@@ -25,6 +25,8 @@ import { OrderPlacementService } from '@components/trading/domain/services/order
 import { ProfitCalculatorService } from '@components/trading/domain/services/profit-calculator/profit-calculator.service';
 import { GridCommandsController } from '@components/trading/infra/adapters/inbound/grid-commands/grid-commands.controller';
 import { CreateGridHandler } from '@components/trading/infra/adapters/inbound/grid-commands/handlers/create-grid/create-grid.handler';
+import { StopGridHandler } from '@components/trading/infra/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
+import { StopGridUseCase } from '@components/trading/application/use-cases/stop-grid/stop-grid.use-case';
 import { OrdersPollingController } from '@components/trading/infra/adapters/inbound/orders-polling/orders-polling.controller';
 import { OrdersWebsocketController } from '@components/trading/infra/adapters/inbound/orders-websocket/orders-websocket.controller';
 import { OrdersRestoreController } from '@components/trading/infra/adapters/inbound/orders-restore/orders-restore.controller';
@@ -53,6 +55,8 @@ import { OrdersRestoreController } from '@components/trading/infra/adapters/inbo
         ProfitCalculatorService,
         GridCommandsController,
         CreateGridHandler,
+        StopGridHandler,
+        StopGridUseCase,
         OrdersPollingController,
         OrdersWebsocketController,
         OrdersRestoreController,
