@@ -26,6 +26,7 @@
 - Always use explicit types — never `any`
 - Use `unknown` + type guard when type is truly unknown
 - Use proper union types (`Type | undefined`)
+- **Always use `enum` instead of string union types** — never `type Foo = 'a' | 'b' | 'c'`
 
 ## Naming
 
@@ -37,8 +38,10 @@
 
 ## Comments
 
-- No comments in code files — use self-documenting names
-- If a comment feels needed → refactor to better name instead
+- **Allowed:** class-level description above the constructor — explains what the class does / key algorithm
+- **Allowed:** description of a public method when behaviour isn't obvious from the name
+- **Not allowed:** inline comments that repeat what the code already says (`// increment counter`)
+- If a comment feels needed for a private/internal block → refactor to a better name instead
 
 ## Result Objects
 

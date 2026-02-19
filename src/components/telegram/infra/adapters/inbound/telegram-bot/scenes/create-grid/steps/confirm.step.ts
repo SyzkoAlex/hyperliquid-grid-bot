@@ -1,14 +1,13 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
-import { CreateGridCommandEvent } from '@domain/models/events/commands/create-grid-command.event';
-import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
+import { CreateGridUseCase } from '@components/telegram/application/use-cases/create-grid/create-grid.use-case';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { ConfirmMessages } from '@components/telegram/domain/models/messages/wizard/confirm.messages';
 import { ValidationMessages } from '@components/telegram/domain/models/messages/wizard/validation.messages';
 
 @Injectable()
 export class ConfirmStep {
-    constructor(@Inject(EVENT_BUS) private readonly eventBus: EventBus) {}
+    constructor(private readonly createGridUseCase: CreateGridUseCase) {}
 
     async execute(ctx: BotContext): Promise<void> {
         const session = ctx.session;
@@ -19,16 +18,14 @@ export class ConfirmStep {
             return;
         }
 
-        const event = CreateGridCommandEvent.create({
+        await this.createGridUseCase.execute({
             symbol: state!.symbol!,
-            upperPrice: state!.upperPrice!,
+            mode: state!.gridMode!,
             lowerPrice: state!.lowerPrice!,
+            upperPrice: state!.upperPrice!,
             levels: state!.levels!,
             totalInvestmentUSDC: state!.totalInvestmentUSDC,
-            mode: state!.gridMode!,
         });
-
-        await this.eventBus.publish(event);
 
         await ctx.reply(
             ConfirmMessages.success(

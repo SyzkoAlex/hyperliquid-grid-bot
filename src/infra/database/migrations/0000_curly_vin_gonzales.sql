@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS "orders" (
 	"side" varchar(10) NOT NULL,
 	"price" numeric(20, 8),
 	"amount" numeric(20, 8) NOT NULL,
-	"filled_amount" numeric(20, 8) DEFAULT '0',
 	"status" varchar(20) NOT NULL,
 	"grid_id" uuid NOT NULL,
 	"level_index" integer NOT NULL,

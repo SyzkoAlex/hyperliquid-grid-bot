@@ -18,7 +18,6 @@ export interface OrderParams {
     side: OrderSide;
     price?: Price;
     amount: Decimal;
-    filledAmount?: Decimal;
     status: OrderStatus;
 
     // Grid fields (required - only grid orders are stored)
@@ -43,7 +42,6 @@ export class Order {
     private readonly _side: OrderSide;
     private readonly _price: Price | null;
     private readonly _amount: Decimal;
-    private _filledAmount: Decimal;
     private _status: OrderStatus;
 
     // Grid fields (required)
@@ -63,7 +61,6 @@ export class Order {
         this._side = params.side;
         this._price = params.price ?? null;
         this._amount = params.amount;
-        this._filledAmount = params.filledAmount ?? Decimal.zero();
         this._status = params.status;
         this._gridId = params.gridId;
         this._levelIndex = params.levelIndex;
@@ -92,16 +89,6 @@ export class Order {
         }
     }
 
-    updateFilledAmount(amount: Decimal) {
-        this._filledAmount = amount;
-
-        if (amount.eq(this._amount)) {
-            this.updateStatus(OrderStatus.Filled);
-        } else if (amount.gt(Decimal.zero())) {
-            this.updateStatus(OrderStatus.Placed);
-        }
-    }
-
     isFilled(): boolean {
         return this._status === OrderStatus.Filled;
     }
@@ -112,15 +99,6 @@ export class Order {
 
     isActive(): boolean {
         return this._status === OrderStatus.Pending || this._status === OrderStatus.Placed;
-    }
-
-    getRemainingAmount(): Decimal {
-        return this._amount.sub(this._filledAmount);
-    }
-
-    getFilledPercent(): number {
-        if (this._amount.isZero()) return 0;
-        return this._filledAmount.div(this._amount).mul(Decimal.from(100)).toNumber();
     }
 
     get exchangeOrderId(): string | null {
@@ -155,10 +133,6 @@ export class Order {
         return this._amount;
     }
 
-    get filledAmount(): Decimal {
-        return this._filledAmount;
-    }
-
     get status(): OrderStatus {
         return this._status;
     }
@@ -179,7 +153,6 @@ export class Order {
         return this._id;
     }
 
-    // Grid getters
     get gridId(): GridId {
         return this._gridId;
     }

@@ -1,25 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmStep } from './confirm.step';
-import { EventBus } from '@infra/events/event-bus.port';
+import { CreateGridUseCase } from '@components/telegram/application/use-cases/create-grid/create-grid.use-case';
 import { BotContext } from '../../../types/bot-context';
-import { CreateGridCommandEvent } from '@domain/models/events/commands/create-grid-command.event';
 import { CreateGridMode } from '../create-grid-mode';
 import { GridMode } from '@domain/models/grid/grid-mode';
 
 describe('ConfirmStep', () => {
     let step: ConfirmStep;
-    let mockEventBus: EventBus;
+    let mockCreateGridUseCase: CreateGridUseCase;
 
     beforeEach(() => {
-        mockEventBus = {
-            publish: vi.fn(),
-        } as unknown as EventBus;
+        mockCreateGridUseCase = {
+            execute: vi.fn(),
+        } as unknown as CreateGridUseCase;
 
-        step = new ConfirmStep(mockEventBus);
+        step = new ConfirmStep(mockCreateGridUseCase);
     });
 
     describe('execute', () => {
-        it('should publish CreateGridCommandEvent with valid state', async () => {
+        it('should call CreateGridUseCase with valid state', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 symbol: 'BTC',
@@ -33,7 +32,14 @@ describe('ConfirmStep', () => {
 
             await step.execute(ctx);
 
-            expect(mockEventBus.publish).toHaveBeenCalledWith(expect.any(CreateGridCommandEvent));
+            expect(mockCreateGridUseCase.execute).toHaveBeenCalledWith({
+                symbol: 'BTC',
+                mode: GridMode.Neutral,
+                lowerPrice: 45000,
+                upperPrice: 55000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+            });
             expect(ctx.reply).toHaveBeenCalled();
         });
 
@@ -46,7 +52,7 @@ describe('ConfirmStep', () => {
 
             await step.execute(ctx);
 
-            expect(mockEventBus.publish).not.toHaveBeenCalled();
+            expect(mockCreateGridUseCase.execute).not.toHaveBeenCalled();
             expect(ctx.reply).toHaveBeenCalledWith(
                 '❌ Invalid grid configuration. Please start over.',
             );
