@@ -49,10 +49,10 @@ export class GridListItemMessage {
             `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
             `${emoji} ${label}${duration}\n` +
             `\n` +
-            `<b>Investment (USDC):</b> $${investment}\n` +
             `<b>P&L (USDC):</b> ${pnlStr} (${pnlPct})\n` +
-            `<b>Current Price:</b> $${price}\n` +
+            `<b>Investment (USDC):</b> $${investment}\n` +
             `<b>Price Range:</b> $${lower} – $${upper}\n` +
+            `<b>Current Price:</b> $${price}\n` +
             `<b>Profitable Trades:</b> ${profitableTrades}`
         );
     }

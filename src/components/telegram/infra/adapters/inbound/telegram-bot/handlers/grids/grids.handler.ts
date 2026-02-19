@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Markup } from 'telegraf';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import {
+    GridAction,
     TelegramAction,
     TelegramCommand,
 } from '@components/telegram/domain/models/telegram-command.enum';
@@ -12,8 +12,8 @@ import { GridFilter } from '@components/telegram/application/use-cases/get-grids
 import { GridWithPnl } from '@components/telegram/application/use-cases/get-grids-with-pnl/grid-with-pnl';
 import { GridListItemMessage } from '@components/telegram/domain/models/messages/grid-list-item.message';
 import { InlineButton } from '@components/telegram/domain/models/inline-button';
-import { PriceFormatter } from '@components/telegram/domain/models/formatters/price.formatter';
 import { EMOJI } from '@components/telegram/domain/models/constants/emoji.constants';
+import { toInlineKeyboard } from '../inline-keyboard';
 
 @Injectable()
 export class GridsHandler implements Handler {
@@ -25,6 +25,7 @@ export class GridsHandler implements Handler {
     register(): void {
         this.telegramBotService.onCommand(TelegramCommand.Grids, (ctx) => this.handle(ctx));
         this.telegramBotService.onAction(TelegramAction.ListGrids, (ctx) => this.handleAction(ctx));
+        this.telegramBotService.onHears('📊 Grids', (ctx) => this.handle(ctx));
     }
 
     private async handle(ctx: BotContext): Promise<void> {
@@ -54,22 +55,11 @@ export class GridsHandler implements Handler {
         return `${header}\n\n${cards}`;
     }
 
-    private buildKeyboard(items: GridWithPnl[]): ReturnType<typeof Markup.inlineKeyboard> {
-        const rows: InlineButton[][] = items.map(({ grid }) => {
-            const lower = PriceFormatter.format(grid.lowerPrice.toNumber());
-            const upper = PriceFormatter.format(grid.upperPrice.toNumber());
-            return [
-                {
-                    text: `${grid.symbol.toString()} ($${lower} – $${upper})`,
-                    action: `view:grid:${grid.id.toString()}`,
-                },
-            ];
-        });
+    private buildKeyboard(items: GridWithPnl[]) {
+        const rows: InlineButton[][] = items.map(({ grid }) => [
+            { text: `${EMOJI.SEARCH} Details`, action: GridAction.view(grid.id.toString()) },
+        ]);
 
-        rows.push([{ text: '« Back to Menu', action: TelegramAction.MainMenu }]);
-
-        return Markup.inlineKeyboard(
-            rows.map((row) => row.map((btn) => Markup.button.callback(btn.text, btn.action))),
-        );
+        return toInlineKeyboard(rows);
     }
 }

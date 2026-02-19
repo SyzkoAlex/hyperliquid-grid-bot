@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Markup } from 'telegraf';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/domain/models/telegram-command.enum';
 import { WelcomeMessage } from '@components/telegram/domain/models/messages/welcome-message';
 import { Handler } from '../handler';
-import { mainMenuKeyboard } from '../main-menu.keyboard';
+import { replyMenuKeyboard } from '../main-menu.keyboard';
 
 @Injectable()
 export class StartHandler implements Handler {
@@ -16,13 +15,9 @@ export class StartHandler implements Handler {
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        const keyboard = mainMenuKeyboard();
-        const markup = Markup.inlineKeyboard(
-            keyboard.map((row) => row.map((btn) => Markup.button.callback(btn.text, btn.action))),
-        );
         await ctx.reply(new WelcomeMessage().toString(), {
             parse_mode: this.telegramBotService.getParseMode(),
-            ...markup,
+            ...replyMenuKeyboard(),
         });
     }
 }

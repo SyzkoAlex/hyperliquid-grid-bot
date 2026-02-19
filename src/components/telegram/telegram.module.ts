@@ -28,8 +28,11 @@ import { CapitalCalculatorService } from '@domain/services/capital-calculator/ca
 import { WizardNavigator } from './infra/adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { WizardMessageManager } from './infra/adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 import { GridsHandler } from './infra/adapters/inbound/telegram-bot/handlers/grids/grids.handler';
+import { GridViewHandler } from './infra/adapters/inbound/telegram-bot/handlers/grid-view/grid-view.handler';
 import { GetGridsWithPnlUseCase } from './application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
+import { GetGridWithPnlUseCase } from './application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
 import { CreateGridUseCase } from './application/use-cases/create-grid/create-grid.use-case';
+import { StopGridUseCase } from './application/use-cases/stop-grid/stop-grid.use-case';
 import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { INFO_CLIENT_PORT } from '@domain/ports/outbound/info-client.port';
 import { TELEGRAM_GRID_REPOSITORY_PORT } from './domain/ports/outbound/grid-repository.port';
@@ -58,9 +61,12 @@ import { TELEGRAM_ORDER_REPOSITORY_PORT } from './domain/ports/outbound/order-re
         WizardMessageManager,
         CreateGridSceneHandler,
         GetGridsWithPnlUseCase,
+        GetGridWithPnlUseCase,
         CreateGridUseCase,
+        StopGridUseCase,
         GridPnlCalculatorService,
         GridsHandler,
+        GridViewHandler,
         SelectPairStep,
         SelectModeStep,
         QuickStartStep,

@@ -1,5 +1,6 @@
 import { InlineButton } from '@components/telegram/domain/models/inline-button';
 import { TelegramAction } from '@components/telegram/domain/models/telegram-command.enum';
+import { Markup } from 'telegraf';
 
 export function mainMenuKeyboard(): InlineButton[][] {
     return [
@@ -16,6 +17,14 @@ export function mainMenuKeyboard(): InlineButton[][] {
             { text: '❓ Help', action: TelegramAction.ShowHelp },
         ],
     ];
+}
+
+export function replyMenuKeyboard(): ReturnType<typeof Markup.keyboard> {
+    return Markup.keyboard([
+        ['📊 Grids', '💰 Balance'],
+        ['📈 Stats', '➕ Create Grid'],
+        ['⚙️ Settings', '❓ Help'],
+    ]).resize();
 }
 
 export function backToMenuKeyboard(): InlineButton[][] {

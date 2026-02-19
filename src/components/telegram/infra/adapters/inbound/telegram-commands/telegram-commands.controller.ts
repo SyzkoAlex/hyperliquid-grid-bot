@@ -5,6 +5,7 @@ import { StartHandler } from '@components/telegram/infra/adapters/inbound/telegr
 import { HelpHandler } from '@components/telegram/infra/adapters/inbound/telegram-bot/handlers/help/help.handler';
 import { MainMenuHandler } from '@components/telegram/infra/adapters/inbound/telegram-bot/handlers/main-menu/main-menu.handler';
 import { GridsHandler } from '@components/telegram/infra/adapters/inbound/telegram-bot/handlers/grids/grids.handler';
+import { GridViewHandler } from '@components/telegram/infra/adapters/inbound/telegram-bot/handlers/grid-view/grid-view.handler';
 import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
@@ -22,6 +23,7 @@ export class TelegramCommandsController implements OnModuleInit {
         private readonly helpHandler: HelpHandler,
         private readonly mainMenuHandler: MainMenuHandler,
         private readonly gridsHandler: GridsHandler,
+        private readonly gridViewHandler: GridViewHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
     ) {}
 
@@ -41,17 +43,31 @@ export class TelegramCommandsController implements OnModuleInit {
         this.helpHandler.register();
         this.mainMenuHandler.register();
         this.gridsHandler.register();
+        this.gridViewHandler.register();
         this.registerCreateGridHandler();
+        this.registerStubHandlers();
     }
 
     private registerCreateGridHandler() {
         this.telegramBotService.onAction(TelegramAction.CreateGrid, (ctx: BotContext) =>
             this.handleCreateGrid(ctx),
         );
+        this.telegramBotService.onHears('➕ Create Grid', async (ctx: BotContext) => {
+            await ctx.scene.enter(CREATE_GRID_SCENE_ID);
+        });
     }
 
     private async handleCreateGrid(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
         await ctx.scene.enter(CREATE_GRID_SCENE_ID);
+    }
+
+    private registerStubHandlers() {
+        this.telegramBotService.onHears(
+            ['💰 Balance', '📈 Stats', '⚙️ Settings'],
+            async (ctx: BotContext) => {
+                await ctx.reply('🚧 Coming soon');
+            },
+        );
     }
 }

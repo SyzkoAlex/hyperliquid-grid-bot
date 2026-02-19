@@ -13,6 +13,9 @@ import { OrderStatus } from '@domain/models/order/order-status';
  *
  * Uses order amount (not filledAmount) since partial fills are not tracked —
  * an order is either fully filled or not filled at all.
+ *
+ * @see docs/GRID-PNL-RESEARCH.md — research on correct PnL calculation
+ * (Total PnL, Unrealized PnL, Grid Profit, vs HODL, fee breakeven)
  */
 @Injectable()
 export class GridPnlCalculatorService {

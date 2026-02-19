@@ -105,8 +105,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
         this.bot.command(command, handler);
     }
 
-    onAction(action: string, handler: (ctx: BotContext) => Promise<void>): void {
+    onAction(action: string | RegExp, handler: (ctx: BotContext) => Promise<void>): void {
         this.bot.action(action, handler);
+    }
+
+    onHears(text: string | string[], handler: (ctx: BotContext) => Promise<void>): void {
+        this.bot.hears(text, handler);
     }
 
     private registerAuthMiddleware(): void {

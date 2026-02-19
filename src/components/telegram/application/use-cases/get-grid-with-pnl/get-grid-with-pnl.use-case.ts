@@ -1,0 +1,45 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { GridId } from '@domain/models/grid/grid-id';
+import { OrderStatus } from '@domain/models/order/order-status';
+import { OrderSide } from '@domain/models/order/order-side';
+import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
+import { INFO_CLIENT_PORT, InfoClientPort } from '@domain/ports/outbound/info-client.port';
+import {
+    TELEGRAM_GRID_REPOSITORY_PORT,
+    TelegramGridRepositoryPort,
+} from '@components/telegram/domain/ports/outbound/grid-repository.port';
+import {
+    TELEGRAM_ORDER_REPOSITORY_PORT,
+    TelegramOrderRepositoryPort,
+} from '@components/telegram/domain/ports/outbound/order-repository.port';
+import { GridWithPnl } from '../get-grids-with-pnl/grid-with-pnl';
+
+@Injectable()
+export class GetGridWithPnlUseCase {
+    constructor(
+        @Inject(TELEGRAM_GRID_REPOSITORY_PORT)
+        private readonly gridRepository: TelegramGridRepositoryPort,
+        @Inject(TELEGRAM_ORDER_REPOSITORY_PORT)
+        private readonly orderRepository: TelegramOrderRepositoryPort,
+        @Inject(INFO_CLIENT_PORT)
+        private readonly infoClient: InfoClientPort,
+        private readonly pnlCalculator: GridPnlCalculatorService,
+    ) {}
+
+    async execute(id: GridId): Promise<GridWithPnl | null> {
+        const grid = await this.gridRepository.findOneById(id);
+        if (!grid) return null;
+
+        const [orders, currentPrice] = await Promise.all([
+            this.orderRepository.findManyByGridId(grid.id),
+            this.infoClient.getCurrentPrice(grid.symbol),
+        ]);
+
+        const pnl = this.pnlCalculator.calculate(orders);
+        const profitableTrades = orders.filter(
+            (o) => o.status === OrderStatus.Filled && o.side === OrderSide.Sell,
+        ).length;
+
+        return { grid, pnl, currentPrice: currentPrice.toNumber(), profitableTrades };
+    }
+}

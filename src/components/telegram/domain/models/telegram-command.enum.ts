@@ -19,3 +19,14 @@ export enum TelegramAction {
     ConfirmStop = 'confirm_stop',
     CancelStop = 'cancel_stop',
 }
+
+export const GridAction = {
+    view: (id: string) => `view:grid:${id}`,
+    stop: (id: string) => `stop:grid:${id}`,
+    confirmStop: (id: string) => `confirm:stop:${id}`,
+    cancelStop: (id: string) => `cancel:stop:${id}`,
+    VIEW_PATTERN: /^view:grid:(.+)$/,
+    STOP_PATTERN: /^stop:grid:(.+)$/,
+    CONFIRM_STOP_PATTERN: /^confirm:stop:(.+)$/,
+    CANCEL_STOP_PATTERN: /^cancel:stop:(.+)$/,
+} as const;
