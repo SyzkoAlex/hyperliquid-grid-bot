@@ -48,10 +48,7 @@ export class SelectPairStep implements WizardStep {
                 return null;
             }
 
-            if (!ctx.session.createGrid) {
-                ctx.session.createGrid = {};
-            }
-            ctx.session.createGrid.symbol = symbol;
+            ctx.session.createGrid!.symbol = symbol;
 
             return {
                 nextStep: SceneStep.Mode,

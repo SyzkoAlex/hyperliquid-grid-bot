@@ -10,7 +10,6 @@ import { UserBalanceExtractorService } from '@domain/services/user-balance-extra
 import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@infra/config/config.schema';
-import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@infra/logger/logger';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
@@ -20,6 +19,8 @@ import { WIZARD_CONFIG } from '@components/telegram/domain/models/constants/wiza
 import { BUTTON_LABELS } from '@components/telegram/domain/models/constants/button-labels.constants';
 import { QuickStartMessages } from '@components/telegram/domain/models/messages/wizard/quick-start.messages';
 import { ValidationMessages } from '@components/telegram/domain/models/messages/wizard/validation.messages';
+import { fetchBalanceInfo } from '../helpers/balance-info';
+import { validateInvestment } from '../helpers/investment-validator';
 
 @Injectable()
 export class QuickStartStep implements WizardStep {
@@ -51,31 +52,20 @@ export class QuickStartStep implements WizardStep {
 
         if (symbol) {
             try {
-                const userState = await this.hyperliquidClient.getUserSpotState(
+                const balanceInfo = await fetchBalanceInfo(
+                    this.hyperliquidClient,
+                    this.userBalanceExtractor,
                     this.accountAddress,
-                );
-                const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
-                    userState,
                     symbol,
                 );
-
-                const tradingSymbol = TradingSymbol.fromString(symbol);
-                const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-                const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-                const totalBalance = usdcBalance.add(baseInUsdc);
-
-                const minBalance = usdcBalance.lt(baseInUsdc) ? usdcBalance : baseInUsdc;
-                const suggestedMax = minBalance.mul(Decimal.from(2)).toNumber();
-                const suggestedMaxRounded = Math.floor(suggestedMax);
-
                 message = QuickStartMessages.promptWithBalance(
                     symbol,
-                    usdcBalance,
-                    baseBalance,
-                    baseInUsdc,
-                    totalBalance,
-                    currentPrice.toNumber(),
-                    suggestedMaxRounded,
+                    balanceInfo.usdcBalance,
+                    balanceInfo.baseBalance,
+                    balanceInfo.baseInUsdc,
+                    balanceInfo.totalBalance,
+                    balanceInfo.currentPrice,
+                    balanceInfo.suggestedMaxRounded,
                 );
             } catch (error) {
                 logger.warn({ error }, 'Failed to fetch balance in quick start step');
@@ -91,36 +81,14 @@ export class QuickStartStep implements WizardStep {
             return null;
         }
 
+        const keyboard: InlineButton[][] = [
+            [
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
+            ],
+        ];
+
         const investment = parseFloat(text);
-
-        if (isNaN(investment) || investment < WIZARD_CONFIG.MIN_INVESTMENT) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationMessages.invalidAmount(WIZARD_CONFIG.MIN_INVESTMENT),
-            );
-            return null;
-        }
-
-        const perOrderAmount = investment / WIZARD_CONFIG.DEFAULT_LEVELS;
-        if (perOrderAmount < WIZARD_CONFIG.MIN_INVESTMENT) {
-            const keyboard: InlineButton[][] = [
-                [
-                    { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-                    { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-                ],
-            ];
-            session.createGrid.showingValidationError = true;
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationMessages.orderSizeTooSmall(
-                    WIZARD_CONFIG.DEFAULT_LEVELS,
-                    perOrderAmount,
-                    WIZARD_CONFIG.MIN_INVESTMENT,
-                ),
-                keyboard,
-            );
-            return null;
-        }
 
         try {
             const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
@@ -129,54 +97,29 @@ export class QuickStartStep implements WizardStep {
             const upperPrice = currentPrice.toNumber() + priceOffset;
             const lowerPrice = currentPrice.toNumber() - priceOffset;
 
-            const userState = await this.hyperliquidClient.getUserSpotState(this.accountAddress);
-            const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
-                userState,
-                session.createGrid.symbol,
+            const result = await validateInvestment(
+                {
+                    investment,
+                    levels: WIZARD_CONFIG.DEFAULT_LEVELS,
+                    symbol: session.createGrid.symbol,
+                    upperPrice,
+                    lowerPrice,
+                    accountAddress: this.accountAddress,
+                },
+                this.hyperliquidClient,
+                this.userBalanceExtractor,
+                this.capitalCalculator,
             );
 
-            const distribution = this.capitalCalculator.calculateDistribution({
-                mode: GridMode.Neutral,
-                totalInvestmentUSDC: investment,
-                usdcBalance,
-                baseBalance,
-                currentPrice,
-                lowerPrice,
-                upperPrice,
-            });
-
-            // Validate balance sufficiency
-            const usdcShortfall = distribution.investmentUSDC.sub(usdcBalance);
-            const baseShortfall = distribution.investmentBase.sub(baseBalance);
-            const hasInsufficientBalance =
-                usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
-
-            if (hasInsufficientBalance) {
-                const keyboard: InlineButton[][] = [
-                    [
-                        { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-                        { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-                    ],
-                ];
-
-                const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-                const totalBalance = usdcBalance.add(baseInUsdc);
-
-                const errorMessage = ValidationMessages.insufficientBalance(
-                    session.createGrid.symbol,
-                    usdcBalance,
-                    baseBalance,
-                    baseInUsdc,
-                    totalBalance,
-                    currentPrice.toNumber(),
-                    distribution.investmentUSDC,
-                    distribution.investmentBase,
-                    usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
-                    baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
+            if (!result.valid) {
+                if (result.showBackButton) {
+                    session.createGrid.showingValidationError = true;
+                }
+                await this.messageManager.sendEnterMessage(
+                    ctx,
+                    result.errorMessage!,
+                    result.showBackButton ? keyboard : undefined,
                 );
-
-                session.createGrid.showingValidationError = true;
-                await this.messageManager.sendEnterMessage(ctx, errorMessage, keyboard);
                 return null;
             }
 

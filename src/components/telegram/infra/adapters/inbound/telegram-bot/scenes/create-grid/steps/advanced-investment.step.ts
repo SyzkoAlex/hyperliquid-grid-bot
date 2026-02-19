@@ -11,15 +11,15 @@ import { Inject } from '@nestjs/common';
 import { INFO_CLIENT_PORT, InfoClientPort } from '@domain/ports/outbound/info-client.port';
 import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
 import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { GridMode } from '@domain/models/grid/grid-mode';
-import { Decimal } from '@domain/models/primitives/decimal';
 import { Config } from '@infra/config/config.schema';
 import { logger } from '@infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/domain/models/constants/button-labels.constants';
 import { AdvancedInvestmentMessages } from '@components/telegram/domain/models/messages/wizard/advanced-investment.messages';
 import { ValidationMessages } from '@components/telegram/domain/models/messages/wizard/validation.messages';
+import { fetchBalanceInfo } from '../helpers/balance-info';
+import { validateInvestment } from '../helpers/investment-validator';
 
 @Injectable()
 export class AdvancedInvestmentStep implements WizardStep {
@@ -52,31 +52,20 @@ export class AdvancedInvestmentStep implements WizardStep {
 
         if (symbol) {
             try {
-                const userState = await this.hyperliquidClient.getUserSpotState(
+                const balanceInfo = await fetchBalanceInfo(
+                    this.hyperliquidClient,
+                    this.userBalanceExtractor,
                     this.accountAddress,
-                );
-                const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
-                    userState,
                     symbol,
                 );
-
-                const tradingSymbol = TradingSymbol.fromString(symbol);
-                const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-                const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-                const totalBalance = usdcBalance.add(baseInUsdc);
-
-                const minBalance = usdcBalance.lt(baseInUsdc) ? usdcBalance : baseInUsdc;
-                const suggestedMax = minBalance.mul(Decimal.from(2)).toNumber();
-                const suggestedMaxRounded = Math.floor(suggestedMax);
-
                 message = AdvancedInvestmentMessages.promptWithBalance(
                     symbol,
-                    usdcBalance,
-                    baseBalance,
-                    baseInUsdc,
-                    totalBalance,
-                    currentPrice.toNumber(),
-                    suggestedMaxRounded,
+                    balanceInfo.usdcBalance,
+                    balanceInfo.baseBalance,
+                    balanceInfo.baseInUsdc,
+                    balanceInfo.totalBalance,
+                    balanceInfo.currentPrice,
+                    balanceInfo.suggestedMaxRounded,
                     levels,
                 );
             } catch (error) {
@@ -98,89 +87,39 @@ export class AdvancedInvestmentStep implements WizardStep {
             return null;
         }
 
+        const keyboard: InlineButton[][] = [
+            [
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
+            ],
+        ];
+
         const investment = parseFloat(text);
 
-        if (isNaN(investment) || investment < WIZARD_CONFIG.MIN_INVESTMENT) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationMessages.invalidAmount(WIZARD_CONFIG.MIN_INVESTMENT),
-            );
-            return null;
-        }
-
-        const perOrderAmount = investment / session.createGrid.levels;
-        if (perOrderAmount < WIZARD_CONFIG.MIN_INVESTMENT) {
-            const keyboard: InlineButton[][] = [
-                [
-                    { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-                    { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-                ],
-            ];
-            session.createGrid.showingValidationError = true;
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationMessages.orderSizeTooSmall(
-                    session.createGrid.levels,
-                    perOrderAmount,
-                    WIZARD_CONFIG.MIN_INVESTMENT,
-                ),
-                keyboard,
-            );
-            return null;
-        }
-
         try {
-            const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
-            const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-
-            const userState = await this.hyperliquidClient.getUserSpotState(this.accountAddress);
-            const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
-                userState,
-                session.createGrid.symbol,
+            const result = await validateInvestment(
+                {
+                    investment,
+                    levels: session.createGrid.levels,
+                    symbol: session.createGrid.symbol,
+                    upperPrice: session.createGrid.upperPrice,
+                    lowerPrice: session.createGrid.lowerPrice,
+                    accountAddress: this.accountAddress,
+                },
+                this.hyperliquidClient,
+                this.userBalanceExtractor,
+                this.capitalCalculator,
             );
 
-            const distribution = this.capitalCalculator.calculateDistribution({
-                mode: GridMode.Neutral,
-                totalInvestmentUSDC: investment,
-                usdcBalance,
-                baseBalance,
-                currentPrice,
-                lowerPrice: session.createGrid.lowerPrice,
-                upperPrice: session.createGrid.upperPrice,
-            });
-
-            // Validate balance sufficiency
-            const usdcShortfall = distribution.investmentUSDC.sub(usdcBalance);
-            const baseShortfall = distribution.investmentBase.sub(baseBalance);
-            const hasInsufficientBalance =
-                usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
-
-            if (hasInsufficientBalance) {
-                const keyboard: InlineButton[][] = [
-                    [
-                        { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-                        { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-                    ],
-                ];
-
-                const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
-                const totalBalance = usdcBalance.add(baseInUsdc);
-
-                const errorMessage = ValidationMessages.insufficientBalance(
-                    session.createGrid.symbol,
-                    usdcBalance,
-                    baseBalance,
-                    baseInUsdc,
-                    totalBalance,
-                    currentPrice.toNumber(),
-                    distribution.investmentUSDC,
-                    distribution.investmentBase,
-                    usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
-                    baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
+            if (!result.valid) {
+                if (result.showBackButton) {
+                    session.createGrid.showingValidationError = true;
+                }
+                await this.messageManager.sendEnterMessage(
+                    ctx,
+                    result.errorMessage!,
+                    result.showBackButton ? keyboard : undefined,
                 );
-
-                session.createGrid.showingValidationError = true;
-                await this.messageManager.sendEnterMessage(ctx, errorMessage, keyboard);
                 return null;
             }
 

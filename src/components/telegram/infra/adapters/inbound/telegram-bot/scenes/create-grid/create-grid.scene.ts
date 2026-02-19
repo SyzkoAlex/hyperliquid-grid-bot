@@ -14,6 +14,7 @@ import { BotContext } from '../../types/bot-context';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
 import { WizardNavigator } from './wizard/wizard-navigator';
 import { WizardMessageManager } from './wizard/wizard-message-manager';
+import { logger } from '@infra/logger/logger';
 
 export const CREATE_GRID_SCENE_ID = 'create_grid';
 
@@ -115,7 +116,12 @@ export class CreateGridSceneHandler {
         await ctx.answerCbQuery();
 
         await this.messageManager.deleteAllMessages(ctx);
-        await this.confirmStep.execute(ctx);
+        try {
+            await this.confirmStep.execute(ctx);
+        } catch (error) {
+            logger.error({ error }, 'Failed to execute confirm step');
+            await ctx.reply('❌ Failed to create grid. Please try again.');
+        }
 
         delete ctx.session.createGrid;
         await ctx.scene.leave();

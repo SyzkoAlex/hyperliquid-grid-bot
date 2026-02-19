@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Markup } from 'telegraf';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/domain/models/inline-button';
 import { SceneStep } from '../create-grid-scene-step';
 import { logger } from '@infra/logger/logger';
+import { CreateGridWizardState } from '../create-grid-wizard-state';
+import { toInlineKeyboard } from '../../../handlers/inline-keyboard';
 
 @Injectable()
 export class WizardMessageManager {
@@ -22,12 +23,10 @@ export class WizardMessageManager {
         if (!buttons) {
             message = await ctx.reply(text, { parse_mode: parseMode });
         } else {
-            const keyboard = Markup.inlineKeyboard(
-                buttons.map((row) =>
-                    row.map((btn) => Markup.button.callback(btn.text, btn.action)),
-                ),
-            );
-            message = await ctx.reply(text, { parse_mode: parseMode, ...keyboard });
+            message = await ctx.reply(text, {
+                parse_mode: parseMode,
+                ...toInlineKeyboard(buttons),
+            });
         }
 
         this.ensureStepMessages(state, state.currentStep);
@@ -115,7 +114,7 @@ export class WizardMessageManager {
         };
     }
 
-    private ensureStepMessages(state: any, stepId: SceneStep): void {
+    private ensureStepMessages(state: CreateGridWizardState, stepId: SceneStep): void {
         if (!state.stepMessages) {
             state.stepMessages = {};
         }
