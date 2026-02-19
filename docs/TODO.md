@@ -65,6 +65,22 @@
     - `grid.autoSwapEnabled: boolean`
     - `grid.swapSlippageTolerance: number`
 
+### 4. Rework GridPnlCalculatorService
+
+**File:** `src/domain/services/grid-pnl-calculator/grid-pnl-calculator.service.ts:18`
+
+**Problem:** The current implementation only computes a naive `sellVolume − buyVolume` diff without fees, unrealized PnL, or HODL comparison. This gives a misleading picture of actual bot performance.
+
+**Reference:** `docs/GRID-PNL-RESEARCH.md`
+
+- [ ] Track cumulative fees paid per grid and subtract them from realized grid profit
+- [ ] Add `unrealizedPnl` calculation: `Qty_held × (currentPrice − avgBuyPrice)`
+- [ ] Add `totalPnl = currentEquity − initialInvestment` as the primary metric
+- [ ] Add `vsHodl = currentEquity − hodlEquity` comparison
+- [ ] Expose `gridProfitNet`, `unrealizedPnl`, `totalPnl`, `vsHodl` from the service
+- [ ] Add breakeven check: warn if `gridStep / avgPrice < 2 × feeRate`
+- [ ] Cover new logic with unit tests
+
 ---
 
 ## 🏗️ Architecture Improvements
