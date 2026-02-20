@@ -9,7 +9,7 @@ import { PostgresGridRepositoryAdapter } from '@components/trading/infra/adapter
 import { PostgresOrderRepositoryAdapter } from '@components/trading/infra/adapters/outbound/persistence/order/postgres-order-repository.adapter';
 import { GRID_REPOSITORY_PORT } from '@components/trading/domain/ports/outbound/grid-repository.port';
 import { ORDER_REPOSITORY_PORT } from '@components/trading/domain/ports/outbound/order-repository.port';
-import { ORDER_CLIENT_PORT } from '@components/trading/domain/ports/outbound/order-client.port';
+import { EXCHANGE_CLIENT_PORT } from '@components/trading/domain/ports/outbound/exchange-client.port';
 import { INFO_CLIENT_PORT } from '@domain/ports/outbound/info-client.port';
 import { CreateAndStartGridUseCase } from '@components/trading/application/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { SyncOrdersUseCase } from '@components/trading/application/use-cases/sync-orders/sync-orders.use-case';
@@ -36,7 +36,7 @@ import { OrdersRestoreController } from '@components/trading/infra/adapters/inbo
     providers: [
         { provide: GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter },
         { provide: ORDER_REPOSITORY_PORT, useClass: PostgresOrderRepositoryAdapter },
-        { provide: ORDER_CLIENT_PORT, useClass: HyperliquidOrderClientAdapter },
+        { provide: EXCHANGE_CLIENT_PORT, useClass: HyperliquidOrderClientAdapter },
         { provide: INFO_CLIENT_PORT, useClass: HyperliquidInfoClientAdapter },
         HyperliquidOrderMapper,
         HyperliquidUserStateMapper,

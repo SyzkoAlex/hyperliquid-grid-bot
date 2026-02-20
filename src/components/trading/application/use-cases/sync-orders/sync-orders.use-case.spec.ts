@@ -37,7 +37,7 @@ describe('SyncOrdersUseCase', () => {
     beforeEach(() => {
         mockOrderClient = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
-            getSpotPrice: vi.fn().mockResolvedValue(50500),
+            getSpotPrice: vi.fn().mockResolvedValue(Price.from(50500)),
         };
 
         mockGridRepository = {

@@ -11,10 +11,12 @@ import { ExchangeCancelOrderResult } from '@components/trading/domain/models/exc
 import { ExchangeOpenOrder } from '@components/trading/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/domain/models/exchange-order/exchange-order-info';
 import { HyperliquidOrderMapper } from './hyperliquid-order.mapper';
-import { OrderClientPort } from '@components/trading/domain/ports/outbound/order-client.port';
+import { ExchangeClientPort } from '@components/trading/domain/ports/outbound/exchange-client.port';
+import { Price } from '@domain/models/primitives/price';
+import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 
 @Injectable()
-export class HyperliquidOrderClientAdapter implements OrderClientPort {
+export class HyperliquidOrderClientAdapter implements ExchangeClientPort {
     private readonly logger = logger.child({ context: HyperliquidOrderClientAdapter.name });
 
     constructor(
@@ -55,8 +57,9 @@ export class HyperliquidOrderClientAdapter implements OrderClientPort {
         }
     }
 
-    async getSpotPrice(symbol: string): Promise<number> {
-        return this.apiReadClient.getSpotPrice(symbol);
+    async getSpotPrice(symbol: TradingSymbol): Promise<Price> {
+        const value = await this.apiReadClient.getSpotPrice(symbol.toString());
+        return Price.from(value);
     }
 
     async getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]> {

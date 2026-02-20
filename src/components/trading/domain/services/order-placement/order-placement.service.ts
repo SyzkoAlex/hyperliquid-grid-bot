@@ -1,8 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 import {
     ORDER_REPOSITORY_PORT,
     OrderRepositoryPort,
@@ -23,7 +23,7 @@ export class OrderPlacementService {
     private readonly logger = logger.child({ context: OrderPlacementService.name });
 
     constructor(
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
     ) {}
 

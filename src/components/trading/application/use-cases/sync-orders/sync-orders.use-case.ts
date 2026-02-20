@@ -1,9 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 import {
     GRID_REPOSITORY_PORT,
     GridRepositoryPort,
@@ -26,7 +26,7 @@ export class SyncOrdersUseCase {
 
     constructor(
         private readonly configService: ConfigService<Config, true>,
-        @Inject(ORDER_CLIENT_PORT) private readonly hyperliquidOrderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly hyperliquidOrderClient: ExchangeClientPort,
         @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,

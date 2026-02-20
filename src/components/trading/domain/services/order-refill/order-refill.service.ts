@@ -1,15 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 import {
     ORDER_REPOSITORY_PORT,
     OrderRepositoryPort,
 } from '@components/trading/domain/ports/outbound/order-repository.port';
 import { Order } from '@domain/models/order/order';
 import { OrderId } from '@domain/models/order/order-id';
-import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangePlaceOrderResult } from '@components/trading/domain/models/exchange-order/exchange-place-order-result';
@@ -28,18 +27,17 @@ export class OrderRefillService {
     private readonly logger = logger.child({ context: OrderRefillService.name });
 
     constructor(
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
         @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly profitCalculator: ProfitCalculatorService,
     ) {}
 
     async processMany(filledOrders: Order[], grid: Grid): Promise<number> {
-        const currentPrice = await this.orderClient.getSpotPrice(grid.symbol.toString());
-        const eligible = this.filterEligible(filledOrders, grid, currentPrice);
+        const deduped = this.deduplicateOrders(filledOrders, grid);
 
         let placed = 0;
-        for (const order of eligible) {
+        for (const order of deduped) {
             const result = await this.processOne(order, grid);
             if (result.success) placed++;
         }
@@ -246,27 +244,13 @@ export class OrderRefillService {
         return OrderRefillResult.failure(errorMessage);
     }
 
-    private filterEligible(filledOrders: Order[], grid: Grid, currentPrice: number): Order[] {
+    private deduplicateOrders(filledOrders: Order[], grid: Grid): Order[] {
         const seen = new Set<string>();
         const result: Order[] = [];
 
         for (const order of filledOrders) {
             const params = RefillParams.calc(order, grid);
             if (!params) continue;
-
-            const refillPrice = params.price.toNumber();
-            const isCorrectSide =
-                params.side === OrderSide.Buy
-                    ? refillPrice < currentPrice
-                    : refillPrice > currentPrice;
-
-            if (!isCorrectSide) {
-                this.logger.debug(
-                    { levelIndex: params.levelIndex, side: params.side, refillPrice, currentPrice },
-                    'Refill skipped: wrong side of market',
-                );
-                continue;
-            }
 
             const key = `${params.levelIndex}-${params.side}`;
             if (seen.has(key)) {

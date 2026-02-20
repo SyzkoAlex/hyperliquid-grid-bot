@@ -1,9 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 import { OrderRestoreService } from '@components/trading/domain/services/order-restore/order-restore.service';
 import { logger } from '../../../../../infra/logger/logger';
 import { Config } from '../../../../../infra/config/config.schema';
@@ -27,7 +27,7 @@ export class RestoreOrdersUseCase {
     private readonly accountAddress: string;
 
     constructor(
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         private readonly orderRestoreService: OrderRestoreService,
         private readonly configService: ConfigService<Config, true>,
     ) {

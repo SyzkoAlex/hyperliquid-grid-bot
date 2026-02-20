@@ -5,9 +5,9 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { Order } from '@domain/models/order/order';
 import { logger } from '../../../../../infra/logger/logger';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 import { Config } from '../../../../../infra/config/config.schema';
 import {
     ORDER_REPOSITORY_PORT,
@@ -23,7 +23,7 @@ export class OrderStatusSyncService {
     private readonly accountAddress: string;
 
     constructor(
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         private readonly configService: ConfigService<Config, true>,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
     ) {

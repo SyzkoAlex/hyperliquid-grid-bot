@@ -10,9 +10,9 @@ import {
     OrderRepositoryPort,
 } from '@components/trading/domain/ports/outbound/order-repository.port';
 import {
-    ORDER_CLIENT_PORT,
-    OrderClientPort,
-} from '@components/trading/domain/ports/outbound/order-client.port';
+    EXCHANGE_CLIENT_PORT,
+    ExchangeClientPort,
+} from '@components/trading/domain/ports/outbound/exchange-client.port';
 
 @Injectable()
 export class StopGridUseCase {
@@ -21,7 +21,7 @@ export class StopGridUseCase {
     constructor(
         @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
     ) {}
 
     async execute(gridId: string): Promise<void> {
