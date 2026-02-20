@@ -37,7 +37,9 @@ describe('GridPnlCalculatorService', () => {
     });
 
     it('returns 0 for empty orders', () => {
-        expect(service.calculate([])).toBe(0);
+        const result = service.calculate([], 100);
+        expect(result.gridProfit).toBe(0);
+        expect(result.unrealizedPnl).toBe(0);
     });
 
     it('returns 0 when no filled orders', () => {
@@ -45,19 +47,24 @@ describe('GridPnlCalculatorService', () => {
             makeOrder(OrderSide.Buy, 100, 1, OrderStatus.Placed),
             makeOrder(OrderSide.Sell, 110, 1, OrderStatus.Pending),
         ];
-        expect(service.calculate(orders)).toBe(0);
+        const result = service.calculate(orders, 105);
+        expect(result.gridProfit).toBe(0);
+        expect(result.unrealizedPnl).toBe(0);
     });
 
-    it('returns positive PnL when sells exceed buys', () => {
+    it('returns positive gridProfit when sells exceed buys', () => {
         const orders = [makeOrder(OrderSide.Buy, 100, 1), makeOrder(OrderSide.Sell, 110, 1)];
-        // sell: 110 - buy: 100 = +10
-        expect(service.calculate(orders)).toBeCloseTo(10);
+        // sell: 110 - buy: 100 = +10; qtyHeld = 0
+        const result = service.calculate(orders, 115);
+        expect(result.gridProfit).toBeCloseTo(10);
+        expect(result.unrealizedPnl).toBe(0);
     });
 
-    it('returns negative PnL when buys exceed sells', () => {
+    it('returns negative gridProfit when buys exceed sells', () => {
         const orders = [makeOrder(OrderSide.Buy, 100, 2), makeOrder(OrderSide.Sell, 110, 1)];
         // sell: 110 - buy: 200 = -90
-        expect(service.calculate(orders)).toBeCloseTo(-90);
+        const result = service.calculate(orders, 105);
+        expect(result.gridProfit).toBeCloseTo(-90);
     });
 
     it('sums multiple filled orders correctly', () => {
@@ -67,8 +74,10 @@ describe('GridPnlCalculatorService', () => {
             makeOrder(OrderSide.Sell, 110, 1),
             makeOrder(OrderSide.Sell, 115, 1),
         ];
-        // sell: 110 + 115 = 225, buy: 100 + 105 = 205 → +20
-        expect(service.calculate(orders)).toBeCloseTo(20);
+        // sell: 225, buy: 205 → +20; qtyHeld = 0
+        const result = service.calculate(orders, 120);
+        expect(result.gridProfit).toBeCloseTo(20);
+        expect(result.unrealizedPnl).toBe(0);
     });
 
     it('ignores non-filled orders in mixed list', () => {
@@ -77,7 +86,36 @@ describe('GridPnlCalculatorService', () => {
             makeOrder(OrderSide.Buy, 90, 5, OrderStatus.Placed),
             makeOrder(OrderSide.Sell, 110, 1),
         ];
-        // sell: 110 - buy: 100 = +10 (the placed buy is ignored)
-        expect(service.calculate(orders)).toBeCloseTo(10);
+        // sell: 110 - buy: 100 = +10 (placed buy is ignored)
+        const result = service.calculate(orders, 105);
+        expect(result.gridProfit).toBeCloseTo(10);
+    });
+
+    it('calculates unrealized PnL for held quantity', () => {
+        const orders = [makeOrder(OrderSide.Buy, 100, 2)];
+        // no sells → qtyHeld = 2, avgBuyPrice = 100
+        // unrealizedPnl = 2 × (110 − 100) = 20
+        const result = service.calculate(orders, 110);
+        expect(result.unrealizedPnl).toBeCloseTo(20);
+    });
+
+    it('calculates unrealized PnL with weighted average buy price', () => {
+        const orders = [
+            makeOrder(OrderSide.Buy, 100, 1),
+            makeOrder(OrderSide.Buy, 120, 1),
+            makeOrder(OrderSide.Sell, 130, 1),
+        ];
+        // filled buys: qty=2, avgBuyPrice = (100+120)/2 = 110
+        // filled sells: qty=1 → qtyHeld = 1
+        // unrealizedPnl = 1 × (140 − 110) = 30
+        const result = service.calculate(orders, 140);
+        expect(result.unrealizedPnl).toBeCloseTo(30);
+    });
+
+    it('returns negative unrealized PnL when price is below avgBuyPrice', () => {
+        const orders = [makeOrder(OrderSide.Buy, 100, 1)];
+        // currentPrice < avgBuyPrice → unrealized loss
+        const result = service.calculate(orders, 90);
+        expect(result.unrealizedPnl).toBeCloseTo(-10);
     });
 });

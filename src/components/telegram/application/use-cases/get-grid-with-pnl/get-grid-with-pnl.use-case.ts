@@ -1,7 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GridId } from '@domain/models/grid/grid-id';
-import { OrderStatus } from '@domain/models/order/order-status';
-import { OrderSide } from '@domain/models/order/order-side';
 import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { INFO_CLIENT_PORT, InfoClientPort } from '@domain/ports/outbound/info-client.port';
 import {
@@ -13,6 +11,7 @@ import {
     TelegramOrderRepositoryPort,
 } from '@components/telegram/domain/ports/outbound/order-repository.port';
 import { GridWithPnl } from '../get-grids-with-pnl/grid-with-pnl';
+import { computeOrderStats } from '../get-grids-with-pnl/get-grids-with-pnl.use-case';
 
 @Injectable()
 export class GetGridWithPnlUseCase {
@@ -35,11 +34,10 @@ export class GetGridWithPnlUseCase {
             this.infoClient.getCurrentPrice(grid.symbol),
         ]);
 
-        const pnl = this.pnlCalculator.calculate(orders);
-        const profitableTrades = orders.filter(
-            (o) => o.status === OrderStatus.Filled && o.side === OrderSide.Sell,
-        ).length;
+        const price = currentPrice.toNumber();
+        const pnl = this.pnlCalculator.calculate(orders, price);
+        const orderStats = computeOrderStats(orders);
 
-        return { grid, pnl, currentPrice: currentPrice.toNumber(), profitableTrades };
+        return { grid, pnl, currentPrice: price, orderStats, orders };
     }
 }

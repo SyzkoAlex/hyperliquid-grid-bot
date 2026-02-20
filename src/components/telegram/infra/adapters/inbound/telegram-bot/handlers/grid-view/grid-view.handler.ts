@@ -28,6 +28,12 @@ export class GridViewHandler implements Handler {
 
     register(): void {
         this.telegramBotService.onAction(GridAction.VIEW_PATTERN, (ctx) => this.handleView(ctx));
+        this.telegramBotService.onAction(GridAction.VIEW_ORDERS_PATTERN, (ctx) =>
+            this.handleOrdersTab(ctx),
+        );
+        this.telegramBotService.onAction(GridAction.VIEW_HISTORY_PATTERN, (ctx) =>
+            this.handleHistoryTab(ctx),
+        );
         this.telegramBotService.onAction(GridAction.STOP_PATTERN, (ctx) =>
             this.handleStopRequest(ctx),
         );
@@ -46,8 +52,32 @@ export class GridViewHandler implements Handler {
         const item = await this.fetchGrid(ctx, gridId);
         if (!item) return;
 
-        const text = GridListItemMessage.fromCardData(item);
-        const markup = this.buildDetailsKeyboard(gridId);
+        const text = GridListItemMessage.profitTab(item);
+        const markup = this.buildDetailKeyboard(gridId);
+        await ctx.editMessageText(text, { parse_mode: 'HTML', ...markup });
+    }
+
+    private async handleOrdersTab(ctx: BotContext): Promise<void> {
+        await ctx.answerCbQuery();
+        const gridId = ctx.match![1];
+
+        const item = await this.fetchGrid(ctx, gridId);
+        if (!item) return;
+
+        const text = GridListItemMessage.ordersTab(item);
+        const markup = this.buildSubTabKeyboard(gridId);
+        await ctx.editMessageText(text, { parse_mode: 'HTML', ...markup });
+    }
+
+    private async handleHistoryTab(ctx: BotContext): Promise<void> {
+        await ctx.answerCbQuery();
+        const gridId = ctx.match![1];
+
+        const item = await this.fetchGrid(ctx, gridId);
+        if (!item) return;
+
+        const text = GridListItemMessage.historyTab(item);
+        const markup = this.buildSubTabKeyboard(gridId);
         await ctx.editMessageText(text, { parse_mode: 'HTML', ...markup });
     }
 
@@ -112,12 +142,23 @@ export class GridViewHandler implements Handler {
         }
     }
 
-    private buildDetailsKeyboard(gridId: string) {
+    private buildDetailKeyboard(gridId: string) {
         const buttons: InlineButton[][] = [
+            [
+                { text: `${EMOJI.CLIPBOARD} Orders`, action: GridAction.ordersTab(gridId) },
+                { text: `📜 History`, action: GridAction.historyTab(gridId) },
+            ],
             [
                 { text: `${EMOJI.RED_CIRCLE} Stop`, action: GridAction.stop(gridId) },
                 { text: `${EMOJI.BACK} Back to List`, action: TelegramAction.ListGrids },
             ],
+        ];
+        return toInlineKeyboard(buttons);
+    }
+
+    private buildSubTabKeyboard(gridId: string) {
+        const buttons: InlineButton[][] = [
+            [{ text: `${EMOJI.BACK} Back`, action: GridAction.view(gridId) }],
         ];
         return toInlineKeyboard(buttons);
     }
