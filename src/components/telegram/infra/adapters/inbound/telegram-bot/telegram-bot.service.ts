@@ -8,6 +8,8 @@ import { SessionData } from './types/session-data';
 import { RedisSessionStore } from './redis-session-store';
 import { CreateGridSceneHandler } from './scenes/create-grid/create-grid.scene';
 import { TelegramParseMode } from '@components/telegram/domain/models/telegram-parse-mode.enum';
+import { createErrorHandlerMiddleware } from './middleware/error-handler.middleware';
+import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
@@ -38,14 +40,28 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
 
         this._bot = new Telegraf<BotContext>(this.botToken);
 
+        // Safety net for Telegraf-level errors (polling failures, webhook errors).
+        // Handler errors are caught earlier by createErrorHandlerMiddleware.
+        this._bot.catch((error) => {
+            this.logger.error({ error }, 'Unhandled Telegraf-level error');
+        });
+
+        // Middleware chain (order matters):
+        //   session     — hydrate/persist session data
+        //   auth        — reject unauthorized early, before any business logic
+        //   error-handler — safety net for handler errors; wraps everything below
+        //   dedup       — block duplicate button presses while a handler is running
+        //   stage       — scenes and registered command/action handlers
         this._bot.use(
             session<SessionData, BotContext>({
                 store: this.sessionStore,
                 defaultSession: () => ({}),
             }),
         );
-        this._bot.use(this.stage.middleware());
         this.registerAuthMiddleware();
+        this._bot.use(createErrorHandlerMiddleware());
+        this._bot.use(createCallbackDedupMiddleware());
+        this._bot.use(this.stage.middleware());
 
         this.logger.info('Telegram bot service initialized');
     }
