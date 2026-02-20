@@ -75,6 +75,20 @@ describe('createErrorHandlerMiddleware', () => {
         expect(ctx.answerCbQuery).not.toHaveBeenCalled();
     });
 
+    it('silently swallows "message is not modified" Telegram error', async () => {
+        const ctx = makeCtx({ callbackQuery: { data: 'some:action' } } as Partial<BotContext>);
+        const telegramError = {
+            response: { description: 'Bad Request: message is not modified' },
+        };
+        const next = makeNext().mockRejectedValue(telegramError);
+
+        await expect(middleware(ctx, asNext(next))).resolves.toBeUndefined();
+
+        expect(mockLog.error).not.toHaveBeenCalled();
+        expect(ctx.reply).not.toHaveBeenCalled();
+        expect(ctx.answerCbQuery).toHaveBeenCalledOnce();
+    });
+
     it('handles reply failure gracefully and logs both errors', async () => {
         const ctx = makeCtx();
         vi.mocked(ctx.reply).mockRejectedValue(new Error('telegram API down'));
