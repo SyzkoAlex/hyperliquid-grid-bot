@@ -8,8 +8,8 @@ import { GridMode } from '@domain/models/grid/grid-mode';
 describe('PostgresGridRepositoryAdapter (telegram, Integration)', () => {
     let repository: PostgresGridRepositoryAdapter;
 
-    const runningGridId = '00000000-0000-0000-0000-000000000001';
-    const stoppedGridId = '00000000-0000-0000-0000-000000000002';
+    const runningGridId = '11111111-1111-4111-8111-111111111111';
+    const stoppedGridId = '22222222-2222-4222-8222-222222222222';
 
     const baseGrid = {
         symbol: 'BTC',

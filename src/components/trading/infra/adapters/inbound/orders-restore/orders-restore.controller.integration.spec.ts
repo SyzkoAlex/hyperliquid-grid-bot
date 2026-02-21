@@ -22,6 +22,9 @@ import { GridMode } from '@domain/models/grid/grid-mode';
 import { ExchangeOrderStatus } from '@components/trading/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
 import { PostgresGridRepositoryAdapter } from '@components/trading/infra/adapters/outbound/persistence/grid/postgres-grid-repository.adapter';
+import { GRID_REPOSITORY_PORT } from '@components/trading/domain/ports/outbound/grid-repository.port';
+import { ORDER_REPOSITORY_PORT } from '@components/trading/domain/ports/outbound/order-repository.port';
+import { EXCHANGE_CLIENT_PORT } from '@components/trading/domain/ports/outbound/exchange-client.port';
 import { DatabaseTestHelper } from '@infra/database/database-test-helper';
 import { CacheTestHelper } from '@infra/cache/cache-test-helper';
 import type { DrizzleDb } from '@infra/database/drizzle-db';
@@ -436,9 +439,7 @@ describe('OrdersRestoreController (Integration)', () => {
 
         // Override providers
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
-        moduleBuilder
-            .overrideProvider(HyperliquidOrderClientAdapter)
-            .useValue(mockHyperliquidOrderClient);
+        moduleBuilder.overrideProvider(EXCHANGE_CLIENT_PORT).useValue(mockHyperliquidOrderClient);
         moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
 
         // Compile module
@@ -446,12 +447,8 @@ describe('OrdersRestoreController (Integration)', () => {
 
         // Get instances from module
         controller = module.get<OrdersRestoreController>(OrdersRestoreController);
-        orderRepository = module.get<PostgresOrderRepositoryAdapter>(
-            PostgresOrderRepositoryAdapter,
-        );
-        gridRepository = module.get<PostgresGridRepositoryAdapter>(PostgresGridRepositoryAdapter);
-        hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(
-            HyperliquidOrderClientAdapter,
-        );
+        orderRepository = module.get<PostgresOrderRepositoryAdapter>(ORDER_REPOSITORY_PORT);
+        gridRepository = module.get<PostgresGridRepositoryAdapter>(GRID_REPOSITORY_PORT);
+        hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(EXCHANGE_CLIENT_PORT);
     }
 });

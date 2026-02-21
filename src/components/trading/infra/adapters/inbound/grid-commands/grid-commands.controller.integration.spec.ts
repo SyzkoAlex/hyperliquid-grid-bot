@@ -11,6 +11,9 @@ import { HyperliquidOrderClientAdapter } from '@components/trading/infra/adapter
 import { HyperliquidInfoClientAdapter } from '@components/shared/infra/adapters/outbound/exchange/hyperliquid/hyperliquid-info-client.adapter';
 import { OrderEventsListener } from '@components/trading/infra/adapters/outbound/exchange/hyperliquid/order-events.listener';
 import { PostgresGridRepositoryAdapter } from '@components/trading/infra/adapters/outbound/persistence/grid/postgres-grid-repository.adapter';
+import { GRID_REPOSITORY_PORT } from '@components/trading/domain/ports/outbound/grid-repository.port';
+import { EXCHANGE_CLIENT_PORT } from '@components/trading/domain/ports/outbound/exchange-client.port';
+import { INFO_CLIENT_PORT } from '@domain/ports/outbound/info-client.port';
 import { EVENT_BUS, EventBus } from '@infra/events/event-bus.port';
 import { CreateGridCommandEvent } from '@domain/models/events/commands/create-grid-command.event';
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
@@ -155,12 +158,15 @@ describe('GridCommandsController (Integration)', () => {
 
         it('should use default values when not provided', async () => {
             // Mock Hyperliquid responses
+            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
+            //   total = withdrawableBalance + eth * price = 17500 + 5*3500 = 35000
+            //   investmentUSDC = 17500, investmentBase = 5 — exactly balanced
             const mockUserState = UserState.create({
-                withdrawableBalance: Decimal.from(20000),
+                withdrawableBalance: Decimal.from(17500),
                 assetPositions: [
                     AssetPosition.create({
                         symbol: TradingSymbol.create('USDC'),
-                        size: Decimal.from(15000),
+                        size: Decimal.from(17500),
                     }),
                     AssetPosition.create({
                         symbol: TradingSymbol.create('ETH'),
@@ -215,12 +221,15 @@ describe('GridCommandsController (Integration)', () => {
         });
 
         it('should create grid with trailing enabled', async () => {
+            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
+            //   total = withdrawableBalance + sol * price = 12500 + 100*125 = 25000
+            //   investmentUSDC = 12500, investmentBase = 100 — exactly balanced
             const mockUserState = UserState.create({
-                withdrawableBalance: Decimal.from(20000),
+                withdrawableBalance: Decimal.from(12500),
                 assetPositions: [
                     AssetPosition.create({
                         symbol: TradingSymbol.create('USDC'),
-                        size: Decimal.from(15000),
+                        size: Decimal.from(12500),
                     }),
                     AssetPosition.create({
                         symbol: TradingSymbol.create('SOL'),
@@ -345,13 +354,20 @@ describe('GridCommandsController (Integration)', () => {
             expect(grids.length).toBe(0);
         });
 
-        it('should handle order placement failure', async () => {
+        it('should handle order placement failure gracefully', async () => {
+            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
+            //   total = withdrawableBalance + btc * price = 4000 + 0.08*50000 = 8000
+            //   investmentUSDC = 4000, investmentBase = 0.08 — exactly balanced
             const mockUserState = UserState.create({
-                withdrawableBalance: Decimal.from(8000),
+                withdrawableBalance: Decimal.from(4000),
                 assetPositions: [
                     AssetPosition.create({
                         symbol: TradingSymbol.create('USDC'),
-                        size: Decimal.from(5000),
+                        size: Decimal.from(4000),
+                    }),
+                    AssetPosition.create({
+                        symbol: TradingSymbol.create('BTC'),
+                        size: Decimal.from(0.08),
                     }),
                 ],
             });
@@ -359,13 +375,23 @@ describe('GridCommandsController (Integration)', () => {
             vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
             vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
 
-            // Mock order placement failure
+            // Mock order placement failure — OrderPlacementService catches individual errors
+            // so the grid creation itself succeeds (success event published, not error event)
             vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockRejectedValue(
                 new Error('Order rejected'),
             );
 
-            const errorHandler = vi.fn();
-            eventBus.subscribe(EventType.GridCreatedError, errorHandler);
+            let unsubscribe: (() => void) | undefined;
+            const successEventPromise = new Promise<GridCreatedSuccessEvent>((resolve) => {
+                unsubscribe = eventBus.subscribe(
+                    EventType.GridCreatedSuccess,
+                    (event: GridCreatedSuccessEvent) => {
+                        if (event.symbol === 'BTC') {
+                            resolve(event);
+                        }
+                    },
+                );
+            });
 
             const command = CreateGridCommandEvent.create({
                 symbol: 'BTC',
@@ -375,33 +401,40 @@ describe('GridCommandsController (Integration)', () => {
 
             await eventBus.publish(command);
 
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Grid creation succeeds because OrderPlacementService handles individual
+            // order failures gracefully (logs error, continues, returns placedCount=0)
+            await successEventPromise;
+            unsubscribe?.();
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-            // Verify error event was published
-            expect(errorHandler).toHaveBeenCalledTimes(1);
-            const errorEvent = errorHandler.mock.calls[0][0] as GridCreatedErrorEvent;
-            expect(errorEvent.error).toContain(
-                'Neutral mode requires both quote and base investment',
-            );
+            // Verify grid was created despite all orders failing
+            const grids = await gridRepository.findManyActive();
+            expect(grids.length).toBe(1);
+
+            // Verify order placement was attempted
+            expect(hyperliquidOrderClient.placeSpotOrder).toHaveBeenCalled();
         });
     });
 
     describe('Multiple Grids', () => {
         it('should create multiple grids for different symbols', async () => {
+            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
+            //   BTC: total = 35000 + 0.7*50000 = 70000, investmentUSDC=35000, investmentBase=0.7 — balanced
+            //   ETH: total = 35000 + 10*3500 = 70000, investmentUSDC=35000, investmentBase=10 — balanced
             const mockUserState = UserState.create({
-                withdrawableBalance: Decimal.from(30000),
+                withdrawableBalance: Decimal.from(35000),
                 assetPositions: [
                     AssetPosition.create({
                         symbol: TradingSymbol.create('USDC'),
-                        size: Decimal.from(20000),
+                        size: Decimal.from(35000),
                     }),
                     AssetPosition.create({
                         symbol: TradingSymbol.create('BTC'),
-                        size: Decimal.from(0.3),
+                        size: Decimal.from(0.7),
                     }),
                     AssetPosition.create({
                         symbol: TradingSymbol.create('ETH'),
-                        size: Decimal.from(5),
+                        size: Decimal.from(10),
                     }),
                 ],
             });
@@ -518,25 +551,17 @@ async function setupTestEnvironment() {
 
     // Override providers
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
-    moduleBuilder
-        .overrideProvider(HyperliquidOrderClientAdapter)
-        .useValue(mockHyperliquidOrderClient);
-    moduleBuilder
-        .overrideProvider(HyperliquidInfoClientAdapter)
-        .useValue(mockHyperliquidInfoClient);
+    moduleBuilder.overrideProvider(EXCHANGE_CLIENT_PORT).useValue(mockHyperliquidOrderClient);
+    moduleBuilder.overrideProvider(INFO_CLIENT_PORT).useValue(mockHyperliquidInfoClient);
     moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
 
     // Compile module
     const module = await moduleBuilder.compile();
 
     // Get instances from module
-    const gridRepository = module.get<PostgresGridRepositoryAdapter>(PostgresGridRepositoryAdapter);
-    const hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(
-        HyperliquidOrderClientAdapter,
-    );
-    const hyperliquidInfoClient = module.get<HyperliquidInfoClientAdapter>(
-        HyperliquidInfoClientAdapter,
-    );
+    const gridRepository = module.get<PostgresGridRepositoryAdapter>(GRID_REPOSITORY_PORT);
+    const hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(EXCHANGE_CLIENT_PORT);
+    const hyperliquidInfoClient = module.get<HyperliquidInfoClientAdapter>(INFO_CLIENT_PORT);
     const eventBus = module.get<EventBus>(EVENT_BUS);
 
     // Manually initialize only the GridCommandsController to set up event subscriptions
