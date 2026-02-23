@@ -4,7 +4,7 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { ExchangeOrderStatus } from './exchange-order-status';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
+import { ExchangeCloid } from './exchange-cloid';
 
 /**
  * Open Order

@@ -6,13 +6,11 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Timestamp } from '@domain/models/primitives/timestamp';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
 import { GridId } from '../grid/grid-id';
 
 export interface OrderParams {
     id?: OrderId;
     exchangeOrderId?: string;
-    cloid?: ExchangeCloid;
     symbol: TradingSymbol;
     type: OrderType;
     side: OrderSide;
@@ -36,7 +34,6 @@ export interface OrderParams {
 export class Order {
     private readonly _id: OrderId;
     private readonly _exchangeOrderId: string | null;
-    private readonly _cloid: ExchangeCloid | null;
     private readonly _symbol: TradingSymbol;
     private readonly _type: OrderType;
     private readonly _side: OrderSide;
@@ -55,7 +52,6 @@ export class Order {
     private constructor(params: OrderParams) {
         this._id = params.id ?? OrderId.create();
         this._exchangeOrderId = params.exchangeOrderId ?? null;
-        this._cloid = params.cloid ?? null;
         this._symbol = params.symbol;
         this._type = params.type;
         this._side = params.side;
@@ -103,14 +99,6 @@ export class Order {
 
     get exchangeOrderId(): string | null {
         return this._exchangeOrderId;
-    }
-
-    get cloid(): ExchangeCloid | null {
-        // Calculate cloid on-the-fly from order ID for pending orders
-        if (this._status === OrderStatus.Pending && !this._exchangeOrderId) {
-            return ExchangeCloid.create(this._id);
-        }
-        return this._cloid;
     }
 
     get symbol(): TradingSymbol {

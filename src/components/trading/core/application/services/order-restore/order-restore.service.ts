@@ -75,19 +75,10 @@ export class OrderRestoreService {
         dbOrder: Order,
         exchangeOrders: ExchangeOpenOrder[],
     ): Promise<boolean> {
-        if (dbOrder.cloid) {
-            return await this.restoreByCloid(dbOrder, exchangeOrders);
-        }
-
-        return false;
-    }
-
-    private async restoreByCloid(
-        dbOrder: Order,
-        exchangeOrders: ExchangeOpenOrder[],
-    ): Promise<boolean> {
-        const cloidStr = dbOrder.cloid!.toString();
-        const matchingOrders = exchangeOrders.filter((o) => o.cloid?.toString() === cloidStr);
+        const orderId = dbOrder.id.toString();
+        const matchingOrders = exchangeOrders.filter(
+            (o) => o.cloid?.toOrderId()?.toString() === orderId,
+        );
 
         if (matchingOrders.length === 0) {
             return false;
@@ -96,8 +87,7 @@ export class OrderRestoreService {
         if (matchingOrders.length > 1) {
             this.logger.warn(
                 {
-                    orderId: dbOrder.id.toString(),
-                    cloid: cloidStr,
+                    orderId,
                     matchCount: matchingOrders.length,
                 },
                 'Multiple exchange orders found with same cloid - skipping restoration',
@@ -108,7 +98,7 @@ export class OrderRestoreService {
         const exchangeOrder = matchingOrders[0];
 
         await this.grids.updateOrderExchangeId(
-            dbOrder.id.toString(),
+            orderId,
             exchangeOrder.id,
             OrderStatus.Placed,
             new Date(),
@@ -116,9 +106,8 @@ export class OrderRestoreService {
 
         this.logger.info(
             {
-                orderId: dbOrder.id.toString(),
+                orderId,
                 exchangeOrderId: exchangeOrder.id,
-                cloid: cloidStr,
             },
             'Order restored by cloid',
         );

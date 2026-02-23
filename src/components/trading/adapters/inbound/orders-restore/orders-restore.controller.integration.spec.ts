@@ -20,7 +20,7 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { Grid } from '@domain/models/grid/grid';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
+import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { PostgresGridRepositoryAdapter } from '@components/trading/adapters/outbound/persistence/grid/postgres-grid-repository.adapter';
 import { GRID_REPOSITORY_PORT } from '@components/trading/core/application/ports/grid-repository.port';
 import { ORDER_REPOSITORY_PORT } from '@components/trading/core/application/ports/order-repository.port';

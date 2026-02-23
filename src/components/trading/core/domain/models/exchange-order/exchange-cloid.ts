@@ -1,4 +1,3 @@
-import { GridId } from '@domain/models/grid/grid-id';
 import { OrderId } from '@domain/models/order/order-id';
 
 /**
@@ -55,23 +54,6 @@ export class ExchangeCloid {
             const hex = cloid.replace('0x', '');
             const uuidStr = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
             return OrderId.from(uuidStr);
-        } catch (error) {
-            return undefined;
-        }
-    }
-
-    /**
-     * Parse CLOID hex string to GridId (legacy support)
-     */
-    static parseGridId(cloid: string | undefined): GridId | undefined {
-        if (!cloid) {
-            return undefined;
-        }
-
-        try {
-            const hex = cloid.replace('0x', '');
-            const uuidStr = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-            return GridId.from(uuidStr);
         } catch (error) {
             return undefined;
         }

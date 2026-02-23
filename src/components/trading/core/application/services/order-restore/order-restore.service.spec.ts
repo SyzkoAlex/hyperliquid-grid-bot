@@ -11,7 +11,7 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { GridId } from '@domain/models/grid/grid-id';
 import { OrderId } from '@domain/models/order/order-id';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
+import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { Timestamp } from '@domain/models/primitives/timestamp';
 
 describe('OrderRestoreService', () => {

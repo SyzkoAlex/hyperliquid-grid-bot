@@ -10,7 +10,7 @@ import { OrderId } from '@domain/models/order/order-id';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
+import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 
 describe('SyncOrdersUseCase', () => {

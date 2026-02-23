@@ -10,7 +10,7 @@ import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
-import { ExchangeCloid } from '@domain/models/exchange-order/exchange-cloid';
+import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { HyperliquidSdkService } from '@/infra/hyperliqued/hyperliquid-sdk.service';
 import { HyperliquidApiClient } from '@/infra/hyperliqued/hyperliquid-api.client';
 import { HyperliquidPlaceOrderRequest } from '@/infra/hyperliqued/types/hyperliquid-place-order-request';
