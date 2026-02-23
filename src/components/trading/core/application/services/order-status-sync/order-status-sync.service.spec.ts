@@ -21,7 +21,7 @@ describe('OrderStatusSyncService', () => {
         get: ReturnType<typeof vi.fn>;
     };
     let mockOrderRepository: {
-        updateStatus: ReturnType<typeof vi.fn>;
+        updateOrderStatus: ReturnType<typeof vi.fn>;
     };
 
     beforeEach(() => {
@@ -41,7 +41,7 @@ describe('OrderStatusSyncService', () => {
         };
 
         mockOrderRepository = {
-            updateStatus: vi.fn(),
+            updateOrderStatus: vi.fn(),
         };
 
         service = new OrderStatusSyncService(
@@ -128,7 +128,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.filledOrders).toContainEqual(order2);
             expect(result.processed).toBe(2);
             expect(result.filled).toBe(2);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledTimes(2);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
         });
 
         it('should handle cancelled orders but not return them', async () => {
@@ -142,7 +142,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(1);
             expect(result.cancelled).toBe(1);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 order1.id.toString(),
                 OrderStatus.Cancelled,
                 undefined,
@@ -171,7 +171,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.processed).toBe(3);
             expect(result.filled).toBe(2);
             expect(result.cancelled).toBe(1);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledTimes(3);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(3);
         });
 
         it('should mark order as missing when not in history', async () => {
@@ -185,7 +185,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(1);
             expect(result.missing).toBe(1);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 order1.id.toString(),
                 OrderStatus.Missing,
                 undefined,
@@ -204,8 +204,8 @@ describe('OrderStatusSyncService', () => {
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(2);
             expect(result.missing).toBe(2);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledTimes(2);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 order1.id.toString(),
                 OrderStatus.Missing,
                 undefined,
@@ -268,7 +268,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.filledOrders).toContainEqual(order1);
             expect(result.processed).toBe(1);
             expect(result.filled).toBe(1);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 order1.id.toString(),
                 OrderStatus.Filled,
                 expect.any(Date),

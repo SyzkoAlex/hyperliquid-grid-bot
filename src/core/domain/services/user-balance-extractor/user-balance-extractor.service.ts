@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { UserBalances } from '@domain/models/user-balances';
 import { UserState } from '@domain/models/user-state/user-state';
@@ -49,6 +50,7 @@ import { UserState } from '@domain/models/user-state/user-state';
  * }
  * ```
  */
+@Injectable()
 export class UserBalanceExtractorService {
     /**
      * Extract user balances from UserState domain object

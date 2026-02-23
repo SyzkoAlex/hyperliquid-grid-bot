@@ -17,9 +17,9 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
 describe('OrderRestoreService', () => {
     let service: OrderRestoreService;
     let mockOrderRepository: {
-        findManyByStatus: ReturnType<typeof vi.fn>;
-        updateExchangeOrderId: ReturnType<typeof vi.fn>;
-        updateStatus: ReturnType<typeof vi.fn>;
+        findOrdersByStatus: ReturnType<typeof vi.fn>;
+        updateOrderExchangeId: ReturnType<typeof vi.fn>;
+        updateOrderStatus: ReturnType<typeof vi.fn>;
     };
     let mockConfigService: {
         get: ReturnType<typeof vi.fn>;
@@ -29,9 +29,9 @@ describe('OrderRestoreService', () => {
 
     beforeEach(() => {
         mockOrderRepository = {
-            findManyByStatus: vi.fn(),
-            updateExchangeOrderId: vi.fn(),
-            updateStatus: vi.fn(),
+            findOrdersByStatus: vi.fn(),
+            updateOrderExchangeId: vi.fn(),
+            updateOrderStatus: vi.fn(),
         };
 
         mockConfigService = {
@@ -86,13 +86,15 @@ describe('OrderRestoreService', () => {
         });
 
         it('should return 0 when no pending orders exist', async () => {
-            mockOrderRepository.findManyByStatus.mockResolvedValue([]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([]);
 
             const result = await service.restoreOrders([]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.findManyByStatus).toHaveBeenCalledWith(OrderStatus.Pending);
-            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+            expect(mockOrderRepository.findOrdersByStatus).toHaveBeenCalledWith(
+                OrderStatus.Pending,
+            );
+            expect(mockOrderRepository.updateOrderExchangeId).not.toHaveBeenCalled();
         });
 
         it('should restore order by matching cloid', async () => {
@@ -101,12 +103,12 @@ describe('OrderRestoreService', () => {
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([exchangeOrder]);
 
             expect(result).toBe(1);
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
                 pendingOrder.id.toString(),
                 'exchange-order-1',
                 OrderStatus.Placed,
@@ -125,23 +127,26 @@ describe('OrderRestoreService', () => {
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
             const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid2);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder1, pendingOrder2]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([
+                pendingOrder1,
+                pendingOrder2,
+            ]);
 
             const result = await service.restoreOrders([exchangeOrder1, exchangeOrder2]);
 
             expect(result).toBe(2);
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledTimes(2);
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(2);
         });
 
         it('should not restore order without cloid', async () => {
             const pendingOrder = createPendingOrder(undefined);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderExchangeId).not.toHaveBeenCalled();
         });
 
         it('should not restore when no matching exchange order found', async () => {
@@ -151,12 +156,12 @@ describe('OrderRestoreService', () => {
             const differentCloid = ExchangeCloid.create(differentOrderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', differentCloid);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([exchangeOrder]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderExchangeId).not.toHaveBeenCalled();
         });
 
         it('should skip restoration when multiple exchange orders have same cloid', async () => {
@@ -166,12 +171,12 @@ describe('OrderRestoreService', () => {
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid);
             const exchangeOrder2 = createExchangeOrder('exchange-order-2', cloid);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([exchangeOrder1, exchangeOrder2]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderExchangeId).not.toHaveBeenCalled();
         });
 
         it('should mark stale pending order as missing when not found on exchange', async () => {
@@ -179,12 +184,12 @@ describe('OrderRestoreService', () => {
             const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
             const stalePendingOrder = createPendingOrder(orderId, staleTimestamp);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([stalePendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([stalePendingOrder]);
 
             const result = await service.restoreOrders([]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 stalePendingOrder.id.toString(),
                 OrderStatus.Missing,
             );
@@ -195,24 +200,24 @@ describe('OrderRestoreService', () => {
             const freshTimestamp = Timestamp.from(new Date(Date.now() - 1000)); // 1 second ago
             const freshPendingOrder = createPendingOrder(orderId, freshTimestamp);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([freshPendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([freshPendingOrder]);
 
             const result = await service.restoreOrders([]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderStatus).not.toHaveBeenCalled();
         });
 
         it('should not mark pending order without placedAt as missing', async () => {
             const orderId = OrderId.create();
             const pendingOrder = createPendingOrder(orderId, undefined);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderStatus).not.toHaveBeenCalled();
         });
 
         it('should restore some orders and mark others as missing', async () => {
@@ -227,18 +232,21 @@ describe('OrderRestoreService', () => {
 
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder1, pendingOrder2]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([
+                pendingOrder1,
+                pendingOrder2,
+            ]);
 
             const result = await service.restoreOrders([exchangeOrder1]);
 
             expect(result).toBe(1);
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
                 pendingOrder1.id.toString(),
                 'exchange-order-1',
                 OrderStatus.Placed,
                 expect.any(Date),
             );
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 pendingOrder2.id.toString(),
                 OrderStatus.Missing,
             );
@@ -249,12 +257,12 @@ describe('OrderRestoreService', () => {
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrderWithoutCloid = createExchangeOrder('exchange-order-1', undefined);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([exchangeOrderWithoutCloid]);
 
             expect(result).toBe(0);
-            expect(mockOrderRepository.updateExchangeOrderId).not.toHaveBeenCalled();
+            expect(mockOrderRepository.updateOrderExchangeId).not.toHaveBeenCalled();
         });
 
         it('should match cloid by string comparison', async () => {
@@ -263,12 +271,12 @@ describe('OrderRestoreService', () => {
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
 
-            mockOrderRepository.findManyByStatus.mockResolvedValue([pendingOrder]);
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
             const result = await service.restoreOrders([exchangeOrder]);
 
             expect(result).toBe(1);
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
                 pendingOrder.id.toString(),
                 'exchange-order-1',
                 OrderStatus.Placed,

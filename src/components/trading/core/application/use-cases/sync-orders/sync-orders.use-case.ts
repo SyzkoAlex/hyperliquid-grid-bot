@@ -4,14 +4,7 @@ import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
-import {
-    GRID_REPOSITORY_PORT,
-    GridRepositoryPort,
-} from '@components/trading/core/application/ports/grid-repository.port';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { logger } from '@/infra/logger/logger';
@@ -27,8 +20,7 @@ export class SyncOrdersUseCase {
     constructor(
         private readonly configService: ConfigService<Config, true>,
         @Inject(EXCHANGE_CLIENT_PORT) private readonly hyperliquidOrderClient: ExchangeClientPort,
-        @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
     ) {
@@ -43,14 +35,14 @@ export class SyncOrdersUseCase {
         );
 
         // Fetch all active grids
-        const activeGrids = await this.gridRepository.findManyActive();
+        const activeGrids = await this.grids.findActiveGrids();
         if (activeGrids.length === 0) {
             return result;
         }
 
         // Fetch all placed orders for active grids
         const gridIds = activeGrids.map((grid) => grid.id.toString());
-        const allActiveDbOrders = await this.orderRepository.findManyPlacedByGridIds(gridIds);
+        const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
         if (allActiveDbOrders.length === 0) {
             return result;
         }

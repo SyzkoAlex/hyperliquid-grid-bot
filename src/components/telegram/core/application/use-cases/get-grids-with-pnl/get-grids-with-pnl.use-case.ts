@@ -3,42 +3,31 @@ import { Order } from '@domain/models/order/order';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
+    TRADING_QUERY_PORT,
+    TradingQueryPort,
+} from '@components/trading/core/application/ports/trading-query.port';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
-import {
-    TELEGRAM_GRID_REPOSITORY_PORT,
-    TelegramGridRepositoryPort,
-} from '@components/telegram/core/application/ports/grid-repository.port';
-import {
-    TELEGRAM_ORDER_REPOSITORY_PORT,
-    TelegramOrderRepositoryPort,
-} from '@components/telegram/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { GridFilter } from './grid-filter';
 import { GridWithPnl, OrderStats } from './grid-with-pnl';
 
 @Injectable()
 export class GetGridsWithPnlUseCase {
     constructor(
-        @Inject(TELEGRAM_GRID_REPOSITORY_PORT)
-        private readonly gridRepository: TelegramGridRepositoryPort,
-        @Inject(TELEGRAM_ORDER_REPOSITORY_PORT)
-        private readonly orderRepository: TelegramOrderRepositoryPort,
-        @Inject(EXCHANGE_INFO_PORT)
-        private readonly infoClient: ExchangeInfoPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(TRADING_QUERY_PORT) private readonly tradingQuery: TradingQueryPort,
         private readonly pnlCalculator: GridPnlCalculatorService,
     ) {}
 
     async execute(filter: GridFilter = GridFilter.All): Promise<GridWithPnl[]> {
-        const grids = await this.fetchGrids(filter);
+        const gridList = await this.fetchGrids(filter);
 
         return Promise.all(
-            grids.map(async (grid) => {
+            gridList.map(async (grid) => {
                 const [orders, currentPrice] = await Promise.all([
-                    this.orderRepository.findManyByGridId(grid.id),
-                    this.infoClient.getCurrentPrice(grid.symbol),
+                    this.grids.findOrdersByGridId(grid.id),
+                    this.tradingQuery.getCurrentPrice(grid.symbol),
                 ]);
                 const price = currentPrice.toNumber();
                 const pnl = this.pnlCalculator.calculate(orders, price);
@@ -50,12 +39,12 @@ export class GetGridsWithPnlUseCase {
 
     private async fetchGrids(filter: GridFilter) {
         if (filter === GridFilter.Running) {
-            return this.gridRepository.findManyByStatus(GridStatus.Running);
+            return this.grids.findGridsByStatus(GridStatus.Running);
         }
         if (filter === GridFilter.Stopped) {
-            return this.gridRepository.findManyByStatus(GridStatus.Stopped);
+            return this.grids.findGridsByStatus(GridStatus.Stopped);
         }
-        return this.gridRepository.findAll();
+        return this.grids.findAllGrids();
     }
 }
 

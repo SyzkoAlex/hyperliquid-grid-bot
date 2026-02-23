@@ -1,14 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GridId } from '@domain/models/grid/grid-id';
 import { logger } from '@/infra/logger/logger';
-import {
-    GRID_REPOSITORY_PORT,
-    GridRepositoryPort,
-} from '@components/trading/core/application/ports/grid-repository.port';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
@@ -19,14 +12,13 @@ export class StopGridUseCase {
     private readonly logger = logger.child({ context: StopGridUseCase.name });
 
     constructor(
-        @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
     ) {}
 
     async execute(gridId: string): Promise<void> {
         const id = GridId.from(gridId);
-        const grid = await this.gridRepository.findOneById(id);
+        const grid = await this.grids.findGridById(id);
 
         if (!grid) {
             this.logger.warn({ gridId }, 'Grid not found for stop command');
@@ -35,7 +27,7 @@ export class StopGridUseCase {
 
         this.logger.info({ gridId, symbol: grid.symbol.toString() }, 'Stopping grid');
 
-        const activeOrders = await this.orderRepository.findManyActive(id);
+        const activeOrders = await this.grids.findActiveOrdersByGridId(id);
         for (const order of activeOrders) {
             if (!order.exchangeOrderId) continue;
             try {
@@ -52,7 +44,7 @@ export class StopGridUseCase {
         }
 
         grid.stop();
-        await this.gridRepository.save(grid);
+        await this.grids.saveGrid(grid);
 
         this.logger.info({ gridId }, 'Grid stopped successfully');
     }

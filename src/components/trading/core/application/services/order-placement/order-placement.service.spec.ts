@@ -20,9 +20,9 @@ describe('OrderPlacementService', () => {
         };
 
         orderRepository = {
-            save: vi.fn(),
-            updateExchangeOrderId: vi.fn(),
-            updateStatus: vi.fn(),
+            saveOrder: vi.fn(),
+            updateOrderExchangeId: vi.fn(),
+            updateOrderStatus: vi.fn(),
         };
 
         service = new OrderPlacementService(orderClient, orderRepository);
@@ -61,19 +61,19 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
             });
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(2);
-            expect(orderRepository.save).toHaveBeenCalledTimes(2);
+            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
-            expect(orderRepository.updateExchangeOrderId).toHaveBeenCalledTimes(2);
+            expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(2);
         });
 
         it('should handle buy order with correct amount', async () => {
@@ -101,12 +101,12 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
             });
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
             await service.placeGridOrders(mockGrid, levels);
 
@@ -140,12 +140,12 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
             });
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
             await service.placeGridOrders(mockGrid, levels);
 
@@ -186,7 +186,7 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder
                 .mockResolvedValueOnce({
                     exchangeOrderId: '12345',
@@ -198,17 +198,17 @@ describe('OrderPlacementService', () => {
                     error: 'Network error',
                 });
 
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
-            orderRepository.updateStatus.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
+            orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(1);
-            expect(orderRepository.save).toHaveBeenCalledTimes(2);
+            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
-            expect(orderRepository.updateExchangeOrderId).toHaveBeenCalledTimes(1);
-            expect(orderRepository.updateStatus).toHaveBeenCalledTimes(1);
-            expect(orderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(1);
+            expect(orderRepository.updateOrderStatus).toHaveBeenCalledTimes(1);
+            expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 expect.any(String),
                 OrderStatus.Failed,
             );
@@ -239,18 +239,18 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '',
                 status: OrderStatus.Placed,
             });
-            orderRepository.updateStatus.mockResolvedValue(undefined);
+            orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(0);
-            expect(orderRepository.save).toHaveBeenCalledTimes(1);
-            expect(orderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(1);
+            expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 expect.any(String),
                 OrderStatus.Failed,
             );
@@ -288,21 +288,21 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder
                 .mockRejectedValueOnce(new Error('Network error'))
                 .mockResolvedValueOnce({
                     exchangeOrderId: '67890',
                     status: OrderStatus.Placed,
                 });
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(1);
-            expect(orderRepository.save).toHaveBeenCalledTimes(2);
+            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
-            expect(orderRepository.updateExchangeOrderId).toHaveBeenCalledTimes(1);
+            expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(1);
         });
 
         it('should save orders with pending status before placing', async () => {
@@ -330,16 +330,16 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.save.mockResolvedValue(undefined);
+            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
             });
-            orderRepository.updateExchangeOrderId.mockResolvedValue(undefined);
+            orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
             await service.placeGridOrders(mockGrid, levels);
 
-            expect(orderRepository.save).toHaveBeenCalledWith(
+            expect(orderRepository.saveOrder).toHaveBeenCalledWith(
                 expect.objectContaining({
                     status: OrderStatus.Pending,
                 }),
@@ -366,7 +366,7 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(0);
-            expect(orderRepository.save).not.toHaveBeenCalled();
+            expect(orderRepository.saveOrder).not.toHaveBeenCalled();
             expect(orderClient.placeSpotOrder).not.toHaveBeenCalled();
         });
     });

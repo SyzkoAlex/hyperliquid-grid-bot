@@ -8,11 +8,6 @@ import { HelpHandler } from './adapters/inbound/telegram-bot/handlers/help/help.
 import { MainMenuHandler } from './adapters/inbound/telegram-bot/handlers/main-menu/main-menu.handler';
 import { NotificationMessageFactory } from './core/domain/models/messages/notification-message.factory';
 import { NotifyUserUseCase } from './core/application/use-cases/notify-user/notify-user.use-case';
-import { HyperliquidModule } from '@/infra/hyperliqued/hyperliquid.module';
-import { HyperliquidInfoClientAdapter } from '@adapters/outbound/hyperliquid/hyperliquid-info-client.adapter';
-import { HyperliquidInfoMapper } from '@adapters/outbound/hyperliquid/hyperliquid-info-mapper';
-import { PostgresGridRepositoryAdapter } from './adapters/outbound/persistence/grid/postgres-grid-repository.adapter';
-import { PostgresOrderRepositoryAdapter } from './adapters/outbound/persistence/order/postgres-order-repository.adapter';
 import { CreateGridSceneHandler } from './adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
 import { SelectPairStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-pair.step';
 import { SelectModeStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-mode.step';
@@ -34,20 +29,14 @@ import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-wit
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
 import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
-import { EXCHANGE_INFO_PORT } from '@components/telegram/core/application/ports/exchange-info.port';
-import { TELEGRAM_GRID_REPOSITORY_PORT } from '@components/telegram/core/application/ports/grid-repository.port';
-import { TELEGRAM_ORDER_REPOSITORY_PORT } from '@components/telegram/core/application/ports/order-repository.port';
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
+import { GridsModule } from '@components/grids/grids.module';
+import { TradingModule } from '@components/trading/trading.module';
 
 @Module({
-    imports: [HyperliquidModule],
+    imports: [GridsModule, TradingModule],
     providers: [
-        { provide: EXCHANGE_INFO_PORT, useClass: HyperliquidInfoClientAdapter },
-        { provide: TELEGRAM_GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter },
-        { provide: TELEGRAM_ORDER_REPOSITORY_PORT, useClass: PostgresOrderRepositoryAdapter },
         { provide: TELEGRAM_NOTIFICATION_PORT, useClass: TelegramBotService },
-        HyperliquidInfoMapper,
-        PostgresOrderRepositoryAdapter,
         RedisSessionStore,
         TelegramBotService,
         { provide: NotificationMessageFactory, useValue: new NotificationMessageFactory() },
@@ -57,8 +46,8 @@ import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/applicatio
         MainMenuHandler,
         TelegramCommandsController,
         TradingEventsController,
-        { provide: UserBalanceExtractorService, useValue: new UserBalanceExtractorService() },
-        { provide: CapitalCalculatorService, useValue: new CapitalCalculatorService() },
+        UserBalanceExtractorService,
+        CapitalCalculatorService,
         WizardNavigator,
         WizardMessageManager,
         CreateGridSceneHandler,
@@ -66,7 +55,7 @@ import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/applicatio
         GetGridWithPnlUseCase,
         CreateGridUseCase,
         StopGridUseCase,
-        { provide: GridPnlCalculatorService, useValue: new GridPnlCalculatorService() },
+        GridPnlCalculatorService,
         GridsHandler,
         GridViewHandler,
         SelectPairStep,

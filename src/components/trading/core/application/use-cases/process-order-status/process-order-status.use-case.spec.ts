@@ -16,12 +16,10 @@ import { HyperliquidWsOrderStatus } from '@/infra/hyperliqued/types/hyperliquid-
 
 describe('ProcessOrderStatusUseCase', () => {
     let useCase: ProcessOrderStatusUseCase;
-    let mockOrderRepository: {
-        findOneByExchangeOrderId: ReturnType<typeof vi.fn>;
-        updateStatus: ReturnType<typeof vi.fn>;
-    };
-    let mockGridRepository: {
-        findOneById: ReturnType<typeof vi.fn>;
+    let mockGrids: {
+        findOrderByExchangeId: ReturnType<typeof vi.fn>;
+        updateOrderStatus: ReturnType<typeof vi.fn>;
+        findGridById: ReturnType<typeof vi.fn>;
     };
     let mockOrderRefillService: {
         processOne: ReturnType<typeof vi.fn>;
@@ -30,24 +28,17 @@ describe('ProcessOrderStatusUseCase', () => {
     const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
 
     beforeEach(() => {
-        mockOrderRepository = {
-            findOneByExchangeOrderId: vi.fn(),
-            updateStatus: vi.fn(),
-        };
-
-        mockGridRepository = {
-            findOneById: vi.fn(),
+        mockGrids = {
+            findOrderByExchangeId: vi.fn(),
+            updateOrderStatus: vi.fn(),
+            findGridById: vi.fn(),
         };
 
         mockOrderRefillService = {
             processOne: vi.fn(),
         };
 
-        useCase = new ProcessOrderStatusUseCase(
-            mockOrderRepository as any,
-            mockGridRepository as any,
-            mockOrderRefillService as any,
-        );
+        useCase = new ProcessOrderStatusUseCase(mockGrids as any, mockOrderRefillService as any);
     });
 
     const createOrder = (status: OrderStatus = OrderStatus.Placed): Order =>
@@ -101,7 +92,7 @@ describe('ProcessOrderStatusUseCase', () => {
         it('should return success false when order is not a grid order', async () => {
             const orderStatus = createOrderStatus('filled');
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(null);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(null);
 
             const result = await useCase.execute({ orderStatus });
 
@@ -119,10 +110,10 @@ describe('ProcessOrderStatusUseCase', () => {
             const grid = createGrid(GridStatus.Running);
             const filledOrder = createOrder(OrderStatus.Filled);
 
-            mockOrderRepository.findOneByExchangeOrderId
+            mockGrids.findOrderByExchangeId
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(filledOrder);
-            mockGridRepository.findOneById.mockResolvedValue(grid);
+            mockGrids.findGridById.mockResolvedValue(grid);
             mockOrderRefillService.processOne.mockResolvedValue({
                 success: true,
                 orderId: OrderId.create().toString(),
@@ -133,7 +124,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('filled');
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
                 order.id.toString(),
                 OrderStatus.Filled,
                 expect.any(Date),
@@ -145,14 +136,14 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('filled');
             const order = createOrder(OrderStatus.Filled);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('filled');
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
             expect(mockOrderRefillService.processOne).not.toHaveBeenCalled();
         });
 
@@ -160,8 +151,8 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('filled');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
-            mockGridRepository.findOneById.mockResolvedValue(null);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
+            mockGrids.findGridById.mockResolvedValue(null);
 
             const result = await useCase.execute({ orderStatus });
 
@@ -175,8 +166,8 @@ describe('ProcessOrderStatusUseCase', () => {
             const order = createOrder(OrderStatus.Placed);
             const grid = createGrid(GridStatus.Stopped);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
-            mockGridRepository.findOneById.mockResolvedValue(grid);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
+            mockGrids.findGridById.mockResolvedValue(grid);
 
             const result = await useCase.execute({ orderStatus });
 
@@ -191,10 +182,10 @@ describe('ProcessOrderStatusUseCase', () => {
             const order = createOrder(OrderStatus.Placed);
             const grid = createGrid(GridStatus.Running);
 
-            mockOrderRepository.findOneByExchangeOrderId
+            mockGrids.findOrderByExchangeId
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(null);
-            mockGridRepository.findOneById.mockResolvedValue(grid);
+            mockGrids.findGridById.mockResolvedValue(grid);
 
             const result = await useCase.execute({ orderStatus });
 
@@ -209,10 +200,10 @@ describe('ProcessOrderStatusUseCase', () => {
             const grid = createGrid(GridStatus.Running);
             const filledOrder = createOrder(OrderStatus.Filled);
 
-            mockOrderRepository.findOneByExchangeOrderId
+            mockGrids.findOrderByExchangeId
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(filledOrder);
-            mockGridRepository.findOneById.mockResolvedValue(grid);
+            mockGrids.findGridById.mockResolvedValue(grid);
             mockOrderRefillService.processOne.mockResolvedValue({
                 success: false,
                 error: 'Insufficient balance',
@@ -231,14 +222,14 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('canceled');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('canceled');
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
                 order.id.toString(),
                 OrderStatus.Cancelled,
             );
@@ -248,14 +239,14 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('marginCanceled');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('marginCanceled');
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
                 order.id.toString(),
                 OrderStatus.Cancelled,
             );
@@ -265,13 +256,13 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('canceled');
             const order = createOrder(OrderStatus.Cancelled);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
         });
     });
 
@@ -280,14 +271,14 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('rejected');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('failed');
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
                 order.id.toString(),
                 OrderStatus.Failed,
             );
@@ -299,28 +290,28 @@ describe('ProcessOrderStatusUseCase', () => {
             const orderStatus = createOrderStatus('open');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('open');
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
         });
 
         it('should handle triggered status without action', async () => {
             const orderStatus = createOrderStatus('triggered');
             const order = createOrder(OrderStatus.Placed);
 
-            mockOrderRepository.findOneByExchangeOrderId.mockResolvedValue(order);
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
 
             const result = await useCase.execute({ orderStatus });
 
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('triggered');
-            expect(mockOrderRepository.updateStatus).not.toHaveBeenCalled();
+            expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
         });
     });
 
@@ -328,9 +319,7 @@ describe('ProcessOrderStatusUseCase', () => {
         it('should handle repository errors', async () => {
             const orderStatus = createOrderStatus('filled');
 
-            mockOrderRepository.findOneByExchangeOrderId.mockRejectedValue(
-                new Error('Database error'),
-            );
+            mockGrids.findOrderByExchangeId.mockRejectedValue(new Error('Database error'));
 
             const result = await useCase.execute({ orderStatus });
 
@@ -341,7 +330,7 @@ describe('ProcessOrderStatusUseCase', () => {
         it('should handle non-Error exceptions', async () => {
             const orderStatus = createOrderStatus('filled');
 
-            mockOrderRepository.findOneByExchangeOrderId.mockRejectedValue('String error');
+            mockGrids.findOrderByExchangeId.mockRejectedValue('String error');
 
             const result = await useCase.execute({ orderStatus });
 

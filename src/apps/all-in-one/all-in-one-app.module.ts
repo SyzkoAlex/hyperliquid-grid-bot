@@ -7,6 +7,7 @@ import { HttpModule } from '@/infra/http/http.module';
 import { MetricsModule } from '@adapters/inbound/metrics/metrics.module';
 import { HealthModule } from '@adapters/inbound/health/health.module';
 import { EventBusModule } from '@adapters/outbound/events/event-bus.module';
+import { GridsModule } from '../../components/grids/grids.module';
 import { TradingModule } from '../../components/trading/trading.module';
 import { TelegramModule } from '../../components/telegram/telegram.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -35,6 +36,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         EventBusModule,
 
         // Components
+        GridsModule,
         TradingModule,
         TelegramModule,
     ],

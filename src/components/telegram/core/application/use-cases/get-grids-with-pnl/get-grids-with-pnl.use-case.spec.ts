@@ -40,13 +40,13 @@ function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, amount =
 }
 
 describe('GetGridsWithPnlUseCase', () => {
-    let gridRepository: {
-        findAll: ReturnType<typeof vi.fn>;
-        findManyByStatus: ReturnType<typeof vi.fn>;
-        findOneById: ReturnType<typeof vi.fn>;
+    let grids: {
+        findAllGrids: ReturnType<typeof vi.fn>;
+        findGridsByStatus: ReturnType<typeof vi.fn>;
+        findGridById: ReturnType<typeof vi.fn>;
+        findOrdersByGridId: ReturnType<typeof vi.fn>;
     };
-    let orderRepository: { findManyByGridId: ReturnType<typeof vi.fn> };
-    let infoClient: {
+    let tradingQuery: {
         getCurrentPrice: ReturnType<typeof vi.fn>;
         getUserSpotState: ReturnType<typeof vi.fn>;
         pairExists: ReturnType<typeof vi.fn>;
@@ -55,13 +55,13 @@ describe('GetGridsWithPnlUseCase', () => {
     let useCase: GetGridsWithPnlUseCase;
 
     beforeEach(() => {
-        gridRepository = {
-            findAll: vi.fn(),
-            findManyByStatus: vi.fn(),
-            findOneById: vi.fn(),
+        grids = {
+            findAllGrids: vi.fn(),
+            findGridsByStatus: vi.fn(),
+            findGridById: vi.fn(),
+            findOrdersByGridId: vi.fn(),
         };
-        orderRepository = { findManyByGridId: vi.fn() };
-        infoClient = {
+        tradingQuery = {
             getCurrentPrice: vi.fn().mockResolvedValue(Price.from(95000)),
             getUserSpotState: vi.fn(),
             pairExists: vi.fn(),
@@ -71,46 +71,45 @@ describe('GetGridsWithPnlUseCase', () => {
         };
 
         useCase = new GetGridsWithPnlUseCase(
-            gridRepository as any,
-            orderRepository as any,
-            infoClient as any,
+            grids as any,
+            tradingQuery as any,
             pnlCalculator as any,
         );
     });
 
     it('returns all grids by default', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([]);
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([]);
 
         const result = await useCase.execute();
 
-        expect(gridRepository.findAll).toHaveBeenCalled();
+        expect(grids.findAllGrids).toHaveBeenCalled();
         expect(result).toHaveLength(1);
         expect(result[0].grid).toBe(grid);
     });
 
     it('filters running grids when filter is Running', async () => {
-        gridRepository.findManyByStatus.mockResolvedValue([]);
+        grids.findGridsByStatus.mockResolvedValue([]);
 
         await useCase.execute(GridFilter.Running);
 
-        expect(gridRepository.findManyByStatus).toHaveBeenCalledWith(GridStatus.Running);
+        expect(grids.findGridsByStatus).toHaveBeenCalledWith(GridStatus.Running);
     });
 
     it('filters stopped grids when filter is Stopped', async () => {
-        gridRepository.findManyByStatus.mockResolvedValue([]);
+        grids.findGridsByStatus.mockResolvedValue([]);
 
         await useCase.execute(GridFilter.Stopped);
 
-        expect(gridRepository.findManyByStatus).toHaveBeenCalledWith(GridStatus.Stopped);
+        expect(grids.findGridsByStatus).toHaveBeenCalledWith(GridStatus.Stopped);
     });
 
-    it('includes current price from info client', async () => {
+    it('includes current price from trading query', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([]);
-        infoClient.getCurrentPrice.mockResolvedValue(Price.from(98000));
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([]);
+        tradingQuery.getCurrentPrice.mockResolvedValue(Price.from(98000));
 
         const result = await useCase.execute();
 
@@ -119,9 +118,9 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('passes current price to pnl calculator', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([]);
-        infoClient.getCurrentPrice.mockResolvedValue(Price.from(98000));
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([]);
+        tradingQuery.getCurrentPrice.mockResolvedValue(Price.from(98000));
 
         await useCase.execute();
 
@@ -130,8 +129,8 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('returns pnl from calculator', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([]);
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([]);
         pnlCalculator.calculate.mockReturnValue({ gridProfit: 42.5, unrealizedPnl: -5 });
 
         const result = await useCase.execute();
@@ -142,8 +141,8 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('counts filled sell orders as filledCycles', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([
             makeOrder(OrderSide.Sell, OrderStatus.Filled),
             makeOrder(OrderSide.Sell, OrderStatus.Filled),
             makeOrder(OrderSide.Buy, OrderStatus.Filled),
@@ -157,8 +156,8 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('counts active buy and sell orders', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([
             makeOrder(OrderSide.Buy, OrderStatus.Placed),
             makeOrder(OrderSide.Buy, OrderStatus.Pending),
             makeOrder(OrderSide.Sell, OrderStatus.Placed),
@@ -173,8 +172,8 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('computes weighted avg price for active orders', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 1),
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 80000, 1),
         ]);
@@ -186,8 +185,8 @@ describe('GetGridsWithPnlUseCase', () => {
 
     it('computes lowestActiveBuyPrice and highestActiveSellPrice', async () => {
         const grid = makeGrid();
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue([
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue([
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 1),
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 85000, 1),
             makeOrder(OrderSide.Sell, OrderStatus.Placed, 95000, 1),
@@ -203,8 +202,8 @@ describe('GetGridsWithPnlUseCase', () => {
     it('includes raw orders in result', async () => {
         const grid = makeGrid();
         const orders = [makeOrder(OrderSide.Buy, OrderStatus.Placed)];
-        gridRepository.findAll.mockResolvedValue([grid]);
-        orderRepository.findManyByGridId.mockResolvedValue(orders);
+        grids.findAllGrids.mockResolvedValue([grid]);
+        grids.findOrdersByGridId.mockResolvedValue(orders);
 
         const result = await useCase.execute();
 

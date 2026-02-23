@@ -1,9 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { Order } from '@domain/models/order/order';
@@ -29,7 +26,7 @@ export class OrderRestoreService {
     private readonly staleThresholdMs: number;
 
     constructor(
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         private readonly configService: ConfigService<Config, true>,
     ) {
         const config = this.configService.get('orders', { infer: true });
@@ -37,7 +34,7 @@ export class OrderRestoreService {
     }
 
     async restoreOrders(exchangeOpenOrders: ExchangeOpenOrder[]): Promise<number> {
-        const dbPendingOrders = await this.orderRepository.findManyByStatus(OrderStatus.Pending);
+        const dbPendingOrders = await this.grids.findOrdersByStatus(OrderStatus.Pending);
 
         if (dbPendingOrders.length === 0) {
             this.logger.debug('No pending orders to restore');
@@ -110,7 +107,7 @@ export class OrderRestoreService {
 
         const exchangeOrder = matchingOrders[0];
 
-        await this.orderRepository.updateExchangeOrderId(
+        await this.grids.updateOrderExchangeId(
             dbOrder.id.toString(),
             exchangeOrder.id,
             OrderStatus.Placed,
@@ -139,7 +136,7 @@ export class OrderRestoreService {
             return;
         }
 
-        await this.orderRepository.updateStatus(order.id.toString(), OrderStatus.Missing);
+        await this.grids.updateOrderStatus(order.id.toString(), OrderStatus.Missing);
 
         this.logger.warn(
             {

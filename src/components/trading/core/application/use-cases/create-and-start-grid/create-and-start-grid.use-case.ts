@@ -3,10 +3,7 @@ import {
     EXCHANGE_INFO_PORT,
     ExchangeInfoPort,
 } from '@components/trading/core/application/ports/exchange-info.port';
-import {
-    GRID_REPOSITORY_PORT,
-    GridRepositoryPort,
-} from '@components/trading/core/application/ports/grid-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
 import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
@@ -25,7 +22,7 @@ export class CreateAndStartGridUseCase {
 
     constructor(
         @Inject(EXCHANGE_INFO_PORT) private readonly infoClient: ExchangeInfoPort,
-        @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         private readonly capitalCalculator: CapitalCalculatorService,
         private readonly gridLevelsCalculator: GridLevelsCalculatorService,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
@@ -122,7 +119,7 @@ export class CreateAndStartGridUseCase {
             trailingPartialClosePercent: params.trailingPartialClosePercent,
         });
 
-        await this.gridRepository.save(grid);
+        await this.grids.saveGrid(grid);
         this.logger.info({ gridId: grid.id.toString() }, 'Grid entity created and saved');
 
         return grid;
@@ -147,7 +144,7 @@ export class CreateAndStartGridUseCase {
         grid.start();
 
         // Save grid after starting to persist the status change
-        await this.gridRepository.save(grid);
+        await this.grids.saveGrid(grid);
 
         const placedCount = await this.orderPlacement.placeGridOrders(grid, levelsWithSizes);
 

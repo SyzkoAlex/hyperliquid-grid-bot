@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Order } from '@domain/models/order/order';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
@@ -23,6 +24,7 @@ export interface GridPnl {
  *
  * TODO: GridPnlCalculatorService — fees (not stored per-order yet)
  */
+@Injectable()
 export class GridPnlCalculatorService {
     calculate(orders: Order[], currentPrice: number): GridPnl {
         const filled = orders.filter((o) => o.status === OrderStatus.Filled && o.price !== null);

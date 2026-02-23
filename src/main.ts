@@ -1,8 +1,5 @@
-import { AppTypes } from '@/config/app.types';
 import { loadConfiguration } from '@/config/configuration';
 import { logger } from '@/infra/logger/logger';
-import { bootstrapTradingBotApp } from './apps/trading-bot/bootstrap-trading-bot';
-import { bootstrapTelegramCtrlApp } from './apps/telegram-ctrl/bootstrap-telegram-ctrl';
 import { bootstrapAllInOneApp } from './apps/all-in-one/bootstrap-all-in-one';
 import manifest from '../package.json';
 
@@ -10,23 +7,11 @@ function bootstrap(): Promise<void> {
     registerErrorHandlers();
 
     const config = loadConfiguration();
-    const type = config.app.type as AppTypes;
     const version = manifest.version;
 
-    logger.info({ app: config.app.name }, `Starting ${type}. Version ${version}`);
+    logger.info({ app: config.app.name }, `Starting application. Version ${version}`);
 
-    switch (type) {
-        case AppTypes.TRADING_BOT:
-            return bootstrapTradingBotApp();
-        case AppTypes.TELEGRAM_CTRL:
-            return bootstrapTelegramCtrlApp();
-        case AppTypes.ALL_IN_ONE:
-            return bootstrapAllInOneApp();
-        default:
-            throw new Error(
-                `Unknown application type "${type}". Available types: ${Object.values(AppTypes)}`,
-            );
-    }
+    return bootstrapAllInOneApp();
 }
 
 bootstrap().catch((error) => {

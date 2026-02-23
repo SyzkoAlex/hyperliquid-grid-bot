@@ -3,10 +3,7 @@ import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { Grid } from '@domain/models/grid/grid';
 import { Order } from '@domain/models/order/order';
 import { OrderId } from '@domain/models/order/order-id';
@@ -24,7 +21,7 @@ export class OrderPlacementService {
 
     constructor(
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
     ) {}
 
     async placeGridOrders(grid: Grid, levels: GridLevel[]): Promise<number> {
@@ -70,7 +67,7 @@ export class OrderPlacementService {
             levelIndex: level.index,
         });
 
-        await this.orderRepository.save(order);
+        await this.grids.saveOrder(order);
 
         this.logger.debug(
             { level: level.index, orderId: order.id.toString() },
@@ -96,7 +93,7 @@ export class OrderPlacementService {
         result: { exchangeOrderId?: string; status: OrderStatus; error?: string },
     ): Promise<boolean> {
         if (result.exchangeOrderId && result.status !== OrderStatus.Failed) {
-            await this.orderRepository.updateExchangeOrderId(
+            await this.grids.updateOrderExchangeId(
                 order.id.toString(),
                 result.exchangeOrderId,
                 OrderStatus.Placed,
@@ -111,7 +108,7 @@ export class OrderPlacementService {
             return true;
         }
 
-        await this.orderRepository.updateStatus(order.id.toString(), OrderStatus.Failed);
+        await this.grids.updateOrderStatus(order.id.toString(), OrderStatus.Failed);
 
         this.logger.warn(
             { level: level.index, error: result.error },

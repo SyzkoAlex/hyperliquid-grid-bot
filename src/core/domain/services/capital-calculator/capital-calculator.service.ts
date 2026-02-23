@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { CapitalDistribution } from '@domain/models/capital-distribution';
 import { GridMode } from '@domain/models/grid/grid-mode';
@@ -54,6 +55,7 @@ import { Price } from '@domain/models/primitives/price';
  * - Sell orders using 0.1 BTC
  * ```
  */
+@Injectable()
 export class CapitalCalculatorService {
     private readonly NEUTRAL_USDC_RATIO = 0.5;
     private readonly NEUTRAL_BASE_RATIO = 0.5;

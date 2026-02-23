@@ -1,13 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
-import {
-    GRID_REPOSITORY_PORT,
-    GridRepositoryPort,
-} from '@components/trading/core/application/ports/grid-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { Order } from '@domain/models/order/order';
 import { OrderStatus } from '@domain/models/order/order-status';
@@ -44,8 +37,7 @@ export class ProcessOrderStatusUseCase {
     private readonly logger = logger.child({ context: ProcessOrderStatusUseCase.name });
 
     constructor(
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
-        @Inject(GRID_REPOSITORY_PORT) private readonly gridRepository: GridRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         private readonly orderRefillService: OrderRefillService,
     ) {}
 
@@ -65,7 +57,7 @@ export class ProcessOrderStatusUseCase {
 
         try {
             // Find grid order by exchange order ID
-            const gridOrder = await this.orderRepository.findOneByExchangeOrderId(exchangeOrderId);
+            const gridOrder = await this.grids.findOrderByExchangeId(exchangeOrderId);
 
             if (!gridOrder) {
                 this.logger.debug({ oid: orderStatus.order.oid }, 'Order not found in grid orders');
@@ -150,7 +142,7 @@ export class ProcessOrderStatusUseCase {
         }
 
         // Get the associated grid
-        const grid = await this.gridRepository.findOneById(gridOrder.gridId);
+        const grid = await this.grids.findGridById(gridOrder.gridId);
 
         if (!grid) {
             this.logger.warn({ gridId: gridOrder.gridId }, 'Grid not found for order');
@@ -179,11 +171,7 @@ export class ProcessOrderStatusUseCase {
 
         // Update order status to filled
         const fillTime = new Date(orderStatus.statusTimestamp);
-        await this.orderRepository.updateStatus(
-            gridOrder.id.toString(),
-            OrderStatus.Filled,
-            fillTime,
-        );
+        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Filled, fillTime);
 
         this.logger.info(
             { oid: orderStatus.order.oid, gridOrderId: gridOrder.id.toString() },
@@ -191,7 +179,7 @@ export class ProcessOrderStatusUseCase {
         );
 
         // Re-fetch order to get updated status (Order entity is immutable)
-        const filledOrder = await this.orderRepository.findOneByExchangeOrderId(
+        const filledOrder = await this.grids.findOrderByExchangeId(
             orderStatus.order.oid.toString(),
         );
 
@@ -245,7 +233,7 @@ export class ProcessOrderStatusUseCase {
         }
 
         // Update order status to cancelled
-        await this.orderRepository.updateStatus(gridOrder.id.toString(), OrderStatus.Cancelled);
+        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Cancelled);
 
         this.logger.info(
             {
@@ -271,7 +259,7 @@ export class ProcessOrderStatusUseCase {
         orderStatus: HyperliquidWsOrderStatus,
         gridOrder: Order,
     ): Promise<ProcessOrderStatusResult> {
-        await this.orderRepository.updateStatus(gridOrder.id.toString(), OrderStatus.Failed);
+        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Failed);
 
         this.logger.warn(
             { oid: orderStatus.order.oid, gridOrderId: gridOrder.id.toString() },

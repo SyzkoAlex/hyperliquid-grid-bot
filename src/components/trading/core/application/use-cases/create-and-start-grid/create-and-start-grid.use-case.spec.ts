@@ -7,7 +7,7 @@ import { Decimal } from '@domain/models/primitives/decimal';
 describe('CreateAndStartGridUseCase', () => {
     let useCase: CreateAndStartGridUseCase;
     let infoClient: any;
-    let gridRepository: any;
+    let grids: any;
     let capitalCalculator: any;
     let gridLevelsCalculator: any;
     let userBalanceExtractor: any;
@@ -19,8 +19,8 @@ describe('CreateAndStartGridUseCase', () => {
             getCurrentPrice: vi.fn(),
         };
 
-        gridRepository = {
-            save: vi.fn(),
+        grids = {
+            saveGrid: vi.fn(),
         };
 
         capitalCalculator = {
@@ -41,7 +41,7 @@ describe('CreateAndStartGridUseCase', () => {
 
         useCase = new CreateAndStartGridUseCase(
             infoClient,
-            gridRepository,
+            grids,
             capitalCalculator,
             gridLevelsCalculator,
             userBalanceExtractor,
@@ -103,7 +103,7 @@ describe('CreateAndStartGridUseCase', () => {
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            gridRepository.save.mockResolvedValue(undefined);
+            grids.saveGrid.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(2);
 
@@ -136,8 +136,8 @@ describe('CreateAndStartGridUseCase', () => {
             });
 
             // Verify grid was saved (called twice: after creation and after starting)
-            expect(gridRepository.save).toHaveBeenCalledTimes(2);
-            expect(gridRepository.save).toHaveBeenCalledWith(result.grid);
+            expect(grids.saveGrid).toHaveBeenCalledTimes(2);
+            expect(grids.saveGrid).toHaveBeenCalledWith(result.grid);
 
             // Verify current price was fetched early
             expect(infoClient.getCurrentPrice).toHaveBeenCalledWith(
@@ -205,7 +205,7 @@ describe('CreateAndStartGridUseCase', () => {
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            gridRepository.save.mockResolvedValue(undefined);
+            grids.saveGrid.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(1);
 
@@ -263,7 +263,7 @@ describe('CreateAndStartGridUseCase', () => {
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            gridRepository.save.mockResolvedValue(undefined);
+            grids.saveGrid.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(0);
 

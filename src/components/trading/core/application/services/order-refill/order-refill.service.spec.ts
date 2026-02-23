@@ -18,9 +18,9 @@ describe('OrderRefillService', () => {
         placeSpotOrder: ReturnType<typeof vi.fn>;
     };
     let mockOrderRepository: {
-        save: ReturnType<typeof vi.fn>;
-        updateExchangeOrderId: ReturnType<typeof vi.fn>;
-        updateStatus: ReturnType<typeof vi.fn>;
+        saveOrder: ReturnType<typeof vi.fn>;
+        updateOrderExchangeId: ReturnType<typeof vi.fn>;
+        updateOrderStatus: ReturnType<typeof vi.fn>;
     };
     let mockEventBus: {
         publish: ReturnType<typeof vi.fn>;
@@ -77,9 +77,9 @@ describe('OrderRefillService', () => {
         };
 
         mockOrderRepository = {
-            save: vi.fn().mockResolvedValue(undefined),
-            updateExchangeOrderId: vi.fn().mockResolvedValue(undefined),
-            updateStatus: vi.fn().mockResolvedValue(undefined),
+            saveOrder: vi.fn().mockResolvedValue(undefined),
+            updateOrderExchangeId: vi.fn().mockResolvedValue(undefined),
+            updateOrderStatus: vi.fn().mockResolvedValue(undefined),
         };
 
         mockEventBus = {
@@ -129,10 +129,10 @@ describe('OrderRefillService', () => {
             );
 
             // Pre-save pattern: order saved with pending status
-            expect(mockOrderRepository.save).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
 
             // Then exchangeOrderId updated after successful placement
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
                 expect.any(String),
                 'new-order-111',
                 OrderStatus.Placed,
@@ -169,10 +169,10 @@ describe('OrderRefillService', () => {
             );
 
             // Pre-save pattern: order saved with pending status
-            expect(mockOrderRepository.save).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
 
             // Then exchangeOrderId updated after successful placement
-            expect(mockOrderRepository.updateExchangeOrderId).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
                 expect.any(String),
                 'new-order-222',
                 OrderStatus.Placed,
@@ -251,10 +251,10 @@ describe('OrderRefillService', () => {
             expect(result.error).toBeDefined();
 
             // With pre-save pattern: order IS saved with pending status
-            expect(mockOrderRepository.save).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
 
             // Then status updated to failed
-            expect(mockOrderRepository.updateStatus).toHaveBeenCalledWith(
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 expect.any(String),
                 OrderStatus.Failed,
             );

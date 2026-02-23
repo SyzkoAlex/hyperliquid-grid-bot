@@ -16,8 +16,7 @@ import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exch
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
     let mockOrderClient: any;
-    let mockGridRepository: any;
-    let mockOrderRepository: any;
+    let mockGrids: any;
     let mockOrderStatusSyncService: any;
     let mockOrderRefillService: any;
     let mockConfigService: any;
@@ -40,15 +39,9 @@ describe('SyncOrdersUseCase', () => {
             getSpotPrice: vi.fn().mockResolvedValue(Price.from(50500)),
         };
 
-        mockGridRepository = {
-            findManyActive: vi.fn().mockResolvedValue([]),
-            findManyActiveByIds: vi.fn().mockResolvedValue([]),
-        };
-
-        mockOrderRepository = {
-            findManyPendingByGridId: vi.fn().mockResolvedValue([]),
-            findManyByIds: vi.fn().mockResolvedValue([]),
-            findManyPlacedByGridIds: vi.fn().mockResolvedValue([]),
+        mockGrids = {
+            findActiveGrids: vi.fn().mockResolvedValue([]),
+            findPlacedOrdersByGridIds: vi.fn().mockResolvedValue([]),
         };
 
         mockOrderStatusSyncService = {
@@ -66,8 +59,7 @@ describe('SyncOrdersUseCase', () => {
         useCase = new SyncOrdersUseCase(
             mockConfigService,
             mockOrderClient,
-            mockGridRepository,
-            mockOrderRepository,
+            mockGrids,
             mockOrderStatusSyncService,
             mockOrderRefillService,
         );
@@ -76,14 +68,14 @@ describe('SyncOrdersUseCase', () => {
     describe('execute', () => {
         it('should return empty result when no active grids', async () => {
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
-            mockGridRepository.findManyActive.mockResolvedValue([]);
+            mockGrids.findActiveGrids.mockResolvedValue([]);
 
             const result = await useCase.execute();
 
             expect(result.gridsProcessed).toBe(0);
             expect(result.fillsDetected).toBe(0);
             expect(mockOrderClient.getOpenSpotOrders).toHaveBeenCalledWith('0x123');
-            expect(mockGridRepository.findManyActive).toHaveBeenCalled();
+            expect(mockGrids.findActiveGrids).toHaveBeenCalled();
         });
 
         it('should processOne active grids and detect fills', async () => {
@@ -119,8 +111,8 @@ describe('SyncOrdersUseCase', () => {
             };
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder]);
-            mockGridRepository.findManyActive.mockResolvedValue([grid]);
-            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([order]);
+            mockGrids.findActiveGrids.mockResolvedValue([grid]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 1,
                 filledOrders: [order],
@@ -172,8 +164,8 @@ describe('SyncOrdersUseCase', () => {
             };
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder]);
-            mockGridRepository.findManyActive.mockResolvedValue([grid]);
-            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([order]);
+            mockGrids.findActiveGrids.mockResolvedValue([grid]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
 
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 0,
@@ -252,8 +244,8 @@ describe('SyncOrdersUseCase', () => {
             };
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder1, exchangeOrder2]);
-            mockGridRepository.findManyActive.mockResolvedValue([grid1, grid2]);
-            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([order1, order2]);
+            mockGrids.findActiveGrids.mockResolvedValue([grid1, grid2]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order1, order2]);
             mockOrderStatusSyncService.process
                 .mockRejectedValueOnce(new Error('DB error'))
                 .mockResolvedValueOnce({ filled: 0, filledOrders: [] });
@@ -295,8 +287,8 @@ describe('SyncOrdersUseCase', () => {
             });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
-            mockGridRepository.findManyActive.mockResolvedValue([grid]);
-            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([buyOrder1, buyOrder2]);
+            mockGrids.findActiveGrids.mockResolvedValue([grid]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([buyOrder1, buyOrder2]);
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 2,
                 filledOrders: [buyOrder1, buyOrder2],
@@ -357,8 +349,8 @@ describe('SyncOrdersUseCase', () => {
             });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder]);
-            mockGridRepository.findManyActive.mockResolvedValue([grid]);
-            mockOrderRepository.findManyPlacedByGridIds.mockResolvedValue([order, order2]);
+            mockGrids.findActiveGrids.mockResolvedValue([grid]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order, order2]);
 
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 2,

@@ -3,10 +3,7 @@ import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { Order } from '@domain/models/order/order';
 import { OrderId } from '@domain/models/order/order-id';
 import { OrderType } from '@domain/models/order/order-type';
@@ -28,7 +25,7 @@ export class OrderRefillService {
 
     constructor(
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
         @Inject(EVENT_BUS) private readonly eventBus: EventBus,
         private readonly profitCalculator: ProfitCalculatorService,
     ) {}
@@ -112,7 +109,7 @@ export class OrderRefillService {
             levelIndex: refillParams.levelIndex,
         });
 
-        await this.orderRepository.save(refillOrder);
+        await this.grids.saveOrder(refillOrder);
 
         this.logger.debug(
             { orderId: refillOrder.id.toString(), levelIndex: refillParams.levelIndex },
@@ -140,7 +137,7 @@ export class OrderRefillService {
         refillOrder: Order,
         placeResult: ExchangePlaceOrderResult,
     ): Promise<OrderRefillResult> {
-        await this.orderRepository.updateStatus(refillOrder.id.toString(), OrderStatus.Failed);
+        await this.grids.updateOrderStatus(refillOrder.id.toString(), OrderStatus.Failed);
 
         this.logger.error(
             { error: placeResult.error, orderId: refillOrder.id.toString() },
@@ -154,7 +151,7 @@ export class OrderRefillService {
         refillOrder: Order,
         placeResult: ExchangePlaceOrderResult,
     ): Promise<void> {
-        await this.orderRepository.updateExchangeOrderId(
+        await this.grids.updateOrderExchangeId(
             refillOrder.id.toString(),
             placeResult.exchangeOrderId,
             OrderStatus.Placed,

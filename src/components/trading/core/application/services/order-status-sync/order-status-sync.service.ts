@@ -9,10 +9,7 @@ import {
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
 import { Config } from '@/config/config.schema';
-import {
-    ORDER_REPOSITORY_PORT,
-    OrderRepositoryPort,
-} from '@components/trading/core/application/ports/order-repository.port';
+import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { OrderStatusSyncResult } from './order-status-sync-result';
 import { ExchangeStatusMapper } from '@components/trading/core/domain/models/exchange-order/exchange-status.mapper';
@@ -25,7 +22,7 @@ export class OrderStatusSyncService {
     constructor(
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         private readonly configService: ConfigService<Config, true>,
-        @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepository: OrderRepositoryPort,
+        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
     ) {
         this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
     }
@@ -141,7 +138,7 @@ export class OrderStatusSyncService {
     ): Promise<void> {
         const filledTimestamp = statusTimestamp ? new Date(statusTimestamp) : new Date();
 
-        await this.orderRepository.updateStatus(
+        await this.grids.updateOrderStatus(
             order.id.toString(),
             newStatus,
             newStatus === OrderStatus.Filled ? filledTimestamp : undefined,

@@ -34,18 +34,13 @@ the domain knows nothing about infrastructure.
 services. All domain services accept plain values — not ports — in their constructors.
 If a service needs I/O it belongs in `core/application/services/`, not here.
 
-Domain services are **plain TypeScript classes** — no `@Injectable()`, no NestJS module.
-They are instantiated directly by application services and use cases via `new`:
+Domain services are **plain TypeScript classes** with no I/O. They may use `@Injectable()` to
+enable standard NestJS DI — convenience matters more than strict framework purity here.
+Modules register them as regular providers:
 
 ```typescript
-// core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case.ts
-private readonly capitalCalculator = new CapitalCalculatorService();
-```
-
-Component modules register them as plain values if DI is needed:
-
-```typescript
-{ provide: CapitalCalculatorService, useValue: new CapitalCalculatorService() }
+// module
+CapitalCalculatorService,
 ```
 
 ```
@@ -59,6 +54,10 @@ core/domain/
 
 Orchestrates domain services and outbound ports. Knows **what** to call, not **how**. This layer
 owns the port interfaces — they describe what the application *needs* from the outside world.
+
+Use cases and application services **may use `@Injectable()`** from NestJS. This technically
+couples the application layer to the framework, but the DI convenience outweighs the purity here.
+No other NestJS decorators or framework concepts belong in this layer.
 
 ```
 core/application/
@@ -243,8 +242,8 @@ core/domain/models/
 
 **Hard rules:**
 
-- `core/domain/` — zero imports from `@nestjs/`, `@adapters/`, `application/`, or `adapters/`; no `@Injectable()`
-- `core/application/` — zero imports from `adapters/`
+- `core/domain/` — zero imports from `@adapters/`, `application/`, or `adapters/`; `@Injectable()` is allowed for DI convenience, no other NestJS decorators
+- `core/application/` — zero imports from `adapters/`; `@Injectable()` is allowed on use cases and services
 - `adapters/outbound/` — imports only the port interface, never calls use cases
 - `infra/` — zero imports from `core/`, `adapters/`, or `components/`
 - Components never import each other — cross-component communication via event bus only
@@ -280,7 +279,8 @@ Controller       →  {feature}.controller.ts       class {Feature}Controller
 - [ ] Module provides adapter under port token: `{ provide: TOKEN, useClass: Adapter }`
 - [ ] Use case injects via `@Inject(TOKEN)` typed as port interface, not concrete class
 - [ ] `core/domain/` has zero imports from `@nestjs/`, `@adapters/`, `application/`, or `adapters/`
-- [ ] `core/domain/` classes have no `@Injectable()` — plain TypeScript, no NestJS coupling
+- [ ] `core/domain/` has no imports from `@adapters/`, `application/`, or `adapters/`; only `@Injectable()` from NestJS is allowed
+- [ ] `core/application/` use cases and services use `@Injectable()`
 - [ ] `infra/` modules have no imports from `core/`, `adapters/`, or `components/`
 - [ ] Application services that need I/O live in `core/application/services/`, not `core/domain/`
 - [ ] Cross-component communication only via event bus — never direct component-to-component imports

@@ -7,12 +7,10 @@ import { HyperliquidInfoClientAdapter } from '@adapters/outbound/hyperliquid/hyp
 import { HyperliquidOrderMapper } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order.mapper';
 import { HyperliquidInfoMapper } from '@adapters/outbound/hyperliquid/hyperliquid-info-mapper';
 import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
-import { PostgresGridRepositoryAdapter } from '@components/trading/adapters/outbound/persistence/grid/postgres-grid-repository.adapter';
-import { PostgresOrderRepositoryAdapter } from '@components/trading/adapters/outbound/persistence/order/postgres-order-repository.adapter';
-import { GRID_REPOSITORY_PORT } from '@components/trading/core/application/ports/grid-repository.port';
-import { ORDER_REPOSITORY_PORT } from '@components/trading/core/application/ports/order-repository.port';
 import { EXCHANGE_CLIENT_PORT } from '@components/trading/core/application/ports/exchange-client.port';
 import { EXCHANGE_INFO_PORT } from '@components/trading/core/application/ports/exchange-info.port';
+import { TRADING_QUERY_PORT } from '@components/trading/core/application/ports/trading-query.port';
+import { TradingQueryAdapter } from '@components/trading/adapters/outbound/exchange/trading-query.adapter';
 import { CreateAndStartGridUseCase } from '@components/trading/core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
@@ -33,14 +31,14 @@ import { OrdersPollingController } from '@components/trading/adapters/inbound/or
 import { OrdersWebsocketController } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.controller';
 import { OrdersRestoreController } from '@components/trading/adapters/inbound/orders-restore/orders-restore.controller';
 import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-ws.client';
+import { GridsModule } from '@components/grids/grids.module';
 
 @Module({
-    imports: [HyperliquidModule],
+    imports: [HyperliquidModule, GridsModule],
     providers: [
-        { provide: GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter },
-        { provide: ORDER_REPOSITORY_PORT, useClass: PostgresOrderRepositoryAdapter },
         { provide: EXCHANGE_CLIENT_PORT, useClass: HyperliquidOrderClientAdapter },
         { provide: EXCHANGE_INFO_PORT, useClass: HyperliquidInfoClientAdapter },
+        { provide: TRADING_QUERY_PORT, useClass: TradingQueryAdapter },
         HyperliquidOrderMapper,
         HyperliquidInfoMapper,
         HyperliquidWsClient,
@@ -49,7 +47,7 @@ import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-w
         SyncOrdersUseCase,
         ProcessOrderStatusUseCase,
         RestoreOrdersUseCase,
-        { provide: CapitalCalculatorService, useValue: new CapitalCalculatorService() },
+        CapitalCalculatorService,
         {
             provide: GridLevelsCalculatorService,
             useFactory: (configService: ConfigService<Config, true>) => {
@@ -58,12 +56,12 @@ import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-w
             },
             inject: [ConfigService],
         },
-        { provide: UserBalanceExtractorService, useValue: new UserBalanceExtractorService() },
+        UserBalanceExtractorService,
         OrderStatusSyncService,
         OrderRefillService,
         OrderRestoreService,
         OrderPlacementService,
-        { provide: ProfitCalculatorService, useValue: new ProfitCalculatorService() },
+        ProfitCalculatorService,
         GridCommandsController,
         CreateGridHandler,
         StopGridHandler,
@@ -72,5 +70,6 @@ import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-w
         OrdersWebsocketController,
         OrdersRestoreController,
     ],
+    exports: [TRADING_QUERY_PORT],
 })
 export class TradingModule {}
