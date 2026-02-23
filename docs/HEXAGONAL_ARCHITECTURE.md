@@ -191,8 +191,9 @@ src/components/{component}/
 ```
 src/
 ├── components/          # Business components — each owns its own core/ and adapters/
-│   ├── trading/
-│   └── telegram/
+│   ├── trading/         # Grid strategy, order lifecycle, exchange integration
+│   ├── telegram/        # Telegram bot UI, wizard, notifications
+│   └── grids/           # Shared data component — grid & order repositories (GRIDS_PORT)
 │
 ├── apps/                # Deployment composition — wires components into a runnable app
 │   └── all-in-one/      # trading/ + telegram/ in one process
