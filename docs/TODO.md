@@ -41,18 +41,12 @@
 
 **Solution Strategy:**
 
-- [ ] Add pre-grid-creation balance check in CreateAndStartGridUseCase
-- [ ] Define minimum balance thresholds in config:
-    - `grid.minInvestmentUSDC` - minimum USDC required
-    - `grid.minInvestmentBase` - minimum base token required
-- [ ] Validation logic:
-    - **Case 1: Sufficient both USDC and base** → Create grid normally
-    - **Case 2: Only USDC, no base token** → Consider auto-swap (future feature)
-    - **Case 3: Only base, no USDC** → Consider auto-swap (future feature)
-    - **Case 4: Insufficient total value** → Throw error with clear message
-- [ ] Error messages:
-    - "Insufficient balance: need X USDC + Y BASE, have X1 USDC + Y1 BASE"
-    - "Total investment too low: minimum XXX USDC equivalent required"
+- [x] Add pre-grid-creation balance check in CreateAndStartGridUseCase
+    - Validates calculated `investmentUSDC` and `investmentBase` vs actual balances
+    - Throws with amount-specific error messages (e.g. "Required: X, Available: Y")
+    - Config-driven min thresholds were not added — validation uses calculated amounts directly (simpler and correct)
+- [ ] Validation logic — Cases 2 & 3 (auto-swap) → see Task 3 below
+- [ ] Error messages in Telegram scene — surface `create-and-start-grid` errors to user
 
 ### 3. Auto-Swap Feature (Optional, Future)
 
@@ -87,33 +81,18 @@
 
 ### Decouple Core from Infrastructure via Interfaces
 
-**Current State:** Core layer directly depends on concrete implementations from secondary adapters
+**Status:** ✅ Completed
 
-**Problem:**
-
-- Use cases import concrete classes (PostgresOrderRepository, HyperliquidOrderClient)
-- Cannot easily swap implementations (e.g., mock for tests, different exchange)
-- Violates Dependency Inversion Principle
-
-**Solution:**
-
-- [ ] Define port interfaces in `core/domain/ports/`:
-    - `IOrderRepository` - order persistence operations
-    - `IGridRepository` - grid persistence operations
-    - `IExchangeClient` - exchange API operations
-    - `IUserStateClient` - user balance/state queries
-- [ ] Move interfaces to core layer (ports)
-- [ ] Update use cases to depend on interfaces (not concrete classes)
-- [ ] Update secondary adapters to implement interfaces
-- [ ] Update dependency injection in modules to use tokens/interfaces
-- [ ] Update tests to use mock implementations
-
-**Benefits:**
-
-- True hexagonal architecture with ports and adapters
-- Easy to test (mock repositories/clients)
-- Easy to swap implementations (different exchanges, databases)
-- Clear boundaries between core and infrastructure
+- [x] Port interfaces defined:
+    - `@domain/ports/outbound/info-client.port.ts` → `InfoClientPort` / `INFO_CLIENT_PORT`
+    - `@components/trading/domain/ports/outbound/grid-repository.port.ts` → `GridRepositoryPort` / `GRID_REPOSITORY_PORT`
+    - `@components/trading/domain/ports/outbound/order-repository.port.ts` → `OrderRepositoryPort` / `ORDER_REPOSITORY_PORT`
+    - `@components/trading/domain/ports/outbound/order-client.port.ts` → `OrderClientPort` / `ORDER_CLIENT_PORT`
+    - `@components/telegram/domain/ports/outbound/grid-repository.port.ts`
+    - `@components/telegram/domain/ports/outbound/order-repository.port.ts`
+- [x] Use cases use `@Inject(PORT_TOKEN)` (not concrete classes): `CreateAndStartGridUseCase`, `SyncOrdersUseCase`, `RestoreOrdersUseCase`, etc.
+- [x] Secondary adapters implement port interfaces
+- [x] Tests use mock implementations via NestJS DI
 
 ---
 
@@ -122,15 +101,43 @@
 ### Grid Monitoring Controllers
 
 - [x] Implement OrdersWebSocketConsumer for real-time order updates
-- [ ] Implement OrdersMonitorController for periodic sync
-- [ ] Implement OrderRestoreMonitorController for restoring lost orders
+- [x] Implement OrdersMonitorController for periodic sync
+- [x] Implement OrderRestoreMonitorController for restoring lost orders
 
-### Grid Management Commands
+### Telegram Bot Features
 
-- [ ] /stop command - cancel all orders and stop grid
-- [ ] /info command - show grid status, P&L, active orders
-- [ ] /status command - show all active grids
-- [ ] Grid pause/resume functionality
+- [x] `/start` — welcome message + main menu
+- [x] `/help` — FAQ
+- [x] `/grids` — list active grids with PnL cards
+- [x] Grid View — details + stop confirmation flow
+- [x] Stop Grid — `StopGridCommandEvent` → trading component handles cancellation
+- [x] Create Grid Scene — 9-step wizard (select-pair → mode → params → confirm)
+- [x] Global error handler middleware — catches unhandled errors, replies with friendly message, prevents crash
+- [x] Callback dedup middleware — prevents duplicate handler execution on rapid button clicks
+
+#### Grid View rework (Phase 5, GRID-PNL-RESEARCH.md)
+
+- [ ] **Rework `GridPnlCalculatorService`**: `calculate(orders, currentPrice) → { gridProfit, unrealizedPnl }`
+    - `gridProfit` = Σ(filled_sell × price) − Σ(filled_buy × price)
+    - `unrealizedPnl` = qtyHeld × (currentPrice − avgBuyPrice)
+    - Update unit tests
+- [ ] **Extend `GridWithPnl`**: replace `pnl: number` + `profitableTrades` with `pnl: GridPnl` + `orderStats: OrderStats`
+    - `OrderStats`: `activeBuys`, `activeSells`, `avgActiveBuyPrice`, `avgActiveSellPrice`, `lowestActiveBuyPrice`, `highestActiveSellPrice`, `filledCycles`
+- [ ] **Update use cases**: `GetGridsWithPnlUseCase`, `GetGridWithPnlUseCase` — pass `currentPrice`, compute `orderStats`
+- [ ] **Tab navigation** in `GridViewHandler`: `view:grid:{id}:profit` + `view:grid:{id}:orders` actions
+    - Profit tab: Total PnL · Grid Profit · Grid APR · Unrealized · Profitable Trades · range/price/started
+    - Orders tab: active buy/sell counts, avg prices, lowest buy / highest sell, current price
+    - Keyboard: `[📊 Profit] [📋 Orders]` + `[🔴 Stop] [← Back]`
+- [ ] **Update `GridListItemMessage`**: show Total PnL first, then Grid Profit + Unrealized, compact orders line
+- [ ] Update specs: `grid-list-item.message.spec.ts`, `get-grids-with-pnl.use-case.spec.ts`
+
+#### Next up
+
+- [ ] `/balance` — show USDC + token positions (stub: "Coming soon")
+- [ ] `/stats` — aggregated PnL across all grids (stub: "Coming soon")
+- [ ] Grid Resume — `ResumeGridCommandEvent` + confirm flow
+- [ ] Grid History — last 10 fills for a grid
+- [ ] `/settings` — notification toggles (stub: "Coming soon")
 
 ### Technical Improvements
 
@@ -164,9 +171,12 @@
 
 ### Unit Tests
 
+- [x] Unit tests for CreateGridScene steps (all 9 steps)
+- [x] Unit tests for WizardMessageManager, WizardNavigator
+- [x] Unit tests for GetGridsWithPnlUseCase
 - [ ] Unit tests for Grid domain logic
 - [ ] Unit tests for all core services
-- [ ] Unit tests for all use cases
+- [ ] Unit tests for remaining use cases
 - [ ] Unit tests for all domain entities
 
 ### Documentation

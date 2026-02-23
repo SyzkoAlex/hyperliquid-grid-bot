@@ -1,6 +1,6 @@
-import { AppTypes } from './infra/config/app.types';
-import { loadConfiguration } from './infra/config/configuration';
-import { logger } from './infra/logger/logger';
+import { AppTypes } from '@/config/app.types';
+import { loadConfiguration } from '@/config/configuration';
+import { logger } from '@/infra/logger/logger';
 import { bootstrapTradingBotApp } from './apps/trading-bot/bootstrap-trading-bot';
 import { bootstrapTelegramCtrlApp } from './apps/telegram-ctrl/bootstrap-telegram-ctrl';
 import { bootstrapAllInOneApp } from './apps/all-in-one/bootstrap-all-in-one';

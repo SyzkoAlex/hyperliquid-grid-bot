@@ -2,6 +2,8 @@
 
 ## Concept
 
+https://alistair.cockburn.us/hexagonal-architecture
+
 Hexagonal Architecture (Ports & Adapters) isolates business logic from external systems via
 **ports** (interfaces) and **adapters** (implementations). Dependencies always point inward —
 the domain knows nothing about infrastructure.
@@ -12,9 +14,10 @@ the domain knows nothing about infrastructure.
   │                                                          │
   │  ┌──────────────┐   ┌──────────────────┐   ┌─────────┐  │
   │  │   inbound    │──▶│   application    │──▶│  ports  │  │
-  │  │   adapters   │   │   (use cases)    │   │outbound │  │
-  │  └──────────────┘   │   + domain       │   └─────────┘  │
-  │                     └──────────────────┘        ▲       │
+  │  │   adapters   │   │ (use cases +     │   │outbound │  │
+  │  └──────────────┘   │  app services)   │   └─────────┘  │
+  │                     │   + domain       │        ▲       │
+  │                     └──────────────────┘        │       │
   └────────────────────────────────────────────────-│───────┘
                                                     │
                                            outbound adapters
@@ -25,41 +28,53 @@ the domain knows nothing about infrastructure.
 
 ## Layers
 
-### `domain/` — Pure business logic
+### `core/domain/` — Pure business logic
 
-No framework imports. No I/O. Contains entities, value objects, domain services, and **all outbound
-port interfaces** — the contracts that define what the component needs from outside.
+**Zero external imports.** No `@nestjs/`, no `@adapters/`, no I/O. Contains models and domain
+services. All domain services accept plain values — not ports — in their constructors.
+If a service needs I/O it belongs in `core/application/services/`, not here.
+
+Domain services are **plain TypeScript classes** — no `@Injectable()`, no NestJS module.
+They are instantiated directly by application services and use cases via `new`:
+
+```typescript
+// core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case.ts
+private readonly capitalCalculator = new CapitalCalculatorService();
+```
+
+Component modules register them as plain values if DI is needed:
+
+```typescript
+{ provide: CapitalCalculatorService, useValue: new CapitalCalculatorService() }
+```
 
 ```
-domain/
-  models/           # Entities and Value Objects (Grid, Order, Price)
+core/domain/
+  models/           # Domain models
   services/         # Pure domain logic — calculations, validations, no I/O
   errors/           # Domain-specific errors
-  ports/
-    outbound/       # All outbound port interfaces (business and technical)
 ```
 
-All ports — whether business (`OrderRepository`, `ExchangeGateway`) or technical
-(`EventPublisher`, `CacheStore`) — live in `domain/ports/outbound/`.
+### `core/application/` — Use Cases and Application Services
 
-### `application/` — Use Cases
-
-Orchestrates domain services and outbound ports. Knows **what** to call, not **how**.
+Orchestrates domain services and outbound ports. Knows **what** to call, not **how**. This layer
+owns the port interfaces — they describe what the application *needs* from the outside world.
 
 ```
-application/
+core/application/
+  ports/            # Port interfaces + DI tokens (business and technical)
   use-cases/        # One directory per use case
+  services/         # Application services — orchestrate via ports (no direct I/O)
 ```
 
-### `infra/` — Adapters
+### `adapters/` — Adapters (inbound and outbound)
 
-All I/O lives here. Adapters implement domain ports and never contain business logic.
+All I/O lives here. Adapters implement application ports and never contain business logic.
 
 ```
-infra/
-  adapters/
-    inbound/        # Driving adapters — receive input, call use cases
-    outbound/       # Driven adapters — implement domain ports (DB, external APIs)
+adapters/
+  inbound/          # Driving adapters — receive input, call use cases
+  outbound/         # Driven adapters — implement ports (DB, external APIs)
 ```
 
 ---
@@ -83,7 +98,7 @@ infra/
 TypeScript interfaces are erased at runtime, so each port needs a Symbol token for DI:
 
 ```typescript
-// domain/ports/outbound/grid-repository.port.ts
+// core/application/ports/grid-repository.port.ts
 
 export const GRID_REPOSITORY_PORT = Symbol('GRID_REPOSITORY_PORT');
 
@@ -97,7 +112,7 @@ export interface GridRepositoryPort {
 ### Adapter — implements the port
 
 ```typescript
-// infra/adapters/outbound/persistence/grid/postgres-grid.repository.adapter.ts
+// adapters/outbound/persistence/grid/postgres-grid.repository.adapter.ts
 
 @Injectable()
 export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
@@ -116,7 +131,7 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
 export class CreateGridUseCase {
     constructor(
         @Inject(GRID_REPOSITORY_PORT) private readonly gridRepo: GridRepositoryPort,
-        @Inject(ORDER_CLIENT_PORT) private readonly orderClient: OrderClientPort,
+        @Inject(EXCHANGE_CLIENT_PORT) private readonly exchangeClient: ExchangeClientPort,
     ) {}
 }
 ```
@@ -128,44 +143,19 @@ export class CreateGridUseCase {
 ```
 src/components/{component}/
 │
-├── domain/
-│   ├── models/
-│   │   └── grid.ts
-│   ├── services/
-│   │   └── grid-levels-calculator/
-│   │       ├── grid-levels-calculator.service.ts
-│   │       └── grid-levels-calculator.service.spec.ts
-│   └── ports/
-│       └── outbound/
-│           ├── grid-repository.port.ts
-│           ├── order-repository.port.ts
-│           └── order-client.port.ts
+├── core/
+│   ├── domain/
+│   │   ├── models/
+│   │   └── services/
+│   │
+│   └── application/
+│       ├── ports/
+│       ├── use-cases/
+│       └── services/
 │
-├── application/
-│   └── use-cases/
-│       └── create-and-start-grid/
-│           ├── create-and-start-grid.use-case.ts
-│           ├── create-and-start-grid.use-case.spec.ts
-│           └── types/
-│               ├── create-and-start-grid-params.ts
-│               └── create-and-start-grid-result.ts
-│
-├── infra/
-│   └── adapters/
-│       ├── inbound/
-│       │   └── telegram-commands/
-│       │       └── telegram-commands.controller.ts
-│       └── outbound/
-│           ├── persistence/
-│           │   └── grid/
-│           │       ├── postgres-grid.repository.adapter.ts
-│           │       ├── postgres-grid.repository.adapter.integration.spec.ts
-│           │       └── postgres-grid.repository.module.ts
-│           └── exchange/
-│               └── hyperliquid/
-│                   ├── hyperliquid-order.client.adapter.ts
-│                   ├── hyperliquid-order.client.adapter.integration.spec.ts
-│                   └── hyperliquid-order.mapper.ts
+├── adapters/
+│   ├── inbound/
+│   └── outbound/
 │
 └── {component}.module.ts
 ```
@@ -178,44 +168,48 @@ src/components/{component}/
 src/
 ├── components/          # Business components — isolated, independently deployable
 │   ├── trading/
-│   ├── telegram/
-│   └── shared/          # LAST RESORT — see AGENTS.md
+│   └── telegram/
 │
 ├── apps/                # Deployment compositions — wire components into runnable apps
 │   ├── trading-bot/     # trading/ only
 │   ├── telegram-ctrl/   # telegram/ only
 │   └── all-in-one/      # trading/ + telegram/ in one process
 │
-├── domain/              # Shared domain entities (Grid, Order, Price, TradingSymbol)
-│   ├── models/          # Entities and Value Objects
-│   │   ├── grid/        # Grid, GridId, GridMode, GridStatus
-│   │   ├── order/       # Order, OrderId, OrderSide, OrderStatus
-│   │   ├── primitives/  # Decimal, Price, Timestamp, TradingSymbol
-│   │   ├── user-state/  # UserState, AssetPosition
-│   │   ├── exchange-order/ # ExchangePlaceOrderParams, ExchangeOpenOrder, ...
-│   │   └── events/      # Domain events (GridCreatedSuccessEvent, OrderOpenedEvent, ...)
-│   ├── ports/
-│   │   └── outbound/
-│   │       └── info-client.port.ts   # InfoClientPort + INFO_CLIENT_PORT token
-│   └── services/        # Domain services shared across components
-│       ├── capital-calculator/
-│       └── user-balance-extractor/
+├── core/
+│   └── domain/          # Shared domain models and services used across components
+│       ├── models/
+│       └── services/
 │
-└── infra/               # Shared technical infrastructure (DB, Redis, logger, HTTP)
-    └── events/
-        ├── event-bus.port.ts       # cross-cutting port
-        └── event-bus.adapter.ts    # implements EventBusPort
+├── adapters/            # Shared technical adapters used by multiple components
+│   ├── inbound/         # Shared inbound adapters (health, metrics)
+│   └── outbound/        # Shared outbound adapters (DB, cache, events, exchange)
+│
+└── infra/               # Generic infrastructure modules — no business logic, no dependencies
+                         # on domain or adapters; candidates to become standalone libraries
 ```
+
+### Path aliases
+
+| Alias | Points to |
+|-------|-----------|
+| `@domain/*` | `src/core/domain/*` |
+| `@adapters/*` | `src/adapters/*` |
+| `@components/*` | `src/components/*` |
+| `@apps/*` | `src/apps/*` |
 
 ### Cross-component communication — Event Bus only
 
 Components **never import each other**. They communicate exclusively through events published
 to the event bus (local in-process, or external: Kafka, NATS).
 
+The Event Bus follows the same Ports & Adapters pattern:
+- `src/adapters/outbound/events/event-bus.port.ts` — shared port interface + DI token
+- `src/adapters/outbound/events/event-bus.adapter.ts` — NestJS EventEmitter (or any other) implementation
+
 ```
 trading component                        telegram component
 ─────────────────                        ──────────────────
-UseCase                                  infra/adapters/inbound/
+UseCase                                  adapters/inbound/
   └─ publishes GridCreatedSuccessEvent ──▶  trading-events.controller.ts (subscriber)
                                               └─ calls NotifyUserUseCase
 ```
@@ -225,7 +219,7 @@ Each component's inbound adapters handle **two sources of input**:
 1. **External triggers** — Telegram commands, HTTP, scheduled jobs
 2. **Event bus subscriptions** — events published by other components
 
-Both live in `infra/adapters/inbound/` of the receiving component. This way each component
+Both live in `adapters/inbound/` of the receiving component. This way each component
 remains self-contained and can run on a separate server — it just needs access to the shared
 event bus transport.
 
@@ -236,18 +230,23 @@ event bus transport.
 ```
 apps/
     ↓ calls
-application/use-cases/
+adapters/inbound/
+    ↓ calls
+core/application/use-cases/
     ↓ calls              ↓ calls (via @Inject token)
-domain/services/     domain/ports/outbound/  ◀─ implements ─  infra/adapters/outbound/
+core/application/services/  core/application/ports/  ◀─ implements ─  adapters/outbound/
     ↓ uses
-domain/models/
+core/domain/services/
+    ↓ uses
+core/domain/models/
 ```
 
 **Hard rules:**
 
-- `domain/` — zero imports from `application/` or `infra/`
-- `application/` — zero imports from `infra/`
-- `infra/adapters/outbound/` — imports only the port interface, never calls use cases
+- `core/domain/` — zero imports from `@nestjs/`, `@adapters/`, `application/`, or `adapters/`; no `@Injectable()`
+- `core/application/` — zero imports from `adapters/`
+- `adapters/outbound/` — imports only the port interface, never calls use cases
+- `infra/` — zero imports from `core/`, `adapters/`, or `components/`
 - Components never import each other — cross-component communication via event bus only
 
 ---
@@ -280,5 +279,8 @@ Controller       →  {feature}.controller.ts       class {Feature}Controller
 - [ ] Adapter file ends with `.adapter.ts` — class explicitly `implements XxxPort`
 - [ ] Module provides adapter under port token: `{ provide: TOKEN, useClass: Adapter }`
 - [ ] Use case injects via `@Inject(TOKEN)` typed as port interface, not concrete class
-- [ ] `domain/` has zero imports from `application/` or `infra/`
+- [ ] `core/domain/` has zero imports from `@nestjs/`, `@adapters/`, `application/`, or `adapters/`
+- [ ] `core/domain/` classes have no `@Injectable()` — plain TypeScript, no NestJS coupling
+- [ ] `infra/` modules have no imports from `core/`, `adapters/`, or `components/`
+- [ ] Application services that need I/O live in `core/application/services/`, not `core/domain/`
 - [ ] Cross-component communication only via event bus — never direct component-to-component imports

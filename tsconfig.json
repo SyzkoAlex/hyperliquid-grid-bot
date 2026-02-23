@@ -24,11 +24,10 @@
         "resolveJsonModule": true,
         "paths": {
             "@/*": ["src/*"],
-            "@domain/*": ["src/domain/*"],
-            "@infra/*": ["src/infra/*"],
+            "@domain/*": ["src/core/domain/*"],
             "@components/*": ["src/components/*"],
             "@apps/*": ["src/apps/*"],
-            "@utils/*": ["src/utils/*"]
+            "@adapters/*": ["src/adapters/*"]
         }
     },
     "include": ["src/**/*"],

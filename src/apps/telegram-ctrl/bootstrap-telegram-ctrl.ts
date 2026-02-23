@@ -1,6 +1,6 @@
 import { createWorker } from '../common/create-worker';
 import { TelegramCtrlAppModule } from './telegram-ctrl-app.module';
-import { logger } from '../../infra/logger/logger';
+import { logger } from '@/infra/logger/logger';
 
 export async function bootstrapTelegramCtrlApp(): Promise<void> {
     const app = await createWorker(TelegramCtrlAppModule);

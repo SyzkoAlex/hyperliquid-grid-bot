@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AppConfigModule } from '@infra/config/app-config.module';
-import { LoggerModule } from '../../infra/logger/logger.module';
-import { DatabaseModule } from '../../infra/database/database.module';
-import { RedisModule } from '../../infra/cache/redis.module';
-import { HttpModule } from '../../infra/http/http.module';
-import { MetricsModule } from '../../infra/metrics/metrics.module';
-import { HealthModule } from '../../infra/health/health.module';
-import { EventBusModule } from '../../infra/events/event-bus.module';
+import { AppConfigModule } from '@/config/app-config.module';
+import { LoggerModule } from '@adapters/outbound/logger/logger.module';
+import { DatabaseModule } from '@adapters/outbound/database/database.module';
+import { RedisModule } from '@adapters/outbound/cache/redis.module';
+import { HttpModule } from '@/infra/http/http.module';
+import { MetricsModule } from '@adapters/inbound/metrics/metrics.module';
+import { HealthModule } from '@adapters/inbound/health/health.module';
+import { EventBusModule } from '@adapters/outbound/events/event-bus.module';
 import { TradingModule } from '../../components/trading/trading.module';
 import { ScheduleModule } from '@nestjs/schedule';
 

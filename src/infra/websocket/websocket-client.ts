@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { logger } from '../logger/logger';
+import { logger } from '@/infra/logger/logger';
 
 export interface WebSocketConfig {
     url: string;

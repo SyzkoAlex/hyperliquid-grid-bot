@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { logger } from '../logger/logger';
+import { logger } from '@/infra/logger/logger';
 
 @Injectable()
 export class HttpService {
@@ -63,11 +63,19 @@ export class HttpService {
         return this.client.get<T>(url, config);
     }
 
-    async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    async post<T>(
+        url: string,
+        data?: unknown,
+        config?: AxiosRequestConfig,
+    ): Promise<AxiosResponse<T>> {
         return this.client.post<T>(url, data, config);
     }
 
-    async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    async put<T>(
+        url: string,
+        data?: unknown,
+        config?: AxiosRequestConfig,
+    ): Promise<AxiosResponse<T>> {
         return this.client.put<T>(url, data, config);
     }
 
