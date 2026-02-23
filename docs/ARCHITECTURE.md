@@ -2,9 +2,14 @@
 
 ## Overview
 
-Hyperliquid SPOT Grid Bot implements the [SPOT Grid Trading Strategy](./SPOT_GRID_TRADING_ALGORITHM.md) using event-driven architecture for reliable automated trading on Hyperliquid DEX.
+Hyperliquid SPOT Grid Bot implements the [SPOT Grid Trading Strategy](./SPOT_GRID_TRADING_ALGORITHM.md) using a **modular monolith** architecture for reliable automated trading on Hyperliquid DEX.
 
 **Core Philosophy**: Reliability over speed. Orders must never be lost, state must always be consistent.
+
+The system is a single deployable process (monolith) composed of independently-bounded modules
+(Trading, Telegram). Each module enforces [hexagonal architecture](./HEXAGONAL_ARCHITECTURE.md)
+internally and communicates with other modules exclusively through ports or the event bus —
+never through direct imports.
 
 ---
 
@@ -33,32 +38,16 @@ The system consists of two independent components communicating via events:
 **1. Trading Component** - Implements grid strategy and order lifecycle management (includes Hyperliquid API integration)
 **2. Telegram Component** - User interface via Telegram Bot and notifications
 
-**Communication**: All components are decoupled through an in-memory EventBus. No direct dependencies between components.
+**Communication**: Components are decoupled through two mechanisms — consumer-owned **Ports** for
+synchronous calls (e.g. Telegram → Trading commands) and the **EventBus** for async notifications
+(e.g. Trading → Telegram events). No direct imports between components.
 
-### Deployment Modes
+### Deployment
 
-The system supports three deployment modes:
+The system runs as a single **all-in-one** process with both Trading and Telegram components.
+Both components share an in-memory EventBus and communicate via in-process ports.
 
-**1. All-In-One Mode (`all-in-one`)** - Single process running both components
-
-- Both Trading and Telegram components in one Node.js process
-- In-memory EventBus enables communication between components
-- Simplest deployment for development and small-scale usage
-- Command: `pnpm start:all-in-one` or `APP_TYPE=all-in-one`
-
-**2. Trading Bot Only (`trading-bot`)** - Trading component standalone
-
-- Runs only grid trading logic and order processing
-- Requires external EventBus (future: Redis/Kafka) for production multi-process setup
-- Command: `pnpm start:trading-bot` or `APP_TYPE=trading-bot`
-
-**3. Telegram Control Only (`telegram-ctrl`)** - Telegram interface standalone
-
-- Runs only Telegram bot for notifications and commands
-- Requires external EventBus (future: Redis/Kafka) for production multi-process setup
-- Command: `pnpm start:telegram-ctrl` or `APP_TYPE=telegram-ctrl`
-
-**Current Limitation**: Since EventBus is in-memory, separate processes (modes 2 & 3) cannot communicate. For production deployment with separate processes, use All-In-One mode OR implement distributed EventBus adapter (planned).
+- Command: `pnpm start` or `APP_TYPE=all-in-one`
 
 ---
 
@@ -173,9 +162,31 @@ OrderFilled Event → Telegram notification
 
 ---
 
-## 📡 Event-Driven Communication
+## 📡 Cross-Component Communication
 
-### Event Flow Example: Order Fill
+Two complementary patterns keep components decoupled. See
+[HEXAGONAL_ARCHITECTURE.md](./HEXAGONAL_ARCHITECTURE.md#cross-component-communication) for the
+full explanation and rules.
+
+### Pattern 1 — Ports (synchronous, request/response)
+
+Used when Telegram needs to query Trading synchronously — e.g. fetch current price, run capital
+calculations, or read trading state to display in the UI:
+
+```
+Telegram component                    Trading component
+──────────────────                    ─────────────────
+adapters/outbound/                    adapters/inbound/
+  trading-service.port.ts   ────────▶   telegram/
+  (interface + DI token)                  trading-service.adapter.ts
+                                          (implements TradingServicePort)
+```
+
+The `apps/all-in-one/` module wires them by providing Trading's adapter under Telegram's port token.
+
+### Pattern 2 — Event Bus (async, fire-and-forget)
+
+Used when Trading needs to notify Telegram (order filled, grid created/stopped):
 
 ```
 1. WebSocket receives fill
@@ -185,15 +196,14 @@ OrderFilled Event → Telegram notification
 3. EventBus broadcasts to all subscribers
          ↓
 4. Trading Component processes refill
-   Notifications Component sends Telegram message
-   (Future) Analytics Component logs metrics
+   Telegram Component sends notification to user
 ```
 
-**Benefits**:
+**Benefits of both patterns combined**:
 
-- Components don't know about each other
-- Easy to add new functionality (subscribe to events)
-- Async, non-blocking processing
+- Components never import each other's internals
+- Synchronous commands get typed, testable return values
+- Async notifications remain non-blocking and easy to extend
 - Clear audit trail
 
 ---

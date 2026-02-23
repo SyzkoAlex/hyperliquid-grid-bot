@@ -26,7 +26,32 @@ the domain knows nothing about infrastructure.
 
 ---
 
+## Modular Monolith
+
+This codebase is built as a **modular monolith** — a single deployable process composed of
+independently-bounded modules (components). Each component owns its domain models, application
+layer, and adapters. The boundaries are strict enough that any component could be extracted into
+a separate service without a rewrite.
+
+| Property       | This project                    | Microservices               |
+|----------------|---------------------------------|-----------------------------|
+| Deployment     | Single process                  | Multiple processes          |
+| Communication  | In-process (ports + event bus)  | Network (HTTP/gRPC/queues)  |
+| Isolation      | Enforced by code discipline     | Enforced by process boundary |
+| Ops complexity | Low                             | High                        |
+
+The composition root in `apps/` wires components together into a runnable application.
+
+---
+
 ## Layers
+
+The same layer structure applies at **two levels**:
+
+- **Component level** — `src/components/{component}/core/` and `src/components/{component}/adapters/`
+  — private to that component, never imported by others.
+- **Global level** — `src/core/` and `src/adapters/`
+  — shared infrastructure reused across multiple components (domain models, DB, event bus, etc.).
 
 ### `core/domain/` — Pure business logic
 
@@ -165,23 +190,21 @@ src/components/{component}/
 
 ```
 src/
-├── components/          # Business components — isolated, independently deployable
+├── components/          # Business components — each owns its own core/ and adapters/
 │   ├── trading/
 │   └── telegram/
 │
-├── apps/                # Deployment compositions — wire components into runnable apps
-│   ├── trading-bot/     # trading/ only
-│   ├── telegram-ctrl/   # telegram/ only
+├── apps/                # Deployment composition — wires components into a runnable app
 │   └── all-in-one/      # trading/ + telegram/ in one process
 │
-├── core/
-│   └── domain/          # Shared domain models and services used across components
+├── core/                # SHARED — domain models and services reused across components
+│   └── domain/
 │       ├── models/
 │       └── services/
 │
-├── adapters/            # Shared technical adapters used by multiple components
-│   ├── inbound/         # Shared inbound adapters (health, metrics)
-│   └── outbound/        # Shared outbound adapters (DB, cache, events, exchange)
+├── adapters/            # SHARED — technical adapters reused across components
+│   ├── inbound/         # Health, metrics
+│   └── outbound/        # DB, cache, event bus, exchange info
 │
 └── infra/               # Generic infrastructure modules — no business logic, no dependencies
                          # on domain or adapters; candidates to become standalone libraries
@@ -196,22 +219,75 @@ src/
 | `@components/*` | `src/components/*` |
 | `@apps/*` | `src/apps/*` |
 
-### Cross-component communication — Event Bus only
+### Cross-component communication
 
-Components **never import each other**. They communicate exclusively through events published
-to the event bus (local in-process, or external: Kafka, NATS).
+Components never import each other's internals. Communication uses two complementary patterns
+depending on whether a result is needed.
+
+#### Synchronous calls — consumer-owned Ports
+
+When a component needs to query another and receive a result synchronously:
+
+- The **consumer** defines an outbound port in its own `adapters/outbound/`
+- The **provider** implements that port as an inbound adapter in its `adapters/inbound/`
+- The composition root (`apps/all-in-one/`) wires them by providing the adapter under the port token
+
+Example: Telegram needs to fetch current price, run capital calculations, and query trading state
+to display in the UI. It defines a service port that Trading implements:
+
+```
+telegram/adapters/outbound/
+  trading-service.port.ts        ← interface + DI token (owned by telegram)
+
+trading/adapters/inbound/
+  telegram/
+    trading-service.adapter.ts   ← implements TradingServicePort
+```
+
+The port lives in `adapters/outbound/` (not `core/application/ports/`) to clearly distinguish
+inter-component dependencies from infrastructure ports (DB, exchange API).
+
+The app module wires the two components:
+
+```typescript
+// apps/all-in-one/all-in-one-app.module.ts
+const tradingServiceProvider = { provide: TRADING_SERVICE_PORT, useClass: TradingServiceAdapter };
+```
+
+#### Async notifications — Event Bus
+
+When a component needs to send commands or notify others without waiting for a result.
+
+The Event Bus is abstracted behind a port so the transport can be swapped without touching
+business logic. Current implementation uses an in-process NestJS EventEmitter. The abstraction
+exists to allow future replacement with an external queue (Redis Streams, Kafka, NATS) for
+horizontal scaling and improved fault tolerance when needed.
 
 The Event Bus follows the same Ports & Adapters pattern:
-- `src/adapters/outbound/events/event-bus.port.ts` — shared port interface + DI token
+- `src/infra/events/event-bus.port.ts` — shared port interface + DI token
 - `src/adapters/outbound/events/event-bus.adapter.ts` — NestJS EventEmitter (or any other) implementation
 
 ```
+telegram component                       trading component
+──────────────────                       ─────────────────
+use-cases/create-grid/                   adapters/inbound/
+  └─ publishes CreateGridCommandEvent ──▶  grid-commands.controller.ts (subscriber)
+
 trading component                        telegram component
 ─────────────────                        ──────────────────
-UseCase                                  adapters/inbound/
+use-cases/create-and-start-grid/         adapters/inbound/
   └─ publishes GridCreatedSuccessEvent ──▶  trading-events.controller.ts (subscriber)
                                               └─ calls NotifyUserUseCase
 ```
+
+#### Which pattern to use
+
+| Scenario                                         | Pattern   |
+|--------------------------------------------------|-----------|
+| Query data from another component (needs result) | Port      |
+| Command that fires and doesn't need a result     | Event Bus |
+| Trading/system events to notification layer      | Event Bus |
+| Any request/response across components           | Port      |
 
 Each component's inbound adapters handle **two sources of input**:
 
@@ -246,7 +322,7 @@ core/domain/models/
 - `core/application/` — zero imports from `adapters/`; `@Injectable()` is allowed on use cases and services
 - `adapters/outbound/` — imports only the port interface, never calls use cases
 - `infra/` — zero imports from `core/`, `adapters/`, or `components/`
-- Components never import each other — cross-component communication via event bus only
+- Components never import each other's internals — cross-component calls via consumer-owned ports (sync) or event bus (async)
 
 ---
 
@@ -278,9 +354,9 @@ Controller       →  {feature}.controller.ts       class {Feature}Controller
 - [ ] Adapter file ends with `.adapter.ts` — class explicitly `implements XxxPort`
 - [ ] Module provides adapter under port token: `{ provide: TOKEN, useClass: Adapter }`
 - [ ] Use case injects via `@Inject(TOKEN)` typed as port interface, not concrete class
-- [ ] `core/domain/` has zero imports from `@nestjs/`, `@adapters/`, `application/`, or `adapters/`
-- [ ] `core/domain/` has no imports from `@adapters/`, `application/`, or `adapters/`; only `@Injectable()` from NestJS is allowed
+- [ ] `core/domain/` has zero imports from `@adapters/`, `application/`, or `adapters/`; only `@Injectable()` from `@nestjs/common` is allowed
 - [ ] `core/application/` use cases and services use `@Injectable()`
 - [ ] `infra/` modules have no imports from `core/`, `adapters/`, or `components/`
 - [ ] Application services that need I/O live in `core/application/services/`, not `core/domain/`
-- [ ] Cross-component communication only via event bus — never direct component-to-component imports
+- [ ] Synchronous cross-component call → consumer defines port in its `adapters/outbound/`, provider implements it in its `adapters/inbound/`
+- [ ] Async cross-component notification → event bus only — never direct component-to-component imports

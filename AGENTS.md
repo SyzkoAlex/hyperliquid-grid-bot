@@ -34,7 +34,7 @@ Covers: hexagonal architecture, directory structure, component independence, cal
 
 - Controllers call Use Cases ONLY
 - Use Cases call Services (core or secondary)
-- Components NEVER import each other — event bus only
+- Components NEVER import each other's internals — sync calls via consumer-owned ports, async notifications via event bus
 - Domain events published by Use Cases/Services; notification events by Controllers
 
 ---
