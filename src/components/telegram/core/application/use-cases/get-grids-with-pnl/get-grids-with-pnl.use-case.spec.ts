@@ -1,42 +1,45 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetGridsWithPnlUseCase } from './get-grids-with-pnl.use-case';
 import { GridFilter } from './grid-filter';
-import { Grid } from '@domain/models/grid/grid';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { Price } from '@domain/models/primitives/price';
-import { Decimal } from '@domain/models/primitives/decimal';
-import { Order } from '@domain/models/order/order';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridId } from '@domain/models/grid/grid-id';
 
-function makeGrid(status = GridStatus.Running): Grid {
-    return Grid.create({
-        symbol: TradingSymbol.create('BTC'),
+function makeGrid(status = GridStatus.Running): GridDto {
+    return {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        symbol: 'BTC',
         mode: GridMode.Neutral,
         status,
-        lowerPrice: Price.from(90000),
-        upperPrice: Price.from(100000),
+        lowerPrice: 90000,
+        upperPrice: 100000,
         levels: 10,
-        investmentUSDC: Decimal.from(500),
-        investmentBase: Decimal.from(0.001),
-    });
+        investmentUSDC: 500,
+        investmentBase: 0.001,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 2,
+        trailingPartialClosePercent: 50,
+    };
 }
 
-function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, amount = 0.001): Order {
-    return Order.create({
-        symbol: TradingSymbol.create('BTC'),
-        type: OrderType.Limit,
+function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, amount = 0.001): OrderDto {
+    return {
+        id: '660e8400-e29b-41d4-a716-446655440001',
+        gridId: '550e8400-e29b-41d4-a716-446655440000',
+        symbol: 'BTC',
         side,
-        price: Price.from(price),
-        amount: Decimal.from(amount),
         status,
-        gridId: GridId.create(),
+        type: OrderType.Limit,
         levelIndex: 5,
-    });
+        price,
+        amount,
+        exchangeOrderId: null,
+    };
 }
 
 describe('GetGridsWithPnlUseCase', () => {
@@ -46,7 +49,7 @@ describe('GetGridsWithPnlUseCase', () => {
         findGridById: ReturnType<typeof vi.fn>;
         findOrdersByGridId: ReturnType<typeof vi.fn>;
     };
-    let tradingQuery: {
+    let tradingApi: {
         getCurrentPrice: ReturnType<typeof vi.fn>;
         getUserSpotState: ReturnType<typeof vi.fn>;
         pairExists: ReturnType<typeof vi.fn>;
@@ -61,8 +64,8 @@ describe('GetGridsWithPnlUseCase', () => {
             findGridById: vi.fn(),
             findOrdersByGridId: vi.fn(),
         };
-        tradingQuery = {
-            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(95000)),
+        tradingApi = {
+            getCurrentPrice: vi.fn().mockResolvedValue(95000),
             getUserSpotState: vi.fn(),
             pairExists: vi.fn(),
         };
@@ -70,11 +73,7 @@ describe('GetGridsWithPnlUseCase', () => {
             calculate: vi.fn().mockReturnValue({ gridProfit: 0, unrealizedPnl: 0 }),
         };
 
-        useCase = new GetGridsWithPnlUseCase(
-            grids as any,
-            tradingQuery as any,
-            pnlCalculator as any,
-        );
+        useCase = new GetGridsWithPnlUseCase(grids as any, tradingApi as any, pnlCalculator as any);
     });
 
     it('returns all grids by default', async () => {
@@ -105,11 +104,11 @@ describe('GetGridsWithPnlUseCase', () => {
         expect(grids.findGridsByStatus).toHaveBeenCalledWith(GridStatus.Stopped);
     });
 
-    it('includes current price from trading query', async () => {
+    it('includes current price from trading api', async () => {
         const grid = makeGrid();
         grids.findAllGrids.mockResolvedValue([grid]);
         grids.findOrdersByGridId.mockResolvedValue([]);
-        tradingQuery.getCurrentPrice.mockResolvedValue(Price.from(98000));
+        tradingApi.getCurrentPrice.mockResolvedValue(98000);
 
         const result = await useCase.execute();
 
@@ -120,7 +119,7 @@ describe('GetGridsWithPnlUseCase', () => {
         const grid = makeGrid();
         grids.findAllGrids.mockResolvedValue([grid]);
         grids.findOrdersByGridId.mockResolvedValue([]);
-        tradingQuery.getCurrentPrice.mockResolvedValue(Price.from(98000));
+        tradingApi.getCurrentPrice.mockResolvedValue(98000);
 
         await useCase.execute();
 

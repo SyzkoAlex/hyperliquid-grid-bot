@@ -1,41 +1,28 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QuickStartStep } from './quick-start.step';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
-import { Price } from '@domain/models/primitives/price';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
 import { ConfigService } from '@nestjs/config';
-import { Decimal } from '@domain/models/primitives/decimal';
-import { UserState } from '@domain/models/user-state/user-state';
 import { Config } from '@/config/config.schema';
 import { SceneStep } from '../create-grid-scene-step';
 
 describe('QuickStartStep', () => {
     let step: QuickStartStep;
-    let mockHyperliquidClient: ExchangeInfoPort;
-    let mockUserBalanceExtractor: UserBalanceExtractorService;
-    let mockCapitalCalculator: CapitalCalculatorService;
+    let mockTradingApi: TradingApiPort;
     let mockConfigService: ConfigService<Config, true>;
     let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
-        mockHyperliquidClient = {
+        mockTradingApi = {
             getCurrentPrice: vi.fn(),
             getUserSpotState: vi.fn(),
-        } as unknown as ExchangeInfoPort;
-
-        mockUserBalanceExtractor = {
-            extractBalances: vi.fn(),
-        } as unknown as UserBalanceExtractorService;
-
-        mockCapitalCalculator = {
-            calculateDistribution: vi.fn().mockReturnValue({
-                investmentUSDC: Decimal.from(500),
-                investmentBase: Decimal.from(0.01),
+            pairExists: vi.fn(),
+            calculateCapitalDistribution: vi.fn().mockReturnValue({
+                investmentUSDC: 500,
+                investmentBase: 0.01,
             }),
-        } as unknown as CapitalCalculatorService;
+        } as unknown as TradingApiPort;
 
         mockConfigService = {
             get: vi.fn().mockReturnValue('0x123'),
@@ -45,24 +32,17 @@ describe('QuickStartStep', () => {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        step = new QuickStartStep(
-            mockHyperliquidClient,
-            mockUserBalanceExtractor,
-            mockCapitalCalculator,
-            mockMessageManager,
-            mockConfigService,
-        );
+        step = new QuickStartStep(mockTradingApi, mockMessageManager, mockConfigService);
     });
 
     describe('handleTextInput', () => {
         it('should calculate grid params with ±20% range and sufficient balance', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(mockHyperliquidClient.getUserSpotState).mockResolvedValue({} as UserState);
-            vi.mocked(mockUserBalanceExtractor.extractBalances).mockReturnValue({
-                usdcBalance: Decimal.from(10000),
-                baseBalance: Decimal.from(1),
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 10000,
+                spotBalances: { BTC: 1 },
             });
 
             const result = await step.handleTextInput(ctx, '1000');
@@ -100,9 +80,7 @@ describe('QuickStartStep', () => {
         it('should handle API error gracefully', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockRejectedValue(
-                new Error('API error'),
-            );
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API error'));
 
             const result = await step.handleTextInput(ctx, '1000');
 
@@ -122,15 +100,14 @@ describe('QuickStartStep', () => {
         it('should reject with insufficient USDC balance', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(mockHyperliquidClient.getUserSpotState).mockResolvedValue({} as UserState);
-            vi.mocked(mockUserBalanceExtractor.extractBalances).mockReturnValue({
-                usdcBalance: Decimal.from(100),
-                baseBalance: Decimal.from(1),
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 100,
+                spotBalances: { BTC: 1 },
             });
-            vi.mocked(mockCapitalCalculator.calculateDistribution).mockReturnValue({
-                investmentUSDC: Decimal.from(500),
-                investmentBase: Decimal.from(0.01),
+            vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+                investmentUSDC: 500,
+                investmentBase: 0.01,
             });
 
             const result = await step.handleTextInput(ctx, '1000');

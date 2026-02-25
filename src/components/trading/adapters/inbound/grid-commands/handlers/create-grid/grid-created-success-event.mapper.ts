@@ -4,11 +4,11 @@ import { CreateAndStartGridResult } from '@components/trading/core/application/u
 export class GridCreatedSuccessEventMapper {
     static fromResult(result: CreateAndStartGridResult): GridCreatedSuccessEvent {
         return new GridCreatedSuccessEvent(
-            result.grid.id.toString(),
-            result.grid.symbol.toString(),
+            result.grid.id,
+            result.grid.symbol,
             result.grid.mode,
-            result.grid.lowerPrice.toNumber(),
-            result.grid.upperPrice.toNumber(),
+            result.grid.lowerPrice,
+            result.grid.upperPrice,
             result.grid.levels,
             result.investmentUSDC.toNumber(),
             result.investmentBase.toNumber(),

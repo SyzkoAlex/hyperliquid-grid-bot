@@ -1,13 +1,53 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OrderPlacementService } from './order-placement.service';
-import { Grid } from '@domain/models/grid/grid';
 import { GridMode } from '@domain/models/grid/grid-mode';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { OrderType } from '@domain/models/order/order-type';
 import { Price } from '@domain/models/primitives/price';
-import { Decimal } from '@domain/models/primitives/decimal';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+
+const MOCK_GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
+const MOCK_ORDER_ID = '660e8400-e29b-41d4-a716-446655440001';
+
+const makeMockOrderDto = (overrides: Partial<OrderDto> = {}): OrderDto => ({
+    id: MOCK_ORDER_ID,
+    gridId: MOCK_GRID_ID,
+    symbol: 'BTC',
+    side: OrderSide.Buy,
+    status: OrderStatus.Pending,
+    type: OrderType.Limit,
+    levelIndex: 0,
+    price: 45000,
+    amount: 0.0555,
+    exchangeOrderId: null,
+    ...overrides,
+});
+
+const makeGrid = (
+    symbol: string,
+    lowerPrice: number,
+    upperPrice: number,
+    levels: number,
+    mode: GridMode = GridMode.Neutral,
+): GridDto => ({
+    id: MOCK_GRID_ID,
+    symbol,
+    mode,
+    status: GridStatus.Running,
+    lowerPrice,
+    upperPrice,
+    levels,
+    investmentUSDC: 5000,
+    investmentBase: 0.1,
+    trailingEnabled: false,
+    trailingTriggerPercent: 5,
+    trailingStepPercent: 10,
+    trailingPartialClosePercent: 50,
+});
 
 describe('OrderPlacementService', () => {
     let service: OrderPlacementService;
@@ -20,7 +60,7 @@ describe('OrderPlacementService', () => {
         };
 
         orderRepository = {
-            saveOrder: vi.fn(),
+            createOrder: vi.fn().mockResolvedValue(makeMockOrderDto()),
             updateOrderExchangeId: vi.fn(),
             updateOrderStatus: vi.fn(),
         };
@@ -30,19 +70,7 @@ describe('OrderPlacementService', () => {
 
     describe('placeGridOrders', () => {
         it('should place all orders successfully and return count', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 10,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
             const levels: GridLevel[] = [
                 {
@@ -61,7 +89,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
@@ -71,25 +98,13 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(2);
-            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
+            expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
             expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(2);
         });
 
         it('should handle buy order with correct amount', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 5,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('BTC', 45000, 55000, 5);
 
             const levels: GridLevel[] = [
                 {
@@ -101,7 +116,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
@@ -116,19 +130,7 @@ describe('OrderPlacementService', () => {
         });
 
         it('should handle sell order with correct amount', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 5,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('BTC', 45000, 55000, 5);
 
             const levels: GridLevel[] = [
                 {
@@ -140,7 +142,9 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
+            orderRepository.createOrder.mockResolvedValue(
+                makeMockOrderDto({ side: OrderSide.Sell }),
+            );
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
@@ -155,19 +159,7 @@ describe('OrderPlacementService', () => {
         });
 
         it('should handle partial failures and return only successful count', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('ETH'),
-                mode: GridMode.Long,
-                lowerPrice: Price.from(2500),
-                upperPrice: Price.from(3500),
-                levels: 5,
-                investmentUSDC: Decimal.from(3000),
-                investmentBase: Decimal.from(0.5),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('ETH', 2500, 3500, 5, GridMode.Long);
 
             const levels: GridLevel[] = [
                 {
@@ -186,7 +178,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder
                 .mockResolvedValueOnce({
                     exchangeOrderId: '12345',
@@ -204,7 +195,7 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(1);
-            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
+            expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
             expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(1);
             expect(orderRepository.updateOrderStatus).toHaveBeenCalledTimes(1);
@@ -215,19 +206,7 @@ describe('OrderPlacementService', () => {
         });
 
         it('should mark order as failed when exchangeOrderId is empty', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('SOL'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(100),
-                upperPrice: Price.from(150),
-                levels: 5,
-                investmentUSDC: Decimal.from(1500),
-                investmentBase: Decimal.from(10),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('SOL', 100, 150, 5);
 
             const levels: GridLevel[] = [
                 {
@@ -239,7 +218,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '',
                 status: OrderStatus.Placed,
@@ -249,7 +227,7 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(0);
-            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(1);
+            expect(orderRepository.createOrder).toHaveBeenCalledTimes(1);
             expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 expect.any(String),
                 OrderStatus.Failed,
@@ -257,19 +235,7 @@ describe('OrderPlacementService', () => {
         });
 
         it('should continue placing orders even if one fails with exception', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 10,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
             const levels: GridLevel[] = [
                 {
@@ -288,7 +254,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder
                 .mockRejectedValueOnce(new Error('Network error'))
                 .mockResolvedValueOnce({
@@ -300,25 +265,13 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(1);
-            expect(orderRepository.saveOrder).toHaveBeenCalledTimes(2);
+            expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
             expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(1);
         });
 
-        it('should save orders with pending status before placing', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 10,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+        it('should save orders before placing (pre-save pattern)', async () => {
+            const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
             const levels: GridLevel[] = [
                 {
@@ -330,7 +283,6 @@ describe('OrderPlacementService', () => {
                 },
             ];
 
-            orderRepository.saveOrder.mockResolvedValue(undefined);
             orderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: '12345',
                 status: OrderStatus.Placed,
@@ -339,34 +291,23 @@ describe('OrderPlacementService', () => {
 
             await service.placeGridOrders(mockGrid, levels);
 
-            expect(orderRepository.saveOrder).toHaveBeenCalledWith(
+            expect(orderRepository.createOrder).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    status: OrderStatus.Pending,
+                    side: OrderSide.Buy,
+                    gridId: MOCK_GRID_ID,
                 }),
             );
         });
 
         it('should handle empty levels array', async () => {
-            const mockGrid = Grid.create({
-                symbol: TradingSymbol.create('BTC'),
-                mode: GridMode.Neutral,
-                lowerPrice: Price.from(45000),
-                upperPrice: Price.from(55000),
-                levels: 10,
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                trailingEnabled: false,
-                trailingTriggerPercent: 5,
-                trailingStepPercent: 10,
-                trailingPartialClosePercent: 50,
-            });
+            const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
             const levels: GridLevel[] = [];
 
             const count = await service.placeGridOrders(mockGrid, levels);
 
             expect(count).toBe(0);
-            expect(orderRepository.saveOrder).not.toHaveBeenCalled();
+            expect(orderRepository.createOrder).not.toHaveBeenCalled();
             expect(orderClient.placeSpotOrder).not.toHaveBeenCalled();
         });
     });

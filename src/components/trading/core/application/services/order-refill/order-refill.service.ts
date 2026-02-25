@@ -1,23 +1,27 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
+import { OrderType } from '@domain/models/order/order-type';
+import { OrderStatus } from '@domain/models/order/order-status';
 import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
-import { Order } from '@domain/models/order/order';
-import { OrderId } from '@domain/models/order/order-id';
-import { OrderType } from '@domain/models/order/order-type';
-import { OrderStatus } from '@domain/models/order/order-status';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
-import { EVENT_BUS, EventBus } from '@/infra/events/event-bus.port';
+import {
+    EVENT_PUBLISHER_PORT,
+    EventPublisherPort,
+} from '@/core/application/ports/outbound/event-publisher.port';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
+import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
 import { OrderRefillResult } from './order-refill-result';
 import { RefillParams } from './refill-params';
-import { Grid } from '@domain/models/grid/grid';
 import { ProfitCalculatorService } from '@components/trading/core/domain/services/profit-calculator/profit-calculator.service';
-import { Decimal } from '@domain/models/primitives/decimal';
 
 @Injectable()
 export class OrderRefillService {
@@ -25,12 +29,12 @@ export class OrderRefillService {
 
     constructor(
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
-        @Inject(EVENT_BUS) private readonly eventBus: EventBus,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(EVENT_PUBLISHER_PORT) private readonly publisher: EventPublisherPort,
         private readonly profitCalculator: ProfitCalculatorService,
     ) {}
 
-    async processMany(filledOrders: Order[], grid: Grid): Promise<number> {
+    async processMany(filledOrders: OrderDto[], grid: GridDto): Promise<number> {
         const deduped = this.deduplicateOrders(filledOrders, grid);
 
         let placed = 0;
@@ -41,7 +45,7 @@ export class OrderRefillService {
         return placed;
     }
 
-    async processOne(filledOrder: Order, grid: Grid): Promise<OrderRefillResult> {
+    async processOne(filledOrder: OrderDto, grid: GridDto): Promise<OrderRefillResult> {
         this.logOrderProcessing(filledOrder, grid);
 
         try {
@@ -70,22 +74,22 @@ export class OrderRefillService {
         }
     }
 
-    private logOrderProcessing(filledOrder: Order, grid: Grid): void {
+    private logOrderProcessing(filledOrder: OrderDto, grid: GridDto): void {
         this.logger.info(
             {
-                gridId: grid.id.toString(),
-                orderId: filledOrder.id.toString(),
+                gridId: grid.id,
+                orderId: filledOrder.id,
                 side: filledOrder.side,
                 level: filledOrder.levelIndex,
-                price: filledOrder.price?.toNumber(),
+                price: filledOrder.price,
             },
             'Processing filled order',
         );
     }
 
-    private handleEdgeLevel(filledOrder: Order): OrderRefillResult {
+    private handleEdgeLevel(filledOrder: OrderDto): OrderRefillResult {
         this.logger.warn(
-            { orderId: filledOrder.id.toString(), levelIndex: filledOrder.levelIndex },
+            { orderId: filledOrder.id, levelIndex: filledOrder.levelIndex },
             'Cannot calculate refill params (edge level)',
         );
 
@@ -93,35 +97,36 @@ export class OrderRefillService {
     }
 
     private async createAndSavePendingOrder(
-        grid: Grid,
+        grid: GridDto,
         refillParams: RefillParams,
-    ): Promise<Order> {
-        const orderId = OrderId.create();
-        const refillOrder = Order.create({
+    ): Promise<OrderDto> {
+        const orderId = uuidv4();
+        const refillOrder = await this.grids.createOrder({
             id: orderId,
-            symbol: grid.symbol,
-            type: OrderType.Limit,
-            side: refillParams.side,
-            price: refillParams.price,
-            amount: refillParams.amount,
-            status: OrderStatus.Pending,
             gridId: grid.id,
+            symbol: grid.symbol,
+            side: refillParams.side,
+            type: OrderType.Limit,
             levelIndex: refillParams.levelIndex,
+            price: refillParams.price.toNumber(),
+            amount: refillParams.amount.toNumber(),
         });
 
-        await this.grids.saveOrder(refillOrder);
-
         this.logger.debug(
-            { orderId: refillOrder.id.toString(), levelIndex: refillParams.levelIndex },
+            { orderId: refillOrder.id, levelIndex: refillParams.levelIndex },
             'Refill order saved with pending status',
         );
 
         return refillOrder;
     }
 
-    private async placeOrderOnExchange(refillOrder: Order, grid: Grid, refillParams: RefillParams) {
+    private async placeOrderOnExchange(
+        refillOrder: OrderDto,
+        grid: GridDto,
+        refillParams: RefillParams,
+    ) {
         return await this.orderClient.placeSpotOrder({
-            symbol: grid.symbol,
+            symbol: TradingSymbol.create(grid.symbol),
             side: refillParams.side,
             price: refillParams.price,
             amount: refillParams.amount,
@@ -134,13 +139,13 @@ export class OrderRefillService {
     }
 
     private async handlePlacementFailure(
-        refillOrder: Order,
+        refillOrder: OrderDto,
         placeResult: ExchangePlaceOrderResult,
     ): Promise<OrderRefillResult> {
-        await this.grids.updateOrderStatus(refillOrder.id.toString(), OrderStatus.Failed);
+        await this.grids.updateOrderStatus(refillOrder.id, OrderStatus.Failed);
 
         this.logger.error(
-            { error: placeResult.error, orderId: refillOrder.id.toString() },
+            { error: placeResult.error, orderId: refillOrder.id },
             'Failed to place refill order - marked as failed',
         );
 
@@ -148,38 +153,35 @@ export class OrderRefillService {
     }
 
     private async updateOrderAsPlaced(
-        refillOrder: Order,
+        refillOrder: OrderDto,
         placeResult: ExchangePlaceOrderResult,
     ): Promise<void> {
         await this.grids.updateOrderExchangeId(
-            refillOrder.id.toString(),
+            refillOrder.id,
             placeResult.exchangeOrderId,
             OrderStatus.Placed,
             new Date(),
         );
 
         this.logger.debug(
-            {
-                orderId: refillOrder.id.toString(),
-                exchangeOrderId: placeResult.exchangeOrderId,
-            },
+            { orderId: refillOrder.id, exchangeOrderId: placeResult.exchangeOrderId },
             'Refill order placed and updated with exchangeOrderId',
         );
     }
 
     private async publishTradeEvent(
-        filledOrder: Order,
-        grid: Grid,
+        filledOrder: OrderDto,
+        grid: GridDto,
         profit: Decimal | null,
     ): Promise<void> {
-        const filledPrice = filledOrder.price?.toNumber() ?? 0;
-        const filledAmount = filledOrder.amount.toNumber();
+        const filledPrice = filledOrder.price ?? 0;
+        const filledAmount = filledOrder.amount;
         const total = filledPrice * filledAmount;
 
         if (profit !== null) {
             const closedEvent = new OrderClosedEvent(
-                grid.id.toString(),
-                grid.symbol.toString(),
+                grid.id,
+                grid.symbol,
                 filledOrder.side,
                 filledPrice,
                 filledAmount,
@@ -188,13 +190,13 @@ export class OrderRefillService {
                 filledOrder.levelIndex,
                 grid.levels,
             );
-            await this.eventBus.publish(closedEvent);
+            await this.publisher.publish(closedEvent);
             return;
         }
 
         const openedEvent = new OrderOpenedEvent(
-            grid.id.toString(),
-            grid.symbol.toString(),
+            grid.id,
+            grid.symbol,
             filledOrder.side,
             filledPrice,
             filledAmount,
@@ -202,21 +204,21 @@ export class OrderRefillService {
             filledOrder.levelIndex,
             grid.levels,
         );
-        await this.eventBus.publish(openedEvent);
+        await this.publisher.publish(openedEvent);
     }
 
     private logSuccess(
-        grid: Grid,
-        filledOrder: Order,
-        refillOrder: Order,
+        grid: GridDto,
+        filledOrder: OrderDto,
+        refillOrder: OrderDto,
         refillParams: RefillParams,
         profit: Decimal | null,
     ): void {
         this.logger.info(
             {
-                gridId: grid.id.toString(),
-                filledOrderId: filledOrder.id.toString(),
-                refillOrderId: refillOrder.id.toString(),
+                gridId: grid.id,
+                filledOrderId: filledOrder.id,
+                refillOrderId: refillOrder.id,
                 refillSide: refillParams.side,
                 refillLevel: refillParams.levelIndex,
                 profit: profit?.toNumber() ?? null,
@@ -225,25 +227,21 @@ export class OrderRefillService {
         );
     }
 
-    private handleError(error: unknown, filledOrder: Order): OrderRefillResult {
+    private handleError(error: unknown, filledOrder: OrderDto): OrderRefillResult {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
 
         this.logger.error(
-            {
-                errorMessage,
-                errorStack,
-                orderId: filledOrder.id.toString(),
-            },
+            { errorMessage, errorStack, orderId: filledOrder.id },
             'Error processing filled order',
         );
 
         return OrderRefillResult.failure(errorMessage);
     }
 
-    private deduplicateOrders(filledOrders: Order[], grid: Grid): Order[] {
+    private deduplicateOrders(filledOrders: OrderDto[], grid: GridDto): OrderDto[] {
         const seen = new Set<string>();
-        const result: Order[] = [];
+        const result: OrderDto[] = [];
 
         for (const order of filledOrders) {
             const params = RefillParams.calc(order, grid);

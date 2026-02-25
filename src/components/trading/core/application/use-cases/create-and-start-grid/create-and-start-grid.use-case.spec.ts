@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateAndStartGridUseCase } from './create-and-start-grid.use-case';
 import { GridMode } from '@domain/models/grid/grid-mode';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
 
 describe('CreateAndStartGridUseCase', () => {
     let useCase: CreateAndStartGridUseCase;
@@ -13,6 +15,23 @@ describe('CreateAndStartGridUseCase', () => {
     let userBalanceExtractor: any;
     let orderPlacement: any;
 
+    const makeGridDto = (overrides: Partial<GridDto> = {}): GridDto => ({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        symbol: 'BTC',
+        mode: GridMode.Neutral,
+        status: GridStatus.Idle,
+        lowerPrice: 45000,
+        upperPrice: 55000,
+        levels: 10,
+        investmentUSDC: 5000,
+        investmentBase: 0.1,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 2,
+        trailingPartialClosePercent: 50,
+        ...overrides,
+    });
+
     beforeEach(() => {
         infoClient = {
             getUserSpotState: vi.fn(),
@@ -20,7 +39,8 @@ describe('CreateAndStartGridUseCase', () => {
         };
 
         grids = {
-            saveGrid: vi.fn(),
+            createGrid: vi.fn(),
+            updateGridStatus: vi.fn(),
         };
 
         capitalCalculator = {
@@ -51,7 +71,6 @@ describe('CreateAndStartGridUseCase', () => {
 
     describe('execute', () => {
         it('should create and start grid successfully', async () => {
-            // Arrange
             const params = {
                 chatId: 123456,
                 address: '0x123',
@@ -98,33 +117,28 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            // Setup mocks
+            const gridDto = makeGridDto();
+
             infoClient.getUserSpotState.mockResolvedValue(userState);
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            grids.saveGrid.mockResolvedValue(undefined);
+            grids.createGrid.mockResolvedValue(gridDto);
+            grids.updateGridStatus.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(2);
 
-            // Act
             const result = await useCase.execute(params);
 
-            // Assert
-            expect(result.grid.symbol.toString()).toBe('BTC');
+            expect(result.grid.symbol).toBe('BTC');
             expect(result.grid.mode).toBe(GridMode.Neutral);
             expect(result.grid.levels).toBe(10);
-            expect(result.grid.status).toBe('running'); // Grid should be started
             expect(result.investmentUSDC).toEqual(distribution.investmentUSDC);
             expect(result.investmentBase).toEqual(distribution.investmentBase);
 
-            // Verify getUserState was called
             expect(infoClient.getUserSpotState).toHaveBeenCalledWith('0x123');
-
-            // Verify balance extraction
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
 
-            // Verify capital calculation
             expect(capitalCalculator.calculateDistribution).toHaveBeenCalledWith({
                 mode: GridMode.Neutral,
                 totalInvestmentUSDC: 10000,
@@ -135,30 +149,22 @@ describe('CreateAndStartGridUseCase', () => {
                 upperPrice: 55000,
             });
 
-            // Verify grid was saved (called twice: after creation and after starting)
-            expect(grids.saveGrid).toHaveBeenCalledTimes(2);
-            expect(grids.saveGrid).toHaveBeenCalledWith(result.grid);
+            expect(grids.createGrid).toHaveBeenCalledTimes(1);
+            expect(grids.updateGridStatus).toHaveBeenCalledWith(gridDto.id, GridStatus.Running);
 
-            // Verify current price was fetched early
             expect(infoClient.getCurrentPrice).toHaveBeenCalledWith(
                 expect.objectContaining({ value: 'BTC' }),
             );
 
-            // Verify levels calculation
             expect(gridLevelsCalculator.calculateLevelsWithSizes).toHaveBeenCalledWith(
-                result.grid,
+                gridDto,
                 currentPrice,
             );
 
-            // Verify order placement service was called
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
-                result.grid,
-                levelsWithSizes,
-            );
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
 
         it('should handle order placement failures gracefully', async () => {
-            // Arrange
             const params = {
                 chatId: 123456,
                 address: '0x123',
@@ -200,30 +206,25 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            // Setup mocks
+            const gridDto = makeGridDto({ symbol: 'ETH', mode: GridMode.Long, levels: 5 });
+
             infoClient.getUserSpotState.mockResolvedValue(userState);
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            grids.saveGrid.mockResolvedValue(undefined);
+            grids.createGrid.mockResolvedValue(gridDto);
+            grids.updateGridStatus.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(1);
 
-            // Act
             const result = await useCase.execute(params);
 
-            // Assert
-            expect(result.grid.symbol.toString()).toBe('ETH');
+            expect(result.grid.symbol).toBe('ETH');
             expect(result.grid.mode).toBe(GridMode.Long);
-            expect(result.grid.status).toBe('running');
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
-                result.grid,
-                levelsWithSizes,
-            );
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
 
         it('should skip orders without exchange order ID', async () => {
-            // Arrange
             const params = {
                 chatId: 123456,
                 address: '0x123',
@@ -258,26 +259,22 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            // Setup mocks
+            const gridDto = makeGridDto({ symbol: 'SOL', levels: 5 });
+
             infoClient.getUserSpotState.mockResolvedValue(userState);
             infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
-            grids.saveGrid.mockResolvedValue(undefined);
+            grids.createGrid.mockResolvedValue(gridDto);
+            grids.updateGridStatus.mockResolvedValue(undefined);
             gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(0);
 
-            // Act
             const result = await useCase.execute(params);
 
-            // Assert
-            expect(result.grid.symbol.toString()).toBe('SOL');
+            expect(result.grid.symbol).toBe('SOL');
             expect(result.grid.mode).toBe(GridMode.Neutral);
-            expect(result.grid.status).toBe('running');
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
-                result.grid,
-                levelsWithSizes,
-            );
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
     });
 });

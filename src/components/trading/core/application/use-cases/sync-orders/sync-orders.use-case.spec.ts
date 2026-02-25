@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncOrdersUseCase } from './sync-orders.use-case';
 import { GridMode } from '@domain/models/grid/grid-mode';
-import { Grid } from '@domain/models/grid/grid';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { Order } from '@domain/models/order/order';
-import { OrderId } from '@domain/models/order/order-id';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 
@@ -21,17 +21,36 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderRefillService: any;
     let mockConfigService: any;
 
-    const createTestGrid = () => {
-        return Grid.create({
-            symbol: TradingSymbol.create('BTC'),
-            mode: GridMode.Neutral,
-            lowerPrice: Price.from(45000),
-            upperPrice: Price.from(55000),
-            levels: 11,
-            investmentUSDC: Decimal.from(5000),
-            investmentBase: Decimal.from(0.1),
-        });
-    };
+    const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
+        id: crypto.randomUUID(),
+        symbol: 'BTC',
+        mode: GridMode.Neutral,
+        status: GridStatus.Running,
+        lowerPrice: 45000,
+        upperPrice: 55000,
+        levels: 11,
+        investmentUSDC: 5000,
+        investmentBase: 0.1,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 2,
+        trailingPartialClosePercent: 50,
+        ...overrides,
+    });
+
+    const createTestOrder = (gridId: string, overrides: Partial<OrderDto> = {}): OrderDto => ({
+        id: crypto.randomUUID(),
+        gridId,
+        symbol: 'BTC',
+        type: OrderType.Limit,
+        side: OrderSide.Buy,
+        price: 50000,
+        amount: 0.01,
+        status: OrderStatus.Placed,
+        levelIndex: 5,
+        exchangeOrderId: null,
+        ...overrides,
+    });
 
     beforeEach(() => {
         mockOrderClient = {
@@ -80,22 +99,10 @@ describe('SyncOrdersUseCase', () => {
 
         it('should processOne active grids and detect fills', async () => {
             const grid = createTestGrid();
-            grid.start();
-
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
 
-            const order = Order.create({
-                id: orderId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid.id,
-                levelIndex: 5,
-            });
+            const order = createTestOrder(grid.id, { id: orderId });
 
             const exchangeOrder = {
                 id: 'exchange-123',
@@ -132,23 +139,11 @@ describe('SyncOrdersUseCase', () => {
         });
 
         it('should skip grids that are not running', async () => {
-            const grid = createTestGrid();
-            // Grid is in Idle state (not started)
-
-            const orderId = OrderId.create();
+            const grid = createTestGrid({ status: GridStatus.Idle });
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
 
-            const order = Order.create({
-                id: orderId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid.id,
-                levelIndex: 5,
-            });
+            const order = createTestOrder(grid.id, { id: orderId });
 
             const exchangeOrder = {
                 id: 'exchange-123',
@@ -185,37 +180,14 @@ describe('SyncOrdersUseCase', () => {
         it('should handle errors gracefully and continue processing', async () => {
             const grid1 = createTestGrid();
             const grid2 = createTestGrid();
-            grid1.start();
-            grid2.start();
 
-            const orderId1 = OrderId.create();
-            const orderId2 = OrderId.create();
+            const orderId1 = crypto.randomUUID();
+            const orderId2 = crypto.randomUUID();
             const cloid1 = ExchangeCloid.create(orderId1);
             const cloid2 = ExchangeCloid.create(orderId2);
 
-            const order1 = Order.create({
-                id: orderId1,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid1.id,
-                levelIndex: 5,
-            });
-
-            const order2 = Order.create({
-                id: orderId2,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid2.id,
-                levelIndex: 5,
-            });
+            const order1 = createTestOrder(grid1.id, { id: orderId1 });
+            const order2 = createTestOrder(grid2.id, { id: orderId2 });
 
             const exchangeOrder1 = {
                 id: 'exchange-123',
@@ -252,39 +224,16 @@ describe('SyncOrdersUseCase', () => {
 
             const result = await useCase.execute();
 
-            expect(result.gridsProcessed).toBe(1); // Only second grid processed
+            expect(result.gridsProcessed).toBe(1);
             expect(result.errors.length).toBe(1);
             expect(result.errors[0]).toContain('DB error');
         });
 
         it('should pass all filled orders to processMany', async () => {
             const grid = createTestGrid();
-            grid.start();
-            const gridId = grid.id;
 
-            const buyOrder1 = Order.create({
-                id: OrderId.create(),
-                gridId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                levelIndex: 5,
-            });
-
-            const buyOrder2 = Order.create({
-                id: OrderId.create(),
-                gridId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(52000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                levelIndex: 7,
-            });
+            const buyOrder1 = createTestOrder(grid.id, { levelIndex: 5 });
+            const buyOrder2 = createTestOrder(grid.id, { price: 52000, levelIndex: 7 });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
             mockGrids.findActiveGrids.mockResolvedValue([grid]);
@@ -306,22 +255,11 @@ describe('SyncOrdersUseCase', () => {
 
         it('should count refills correctly', async () => {
             const grid = createTestGrid();
-            grid.start();
 
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
 
-            const order = Order.create({
-                id: orderId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid.id,
-                levelIndex: 5,
-            });
+            const order = createTestOrder(grid.id, { id: orderId });
 
             const exchangeOrder = {
                 id: 'exchange-123',
@@ -336,17 +274,7 @@ describe('SyncOrdersUseCase', () => {
                 placedAt: Date.now(),
             };
 
-            const order2 = Order.create({
-                id: OrderId.create(),
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: grid.id,
-                levelIndex: 6,
-            });
+            const order2 = createTestOrder(grid.id, { levelIndex: 6 });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder]);
             mockGrids.findActiveGrids.mockResolvedValue([grid]);

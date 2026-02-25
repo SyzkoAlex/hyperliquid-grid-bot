@@ -12,6 +12,6 @@ export async function bootstrapAllInOneApp(): Promise<void> {
             appName: 'Hyperliquid All-In-One',
             env: process.env.NODE_ENV,
         },
-        'All-In-One App started (Trading Bot + Telegram Control)',
+        'All-In-One App started',
     );
 }

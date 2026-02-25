@@ -4,13 +4,7 @@ import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 import { Inject } from '@nestjs/common';
-import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
@@ -31,9 +25,7 @@ export class QuickStartStep implements WizardStep {
     private readonly accountAddress: string;
 
     constructor(
-        @Inject(EXCHANGE_INFO_PORT) private readonly hyperliquidClient: ExchangeInfoPort,
-        private readonly userBalanceExtractor: UserBalanceExtractorService,
-        private readonly capitalCalculator: CapitalCalculatorService,
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
         private readonly messageManager: WizardMessageManager,
         configService: ConfigService<Config, true>,
     ) {
@@ -56,8 +48,7 @@ export class QuickStartStep implements WizardStep {
         if (symbol) {
             try {
                 const balanceInfo = await fetchBalanceInfo(
-                    this.hyperliquidClient,
-                    this.userBalanceExtractor,
+                    this.tradingApi,
                     this.accountAddress,
                     symbol,
                 );
@@ -94,11 +85,10 @@ export class QuickStartStep implements WizardStep {
         const investment = parseFloat(text);
 
         try {
-            const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
-            const currentPrice = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-            const priceOffset = currentPrice.toNumber() * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
-            const upperPrice = currentPrice.toNumber() + priceOffset;
-            const lowerPrice = currentPrice.toNumber() - priceOffset;
+            const currentPrice = await this.tradingApi.getCurrentPrice(session.createGrid.symbol);
+            const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
+            const upperPrice = currentPrice + priceOffset;
+            const lowerPrice = currentPrice - priceOffset;
 
             const result = await validateInvestment(
                 {
@@ -109,9 +99,7 @@ export class QuickStartStep implements WizardStep {
                     lowerPrice,
                     accountAddress: this.accountAddress,
                 },
-                this.hyperliquidClient,
-                this.userBalanceExtractor,
-                this.capitalCalculator,
+                this.tradingApi,
             );
 
             if (!result.valid) {

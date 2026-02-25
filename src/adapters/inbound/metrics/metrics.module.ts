@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { PrometheusService } from './prometheus.service';
-import { MetricsController } from './metrics.controller';
+import { PrometheusMetricsModule } from '@adapters/outbound/metrics/prometheus-metrics.module';
+import { MetricsAdapter } from './metrics.adapter';
 
 @Module({
-    providers: [PrometheusService],
-    controllers: [MetricsController],
-    exports: [PrometheusService],
+    imports: [PrometheusMetricsModule],
+    controllers: [MetricsAdapter],
 })
 export class MetricsModule {}

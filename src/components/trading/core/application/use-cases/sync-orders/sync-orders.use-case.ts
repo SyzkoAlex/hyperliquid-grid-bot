@@ -4,7 +4,7 @@ import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { logger } from '@/infra/logger/logger';
@@ -20,7 +20,7 @@ export class SyncOrdersUseCase {
     constructor(
         private readonly configService: ConfigService<Config, true>,
         @Inject(EXCHANGE_CLIENT_PORT) private readonly hyperliquidOrderClient: ExchangeClientPort,
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
     ) {
@@ -41,7 +41,7 @@ export class SyncOrdersUseCase {
         }
 
         // Fetch all placed orders for active grids
-        const gridIds = activeGrids.map((grid) => grid.id.toString());
+        const gridIds = activeGrids.map((grid) => grid.id);
         const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
         if (allActiveDbOrders.length === 0) {
             return result;
@@ -84,11 +84,8 @@ export class SyncOrdersUseCase {
             result.update({ fills: statusSyncResult.filled, refills: refillsPlaced });
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            result.errors.push(`Grid ${gridWithOrders.grid.id.toString()}: ${errorMsg}`);
-            this.logger.error(
-                { error, gridId: gridWithOrders.grid.id.toString() },
-                'Error processing grid',
-            );
+            result.errors.push(`Grid ${gridWithOrders.grid.id}: ${errorMsg}`);
+            this.logger.error({ error, gridId: gridWithOrders.grid.id }, 'Error processing grid');
         }
     }
 

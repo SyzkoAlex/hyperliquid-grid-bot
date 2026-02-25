@@ -1,15 +1,15 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { Order } from '@domain/models/order/order';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { logger } from '@/infra/logger/logger';
 import {
     EXCHANGE_CLIENT_PORT,
     ExchangeClientPort,
 } from '@components/trading/core/application/ports/exchange-client.port';
 import { Config } from '@/config/config.schema';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { OrderStatusSyncResult } from './order-status-sync-result';
 import { ExchangeStatusMapper } from '@components/trading/core/domain/models/exchange-order/exchange-status.mapper';
@@ -22,17 +22,16 @@ export class OrderStatusSyncService {
     constructor(
         @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
         private readonly configService: ConfigService<Config, true>,
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
     ) {
         this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
     }
 
     /**
      * Detect closed orders and update their statuses in DB.
-     * Returns a result with statistics about processed orders.
      */
     async process(
-        activeDbOrders: Order[],
+        activeDbOrders: OrderDto[],
         exchangeOpenOrders: ExchangeOpenOrder[],
     ): Promise<OrderStatusSyncResult> {
         const result = OrderStatusSyncResult.empty();
@@ -62,28 +61,21 @@ export class OrderStatusSyncService {
         return result;
     }
 
-    /**
-     * Find orders that exist in DB but not in exchange open orders.
-     */
-    private findClosedOrders(dbOrders: Order[], exchangeOrders: ExchangeOpenOrder[]): Order[] {
+    private findClosedOrders(
+        dbOrders: OrderDto[],
+        exchangeOrders: ExchangeOpenOrder[],
+    ): OrderDto[] {
         const openOrderIds = new Set(exchangeOrders.map((o) => o.id));
-
         return dbOrders.filter((o) => o.exchangeOrderId && !openOrderIds.has(o.exchangeOrderId));
     }
 
-    /**
-     * Fetch order statuses for closed orders by querying each individually from the exchange.
-     */
     private async fetchExchangeOrderStatuses(
-        closedOrders: Order[],
+        closedOrders: OrderDto[],
     ): Promise<Map<string, ExchangeOrderInfo>> {
         const statusMap = new Map<string, ExchangeOrderInfo>();
 
-        // Query each order status individually
         const statusPromises = closedOrders.map(async (order) => {
-            if (!order.exchangeOrderId) {
-                return;
-            }
+            if (!order.exchangeOrderId) return;
 
             try {
                 const exchangeOrderStatus = await this.orderClient.getOrderStatus(
@@ -96,7 +88,7 @@ export class OrderStatusSyncService {
                 }
             } catch (error) {
                 this.logger.error(
-                    { error, orderId: order.id.toString(), exchangeOrderId: order.exchangeOrderId },
+                    { error, orderId: order.id, exchangeOrderId: order.exchangeOrderId },
                     'Failed to fetch order status',
                 );
             }
@@ -112,11 +104,10 @@ export class OrderStatusSyncService {
         return statusMap;
     }
 
-    /**
-     * Resolve final order status based on exchange status info.
-     * If status info is missing, mark it as Missing.
-     */
-    private resolveOrderStatus(order: Order, exchangeOrderInfo?: ExchangeOrderInfo): OrderStatus {
+    private resolveOrderStatus(
+        order: OrderDto,
+        exchangeOrderInfo?: ExchangeOrderInfo,
+    ): OrderStatus {
         if (!exchangeOrderInfo) {
             this.logger.warn(
                 { exchangeOrderId: order.exchangeOrderId },
@@ -128,30 +119,24 @@ export class OrderStatusSyncService {
         return ExchangeStatusMapper.mapToOrderStatus(exchangeOrderInfo.status);
     }
 
-    /**
-     * Update order status in database.
-     */
     private async updateOrderStatus(
-        order: Order,
+        order: OrderDto,
         newStatus: OrderStatus,
         statusTimestamp?: number,
     ): Promise<void> {
         const filledTimestamp = statusTimestamp ? new Date(statusTimestamp) : new Date();
 
         await this.grids.updateOrderStatus(
-            order.id.toString(),
+            order.id,
             newStatus,
             newStatus === OrderStatus.Filled ? filledTimestamp : undefined,
         );
     }
 
-    /**
-     * Update result counters based on order status.
-     */
     private updateProcessResult(
         result: OrderStatusSyncResult,
         status: OrderStatus,
-        order: Order,
+        order: OrderDto,
     ): void {
         result.incrementProcessed();
 

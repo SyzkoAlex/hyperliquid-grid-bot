@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderRestoreService } from './order-restore.service';
-import { Order } from '@domain/models/order/order';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
@@ -8,11 +7,9 @@ import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchan
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridId } from '@domain/models/grid/grid-id';
-import { OrderId } from '@domain/models/order/order-id';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
-import { Timestamp } from '@domain/models/primitives/timestamp';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 
 describe('OrderRestoreService', () => {
     let service: OrderRestoreService;
@@ -26,6 +23,7 @@ describe('OrderRestoreService', () => {
     };
 
     const staleThresholdMs = 60000; // 1 minute
+    const gridId = '550e8400-e29b-41d4-a716-446655440000';
 
     beforeEach(() => {
         mockOrderRepository = {
@@ -49,24 +47,19 @@ describe('OrderRestoreService', () => {
     });
 
     describe('restoreOrders', () => {
-        const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
-
-        const createPendingOrder = (orderId?: OrderId, placedAt?: Timestamp): Order => {
-            const id = orderId ?? OrderId.create();
-            return Order.create({
-                id,
-                exchangeOrderId: undefined,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Pending,
-                gridId: gridId,
-                levelIndex: 5,
-                placedAt,
-            });
-        };
+        const createPendingOrder = (orderId?: string, placedAt?: number): OrderDto => ({
+            id: orderId ?? crypto.randomUUID(),
+            gridId,
+            symbol: 'BTC',
+            type: OrderType.Limit,
+            side: OrderSide.Buy,
+            price: 50000,
+            amount: 0.01,
+            status: OrderStatus.Pending,
+            levelIndex: 5,
+            exchangeOrderId: null,
+            placedAt,
+        });
 
         const createExchangeOrder = (
             exchangeOrderId: string,
@@ -98,7 +91,7 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore order by matching cloid', async () => {
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
@@ -109,7 +102,7 @@ describe('OrderRestoreService', () => {
 
             expect(result).toBe(1);
             expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
-                pendingOrder.id.toString(),
+                pendingOrder.id,
                 'exchange-order-1',
                 OrderStatus.Placed,
                 expect.any(Date),
@@ -117,8 +110,8 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore multiple orders with different cloids', async () => {
-            const orderId1 = OrderId.create();
-            const orderId2 = OrderId.create();
+            const orderId1 = crypto.randomUUID();
+            const orderId2 = crypto.randomUUID();
             const cloid1 = ExchangeCloid.create(orderId1);
             const cloid2 = ExchangeCloid.create(orderId2);
 
@@ -139,7 +132,7 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not restore order without cloid', async () => {
-            const pendingOrder = createPendingOrder(undefined);
+            const pendingOrder = createPendingOrder();
 
             mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
 
@@ -150,8 +143,8 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not restore when no matching exchange order found', async () => {
-            const orderId = OrderId.create();
-            const differentOrderId = OrderId.create();
+            const orderId = crypto.randomUUID();
+            const differentOrderId = crypto.randomUUID();
             const pendingOrder = createPendingOrder(orderId);
             const differentCloid = ExchangeCloid.create(differentOrderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', differentCloid);
@@ -165,7 +158,7 @@ describe('OrderRestoreService', () => {
         });
 
         it('should skip restoration when multiple exchange orders have same cloid', async () => {
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid);
@@ -180,9 +173,9 @@ describe('OrderRestoreService', () => {
         });
 
         it('should mark stale pending order as missing when not found on exchange', async () => {
-            const orderId = OrderId.create();
-            const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
-            const stalePendingOrder = createPendingOrder(orderId, staleTimestamp);
+            const orderId = crypto.randomUUID();
+            const stalePlacedAt = Date.now() - staleThresholdMs - 1000;
+            const stalePendingOrder = createPendingOrder(orderId, stalePlacedAt);
 
             mockOrderRepository.findOrdersByStatus.mockResolvedValue([stalePendingOrder]);
 
@@ -190,15 +183,15 @@ describe('OrderRestoreService', () => {
 
             expect(result).toBe(0);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                stalePendingOrder.id.toString(),
+                stalePendingOrder.id,
                 OrderStatus.Missing,
             );
         });
 
         it('should not mark fresh pending order as missing', async () => {
-            const orderId = OrderId.create();
-            const freshTimestamp = Timestamp.from(new Date(Date.now() - 1000)); // 1 second ago
-            const freshPendingOrder = createPendingOrder(orderId, freshTimestamp);
+            const orderId = crypto.randomUUID();
+            const freshPlacedAt = Date.now() - 1000; // 1 second ago
+            const freshPendingOrder = createPendingOrder(orderId, freshPlacedAt);
 
             mockOrderRepository.findOrdersByStatus.mockResolvedValue([freshPendingOrder]);
 
@@ -209,7 +202,7 @@ describe('OrderRestoreService', () => {
         });
 
         it('should not mark pending order without placedAt as missing', async () => {
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const pendingOrder = createPendingOrder(orderId, undefined);
 
             mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
@@ -221,14 +214,14 @@ describe('OrderRestoreService', () => {
         });
 
         it('should restore some orders and mark others as missing', async () => {
-            const orderId1 = OrderId.create();
-            const orderId2 = OrderId.create();
+            const orderId1 = crypto.randomUUID();
+            const orderId2 = crypto.randomUUID();
             const cloid1 = ExchangeCloid.create(orderId1);
 
-            const staleTimestamp = Timestamp.from(new Date(Date.now() - staleThresholdMs - 1000));
+            const stalePlacedAt = Date.now() - staleThresholdMs - 1000;
 
-            const pendingOrder1 = createPendingOrder(orderId1); // Will be restored
-            const pendingOrder2 = createPendingOrder(orderId2, staleTimestamp); // Will be marked missing
+            const pendingOrder1 = createPendingOrder(orderId1);
+            const pendingOrder2 = createPendingOrder(orderId2, stalePlacedAt);
 
             const exchangeOrder1 = createExchangeOrder('exchange-order-1', cloid1);
 
@@ -241,19 +234,19 @@ describe('OrderRestoreService', () => {
 
             expect(result).toBe(1);
             expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
-                pendingOrder1.id.toString(),
+                pendingOrder1.id,
                 'exchange-order-1',
                 OrderStatus.Placed,
                 expect.any(Date),
             );
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                pendingOrder2.id.toString(),
+                pendingOrder2.id,
                 OrderStatus.Missing,
             );
         });
 
         it('should handle exchange orders without cloid', async () => {
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrderWithoutCloid = createExchangeOrder('exchange-order-1', undefined);
 
@@ -266,7 +259,7 @@ describe('OrderRestoreService', () => {
         });
 
         it('should match cloid by string comparison', async () => {
-            const orderId = OrderId.create();
+            const orderId = crypto.randomUUID();
             const cloid = ExchangeCloid.create(orderId);
             const pendingOrder = createPendingOrder(orderId);
             const exchangeOrder = createExchangeOrder('exchange-order-1', cloid);
@@ -277,7 +270,7 @@ describe('OrderRestoreService', () => {
 
             expect(result).toBe(1);
             expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
-                pendingOrder.id.toString(),
+                pendingOrder.id,
                 'exchange-order-1',
                 OrderStatus.Placed,
                 expect.any(Date),

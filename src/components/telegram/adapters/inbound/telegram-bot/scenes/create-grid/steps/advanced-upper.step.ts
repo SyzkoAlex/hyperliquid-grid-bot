@@ -3,11 +3,7 @@ import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 import { Inject } from '@nestjs/common';
-import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
@@ -21,7 +17,7 @@ export class AdvancedUpperStep implements WizardStep {
     readonly id = SceneStep.Upper;
 
     constructor(
-        @Inject(EXCHANGE_INFO_PORT) private readonly hyperliquidClient: ExchangeInfoPort,
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
         private readonly messageManager: WizardMessageManager,
     ) {}
 
@@ -37,9 +33,10 @@ export class AdvancedUpperStep implements WizardStep {
         let message: string;
         if (session.createGrid?.symbol) {
             try {
-                const tradingSymbol = TradingSymbol.fromString(session.createGrid.symbol);
-                const price = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-                message = AdvancedUpperMessages.prompt(session.createGrid.symbol, price.toNumber());
+                const currentPrice = await this.tradingApi.getCurrentPrice(
+                    session.createGrid.symbol,
+                );
+                message = AdvancedUpperMessages.prompt(session.createGrid.symbol, currentPrice);
             } catch (error) {
                 message = AdvancedUpperMessages.prompt(session.createGrid.symbol);
             }

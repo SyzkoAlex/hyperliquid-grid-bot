@@ -1,24 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
-import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { Order } from '@domain/models/order/order';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { logger } from '@/infra/logger/logger';
 import { Config } from '@/config/config.schema';
 
 /**
  * Service to restore orders that were placed on exchange but not updated in DB.
- *
- * This can happen during bot restart when:
- * 1. Order was sent to exchange successfully
- * 2. Bot crashed/restarted before updating DB with exchangeOrderId
- * 3. Order remains in DB with status=Pending and no exchangeOrderId
- *
- * We restore such orders by:
- * - Finding them by exchangeOrderId in allOpenOrders from exchange
- * - Updating DB with status=Placed
- * - Marking stale pending orders (not found on exchange) as Missing
  */
 @Injectable()
 export class OrderRestoreService {
@@ -26,7 +16,7 @@ export class OrderRestoreService {
     private readonly staleThresholdMs: number;
 
     constructor(
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly configService: ConfigService<Config, true>,
     ) {
         const config = this.configService.get('orders', { infer: true });
@@ -50,7 +40,7 @@ export class OrderRestoreService {
     }
 
     private async restorePendingOrders(
-        dbPendingOrders: Order[],
+        dbPendingOrders: OrderDto[],
         exchangeOpenOrders: ExchangeOpenOrder[],
     ): Promise<number> {
         let restoredCount = 0;
@@ -72,13 +62,11 @@ export class OrderRestoreService {
     }
 
     private async tryRestoreOrder(
-        dbOrder: Order,
+        dbOrder: OrderDto,
         exchangeOrders: ExchangeOpenOrder[],
     ): Promise<boolean> {
-        const orderId = dbOrder.id.toString();
-        const matchingOrders = exchangeOrders.filter(
-            (o) => o.cloid?.toOrderId()?.toString() === orderId,
-        );
+        const orderId = dbOrder.id;
+        const matchingOrders = exchangeOrders.filter((o) => o.cloid?.toOrderId() === orderId);
 
         if (matchingOrders.length === 0) {
             return false;
@@ -86,10 +74,7 @@ export class OrderRestoreService {
 
         if (matchingOrders.length > 1) {
             this.logger.warn(
-                {
-                    orderId,
-                    matchCount: matchingOrders.length,
-                },
+                { orderId, matchCount: matchingOrders.length },
                 'Multiple exchange orders found with same cloid - skipping restoration',
             );
             return false;
@@ -104,32 +89,26 @@ export class OrderRestoreService {
             new Date(),
         );
 
-        this.logger.info(
-            {
-                orderId,
-                exchangeOrderId: exchangeOrder.id,
-            },
-            'Order restored by cloid',
-        );
+        this.logger.info({ orderId, exchangeOrderId: exchangeOrder.id }, 'Order restored by cloid');
 
         return true;
     }
 
-    private async cleanupStaleOrder(order: Order): Promise<void> {
+    private async cleanupStaleOrder(order: OrderDto): Promise<void> {
         if (!order.placedAt) {
             return;
         }
 
-        const orderAge = Date.now() - order.placedAt.toUnixMilliseconds();
+        const orderAge = Date.now() - order.placedAt;
         if (orderAge < this.staleThresholdMs) {
             return;
         }
 
-        await this.grids.updateOrderStatus(order.id.toString(), OrderStatus.Missing);
+        await this.grids.updateOrderStatus(order.id, OrderStatus.Missing);
 
         this.logger.warn(
             {
-                orderId: order.id.toString(),
+                orderId: order.id,
                 gridId: order.gridId,
                 levelIndex: order.levelIndex,
                 ageMs: orderAge,

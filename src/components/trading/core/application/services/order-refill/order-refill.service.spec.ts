@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderRefillService } from './order-refill.service';
-import { Order } from '@domain/models/order/order';
-import { OrderId } from '@domain/models/order/order-id';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { Grid } from '@domain/models/grid/grid';
-import { GridId } from '@domain/models/grid/grid-id';
 import { GridMode } from '@domain/models/grid/grid-mode';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { Price } from '@domain/models/primitives/price';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { Decimal } from '@domain/models/primitives/decimal';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+
+const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
+const REFILL_ORDER_ID = '880e8400-e29b-41d4-a716-446655440003';
 
 describe('OrderRefillService', () => {
     let service: OrderRefillService;
@@ -18,7 +18,7 @@ describe('OrderRefillService', () => {
         placeSpotOrder: ReturnType<typeof vi.fn>;
     };
     let mockOrderRepository: {
-        saveOrder: ReturnType<typeof vi.fn>;
+        createOrder: ReturnType<typeof vi.fn>;
         updateOrderExchangeId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
     };
@@ -26,47 +26,64 @@ describe('OrderRefillService', () => {
         publish: ReturnType<typeof vi.fn>;
     };
 
-    // Test grid configuration
-    const createTestGrid = (): Grid => {
-        return Grid.create({
-            symbol: TradingSymbol.create('BTC'),
-            mode: GridMode.Neutral,
-            lowerPrice: Price.from(45000),
-            upperPrice: Price.from(55000),
-            levels: 11, // 11 levels = 10 intervals, spacing = 1000
-            investmentUSDC: Decimal.from(5000),
-            investmentBase: Decimal.from(0.1),
-        });
+    // Test grid: 11 levels, spacing = (55000-45000)/(11-1) = 1000
+    const testGrid: GridDto = {
+        id: GRID_ID,
+        symbol: 'BTC',
+        mode: GridMode.Neutral,
+        status: GridStatus.Running,
+        lowerPrice: 45000,
+        upperPrice: 55000,
+        levels: 11,
+        investmentUSDC: 5000,
+        investmentBase: 0.1,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 10,
+        trailingPartialClosePercent: 50,
     };
 
-    // Test order at level 5 (middle of grid)
-    const createTestBuyOrder = (): Order =>
-        Order.create({
-            id: OrderId.create(),
-            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
-            exchangeOrderId: 'exchange-789',
-            symbol: TradingSymbol.create('BTC'),
-            type: OrderType.Limit,
-            price: Price.from(50000), // Level 5
-            levelIndex: 5,
-            side: OrderSide.Buy,
-            amount: Decimal.from(0.01),
-            status: OrderStatus.Placed,
-        });
+    // Test buy order at level 5 (middle of grid)
+    const testBuyOrder: OrderDto = {
+        id: '660e8400-e29b-41d4-a716-446655440001',
+        gridId: GRID_ID,
+        symbol: 'BTC',
+        side: OrderSide.Buy,
+        status: OrderStatus.Placed,
+        type: OrderType.Limit,
+        levelIndex: 5,
+        price: 50000,
+        amount: 0.01,
+        exchangeOrderId: 'exchange-789',
+    };
 
-    const createTestSellOrder = (): Order =>
-        Order.create({
-            id: OrderId.create(),
-            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
-            exchangeOrderId: 'exchange-012',
-            symbol: TradingSymbol.create('BTC'),
-            type: OrderType.Limit,
-            price: Price.from(51000), // Level 6
-            levelIndex: 6,
-            side: OrderSide.Sell,
-            amount: Decimal.from(0.01),
-            status: OrderStatus.Placed,
-        });
+    // Test sell order at level 6
+    const testSellOrder: OrderDto = {
+        id: '770e8400-e29b-41d4-a716-446655440002',
+        gridId: GRID_ID,
+        symbol: 'BTC',
+        side: OrderSide.Sell,
+        status: OrderStatus.Placed,
+        type: OrderType.Limit,
+        levelIndex: 6,
+        price: 51000,
+        amount: 0.01,
+        exchangeOrderId: 'exchange-012',
+    };
+
+    const makeRefillOrderDto = (overrides: Partial<OrderDto> = {}): OrderDto => ({
+        id: REFILL_ORDER_ID,
+        gridId: GRID_ID,
+        symbol: 'BTC',
+        side: OrderSide.Sell,
+        status: OrderStatus.Pending,
+        type: OrderType.Limit,
+        levelIndex: 6,
+        price: 51000,
+        amount: 0.01,
+        exchangeOrderId: null,
+        ...overrides,
+    });
 
     beforeEach(() => {
         mockOrderClient = {
@@ -77,7 +94,7 @@ describe('OrderRefillService', () => {
         };
 
         mockOrderRepository = {
-            saveOrder: vi.fn().mockResolvedValue(undefined),
+            createOrder: vi.fn().mockResolvedValue(makeRefillOrderDto()),
             updateOrderExchangeId: vi.fn().mockResolvedValue(undefined),
             updateOrderStatus: vi.fn().mockResolvedValue(undefined),
         };
@@ -87,16 +104,15 @@ describe('OrderRefillService', () => {
         };
 
         const mockProfitCalculator = {
-            calculate: vi.fn().mockImplementation((order: Order, grid: Grid) => {
+            calculate: vi.fn().mockImplementation((order: OrderDto, grid: GridDto) => {
                 if (order.side === OrderSide.Sell) {
-                    const spacing = grid.getGridSpacing().toNumber();
-                    return Decimal.from(spacing * order.amount.toNumber());
+                    const spacing = (grid.upperPrice - grid.lowerPrice) / (grid.levels - 1);
+                    return Decimal.from(spacing * order.amount);
                 }
                 return null;
             }),
         };
 
-        // Create service with mocks directly via constructor
         service = new OrderRefillService(
             mockOrderClient as any,
             mockOrderRepository as any,
@@ -107,15 +123,12 @@ describe('OrderRefillService', () => {
 
     describe('processFilledOrder', () => {
         it('should place SELL order one level up when BUY order fills', async () => {
-            const grid = createTestGrid();
-            const filledBuyOrder = createTestBuyOrder();
-
             mockOrderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: 'new-order-111',
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.processOne(filledBuyOrder, grid);
+            const result = await service.processOne(testBuyOrder, testGrid);
 
             // Should succeed
             expect(result.success).toBe(true);
@@ -129,7 +142,7 @@ describe('OrderRefillService', () => {
             );
 
             // Pre-save pattern: order saved with pending status
-            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.createOrder).toHaveBeenCalledTimes(1);
 
             // Then exchangeOrderId updated after successful placement
             expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
@@ -147,15 +160,15 @@ describe('OrderRefillService', () => {
         });
 
         it('should place BUY order one level down when SELL order fills', async () => {
-            const grid = createTestGrid();
-            const filledSellOrder = createTestSellOrder();
-
+            mockOrderRepository.createOrder.mockResolvedValue(
+                makeRefillOrderDto({ side: OrderSide.Buy }),
+            );
             mockOrderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: 'new-order-222',
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.processOne(filledSellOrder, grid);
+            const result = await service.processOne(testSellOrder, testGrid);
 
             // Should succeed
             expect(result.success).toBe(true);
@@ -169,7 +182,7 @@ describe('OrderRefillService', () => {
             );
 
             // Pre-save pattern: order saved with pending status
-            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.createOrder).toHaveBeenCalledTimes(1);
 
             // Then exchangeOrderId updated after successful placement
             expect(mockOrderRepository.updateOrderExchangeId).toHaveBeenCalledWith(
@@ -185,21 +198,20 @@ describe('OrderRefillService', () => {
         });
 
         it('should not place refill when BUY order at top level fills', async () => {
-            const grid = createTestGrid();
-            const filledBuyOrder = Order.create({
-                id: OrderId.create(),
-                gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
-                exchangeOrderId: 'exchange-top',
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                price: Price.from(55000),
-                levelIndex: 10, // Top level (last level in 11-level grid)
+            const filledBuyOrder: OrderDto = {
+                id: '990e8400-e29b-41d4-a716-446655440004',
+                gridId: GRID_ID,
+                symbol: 'BTC',
                 side: OrderSide.Buy,
-                amount: Decimal.from(0.01),
                 status: OrderStatus.Filled,
-            });
+                type: OrderType.Limit,
+                levelIndex: 10, // Top level (last level in 11-level grid)
+                price: 55000,
+                amount: 0.01,
+                exchangeOrderId: 'exchange-top',
+            };
 
-            const result = await service.processOne(filledBuyOrder, grid);
+            const result = await service.processOne(filledBuyOrder, testGrid);
 
             // Should fail (no refill at edge)
             expect(result.success).toBe(false);
@@ -210,21 +222,20 @@ describe('OrderRefillService', () => {
         });
 
         it('should not place refill when SELL order at bottom level fills', async () => {
-            const grid = createTestGrid();
-            const filledSellOrder = Order.create({
-                id: OrderId.create(),
-                gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
-                exchangeOrderId: 'exchange-bottom',
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                price: Price.from(45000),
-                levelIndex: 0, // Bottom level
+            const filledSellOrder: OrderDto = {
+                id: 'aa0e8400-e29b-41d4-a716-446655440005',
+                gridId: GRID_ID,
+                symbol: 'BTC',
                 side: OrderSide.Sell,
-                amount: Decimal.from(0.01),
                 status: OrderStatus.Filled,
-            });
+                type: OrderType.Limit,
+                levelIndex: 0, // Bottom level
+                price: 45000,
+                amount: 0.01,
+                exchangeOrderId: 'exchange-bottom',
+            };
 
-            const result = await service.processOne(filledSellOrder, grid);
+            const result = await service.processOne(filledSellOrder, testGrid);
 
             // Should fail (no refill at edge)
             expect(result.success).toBe(false);
@@ -235,23 +246,20 @@ describe('OrderRefillService', () => {
         });
 
         it('should handle order placement failure gracefully', async () => {
-            const grid = createTestGrid();
-            const filledBuyOrder = createTestBuyOrder();
-
             mockOrderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: null,
                 status: OrderStatus.Failed,
                 error: 'Insufficient balance',
             });
 
-            const result = await service.processOne(filledBuyOrder, grid);
+            const result = await service.processOne(testBuyOrder, testGrid);
 
             // Should fail
             expect(result.success).toBe(false);
             expect(result.error).toBeDefined();
 
             // With pre-save pattern: order IS saved with pending status
-            expect(mockOrderRepository.saveOrder).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.createOrder).toHaveBeenCalledTimes(1);
 
             // Then status updated to failed
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
@@ -261,15 +269,15 @@ describe('OrderRefillService', () => {
         });
 
         it('should calculate correct profit for sell orders', async () => {
-            const grid = createTestGrid();
-            const filledSellOrder = createTestSellOrder();
-
+            mockOrderRepository.createOrder.mockResolvedValue(
+                makeRefillOrderDto({ side: OrderSide.Buy }),
+            );
             mockOrderClient.placeSpotOrder.mockResolvedValue({
                 exchangeOrderId: 'new-order-333',
                 status: OrderStatus.Placed,
             });
 
-            const result = await service.processOne(filledSellOrder, grid);
+            const result = await service.processOne(testSellOrder, testGrid);
 
             // Grid spacing = (55000 - 45000) / 10 = 1000
             // Profit = spacing * amount = 1000 * 0.01 = 10

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { AxiosError } from 'axios';
 import { logger } from '@/infra/logger/logger';
-import { extractErrorDetails } from '@/infra/logger/error-logger.helper';
-import { HyperliquidApiClient } from '@/infra/hyperliqued/hyperliquid-api.client';
-import { HyperliquidSdkClient } from '@/infra/hyperliqued/hyperliquid-sdk.client';
+import { extractErrorDetails } from '@/infra/logger/extract-error-details';
+import { HyperliquidApiClient } from './hyperliquid-api.client';
+import { HyperliquidSdkClient } from './hyperliquid-sdk.client';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
 import { ExchangeCancelOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-cancel-order-params';

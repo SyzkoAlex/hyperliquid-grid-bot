@@ -3,25 +3,26 @@ import { AdvancedPreviewStep } from './advanced-preview.step';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GridMode } from '@domain/models/grid/grid-mode';
-import { Price } from '@domain/models/primitives/price';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
     let mockMessageManager: WizardMessageManager;
-    let mockHyperliquidClient: ExchangeInfoPort;
+    let mockTradingApi: TradingApiPort;
 
     beforeEach(() => {
         mockMessageManager = {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        mockHyperliquidClient = {
-            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(50000)),
-        } as unknown as ExchangeInfoPort;
+        mockTradingApi = {
+            getCurrentPrice: vi.fn().mockResolvedValue(50000),
+            getUserSpotState: vi.fn(),
+            pairExists: vi.fn(),
+        } as unknown as TradingApiPort;
 
-        step = new AdvancedPreviewStep(mockMessageManager, mockHyperliquidClient);
+        step = new AdvancedPreviewStep(mockMessageManager, mockTradingApi);
     });
 
     describe('enter', () => {

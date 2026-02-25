@@ -1,5 +1,4 @@
 app:
-    type: ${APP_TYPE:all-in-one}
     name: hyperliquid-grid-bot
     port: ${APP_PORT:3000}
     host: ${APP_HOST:0.0.0.0}

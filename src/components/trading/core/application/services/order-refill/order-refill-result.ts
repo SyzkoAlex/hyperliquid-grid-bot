@@ -1,4 +1,4 @@
-import { Order } from '@domain/models/order/order';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 
 /**
  * Result of OrderRefillService
@@ -6,7 +6,7 @@ import { Order } from '@domain/models/order/order';
 export class OrderRefillResult {
     constructor(
         public success: boolean,
-        public refillOrder?: Order,
+        public refillOrder?: OrderDto,
         public profit?: number,
         public error?: string,
     ) {}
@@ -15,7 +15,7 @@ export class OrderRefillResult {
         return new OrderRefillResult(false, undefined, undefined, error);
     }
 
-    static success(refillOrder: Order, profit?: number): OrderRefillResult {
+    static success(refillOrder: OrderDto, profit?: number): OrderRefillResult {
         return new OrderRefillResult(true, refillOrder, profit);
     }
 }

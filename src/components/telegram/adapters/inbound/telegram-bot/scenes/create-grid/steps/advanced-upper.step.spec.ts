@@ -1,33 +1,34 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AdvancedUpperStep } from './advanced-upper.step';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
-import { Price } from '@domain/models/primitives/price';
 import { SceneStep } from '../create-grid-scene-step';
 
 describe('AdvancedUpperStep', () => {
     let step: AdvancedUpperStep;
-    let mockHyperliquidClient: ExchangeInfoPort;
+    let mockTradingApi: TradingApiPort;
     let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
-        mockHyperliquidClient = {
+        mockTradingApi = {
             getCurrentPrice: vi.fn(),
-        } as unknown as ExchangeInfoPort;
+            getUserSpotState: vi.fn(),
+            pairExists: vi.fn(),
+        } as unknown as TradingApiPort;
 
         mockMessageManager = {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        step = new AdvancedUpperStep(mockHyperliquidClient, mockMessageManager);
+        step = new AdvancedUpperStep(mockTradingApi, mockMessageManager);
     });
 
     describe('enter', () => {
         it('should show current price if symbol exists', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
 
             await step.enter(ctx);
 
@@ -37,9 +38,7 @@ describe('AdvancedUpperStep', () => {
         it('should handle price fetch error gracefully', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockHyperliquidClient.getCurrentPrice).mockRejectedValue(
-                new Error('API error'),
-            );
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API error'));
 
             await step.enter(ctx);
 

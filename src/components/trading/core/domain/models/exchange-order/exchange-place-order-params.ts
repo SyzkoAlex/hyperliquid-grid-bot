@@ -2,7 +2,6 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
-import { OrderId } from '@domain/models/order/order-id';
 
 /**
  * Exchange Place Order Parameters
@@ -13,7 +12,7 @@ export interface ExchangePlaceOrderParams {
     /** Trading symbol */
     symbol: TradingSymbol;
 
-    /** Order side (buy/sell) */
+    /** Order side */
     side: OrderSide;
 
     /** Order price */
@@ -23,5 +22,5 @@ export interface ExchangePlaceOrderParams {
     amount: Decimal;
 
     /** Order ID - used for tracking orders via cloid */
-    orderId: OrderId;
+    orderId: string;
 }

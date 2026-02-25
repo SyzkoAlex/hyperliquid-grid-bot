@@ -10,7 +10,6 @@ import { GetGridWithPnlUseCase } from '@components/telegram/core/application/use
 import { StopGridUseCase } from '@components/telegram/core/application/use-cases/stop-grid/stop-grid.use-case';
 import { GridListItemMessage } from '@components/telegram/core/domain/models/messages/grid-list-item.message';
 import { GridWithPnl } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
-import { GridId } from '@domain/models/grid/grid-id';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
 import { toInlineKeyboard } from '../inline-keyboard';
@@ -88,7 +87,7 @@ export class GridViewHandler implements Handler {
         const item = await this.fetchGrid(ctx, gridId);
         if (!item) return;
 
-        const pair = `${item.grid.symbol.toString()}/USDC`;
+        const pair = `${item.grid.symbol}/USDC`;
         const text =
             `${EMOJI.WARNING} <b>Stop grid?</b>\n\n` +
             `Are you sure you want to stop the <b>${pair}</b> grid?\n` +
@@ -128,8 +127,7 @@ export class GridViewHandler implements Handler {
 
     private async fetchGrid(ctx: BotContext, gridId: string): Promise<GridWithPnl | null> {
         try {
-            const id = GridId.from(gridId);
-            const item = await this.getGridWithPnlUseCase.execute(id);
+            const item = await this.getGridWithPnlUseCase.execute(gridId);
             if (!item) {
                 await ctx.reply(`${EMOJI.WARNING} Grid not found.`, { parse_mode: 'HTML' });
                 return null;

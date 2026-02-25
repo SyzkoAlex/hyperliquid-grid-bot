@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderStatusSyncService } from './order-status-sync.service';
-import { Order } from '@domain/models/order/order';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
@@ -8,9 +7,8 @@ import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchan
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridId } from '@domain/models/grid/grid-id';
-import { OrderId } from '@domain/models/order/order-id';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 
 describe('OrderStatusSyncService', () => {
     let service: OrderStatusSyncService;
@@ -52,21 +50,20 @@ describe('OrderStatusSyncService', () => {
     });
 
     describe('process', () => {
-        const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
+        const gridId = '550e8400-e29b-41d4-a716-446655440000';
 
-        const createDbOrder = (exchangeOrderId: string): Order =>
-            Order.create({
-                id: OrderId.create(),
-                exchangeOrderId,
-                symbol: TradingSymbol.create('BTC'),
-                type: OrderType.Limit,
-                side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
-                status: OrderStatus.Placed,
-                gridId: gridId,
-                levelIndex: 5,
-            });
+        const createDbOrder = (exchangeOrderId: string): OrderDto => ({
+            id: crypto.randomUUID(),
+            gridId,
+            symbol: 'BTC',
+            type: OrderType.Limit,
+            side: OrderSide.Buy,
+            price: 50000,
+            amount: 0.01,
+            status: OrderStatus.Placed,
+            levelIndex: 5,
+            exchangeOrderId,
+        });
 
         const createExchangeOrder = (exchangeOrderId: string): ExchangeOpenOrder => ({
             id: exchangeOrderId,
@@ -143,7 +140,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.processed).toBe(1);
             expect(result.cancelled).toBe(1);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                order1.id.toString(),
+                order1.id,
                 OrderStatus.Cancelled,
                 undefined,
             );
@@ -178,7 +175,7 @@ describe('OrderStatusSyncService', () => {
             const order1 = createDbOrder('order-1');
             const dbOrders = [order1];
 
-            mockOrderStatus(new Map()); // No statuses found
+            mockOrderStatus(new Map());
 
             const result = await service.process(dbOrders, []);
 
@@ -186,7 +183,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.processed).toBe(1);
             expect(result.missing).toBe(1);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                order1.id.toString(),
+                order1.id,
                 OrderStatus.Missing,
                 undefined,
             );
@@ -206,7 +203,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.missing).toBe(2);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                order1.id.toString(),
+                order1.id,
                 OrderStatus.Missing,
                 undefined,
             );
@@ -226,18 +223,18 @@ describe('OrderStatusSyncService', () => {
         });
 
         it('should skip orders without exchange ID', async () => {
-            const orderWithoutId = Order.create({
-                id: OrderId.create(),
-                exchangeOrderId: undefined,
-                symbol: TradingSymbol.create('BTC'),
+            const orderWithoutId: OrderDto = {
+                id: crypto.randomUUID(),
+                gridId,
+                symbol: 'BTC',
                 type: OrderType.Limit,
                 side: OrderSide.Buy,
-                price: Price.from(50000),
-                amount: Decimal.from(0.01),
+                price: 50000,
+                amount: 0.01,
                 status: OrderStatus.Pending,
-                gridId: gridId,
                 levelIndex: 5,
-            });
+                exchangeOrderId: null,
+            };
 
             const dbOrders = [orderWithoutId];
 
@@ -269,7 +266,7 @@ describe('OrderStatusSyncService', () => {
             expect(result.processed).toBe(1);
             expect(result.filled).toBe(1);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
-                order1.id.toString(),
+                order1.id,
                 OrderStatus.Filled,
                 expect.any(Date),
             );

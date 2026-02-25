@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
-import { Order } from '@domain/models/order/order';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { HyperliquidWsOrderStatus } from '@/components/trading/adapters/outbound/exchange/hyperliquid/types/hyperliquid-ws-user-event';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { HyperliquidWsOrderStatus } from '@/infra/hyperliqued/types/hyperliquid-ws-user-event';
 
 export interface ProcessOrderStatusParams {
     orderStatus: HyperliquidWsOrderStatus;
@@ -23,21 +23,13 @@ export interface ProcessOrderStatusResult {
  * Process Order Status Use Case
  *
  * Handles order status changes received via WebSocket userEvents channel.
- *
- * ## Statuses:
- * - filled → update status, trigger grid refill
- * - canceled → update status to cancelled
- * - marginCanceled → update status to cancelled (margin call)
- * - rejected → update status to rejected
- * - open → order is now active (no action needed)
- * - triggered → stop order triggered (no action for grid)
  */
 @Injectable()
 export class ProcessOrderStatusUseCase {
     private readonly logger = logger.child({ context: ProcessOrderStatusUseCase.name });
 
     constructor(
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderRefillService: OrderRefillService,
     ) {}
 
@@ -47,16 +39,11 @@ export class ProcessOrderStatusUseCase {
         const status = orderStatus.status;
 
         this.logger.debug(
-            {
-                oid: orderStatus.order.oid,
-                status,
-                coin: orderStatus.order.coin,
-            },
+            { oid: orderStatus.order.oid, status, coin: orderStatus.order.coin },
             'Processing order status change',
         );
 
         try {
-            // Find grid order by exchange order ID
             const gridOrder = await this.grids.findOrderByExchangeId(exchangeOrderId);
 
             if (!gridOrder) {
@@ -69,7 +56,6 @@ export class ProcessOrderStatusUseCase {
                 };
             }
 
-            // Handle different statuses
             switch (status) {
                 case 'filled':
                     return this.handleFilled(orderStatus, gridOrder);
@@ -83,7 +69,6 @@ export class ProcessOrderStatusUseCase {
 
                 case 'open':
                 case 'triggered':
-                    // No action needed for these statuses
                     return {
                         success: true,
                         isGridOrder: true,
@@ -120,14 +105,10 @@ export class ProcessOrderStatusUseCase {
         }
     }
 
-    /**
-     * Handle filled order - trigger grid refill
-     */
     private async handleFilled(
         orderStatus: HyperliquidWsOrderStatus,
-        gridOrder: Order,
+        gridOrder: OrderDto,
     ): Promise<ProcessOrderStatusResult> {
-        // Skip if already processed
         if (gridOrder.status === OrderStatus.Filled) {
             this.logger.debug(
                 { oid: orderStatus.order.oid },
@@ -141,7 +122,6 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        // Get the associated grid
         const grid = await this.grids.findGridById(gridOrder.gridId);
 
         if (!grid) {
@@ -155,7 +135,6 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        // Check if grid is still running
         if (grid.status !== GridStatus.Running) {
             this.logger.info(
                 { gridId: gridOrder.gridId, gridStatus: grid.status },
@@ -169,16 +148,14 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        // Update order status to filled
         const fillTime = new Date(orderStatus.statusTimestamp);
-        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Filled, fillTime);
+        await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Filled, fillTime);
 
         this.logger.info(
-            { oid: orderStatus.order.oid, gridOrderId: gridOrder.id.toString() },
+            { oid: orderStatus.order.oid, gridOrderId: gridOrder.id },
             'Order marked as filled via userEvents',
         );
 
-        // Re-fetch order to get updated status (Order entity is immutable)
         const filledOrder = await this.grids.findOrderByExchangeId(
             orderStatus.order.oid.toString(),
         );
@@ -197,7 +174,6 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        // Process refill logic
         const result = await this.orderRefillService.processOne(filledOrder, grid);
 
         if (!result.success) {
@@ -215,14 +191,10 @@ export class ProcessOrderStatusUseCase {
         };
     }
 
-    /**
-     * Handle canceled order - remove from active orders
-     */
     private async handleCanceled(
         orderStatus: HyperliquidWsOrderStatus,
-        gridOrder: Order,
+        gridOrder: OrderDto,
     ): Promise<ProcessOrderStatusResult> {
-        // Skip if already cancelled
         if (gridOrder.status === OrderStatus.Cancelled) {
             return {
                 success: true,
@@ -232,15 +204,10 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        // Update order status to cancelled
-        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Cancelled);
+        await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Cancelled);
 
         this.logger.info(
-            {
-                oid: orderStatus.order.oid,
-                gridOrderId: gridOrder.id.toString(),
-                reason: orderStatus.status,
-            },
+            { oid: orderStatus.order.oid, gridOrderId: gridOrder.id, reason: orderStatus.status },
             'Order marked as cancelled via userEvents',
         );
 
@@ -252,17 +219,14 @@ export class ProcessOrderStatusUseCase {
         };
     }
 
-    /**
-     * Handle rejected order
-     */
     private async handleFailed(
         orderStatus: HyperliquidWsOrderStatus,
-        gridOrder: Order,
+        gridOrder: OrderDto,
     ): Promise<ProcessOrderStatusResult> {
-        await this.grids.updateOrderStatus(gridOrder.id.toString(), OrderStatus.Failed);
+        await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Failed);
 
         this.logger.warn(
-            { oid: orderStatus.order.oid, gridOrderId: gridOrder.id.toString() },
+            { oid: orderStatus.order.oid, gridOrderId: gridOrder.id },
             'Order failed via userEvents',
         );
 

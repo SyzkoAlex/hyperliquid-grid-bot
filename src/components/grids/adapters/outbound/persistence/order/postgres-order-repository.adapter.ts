@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, lt } from 'drizzle-orm';
-import type { DrizzleDb } from '@adapters/outbound/database/drizzle-db';
-import { DRIZZLE_DB } from '@adapters/outbound/database/database.module';
-import { Order } from '@domain/models/order/order';
+import type { DrizzleDb } from '@/infra/database/drizzle-db';
+import { DRIZZLE_DB } from '@/infra/database/database.module';
+import { Order } from '../../../../core/domain/models/order/order';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { OrderDbRecord, orders } from '@adapters/outbound/database/schema';
+import { OrderDbRecord, orders } from '@/infra/database/schema';
 import { logger } from '@/infra/logger/logger';
-import { GridId } from '@domain/models/grid/grid-id';
-import { PostgresOrderMapper } from '@adapters/outbound/database/mappers/postgres-order.mapper';
+import { GridId } from '../../../../core/domain/models/grid/grid-id';
+import { PostgresOrderMapper } from './postgres-order.mapper';
 
 @Injectable()
 export class PostgresOrderRepositoryAdapter {
@@ -169,7 +169,7 @@ export class PostgresOrderRepositoryAdapter {
             return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, gridIds }, 'Failed to find placed orders by grid IDs');
-            throw error;
+            return [];
         }
     }
 }

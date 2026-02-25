@@ -1,12 +1,13 @@
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
-import { CapitalDistribution } from '@domain/models/capital-distribution';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
+
+interface CapitalDistribution {
+    investmentUSDC: Decimal;
+    investmentBase: Decimal;
+}
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 
 export interface InvestmentValidationParams {
     investment: number;
@@ -26,9 +27,7 @@ export interface InvestmentValidationResult {
 
 export async function validateInvestment(
     params: InvestmentValidationParams,
-    hyperliquidClient: ExchangeInfoPort,
-    userBalanceExtractor: UserBalanceExtractorService,
-    capitalCalculator: CapitalCalculatorService,
+    tradingApi: TradingApiPort,
 ): Promise<InvestmentValidationResult> {
     const { investment, levels, symbol, upperPrice, lowerPrice, accountAddress } = params;
 
@@ -52,28 +51,34 @@ export async function validateInvestment(
         };
     }
 
-    const tradingSymbol = TradingSymbol.fromString(symbol);
-    const currentPrice = await hyperliquidClient.getCurrentPrice(tradingSymbol);
-    const userState = await hyperliquidClient.getUserSpotState(accountAddress);
-    const { usdcBalance, baseBalance } = userBalanceExtractor.extractBalances(userState, symbol);
+    const [userState, currentPriceNum] = await Promise.all([
+        tradingApi.getUserSpotState(accountAddress),
+        tradingApi.getCurrentPrice(symbol),
+    ]);
 
-    const distribution = capitalCalculator.calculateDistribution({
+    const usdcBalance = Decimal.from(userState.usdcBalance);
+    const baseBalance = Decimal.from(userState.spotBalances[symbol] ?? 0);
+
+    const distributionDto = tradingApi.calculateCapitalDistribution({
         mode: GridMode.Neutral,
         totalInvestmentUSDC: investment,
-        usdcBalance,
-        baseBalance,
-        currentPrice,
+        usdcBalance: userState.usdcBalance,
+        baseBalance: userState.spotBalances[symbol] ?? 0,
+        currentPrice: currentPriceNum,
         lowerPrice,
         upperPrice,
     });
 
-    const usdcShortfall = distribution.investmentUSDC.sub(usdcBalance);
-    const baseShortfall = distribution.investmentBase.sub(baseBalance);
+    const investmentUSDC = Decimal.from(distributionDto.investmentUSDC);
+    const investmentBase = Decimal.from(distributionDto.investmentBase);
+
+    const usdcShortfall = investmentUSDC.sub(usdcBalance);
+    const baseShortfall = investmentBase.sub(baseBalance);
     const hasInsufficientBalance =
         usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
 
     if (hasInsufficientBalance) {
-        const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice.toNumber()));
+        const baseInUsdc = baseBalance.mul(Decimal.from(currentPriceNum));
         const totalBalance = usdcBalance.add(baseInUsdc);
 
         return {
@@ -84,9 +89,9 @@ export async function validateInvestment(
                 baseBalance,
                 baseInUsdc,
                 totalBalance,
-                currentPrice.toNumber(),
-                distribution.investmentUSDC,
-                distribution.investmentBase,
+                currentPriceNum,
+                investmentUSDC,
+                investmentBase,
                 usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
                 baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
             ),
@@ -94,5 +99,5 @@ export async function validateInvestment(
         };
     }
 
-    return { valid: true, distribution };
+    return { valid: true, distribution: { investmentUSDC, investmentBase } };
 }

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { TelegramCommandsController } from './adapters/inbound/telegram-commands/telegram-commands.controller';
-import { TradingEventsController } from './adapters/inbound/trading-events/trading-events.controller';
+import { TelegramCommandsAdapter } from './adapters/inbound/telegram-commands/telegram-commands.adapter';
+import { TradingEventsAdapter } from './adapters/inbound/trading-events/trading-events.adapter';
 import { TelegramBotService } from './adapters/inbound/telegram-bot/telegram-bot.service';
 import { RedisSessionStore } from './adapters/inbound/telegram-bot/redis-session-store';
 import { StartHandler } from './adapters/inbound/telegram-bot/handlers/start/start.handler';
@@ -18,8 +18,6 @@ import { AdvancedLevelsStep } from './adapters/inbound/telegram-bot/scenes/creat
 import { AdvancedInvestmentStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-investment.step';
 import { AdvancedPreviewStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-preview.step';
 import { ConfirmStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/confirm.step';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
 import { WizardNavigator } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { WizardMessageManager } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 import { GridsHandler } from './adapters/inbound/telegram-bot/handlers/grids/grids.handler';
@@ -28,26 +26,28 @@ import { GetGridsWithPnlUseCase } from './core/application/use-cases/get-grids-w
 import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
-import { GridPnlCalculatorService } from '@domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
+import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { GridsModule } from '@components/grids/grids.module';
 import { TradingModule } from '@components/trading/trading.module';
+import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
+import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
+import { EventDeserializer } from '@domain/models/events/event-deserializer';
 
 @Module({
-    imports: [GridsModule, TradingModule],
+    imports: [GridsModule, TradingModule, EventPublisherModule, EventSubscriberModule],
     providers: [
         { provide: TELEGRAM_NOTIFICATION_PORT, useClass: TelegramBotService },
         RedisSessionStore,
         TelegramBotService,
-        { provide: NotificationMessageFactory, useValue: new NotificationMessageFactory() },
+        NotificationMessageFactory,
         NotifyUserUseCase,
         StartHandler,
         HelpHandler,
         MainMenuHandler,
-        TelegramCommandsController,
-        TradingEventsController,
-        UserBalanceExtractorService,
-        CapitalCalculatorService,
+        TelegramCommandsAdapter,
+        TradingEventsAdapter,
+        EventDeserializer,
         WizardNavigator,
         WizardMessageManager,
         CreateGridSceneHandler,

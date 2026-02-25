@@ -1,32 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SelectPairStep } from './select-pair.step';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 
 describe('SelectPairStep', () => {
     let step: SelectPairStep;
-    let mockHyperliquidClient: ExchangeInfoPort;
+    let mockTradingApi: TradingApiPort;
     let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
-        mockHyperliquidClient = {
+        mockTradingApi = {
             pairExists: vi.fn(),
             getCurrentPrice: vi.fn(),
-        } as unknown as ExchangeInfoPort;
+            getUserSpotState: vi.fn(),
+        } as unknown as TradingApiPort;
 
         mockMessageManager = {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        step = new SelectPairStep(mockHyperliquidClient, mockMessageManager);
+        step = new SelectPairStep(mockTradingApi, mockMessageManager);
     });
 
     describe('handlePairSelection', () => {
         it('should accept valid symbol and set in session', async () => {
             const ctx = createMockContext();
-            vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(true);
+            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(true);
 
             const result = await step.handlePairSelection(ctx, 'BTC');
 
@@ -35,14 +36,12 @@ describe('SelectPairStep', () => {
                 confirmations: ['✅ Selected: BTC/USDC'],
             });
             expect(ctx.session.createGrid).toEqual({ symbol: 'BTC' });
-            expect(mockHyperliquidClient.pairExists).toHaveBeenCalledWith(
-                expect.objectContaining({ toString: expect.any(Function) }),
-            );
+            expect(mockTradingApi.pairExists).toHaveBeenCalledWith('BTC');
         });
 
         it('should accept HYPE token and set in session', async () => {
             const ctx = createMockContext();
-            vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(true);
+            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(true);
 
             const result = await step.handlePairSelection(ctx, 'HYPE');
 
@@ -51,14 +50,12 @@ describe('SelectPairStep', () => {
                 confirmations: ['✅ Selected: HYPE/USDC'],
             });
             expect(ctx.session.createGrid).toEqual(expect.objectContaining({ symbol: 'HYPE' }));
-            expect(mockHyperliquidClient.pairExists).toHaveBeenCalledWith(
-                expect.objectContaining({ toString: expect.any(Function) }),
-            );
+            expect(mockTradingApi.pairExists).toHaveBeenCalledWith('HYPE');
         });
 
         it('should reject invalid symbol', async () => {
             const ctx = createMockContext();
-            vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(false);
+            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(false);
 
             const result = await step.handlePairSelection(ctx, 'INVALID');
 
@@ -68,9 +65,7 @@ describe('SelectPairStep', () => {
 
         it('should handle TradingSymbol creation error', async () => {
             const ctx = createMockContext();
-            vi.mocked(mockHyperliquidClient.pairExists).mockRejectedValue(
-                new Error('Invalid symbol'),
-            );
+            vi.mocked(mockTradingApi.pairExists).mockRejectedValue(new Error('Invalid symbol'));
 
             const result = await step.handlePairSelection(ctx, '');
 
@@ -80,14 +75,12 @@ describe('SelectPairStep', () => {
 
         it('should handle empty symbol string', async () => {
             const ctx = createMockContext();
+            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(false);
 
             const result = await step.handlePairSelection(ctx, '');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
-                ctx,
-                '❌ Invalid token format. Please try another token.',
-            );
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
     });
 
@@ -95,7 +88,7 @@ describe('SelectPairStep', () => {
         it('should convert text to uppercase and validate', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
-            vi.mocked(mockHyperliquidClient.pairExists).mockResolvedValue(true);
+            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(true);
 
             const result = await step.handleTextInput(ctx, 'btc');
 

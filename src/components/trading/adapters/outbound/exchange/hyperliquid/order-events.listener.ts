@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-ws.client';
-import { HyperliquidWsOrderStatus } from '@/infra/hyperliqued/types/hyperliquid-ws-user-event';
+import { HyperliquidWsClient } from './hyperliquid-ws.client';
+import { HyperliquidWsOrderStatus } from './types/hyperliquid-ws-user-event';
 
 type OrderStatusHandler = (status: HyperliquidWsOrderStatus) => void;
 

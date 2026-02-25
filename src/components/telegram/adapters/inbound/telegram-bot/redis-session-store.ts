@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AsyncSessionStore } from 'telegraf/typings/session';
-import { RedisService } from '@adapters/outbound/cache/redis.service';
+import { CACHE_PORT, CachePort } from '@/core/application/ports/outbound/cache.port';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { SessionData } from './types/session-data';
@@ -14,7 +14,7 @@ export class RedisSessionStore implements AsyncSessionStore<SessionData> {
     private readonly ttlSeconds: number;
 
     constructor(
-        private readonly redis: RedisService,
+        @Inject(CACHE_PORT) private readonly redis: CachePort,
         configService: ConfigService<Config, true>,
     ) {
         this.ttlSeconds = configService.get('telegram', { infer: true }).session.ttlSeconds;

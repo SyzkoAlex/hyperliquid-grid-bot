@@ -1,4 +1,4 @@
-import { Order } from '@domain/models/order/order';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 
 export class OrderStatusSyncResult {
     public processed: number;
@@ -6,7 +6,7 @@ export class OrderStatusSyncResult {
     public cancelled: number;
     public missing: number;
     public failed: number;
-    public filledOrders: Order[];
+    public filledOrders: OrderDto[];
 
     constructor(
         processed: number = 0,
@@ -14,7 +14,7 @@ export class OrderStatusSyncResult {
         cancelled: number = 0,
         missing: number = 0,
         failed: number = 0,
-        filledOrders: Order[] = [],
+        filledOrders: OrderDto[] = [],
     ) {
         this.processed = processed;
         this.filled = filled;
@@ -48,7 +48,7 @@ export class OrderStatusSyncResult {
         this.failed += value;
     }
 
-    addFilledOrder(order: Order): void {
+    addFilledOrder(order: OrderDto): void {
         this.filledOrders.push(order);
     }
 }

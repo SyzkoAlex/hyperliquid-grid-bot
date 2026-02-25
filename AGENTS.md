@@ -71,9 +71,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 - `AGENTS.md`
 - `README.md`
-- `docs/ARCHITECTURE.md`
-- `docs/QUICKSTART.md`
-- `docs/SPOT_GRID_TRADING_ALGORITHM.md`
+- `docs/*.md`
 
 ❌ Never delete or suggest deleting these files
 ✅ Only edit documentation when explicitly requested

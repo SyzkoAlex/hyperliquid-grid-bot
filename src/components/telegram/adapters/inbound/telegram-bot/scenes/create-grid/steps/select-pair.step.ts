@@ -2,11 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { Inject } from '@nestjs/common';
-import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { CREATE_GRID_ACTIONS, buildPairAction } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
@@ -22,7 +18,7 @@ export class SelectPairStep implements WizardStep {
     readonly id = SceneStep.Pair;
 
     constructor(
-        @Inject(EXCHANGE_INFO_PORT) private readonly hyperliquidClient: ExchangeInfoPort,
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
         private readonly messageManager: WizardMessageManager,
     ) {}
 
@@ -40,8 +36,7 @@ export class SelectPairStep implements WizardStep {
 
     async handlePairSelection(ctx: BotContext, symbol: string): Promise<StepResult> {
         try {
-            const tradingSymbol = TradingSymbol.fromString(symbol);
-            const exists = await this.hyperliquidClient.pairExists(tradingSymbol);
+            const exists = await this.tradingApi.pairExists(symbol);
 
             if (!exists) {
                 await this.messageManager.sendEnterMessage(

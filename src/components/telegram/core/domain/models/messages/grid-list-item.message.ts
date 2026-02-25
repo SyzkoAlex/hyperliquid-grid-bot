@@ -1,8 +1,8 @@
-import { Grid } from '@domain/models/grid/grid';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { Order } from '@domain/models/order/order';
 import { OrderSide } from '@domain/models/order/order-side';
-import { Timestamp } from '@domain/models/primitives/timestamp';
+import { OrderStatus } from '@domain/models/order/order-status';
 import { PriceFormatter } from '../formatters/price.formatter';
 import { EMOJI } from '../constants/emoji.constants';
 import { GridPnl, OrderStats } from '@components/telegram/core/domain/models/grid-with-pnl';
@@ -31,18 +31,18 @@ const ORDER_SIDE_EMOJI: Record<string, string> = {
 const HISTORY_DISPLAY_LIMIT = 30;
 
 export interface GridCardData {
-    grid: Grid;
+    grid: GridDto;
     pnl: GridPnl;
     currentPrice: number;
     orderStats: OrderStats;
-    orders: Order[];
+    orders: OrderDto[];
 }
 
 export class GridListItemMessage {
     /** Compact card shown in /grids list */
     static fromCardData({ grid, pnl, currentPrice, orderStats }: GridCardData): string {
-        const pair = `${grid.symbol.toString()}/USDC`;
-        const shortId = grid.id.toString().slice(0, 8);
+        const pair = `${grid.symbol}/USDC`;
+        const shortId = grid.id.slice(0, 8);
 
         const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
         const label = STATUS_LABEL[grid.status] ?? grid.status;
@@ -51,11 +51,11 @@ export class GridListItemMessage {
             : '';
 
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
-        const investment = grid.investmentUSDC.toNumber();
+        const investment = grid.investmentUSDC;
         const pnlStr = GridListItemMessage.formatPnl(totalPnl);
         const pnlPct = GridListItemMessage.formatPnlPercent(totalPnl, investment);
-        const lower = PriceFormatter.format(grid.lowerPrice.toNumber());
-        const upper = PriceFormatter.format(grid.upperPrice.toNumber());
+        const lower = PriceFormatter.format(grid.lowerPrice);
+        const upper = PriceFormatter.format(grid.upperPrice);
         const price = PriceFormatter.format(currentPrice);
 
         return (
@@ -72,7 +72,7 @@ export class GridListItemMessage {
 
     /** Detail view: main profit/stats view */
     static profitTab({ grid, pnl, currentPrice, orderStats }: GridCardData): string {
-        const pair = `${grid.symbol.toString()}/USDC`;
+        const pair = `${grid.symbol}/USDC`;
         const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
         const label = STATUS_LABEL[grid.status] ?? grid.status;
         const duration = grid.startedAt
@@ -80,7 +80,7 @@ export class GridListItemMessage {
             : '';
 
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
-        const investment = grid.investmentUSDC.toNumber();
+        const investment = grid.investmentUSDC;
         const totalPnlStr = GridListItemMessage.formatPnl(totalPnl);
         const totalPnlPct = GridListItemMessage.formatPnlPercent(totalPnl, investment);
         const gridProfitStr = GridListItemMessage.formatPnl(pnl.gridProfit);
@@ -90,12 +90,12 @@ export class GridListItemMessage {
             investment,
             grid.startedAt,
         );
-        const lower = PriceFormatter.format(grid.lowerPrice.toNumber());
-        const upper = PriceFormatter.format(grid.upperPrice.toNumber());
+        const lower = PriceFormatter.format(grid.lowerPrice);
+        const upper = PriceFormatter.format(grid.upperPrice);
         const price = PriceFormatter.format(currentPrice);
         const investmentStr = PriceFormatter.format(investment);
         const startedStr = grid.startedAt
-            ? grid.startedAt.toDate().toISOString().slice(0, 16).replace('T', ' ')
+            ? new Date(grid.startedAt).toISOString().slice(0, 16).replace('T', ' ')
             : '—';
 
         return (
@@ -117,8 +117,8 @@ export class GridListItemMessage {
 
     /** Detail view: active orders list */
     static ordersTab({ grid, currentPrice, orders }: GridCardData): string {
-        const pair = `${grid.symbol.toString()}/USDC`;
-        const symbol = grid.symbol.toString();
+        const pair = `${grid.symbol}/USDC`;
+        const symbol = grid.symbol;
         const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
         const label = STATUS_LABEL[grid.status] ?? grid.status;
         const duration = grid.startedAt
@@ -126,8 +126,8 @@ export class GridListItemMessage {
             : '';
 
         const active = orders
-            .filter((o) => o.isActive())
-            .sort((a, b) => (b.price?.toNumber() ?? 0) - (a.price?.toNumber() ?? 0));
+            .filter((o) => o.status === OrderStatus.Placed || o.status === OrderStatus.Pending)
+            .sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 
         const price = PriceFormatter.format(currentPrice);
 
@@ -148,8 +148,8 @@ export class GridListItemMessage {
 
     /** Detail view: order history (last 30 non-active orders) */
     static historyTab({ grid, orders }: GridCardData): string {
-        const pair = `${grid.symbol.toString()}/USDC`;
-        const symbol = grid.symbol.toString();
+        const pair = `${grid.symbol}/USDC`;
+        const symbol = grid.symbol;
         const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
         const label = STATUS_LABEL[grid.status] ?? grid.status;
         const duration = grid.startedAt
@@ -157,12 +157,8 @@ export class GridListItemMessage {
             : '';
 
         const filled = orders
-            .filter((o) => o.isFilled())
-            .sort((a, b) => {
-                const tsA = a.filledAt?.toUnixMilliseconds() ?? 0;
-                const tsB = b.filledAt?.toUnixMilliseconds() ?? 0;
-                return tsB - tsA;
-            })
+            .filter((o) => o.status === OrderStatus.Filled)
+            .sort((a, b) => (b.filledAt ?? 0) - (a.filledAt ?? 0))
             .slice(0, HISTORY_DISPLAY_LIMIT);
 
         const lines =
@@ -180,19 +176,19 @@ export class GridListItemMessage {
         );
     }
 
-    private static formatOrderLine(order: Order, symbol: string): string {
+    private static formatOrderLine(order: OrderDto, symbol: string): string {
         const sideEmoji = ORDER_SIDE_EMOJI[order.side] ?? '·';
         const side = order.side === OrderSide.Buy ? 'Buy ' : 'Sell';
-        const p = order.price ? `$${PriceFormatter.format(order.price.toNumber())}` : '—';
-        const amt = order.amount.toNumber();
+        const p = order.price !== null ? `$${PriceFormatter.format(order.price)}` : '—';
+        const amt = order.amount;
         return `${sideEmoji} ${side}  Lv.${order.levelIndex + 1}  ${p} · ${amt} ${symbol}`;
     }
 
-    private static formatDuration(startedAt: Timestamp): string {
-        const now = Timestamp.now();
-        const days = now.differenceInDays(startedAt);
-        const hours = now.differenceInHours(startedAt) % 24;
-        const minutes = now.differenceInMinutes(startedAt) % 60;
+    private static formatDuration(startedAtMs: number): string {
+        const diff = Date.now() - startedAtMs;
+        const minutes = Math.floor(diff / 60000) % 60;
+        const hours = Math.floor(diff / 3600000) % 24;
+        const days = Math.floor(diff / 86400000);
 
         if (days > 0) return `${days}D ${hours}h ${minutes}m`;
         if (hours > 0) return `${hours}h ${minutes}m`;
@@ -214,10 +210,11 @@ export class GridListItemMessage {
     private static formatGridApr(
         gridProfit: number,
         investment: number,
-        startedAt: Timestamp | null,
+        startedAtMs: number | undefined,
     ): string {
-        if (investment === 0 || !startedAt) return '—';
-        const runningHours = Timestamp.now().differenceInHours(startedAt);
+        if (investment === 0 || !startedAtMs) return '—';
+        const runningMs = Date.now() - startedAtMs;
+        const runningHours = runningMs / 3600000;
         if (runningHours < 1) return '—';
         const runningDays = runningHours / 24;
         const apr = (gridProfit / investment / runningDays) * 365 * 100;

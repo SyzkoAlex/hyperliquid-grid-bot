@@ -6,18 +6,17 @@ import { resolve } from 'path';
 import { OrderEventsListener } from './order-events.listener';
 import { HyperliquidOrderClientAdapter } from './hyperliquid-order-client.adapter';
 import { HyperliquidOrderMapper } from './hyperliquid-order.mapper';
-import { HyperliquidInfoMapper } from '@adapters/outbound/hyperliquid/hyperliquid-info-mapper';
-import { HyperliquidModule } from '@/infra/hyperliqued/hyperliquid.module';
-import { HyperliquidSdkService } from '@/infra/hyperliqued/hyperliquid-sdk.service';
-import { HyperliquidWsClient } from '@adapters/inbound/hyperliqued/hyperliquid-ws.client';
-import type { HyperliquidWsOrderStatus } from '@/infra/hyperliqued/types/hyperliquid-ws-user-event';
+import { HyperliquidInfoMapper } from './hyperliquid-info-mapper';
+import { HyperliquidModule } from './hyperliquid.module';
+import { HyperliquidSdkService } from './hyperliquid-sdk.service';
+import { HyperliquidWsClient } from './hyperliquid-ws.client';
+import type { HyperliquidWsOrderStatus } from './types/hyperliquid-ws-user-event';
 import { loadConfiguration } from '@/config/configuration';
 import type { Config } from '@/config/config.schema';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
-import { OrderId } from '@domain/models/order/order-id';
 import type { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
@@ -144,7 +143,7 @@ describe('OrderEventsListener (Integration)', () => {
                 side: OrderSide.Sell,
                 price: Price.from(testPrice),
                 amount: Decimal.from(10),
-                orderId: OrderId.create(),
+                orderId: crypto.randomUUID(),
             };
 
             console.log(

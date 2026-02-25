@@ -9,14 +9,13 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
-import { OrderId } from '@domain/models/order/order-id';
 import { HyperliquidOrderClientAdapter } from './hyperliquid-order-client.adapter';
-import { HyperliquidInfoClientAdapter } from '@adapters/outbound/hyperliquid/hyperliquid-info-client.adapter';
+import { HyperliquidInfoClientAdapter } from './hyperliquid-info-client.adapter';
 import { HyperliquidOrderMapper } from './hyperliquid-order.mapper';
-import { HyperliquidInfoMapper } from '@adapters/outbound/hyperliquid/hyperliquid-info-mapper';
-import { HyperliquidModule } from '@/infra/hyperliqued/hyperliquid.module';
-import { HyperliquidApiClient } from '@/infra/hyperliqued/hyperliquid-api.client';
-import { HyperliquidSdkService } from '@/infra/hyperliqued/hyperliquid-sdk.service';
+import { HyperliquidInfoMapper } from './hyperliquid-info-mapper';
+import { HyperliquidModule } from './hyperliquid.module';
+import { HyperliquidApiClient } from './hyperliquid-api.client';
+import { HyperliquidSdkService } from './hyperliquid-sdk.service';
 import { loadConfiguration } from '@/config/configuration';
 import type { Config } from '@/config/config.schema';
 
@@ -162,7 +161,7 @@ describe('HyperliquidOrderClientAdapter (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(testAmount),
-                orderId: OrderId.create(),
+                orderId: crypto.randomUUID(),
             };
 
             const placeResult = await client.placeSpotOrder(orderParams);
@@ -231,7 +230,7 @@ describe('HyperliquidOrderClientAdapter (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(1), // 1 HYPE ≈ $25
-                orderId: OrderId.create(),
+                orderId: crypto.randomUUID(),
             };
 
             const result = await client.placeSpotOrder(orderParams);
@@ -268,7 +267,7 @@ describe('HyperliquidOrderClientAdapter (Integration)', () => {
                 side: OrderSide.Buy,
                 price: Price.from(testPrice),
                 amount: Decimal.from(1),
-                orderId: OrderId.create(),
+                orderId: crypto.randomUUID(),
             };
 
             const placeResult = await client.placeSpotOrder(orderParams);

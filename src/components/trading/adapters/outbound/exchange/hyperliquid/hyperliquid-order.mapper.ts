@@ -2,24 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
-import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
-import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
+import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
+import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
-import { HyperliquidSdkService } from '@/infra/hyperliqued/hyperliquid-sdk.service';
-import { HyperliquidApiClient } from '@/infra/hyperliqued/hyperliquid-api.client';
-import { HyperliquidPlaceOrderRequest } from '@/infra/hyperliqued/types/hyperliquid-place-order-request';
-import { HyperliquidPlaceOrderResponse } from '@/infra/hyperliqued/types/hyperliquid-place-order-response';
-import { HyperliquidOpenOrder } from '@/infra/hyperliqued/types/hyperliquid-open-order';
-import { HyperliquidHistoricalOrder } from '@/infra/hyperliqued/types/hyperliquid-historical-order';
-import { HyperliquidOrderStatusFound } from '@/infra/hyperliqued/types/hyperliquid-order-status-response';
-import { HyperliquidSymbol } from '@/infra/hyperliqued/types/hyperliquid-symbol';
-import { HyperliquidSdkPlaceOrderResponse } from '@/infra/hyperliqued/types/hyperliquid-sdk-place-order-response';
+import { HyperliquidSdkService } from './hyperliquid-sdk.service';
+import { HyperliquidApiClient } from './hyperliquid-api.client';
+import { HyperliquidPlaceOrderRequest } from './types/hyperliquid-place-order-request';
+import { HyperliquidPlaceOrderResponse } from './types/hyperliquid-place-order-response';
+import { HyperliquidOpenOrder } from './types/hyperliquid-open-order';
+import { HyperliquidHistoricalOrder } from './types/hyperliquid-historical-order';
+import { HyperliquidOrderStatusFound } from './types/hyperliquid-order-status-response';
+import { HyperliquidSymbol } from './types/hyperliquid-symbol';
+import { HyperliquidSdkPlaceOrderResponse } from './types/hyperliquid-sdk-place-order-response';
 
 /**
  * Hyperliquid Order Mapper
@@ -45,7 +45,7 @@ export class HyperliquidOrderMapper {
     ): HyperliquidPlaceOrderRequest {
         return {
             coin: params.symbol.toString(),
-            is_buy: params.side === OrderSide.Buy,
+            is_buy: params.side === 'buy',
             sz: params.amount.toNumber(),
             limit_px: params.price.toNumber(),
             reduce_only: false,
@@ -122,7 +122,7 @@ export class HyperliquidOrderMapper {
     toOpenOrder(apiOrder: HyperliquidOpenOrder): ExchangeOpenOrder {
         const resolvedCoin = this.sdkService.resolveSpotSymbol(apiOrder.coin);
         const symbol = TradingSymbol.create(resolvedCoin);
-        const side = apiOrder.side === 'B' ? OrderSide.Buy : OrderSide.Sell;
+        const side: OrderSide = apiOrder.side === 'B' ? OrderSide.Buy : OrderSide.Sell;
         const price = Price.from(parseFloat(apiOrder.limitPx));
         const amount = Decimal.from(apiOrder.sz);
         const origAmount = Decimal.from(apiOrder.origSz ?? apiOrder.sz);
@@ -204,7 +204,7 @@ export class HyperliquidOrderMapper {
     } {
         const symbol = params.symbol.toString();
         const coin = HyperliquidSymbol.toSpotFormat(symbol);
-        const isBuy = params.side === OrderSide.Buy;
+        const isBuy = params.side === 'buy';
         const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
 
         // Get size decimals for this token and round accordingly

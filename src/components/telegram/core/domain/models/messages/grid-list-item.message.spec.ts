@@ -1,46 +1,46 @@
 import { describe, it, expect } from 'vitest';
 import { GridCardData, GridListItemMessage } from './grid-list-item.message';
-import { Grid } from '@domain/models/grid/grid';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { Price } from '@domain/models/primitives/price';
-import { Decimal } from '@domain/models/primitives/decimal';
-import { Timestamp } from '@domain/models/primitives/timestamp';
-import { Order } from '@domain/models/order/order';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridId } from '@domain/models/grid/grid-id';
 import { GridPnl, OrderStats } from '@components/telegram/core/domain/models/grid-with-pnl';
 
-const GRID_ID = GridId.from('550e8400-e29b-41d4-a716-446655440000');
-
-function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: Timestamp): Grid {
-    return Grid.create({
-        symbol: TradingSymbol.create('BTC'),
+function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): GridDto {
+    return {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        symbol: 'BTC',
         mode: GridMode.Neutral,
         status,
-        lowerPrice: Price.from(90000),
-        upperPrice: Price.from(100000),
+        lowerPrice: 90000,
+        upperPrice: 100000,
         levels: 10,
-        investmentUSDC: Decimal.from(500),
-        investmentBase: Decimal.from(0.001),
+        investmentUSDC: 500,
+        investmentBase: 0.001,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 2,
+        trailingPartialClosePercent: 50,
         startedAt,
-    });
+    };
 }
 
-function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, levelIndex = 5): Order {
-    return Order.create({
-        symbol: TradingSymbol.create('BTC'),
-        type: OrderType.Limit,
+function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, levelIndex = 5): OrderDto {
+    return {
+        id: '660e8400-e29b-41d4-a716-446655440001',
+        gridId: '550e8400-e29b-41d4-a716-446655440000',
+        symbol: 'BTC',
         side,
-        price: Price.from(price),
-        amount: Decimal.from(0.001),
         status,
-        gridId: GRID_ID,
+        type: OrderType.Limit,
         levelIndex,
-    });
+        price,
+        amount: 0.001,
+        exchangeOrderId: null,
+    };
 }
 
 const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0 };
@@ -55,10 +55,10 @@ const DEFAULT_ORDER_STATS: OrderStats = {
 };
 
 function makeData(
-    grid: Grid,
+    grid: GridDto,
     pnl: GridPnl = DEFAULT_PNL,
     orderStats: OrderStats = DEFAULT_ORDER_STATS,
-    orders: Order[] = [],
+    orders: OrderDto[] = [],
 ): GridCardData {
     return { grid, pnl, currentPrice: 95000, orderStats, orders };
 }
@@ -133,7 +133,7 @@ describe('GridListItemMessage', () => {
         });
 
         it('shows — for Grid APR when grid started less than 1 hour ago', () => {
-            const startedAt = Timestamp.fromUnixMilliseconds(Date.now() - 30 * 60 * 1000); // 30 min ago
+            const startedAt = Date.now() - 30 * 60 * 1000; // 30 min ago
             const grid = makeGrid(GridStatus.Running, startedAt);
             const result = GridListItemMessage.profitTab(makeData(grid));
             expect(result).toContain('Grid APR:</b>     —');
@@ -142,7 +142,7 @@ describe('GridListItemMessage', () => {
         it('calculates correct Grid APR for a 3-day old grid', () => {
             // profit=$36.5, investment=$500, runningHours=72 → runningDays=3
             // APR = (36.5 / 500 / 3) * 365 * 100 = 888.17%
-            const startedAt = Timestamp.fromUnixMilliseconds(Date.now() - 72 * 60 * 60 * 1000);
+            const startedAt = Date.now() - 72 * 60 * 60 * 1000;
             const grid = makeGrid(GridStatus.Running, startedAt);
             const pnl: GridPnl = { gridProfit: 36.5, unrealizedPnl: 0 };
             const result = GridListItemMessage.profitTab(makeData(grid, pnl));

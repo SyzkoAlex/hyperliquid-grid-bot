@@ -7,11 +7,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { CreateGridMode } from '../create-grid-mode';
 import { Inject } from '@nestjs/common';
-import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
 import { AdvancedPreviewMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
@@ -22,7 +18,7 @@ export class AdvancedPreviewStep implements WizardStep {
 
     constructor(
         private readonly messageManager: WizardMessageManager,
-        @Inject(EXCHANGE_INFO_PORT) private readonly hyperliquidClient: ExchangeInfoPort,
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
     ) {}
 
     async enter(ctx: BotContext): Promise<void> {
@@ -49,9 +45,7 @@ export class AdvancedPreviewStep implements WizardStep {
 
         let currentPrice: number | null = null;
         try {
-            const tradingSymbol = TradingSymbol.fromString(state.symbol!);
-            const price = await this.hyperliquidClient.getCurrentPrice(tradingSymbol);
-            currentPrice = price.toNumber();
+            currentPrice = await this.tradingApi.getCurrentPrice(state.symbol!);
         } catch {
             // Ignore error, just don't show current price
         }

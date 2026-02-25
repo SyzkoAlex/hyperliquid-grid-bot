@@ -3,20 +3,14 @@ import { AdvancedInvestmentStep } from './advanced-investment.step';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { ConfigService } from '@nestjs/config';
-import { Decimal } from '@domain/models/primitives/decimal';
-import { Price } from '@domain/models/primitives/price';
 import { Config } from '@/config/config.schema';
 
 describe('AdvancedInvestmentStep', () => {
     let step: AdvancedInvestmentStep;
     let mockMessageManager: WizardMessageManager;
-    let mockHyperliquidClient: ExchangeInfoPort;
-    let mockUserBalanceExtractor: UserBalanceExtractorService;
-    let mockCapitalCalculator: CapitalCalculatorService;
+    let mockTradingApi: TradingApiPort;
     let mockConfigService: ConfigService<Config, true>;
 
     beforeEach(() => {
@@ -24,36 +18,24 @@ describe('AdvancedInvestmentStep', () => {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        mockHyperliquidClient = {
-            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(10)),
-            getUserSpotState: vi.fn().mockResolvedValue({}),
-        } as unknown as ExchangeInfoPort;
-
-        mockUserBalanceExtractor = {
-            extractBalances: vi.fn().mockReturnValue({
-                usdcBalance: Decimal.from(10000),
-                baseBalance: Decimal.from(1000),
+        mockTradingApi = {
+            getCurrentPrice: vi.fn().mockResolvedValue(10),
+            getUserSpotState: vi.fn().mockResolvedValue({
+                usdcBalance: 10000,
+                spotBalances: { HYPE: 1000 },
             }),
-        } as unknown as UserBalanceExtractorService;
-
-        mockCapitalCalculator = {
-            calculateDistribution: vi.fn().mockReturnValue({
-                investmentUSDC: Decimal.from(500),
-                investmentBase: Decimal.from(50),
+            pairExists: vi.fn(),
+            calculateCapitalDistribution: vi.fn().mockReturnValue({
+                investmentUSDC: 500,
+                investmentBase: 50,
             }),
-        } as unknown as CapitalCalculatorService;
+        } as unknown as TradingApiPort;
 
         mockConfigService = {
             get: vi.fn().mockReturnValue('0x123'),
         } as unknown as ConfigService<Config, true>;
 
-        step = new AdvancedInvestmentStep(
-            mockMessageManager,
-            mockHyperliquidClient,
-            mockUserBalanceExtractor,
-            mockCapitalCalculator,
-            mockConfigService,
-        );
+        step = new AdvancedInvestmentStep(mockMessageManager, mockTradingApi, mockConfigService);
     });
 
     describe('handleTextInput', () => {
@@ -114,10 +96,9 @@ describe('AdvancedInvestmentStep', () => {
                 lowerPrice: 9,
             };
 
-            // Mock insufficient balance
-            mockCapitalCalculator.calculateDistribution = vi.fn().mockReturnValue({
-                investmentUSDC: Decimal.from(15000), // More than available balance
-                investmentBase: Decimal.from(50),
+            vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+                investmentUSDC: 15000, // More than available balance
+                investmentBase: 50,
             });
 
             const result = await step.handleTextInput(ctx, '1000');

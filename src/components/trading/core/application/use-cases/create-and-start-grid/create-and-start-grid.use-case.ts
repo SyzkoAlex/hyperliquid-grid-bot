@@ -1,14 +1,16 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import {
     EXCHANGE_INFO_PORT,
     ExchangeInfoPort,
 } from '@components/trading/core/application/ports/exchange-info.port';
-import { GRIDS_PORT, GridsPort } from '@components/grids/core/application/ports/grids.port';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
+import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
-import { Grid } from '@domain/models/grid/grid';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
 import { CreateAndStartGridParams } from './create-and-start-grid-params';
@@ -22,7 +24,7 @@ export class CreateAndStartGridUseCase {
 
     constructor(
         @Inject(EXCHANGE_INFO_PORT) private readonly infoClient: ExchangeInfoPort,
-        @Inject(GRIDS_PORT) private readonly grids: GridsPort,
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly capitalCalculator: CapitalCalculatorService,
         private readonly gridLevelsCalculator: GridLevelsCalculatorService,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
@@ -32,7 +34,6 @@ export class CreateAndStartGridUseCase {
     async execute(params: CreateAndStartGridParams): Promise<CreateAndStartGridResult> {
         this.logger.info({ params }, 'Creating and starting grid');
 
-        // Fetch the current market price early - needed for accurate capital calculation
         const currentPrice = await this.infoClient.getCurrentPrice(
             TradingSymbol.create(params.symbol),
         );
@@ -70,31 +71,15 @@ export class CreateAndStartGridUseCase {
         });
 
         if (usdcBalance.lt(distribution.investmentUSDC)) {
-            const error = new Error(
+            throw new Error(
                 `Insufficient USDC balance. Required: ${distribution.investmentUSDC.toString()}, Available: ${usdcBalance.toString()}`,
             );
-            this.logger.error(
-                {
-                    required: distribution.investmentUSDC.toString(),
-                    available: usdcBalance.toString(),
-                },
-                'Insufficient USDC balance',
-            );
-            throw error;
         }
 
         if (baseBalance.lt(distribution.investmentBase)) {
-            const error = new Error(
+            throw new Error(
                 `Insufficient base token balance. Required: ${distribution.investmentBase.toString()}, Available: ${baseBalance.toString()}`,
             );
-            this.logger.error(
-                {
-                    required: distribution.investmentBase.toString(),
-                    available: baseBalance.toString(),
-                },
-                'Insufficient base token balance',
-            );
-            throw error;
         }
 
         return distribution;
@@ -104,34 +89,34 @@ export class CreateAndStartGridUseCase {
         params: CreateAndStartGridParams,
         investmentUSDC: Decimal,
         investmentBase: Decimal,
-    ): Promise<Grid> {
-        const grid = Grid.create({
-            symbol: TradingSymbol.create(params.symbol),
+    ): Promise<GridDto> {
+        const grid = await this.grids.createGrid({
+            id: uuidv4(),
+            symbol: params.symbol,
             mode: params.mode,
-            lowerPrice: Price.from(params.lowerPrice),
-            upperPrice: Price.from(params.upperPrice),
+            lowerPrice: params.lowerPrice,
+            upperPrice: params.upperPrice,
             levels: params.levels,
-            investmentUSDC,
-            investmentBase,
+            investmentUSDC: investmentUSDC.toNumber(),
+            investmentBase: investmentBase.toNumber(),
             trailingEnabled: params.trailingEnabled,
             trailingTriggerPercent: params.trailingTriggerPercent,
             trailingStepPercent: params.trailingStepPercent,
             trailingPartialClosePercent: params.trailingPartialClosePercent,
         });
 
-        await this.grids.saveGrid(grid);
-        this.logger.info({ gridId: grid.id.toString() }, 'Grid entity created and saved');
+        this.logger.info({ gridId: grid.id }, 'Grid entity created and saved');
 
         return grid;
     }
 
-    private async startGridWithOrders(grid: Grid, currentPrice: Price): Promise<void> {
+    private async startGridWithOrders(grid: GridDto, currentPrice: Price): Promise<void> {
         this.logger.info(
             {
-                symbol: grid.symbol.toString(),
+                symbol: grid.symbol,
                 currentPrice: currentPrice.toNumber(),
-                lowerPrice: grid.lowerPrice.toNumber(),
-                upperPrice: grid.upperPrice.toNumber(),
+                lowerPrice: grid.lowerPrice,
+                upperPrice: grid.upperPrice,
             },
             'Using current market price for grid',
         );
@@ -141,13 +126,10 @@ export class CreateAndStartGridUseCase {
             currentPrice,
         );
 
-        grid.start();
-
-        // Save grid after starting to persist the status change
-        await this.grids.saveGrid(grid);
+        await this.grids.updateGridStatus(grid.id, GridStatus.Running);
 
         const placedCount = await this.orderPlacement.placeGridOrders(grid, levelsWithSizes);
 
-        this.logger.info({ gridId: grid.id.toString(), placedCount }, 'Grid started successfully');
+        this.logger.info({ gridId: grid.id, placedCount }, 'Grid started successfully');
     }
 }

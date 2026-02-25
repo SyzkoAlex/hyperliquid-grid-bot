@@ -1,10 +1,10 @@
-import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangeOrderStatus } from './exchange-order-status';
+import { OrderStatus } from '@domain/models/order/order-status';
 
 /**
  * Exchange Status Mapper
  *
- * Maps exchange order statuses to internal order statuses.
+ * Maps exchange order statuses to internal OrderStatus enum values.
  * This mapper contains domain logic for interpreting exchange statuses.
  */
 export class ExchangeStatusMapper {

@@ -1,18 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessOrderStatusUseCase } from './process-order-status.use-case';
-import { Order } from '@domain/models/order/order';
-import { OrderId } from '@domain/models/order/order-id';
-import { OrderStatus } from '@domain/models/order/order-status';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { HyperliquidWsOrderStatus } from '@/components/trading/adapters/outbound/exchange/hyperliquid/types/hyperliquid-ws-user-event';
 import { OrderSide } from '@domain/models/order/order-side';
+import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { Grid } from '@domain/models/grid/grid';
-import { GridId } from '@domain/models/grid/grid-id';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { Price } from '@domain/models/primitives/price';
-import { Decimal } from '@domain/models/primitives/decimal';
-import { HyperliquidWsOrderStatus } from '@/infra/hyperliqued/types/hyperliquid-ws-user-event';
 
 describe('ProcessOrderStatusUseCase', () => {
     let useCase: ProcessOrderStatusUseCase;
@@ -25,7 +20,7 @@ describe('ProcessOrderStatusUseCase', () => {
         processOne: ReturnType<typeof vi.fn>;
     };
 
-    const gridId = GridId.from('550e8400-e29b-41d4-a716-446655440000');
+    const gridId = '550e8400-e29b-41d4-a716-446655440000';
 
     beforeEach(() => {
         mockGrids = {
@@ -41,36 +36,34 @@ describe('ProcessOrderStatusUseCase', () => {
         useCase = new ProcessOrderStatusUseCase(mockGrids as any, mockOrderRefillService as any);
     });
 
-    const createOrder = (status: OrderStatus = OrderStatus.Placed): Order =>
-        Order.create({
-            id: OrderId.create(),
-            exchangeOrderId: '123',
-            symbol: TradingSymbol.create('BTC'),
-            type: OrderType.Limit,
-            side: OrderSide.Buy,
-            price: Price.from(50000),
-            amount: Decimal.from(0.01),
-            status,
-            gridId: gridId,
-            levelIndex: 5,
-        });
+    const createOrder = (status: OrderStatus = OrderStatus.Placed): OrderDto => ({
+        id: '660e8400-e29b-41d4-a716-446655440001',
+        gridId,
+        symbol: 'BTC',
+        side: OrderSide.Buy,
+        status,
+        type: OrderType.Limit,
+        levelIndex: 5,
+        price: 50000,
+        amount: 0.01,
+        exchangeOrderId: '123',
+    });
 
-    const createGrid = (status: GridStatus = GridStatus.Running): Grid =>
-        Grid.create({
-            id: gridId,
-            symbol: TradingSymbol.create('BTC'),
-            mode: GridMode.Neutral,
-            status,
-            lowerPrice: Price.from(45000),
-            upperPrice: Price.from(55000),
-            levels: 10,
-            investmentUSDC: Decimal.from(5000),
-            investmentBase: Decimal.from(0.1),
-            trailingEnabled: false,
-            trailingTriggerPercent: 5,
-            trailingStepPercent: 2,
-            trailingPartialClosePercent: 50,
-        });
+    const createGrid = (status: GridStatus = GridStatus.Running): GridDto => ({
+        id: gridId,
+        symbol: 'BTC',
+        mode: GridMode.Neutral,
+        status,
+        lowerPrice: 45000,
+        upperPrice: 55000,
+        levels: 10,
+        investmentUSDC: 5000,
+        investmentBase: 0.1,
+        trailingEnabled: false,
+        trailingTriggerPercent: 5,
+        trailingStepPercent: 2,
+        trailingPartialClosePercent: 50,
+    });
 
     const createOrderStatus = (
         status: 'filled' | 'canceled' | 'marginCanceled' | 'rejected' | 'open' | 'triggered',
@@ -114,10 +107,7 @@ describe('ProcessOrderStatusUseCase', () => {
                 .mockResolvedValueOnce(order)
                 .mockResolvedValueOnce(filledOrder);
             mockGrids.findGridById.mockResolvedValue(grid);
-            mockOrderRefillService.processOne.mockResolvedValue({
-                success: true,
-                orderId: OrderId.create().toString(),
-            });
+            mockOrderRefillService.processOne.mockResolvedValue({ success: true });
 
             const result = await useCase.execute({ orderStatus });
 
@@ -125,7 +115,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('filled');
             expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id.toString(),
+                order.id,
                 OrderStatus.Filled,
                 expect.any(Date),
             );
@@ -230,7 +220,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('canceled');
             expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id.toString(),
+                order.id,
                 OrderStatus.Cancelled,
             );
         });
@@ -247,7 +237,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('marginCanceled');
             expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id.toString(),
+                order.id,
                 OrderStatus.Cancelled,
             );
         });
@@ -278,10 +268,7 @@ describe('ProcessOrderStatusUseCase', () => {
             expect(result.success).toBe(true);
             expect(result.isGridOrder).toBe(true);
             expect(result.status).toBe('failed');
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id.toString(),
-                OrderStatus.Failed,
-            );
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(order.id, OrderStatus.Failed);
         });
     });
 

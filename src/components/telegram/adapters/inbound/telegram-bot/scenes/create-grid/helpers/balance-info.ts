@@ -1,7 +1,5 @@
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { ExchangeInfoPort } from '@components/telegram/core/application/ports/exchange-info.port';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 
 export interface BalanceInfo {
     usdcBalance: Decimal;
@@ -13,17 +11,17 @@ export interface BalanceInfo {
 }
 
 export async function fetchBalanceInfo(
-    hyperliquidClient: ExchangeInfoPort,
-    userBalanceExtractor: UserBalanceExtractorService,
+    tradingApi: TradingApiPort,
     accountAddress: string,
     symbol: string,
 ): Promise<BalanceInfo> {
-    const userState = await hyperliquidClient.getUserSpotState(accountAddress);
-    const { usdcBalance, baseBalance } = userBalanceExtractor.extractBalances(userState, symbol);
+    const [userState, currentPrice] = await Promise.all([
+        tradingApi.getUserSpotState(accountAddress),
+        tradingApi.getCurrentPrice(symbol),
+    ]);
 
-    const tradingSymbol = TradingSymbol.fromString(symbol);
-    const price = await hyperliquidClient.getCurrentPrice(tradingSymbol);
-    const currentPrice = price.toNumber();
+    const usdcBalance = Decimal.from(userState.usdcBalance);
+    const baseBalance = Decimal.from(userState.spotBalances[symbol] ?? 0);
 
     const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice));
     const totalBalance = usdcBalance.add(baseInUsdc);

@@ -1,11 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { CreateGridCommandEvent } from '@domain/models/events/commands/create-grid-command.event';
-import { EVENT_BUS, EventBus } from '@/infra/events/event-bus.port';
+import {
+    EVENT_PUBLISHER_PORT,
+    EventPublisherPort,
+} from '@/core/application/ports/outbound/event-publisher.port';
 import { CreateGridParams } from './create-grid-params';
 
 @Injectable()
 export class CreateGridUseCase {
-    constructor(@Inject(EVENT_BUS) private readonly eventBus: EventBus) {}
+    constructor(@Inject(EVENT_PUBLISHER_PORT) private readonly publisher: EventPublisherPort) {}
 
     async execute(params: CreateGridParams): Promise<void> {
         const event = CreateGridCommandEvent.create({
@@ -17,6 +20,6 @@ export class CreateGridUseCase {
             totalInvestmentUSDC: params.totalInvestmentUSDC,
         });
 
-        await this.eventBus.publish(event);
+        await this.publisher.publish(event);
     }
 }

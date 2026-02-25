@@ -1,17 +1,17 @@
-import { Grid } from '@domain/models/grid/grid';
-import { Order } from '@domain/models/order/order';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 
 export class GridWithOrders {
     constructor(
-        public readonly grid: Grid,
-        public readonly dbOrders: Order[],
+        public readonly grid: GridDto,
+        public readonly dbOrders: OrderDto[],
         public readonly exchangeOrders: ExchangeOpenOrder[],
     ) {}
 
     static buildMany(
-        grids: Grid[],
-        dbOrders: Order[],
+        grids: GridDto[],
+        dbOrders: OrderDto[],
         exchangeOpenOrders: ExchangeOpenOrder[],
     ): GridWithOrders[] {
         const exchangeByGridId = GridWithOrders.groupExchangeOrdersByGridId(
@@ -21,11 +21,10 @@ export class GridWithOrders {
 
         return grids
             .map((grid) => {
-                const gridId = grid.id.toString();
                 return new GridWithOrders(
                     grid,
-                    dbOrders.filter((o) => o.gridId.equals(grid.id)),
-                    exchangeByGridId.get(gridId) ?? [],
+                    dbOrders.filter((o) => o.gridId === grid.id),
+                    exchangeByGridId.get(grid.id) ?? [],
                 );
             })
             .filter((g) => g.hasDbOrders());
@@ -37,18 +36,16 @@ export class GridWithOrders {
 
     private static groupExchangeOrdersByGridId(
         exchangeOrders: ExchangeOpenOrder[],
-        dbOrders: Order[],
+        dbOrders: OrderDto[],
     ): Map<string, ExchangeOpenOrder[]> {
-        const orderIdToGridId = new Map(
-            dbOrders.map((o) => [o.id.toString(), o.gridId.toString()]),
-        );
+        const orderIdToGridId = new Map(dbOrders.map((o) => [o.id, o.gridId]));
         const result = new Map<string, ExchangeOpenOrder[]>();
 
         for (const exchangeOrder of exchangeOrders) {
             const orderId = exchangeOrder.cloid?.toOrderId();
             if (!orderId) continue;
 
-            const gridId = orderIdToGridId.get(orderId.toString());
+            const gridId = orderIdToGridId.get(orderId);
             if (!gridId) continue;
 
             const existing = result.get(gridId) ?? [];

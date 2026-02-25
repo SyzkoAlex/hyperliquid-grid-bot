@@ -1,10 +1,10 @@
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { OrderSide } from '@domain/models/order/order-side';
-import { OrderType } from '@domain/models/order/order-type';
 import { ExchangeOrderStatus } from './exchange-order-status';
 import { ExchangeCloid } from './exchange-cloid';
+import { OrderSide } from '@domain/models/order/order-side';
+import { OrderType } from '@domain/models/order/order-type';
 
 /**
  * Open Order
@@ -27,7 +27,7 @@ export interface ExchangeOpenOrder {
     /** Order type */
     type: OrderType;
 
-    /** Order side (buy/sell) */
+    /** Order side */
     side: OrderSide;
 
     /** Order price (null for market orders) */

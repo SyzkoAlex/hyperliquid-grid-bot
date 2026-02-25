@@ -107,13 +107,13 @@ adapters/
 
 **Port interface** → `{feature}.port.ts` → `interface GridRepositoryPort`
 
-**Adapter (implementation)** → `{tech}-{feature}.adapter.ts` → `class PostgresGridRepositoryAdapter`
+**Outbound adapter** → `{tech}-{feature}.adapter.ts` → `class PostgresGridRepositoryAdapter`
+
+**Inbound adapter** → `{feature}.adapter.ts` → `class TelegramCommandsAdapter`
 
 **Use case** → `{feature}.use-case.ts` → `class CreateGridUseCase`
 
 **Domain service** → `{feature}.service.ts` → `class GridCalculatorService`
-
-**Inbound controller** → `{feature}.controller.ts` → `class TelegramCommandsController`
 
 **Mapper** → `{feature}.mapper.ts` → `class HyperliquidOrderMapper`
 
@@ -167,6 +167,12 @@ export class CreateGridUseCase {
 ```
 src/components/{component}/
 │
+├── api/                           # Public API — the only thing other components may import
+│   ├── {component}-api.port.ts   # Port interface + DI token
+│   ├── {component}-api.adapter.ts  # Implementation — delegates to internal services
+│   └── dto/                       # (optional) plain TS interfaces for cross-boundary data
+│       └── {name}.dto.ts
+│
 ├── core/
 │   ├── domain/
 │   │   ├── models/
@@ -186,6 +192,147 @@ src/components/{component}/
 
 ---
 
+## Component API (`api/`)
+
+Each component exposes a public surface through an `api/` directory at its root. This is the
+**only** directory other components may import from — never `core/`, `adapters/`, or any other
+internal path.
+
+### Files
+
+**`api/{component}-api.port.ts`** — the contract (interface + DI token):
+
+```typescript
+// api/grids-api.port.ts
+
+export const GRIDS_API_PORT = Symbol('GRIDS_API_PORT');
+
+export interface GridsApiPort {
+    saveGrid(grid: Grid): Promise<void>;
+    findGridById(id: GridId): Promise<Grid | null>;
+    findActiveGrids(): Promise<Grid[]>;
+    // ...
+}
+```
+
+**`api/{component}-api.adapter.ts`** — the implementation, thin wrapper over internal services:
+
+```typescript
+// api/grids-api.adapter.ts
+
+@Injectable()
+export class GridsApiAdapter implements GridsApiPort {
+    constructor(private readonly grids: GridsService) {}
+
+    saveGrid(grid: Grid): Promise<void> {
+        return this.grids.saveGrid(grid);
+    }
+    // ...
+}
+```
+
+**`api/dto/{name}.dto.ts`** — plain TypeScript interfaces (no domain models) for data that
+crosses component boundaries when the component is an autonomous bounded context:
+
+```typescript
+// api/dto/user-state.dto.ts
+
+export interface UserStateDto {
+    usdcBalance: number;
+    spotBalances: Record<string, number>;
+}
+```
+
+The adapter maps domain objects → DTOs before returning them:
+
+```typescript
+async getUserSpotState(user: string): Promise<UserStateDto> {
+    const userState = await this.info.getUserSpotState(user);
+    return {
+        usdcBalance: userState.withdrawableBalance.toNumber(),
+        spotBalances: Object.fromEntries(
+            userState.assetPositions.map((p) => [p.symbol.toString(), p.size.toNumber()]),
+        ),
+    };
+}
+```
+
+**When to use DTOs vs domain objects:**
+
+| Component type | API data | Reason |
+|----------------|----------|--------|
+| Autonomous bounded context (`trading`) | DTOs — primitives only | Internal domain model must not leak |
+| Shared data component (`grids`) | DTOs + shared enums | Entities stay internal; enums are shared for consistency |
+
+### Shared enums
+
+Enums like `GridStatus`, `OrderStatus`, `OrderSide`, `GridMode`, `OrderType` live in
+`src/core/domain/models/` and are imported by **all** components directly:
+
+```typescript
+import { GridStatus } from '@domain/models/grid/grid-status';
+import { OrderSide } from '@domain/models/order/order-side';
+```
+
+This keeps status/side/type comparisons type-safe and consistent across component boundaries.
+DTOs reference these enums (e.g. `GridDto.status: GridStatus`) so consumers get enum values,
+not raw strings.
+
+### Module wiring
+
+The provider registers and exports the token — **no extra wiring in the app module**:
+
+```typescript
+// grids.module.ts
+@Module({
+    providers: [
+        { provide: GRIDS_API_PORT, useClass: GridsApiAdapter },
+    ],
+    exports: [GRIDS_API_PORT],       // ← export the token, not the class
+})
+export class GridsModule {}
+```
+
+### Consumer
+
+The consumer imports the port from the provider's `api/` and injects via the token.
+It gets the provider by importing the provider's module:
+
+```typescript
+// trading use case — imports from grids api/
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+
+export class SyncOrdersUseCase {
+    constructor(
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+    ) {}
+}
+
+// trading.module.ts
+@Module({
+    imports: [GridsModule],          // ← GRIDS_API_PORT available via GridsModule.exports
+})
+export class TradingModule {}
+```
+
+### Naming
+
+| File | Interface / Class | DI Token |
+|------|-------------------|----------|
+| `api/{component}-api.port.ts` | `interface {Component}ApiPort` | `{COMPONENT}_API_PORT` |
+| `api/{component}-api.adapter.ts` | `class {Component}ApiAdapter implements {Component}ApiPort` | — |
+| `api/dto/{name}.dto.ts` | `interface {Name}Dto` | — |
+
+### Rules
+
+- `api/` is the **only** public surface — other components must never import from `core/` or `adapters/`
+- The adapter contains **no business logic** — it delegates to internal services/use cases
+- DTOs use primitives only; never expose domain value objects or entities from internal models
+- The provider module **exports the token**, never the concrete class
+- Consumers import the port file from `@components/{component}/api/` — never from an internal path
+
+---
+
 ## Global Structure
 
 ```
@@ -201,6 +348,10 @@ src/
 ├── core/                # SHARED — domain models and services reused across components
 │   └── domain/
 │       ├── models/
+│       │   ├── grid/        # Shared enums: GridStatus, GridMode
+│       │   ├── order/       # Shared enums: OrderStatus, OrderSide, OrderType
+│       │   ├── primitives/  # Value objects: TradingSymbol, Price, Decimal, Timestamp
+│       │   └── events/      # Domain & command events
 │       └── services/
 │
 ├── adapters/            # SHARED — technical adapters reused across components
@@ -225,35 +376,13 @@ src/
 Components never import each other's internals. Communication uses two complementary patterns
 depending on whether a result is needed.
 
-#### Synchronous calls — consumer-owned Ports
+#### Synchronous calls — Component API
 
-When a component needs to query another and receive a result synchronously:
+When a component needs to query another and receive a result synchronously, the **provider**
+component exposes a public API. The consumer imports only from `{component}/api/` — never
+from the provider's internal directories.
 
-- The **consumer** defines an outbound port in its own `adapters/outbound/`
-- The **provider** implements that port as an inbound adapter in its `adapters/inbound/`
-- The composition root (`apps/all-in-one/`) wires them by providing the adapter under the port token
-
-Example: Telegram needs to fetch current price, run capital calculations, and query trading state
-to display in the UI. It defines a service port that Trading implements:
-
-```
-telegram/adapters/outbound/
-  trading-service.port.ts        ← interface + DI token (owned by telegram)
-
-trading/adapters/inbound/
-  telegram/
-    trading-service.adapter.ts   ← implements TradingServicePort
-```
-
-The port lives in `adapters/outbound/` (not `core/application/ports/`) to clearly distinguish
-inter-component dependencies from infrastructure ports (DB, exchange API).
-
-The app module wires the two components:
-
-```typescript
-// apps/all-in-one/all-in-one-app.module.ts
-const tradingServiceProvider = { provide: TRADING_SERVICE_PORT, useClass: TradingServiceAdapter };
-```
+See [Component API (`api/`)](#component-api-api) for the full specification.
 
 #### Async notifications — Event Bus
 
@@ -272,12 +401,12 @@ The Event Bus follows the same Ports & Adapters pattern:
 telegram component                       trading component
 ──────────────────                       ─────────────────
 use-cases/create-grid/                   adapters/inbound/
-  └─ publishes CreateGridCommandEvent ──▶  grid-commands.controller.ts (subscriber)
+  └─ publishes CreateGridCommandEvent ──▶  grid-commands.adapter.ts (subscriber)
 
 trading component                        telegram component
 ─────────────────                        ──────────────────
 use-cases/create-and-start-grid/         adapters/inbound/
-  └─ publishes GridCreatedSuccessEvent ──▶  trading-events.controller.ts (subscriber)
+  └─ publishes GridCreatedSuccessEvent ──▶  trading-events.adapter.ts (subscriber)
                                               └─ calls NotifyUserUseCase
 ```
 
@@ -323,7 +452,7 @@ core/domain/models/
 - `core/application/` — zero imports from `adapters/`; `@Injectable()` is allowed on use cases and services
 - `adapters/outbound/` — imports only the port interface, never calls use cases
 - `infra/` — zero imports from `core/`, `adapters/`, or `components/`
-- Components never import each other's internals — cross-component calls via consumer-owned ports (sync) or event bus (async)
+- Components never import each other's internals — sync cross-component calls via `{component}/api/`, async notifications via event bus
 
 ---
 
@@ -338,12 +467,12 @@ In practice, controllers can inject the use case class directly.
 ## Naming Summary
 
 ```
-Port interface   →  {feature}.port.ts            interface {Feature}Port
-Adapter impl     →  {tech}-{feature}.adapter.ts  class {Tech}{Feature}Adapter
-DI token         →  same file as port interface   const {FEATURE}_PORT = Symbol('{FEATURE}_PORT')
-Use case         →  {feature}.use-case.ts         class {Feature}UseCase
-Domain service   →  {feature}.service.ts          class {Feature}Service
-Controller       →  {feature}.controller.ts       class {Feature}Controller
+Port interface      →  {feature}.port.ts              interface {Feature}Port
+Outbound adapter    →  {tech}-{feature}.adapter.ts    class {Tech}{Feature}Adapter
+Inbound adapter     →  {feature}.adapter.ts            class {Feature}Adapter
+DI token            →  same file as port interface     const {FEATURE}_PORT = Symbol('{FEATURE}_PORT')
+Use case            →  {feature}.use-case.ts           class {Feature}UseCase
+Domain service      →  {feature}.service.ts            class {Feature}Service
 ```
 
 ---
@@ -352,12 +481,16 @@ Controller       →  {feature}.controller.ts       class {Feature}Controller
 
 - [ ] Port file ends with `.port.ts` — interface name ends with `Port`
 - [ ] Port file exports a `Symbol` DI token in the same file — token name: `{FEATURE}_PORT`
-- [ ] Adapter file ends with `.adapter.ts` — class explicitly `implements XxxPort`
+- [ ] Outbound adapter file ends with `.adapter.ts` — class explicitly `implements XxxPort`
+- [ ] Inbound adapter file ends with `.adapter.ts` — class calls use cases (no `implements` required)
 - [ ] Module provides adapter under port token: `{ provide: TOKEN, useClass: Adapter }`
 - [ ] Use case injects via `@Inject(TOKEN)` typed as port interface, not concrete class
 - [ ] `core/domain/` has zero imports from `@adapters/`, `application/`, or `adapters/`; only `@Injectable()` from `@nestjs/common` is allowed
 - [ ] `core/application/` use cases and services use `@Injectable()`
 - [ ] `infra/` modules have no imports from `core/`, `adapters/`, or `components/`
 - [ ] Application services that need I/O live in `core/application/services/`, not `core/domain/`
-- [ ] Synchronous cross-component call → consumer defines port in its `adapters/outbound/`, provider implements it in its `adapters/inbound/`
+- [ ] Synchronous cross-component call → port in `{component}/api/{component}-api.port.ts`, adapter in `{component}/api/{component}-api.adapter.ts`, module exports the token
+- [ ] Other components import **only** from `{component}/api/` and shared `@domain/` — never from `core/`, `adapters/`, or any internal path
+- [ ] Cross-boundary data uses DTOs (primitives + shared enums) — never exposes the provider's internal domain entities
+- [ ] Shared enums (`GridStatus`, `OrderStatus`, etc.) imported from `@domain/models/` — not duplicated inside components
 - [ ] Async cross-component notification → event bus only — never direct component-to-component imports

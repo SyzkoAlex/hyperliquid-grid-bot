@@ -1,15 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ProfitCalculatorService } from './profit-calculator.service';
-import { Order } from '@domain/models/order/order';
+import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@/components/grids/api/dto/grid.dto';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { Grid } from '@domain/models/grid/grid';
-import { GridId } from '@domain/models/grid/grid-id';
 import { GridMode } from '@domain/models/grid/grid-mode';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { Price } from '@domain/models/primitives/price';
-import { Decimal } from '@domain/models/primitives/decimal';
+import { GridStatus } from '@domain/models/grid/grid-status';
 
 describe('ProfitCalculatorService', () => {
     let service: ProfitCalculatorService;
@@ -18,33 +15,37 @@ describe('ProfitCalculatorService', () => {
         service = new ProfitCalculatorService();
     });
 
-    function createGrid(lowerPrice: number, upperPrice: number, levels: number): Grid {
-        return Grid.create({
-            symbol: TradingSymbol.create('BTC'),
+    function createGrid(lowerPrice: number, upperPrice: number, levels: number): GridDto {
+        return {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            symbol: 'BTC',
             mode: GridMode.Neutral,
-            lowerPrice: Price.from(lowerPrice),
-            upperPrice: Price.from(upperPrice),
+            status: GridStatus.Running,
+            lowerPrice,
+            upperPrice,
             levels,
-            investmentUSDC: Decimal.from(1000),
-            investmentBase: Decimal.from(0.1),
+            investmentUSDC: 1000,
+            investmentBase: 0.1,
             trailingEnabled: false,
             trailingTriggerPercent: 5,
             trailingStepPercent: 10,
             trailingPartialClosePercent: 50,
-        });
+        };
     }
 
-    function createOrder(side: OrderSide, amount: number): Order {
-        return Order.create({
-            symbol: TradingSymbol.create('BTC'),
+    function createOrder(side: OrderSide, amount: number): OrderDto {
+        return {
+            id: crypto.randomUUID(),
+            gridId: '550e8400-e29b-41d4-a716-446655440000',
+            symbol: 'BTC',
             type: OrderType.Limit,
             side,
-            price: Price.from(50000),
-            amount: Decimal.from(amount),
+            price: 50000,
+            amount,
             status: OrderStatus.Filled,
-            gridId: GridId.from('550e8400-e29b-41d4-a716-446655440000'),
             levelIndex: 1,
-        });
+            exchangeOrderId: null,
+        };
     }
 
     describe('calculate', () => {
@@ -55,7 +56,7 @@ describe('ProfitCalculatorService', () => {
             const profit = service.calculate(order, grid);
 
             expect(profit).not.toBeNull();
-            const spacing = grid.getGridSpacing().toNumber();
+            const spacing = (grid.upperPrice - grid.lowerPrice) / (grid.levels - 1);
             const expectedProfit = spacing * 0.01;
             expect(profit!.toNumber()).toBeCloseTo(expectedProfit, 6);
         });

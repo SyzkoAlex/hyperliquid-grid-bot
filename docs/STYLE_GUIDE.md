@@ -93,7 +93,7 @@ class MyService {
 ## Logging
 
 ```typescript
-private readonly logger = logger.context(ClassName.name)
+private readonly logger = logger.child({ context: ClassName.name })
 // then: this.logger.debug/info/warn/error()
 ```
 

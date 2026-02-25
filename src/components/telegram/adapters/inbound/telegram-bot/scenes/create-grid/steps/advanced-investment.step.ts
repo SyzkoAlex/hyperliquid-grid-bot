@@ -8,12 +8,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { Inject } from '@nestjs/common';
-import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/telegram/core/application/ports/exchange-info.port';
-import { UserBalanceExtractorService } from '@domain/services/user-balance-extractor/user-balance-extractor.service';
-import { CapitalCalculatorService } from '@domain/services/capital-calculator/capital-calculator.service';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
@@ -31,9 +26,7 @@ export class AdvancedInvestmentStep implements WizardStep {
 
     constructor(
         private readonly messageManager: WizardMessageManager,
-        @Inject(EXCHANGE_INFO_PORT) private readonly hyperliquidClient: ExchangeInfoPort,
-        private readonly userBalanceExtractor: UserBalanceExtractorService,
-        private readonly capitalCalculator: CapitalCalculatorService,
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
         configService: ConfigService<Config, true>,
     ) {
         this.accountAddress = configService.get('hyperliquid.accountAddress', { infer: true });
@@ -56,8 +49,7 @@ export class AdvancedInvestmentStep implements WizardStep {
         if (symbol) {
             try {
                 const balanceInfo = await fetchBalanceInfo(
-                    this.hyperliquidClient,
-                    this.userBalanceExtractor,
+                    this.tradingApi,
                     this.accountAddress,
                     symbol,
                 );
@@ -109,9 +101,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                     lowerPrice: session.createGrid.lowerPrice,
                     accountAddress: this.accountAddress,
                 },
-                this.hyperliquidClient,
-                this.userBalanceExtractor,
-                this.capitalCalculator,
+                this.tradingApi,
             );
 
             if (!result.valid) {
