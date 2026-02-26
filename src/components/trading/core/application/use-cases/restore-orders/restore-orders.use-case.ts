@@ -1,9 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
 import { logger } from '@/infra/logger/logger';
 import { Config } from '@/config/config.schema';
@@ -27,7 +27,7 @@ export class RestoreOrdersUseCase {
     private readonly accountAddress: string;
 
     constructor(
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly orderRestoreService: OrderRestoreService,
         private readonly configService: ConfigService<Config, true>,
     ) {
@@ -41,7 +41,7 @@ export class RestoreOrdersUseCase {
             this.logger.debug('Starting order restore');
 
             // Fetch all open orders from exchange
-            const allOpenOrders = await this.orderClient.getOpenSpotOrders(this.accountAddress);
+            const allOpenOrders = await this.exchange.getOpenSpotOrders(this.accountAddress);
 
             // Restore orders
             const restoredCount = await this.orderRestoreService.restoreOrders(allOpenOrders);

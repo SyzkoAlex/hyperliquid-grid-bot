@@ -1,8 +1,8 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { logger } from '@/infra/logger/logger';
 import { Config } from '@/config/config.schema';

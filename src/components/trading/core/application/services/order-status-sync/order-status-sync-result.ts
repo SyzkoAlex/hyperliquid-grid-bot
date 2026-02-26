@@ -1,4 +1,4 @@
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 export class OrderStatusSyncResult {
     public processed: number;

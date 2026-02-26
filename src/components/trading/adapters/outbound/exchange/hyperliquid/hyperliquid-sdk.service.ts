@@ -1,23 +1,24 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Hyperliquid } from 'hyperliquid';
+import { Hyperliquid, SpotMeta } from 'hyperliquid';
 import { logger } from '@/infra/logger/logger';
 import { HyperliquidSymbol } from './types/hyperliquid-symbol';
 import { Config } from '@/config/config.schema';
 
 /**
- * Hyperliquid SDK Service
- * Wrapper around the official Hyperliquid SDK for NestJS DI
+ * Manages Hyperliquid SDK lifecycle and spot metadata cache.
+ * Single source of truth for SDK instance and token resolution.
  */
 @Injectable()
 export class HyperliquidSdkService implements OnModuleInit {
     private readonly logger = logger.child({ context: HyperliquidSdkService.name });
     private sdk!: Hyperliquid;
+    private spotMeta: SpotMeta | null = null;
     private spotAssetMap = new Map<string, string>();
 
     constructor(private readonly configService: ConfigService<Config, true>) {}
 
-    async onModuleInit() {
+    async onModuleInit(): Promise<void> {
         const hyperliquidConfig = this.configService.get('hyperliquid', { infer: true });
         const privateKey = hyperliquidConfig.privateKey;
         const apiUrl = hyperliquidConfig.apiUrl;
@@ -36,30 +37,9 @@ export class HyperliquidSdkService implements OnModuleInit {
         });
 
         await this.sdk.connect();
+        await this.loadSpotMeta();
 
-        await this.loadSpotAssetMap();
-
-        this.logger.info({ testnet: isTestnet }, 'Hyperliquid SDK initialized and connected');
-    }
-
-    private async loadSpotAssetMap(): Promise<void> {
-        try {
-            const spotMeta = await this.sdk.info.spot.getSpotMeta();
-
-            for (const token of spotMeta.tokens) {
-                // Use index for asset ID mapping (e.g., "@150" for HYPE)
-                const key = `@${token.index}`;
-                this.spotAssetMap.set(key, token.name);
-                this.logger.debug(
-                    { key, name: token.name, index: token.index },
-                    'Added to asset map',
-                );
-            }
-
-            this.logger.info({ count: this.spotAssetMap.size }, 'Spot asset map loaded');
-        } catch (error) {
-            this.logger.error({ error }, 'Failed to load spot asset map');
-        }
+        this.logger.info({ testnet: isTestnet }, 'Hyperliquid SDK initialized');
     }
 
     getSdk(): Hyperliquid {
@@ -69,6 +49,41 @@ export class HyperliquidSdkService implements OnModuleInit {
         return this.sdk;
     }
 
+    getSzDecimals(symbol: string): number {
+        if (!this.spotMeta) {
+            throw new Error('Spot meta not loaded');
+        }
+
+        const token = this.spotMeta.tokens.find((t) => t.name === symbol);
+        if (!token) {
+            throw new Error(`Token not found in spot meta: ${symbol}`);
+        }
+
+        return token.szDecimals;
+    }
+
+    /**
+     * Finds the spot market key (e.g. "@150") for a token symbol.
+     * Used to look up mid prices from getAllMids().
+     */
+    lookupSpotKey(symbol: string): string {
+        if (!this.spotMeta) {
+            throw new Error('Spot meta not loaded');
+        }
+
+        const token = this.spotMeta.tokens.find((t) => t.name === symbol);
+        if (!token) {
+            throw new Error(`Token not found for symbol: ${symbol}`);
+        }
+
+        const universeEntry = this.spotMeta.universe.find((u) => u.tokens[0] === token.index);
+        if (!universeEntry) {
+            throw new Error(`No spot market found for ${symbol}`);
+        }
+
+        return `@${universeEntry.index}`;
+    }
+
     resolveSpotSymbol(coin: string): string {
         let resolved = coin;
 
@@ -76,15 +91,10 @@ export class HyperliquidSdkService implements OnModuleInit {
             const symbol = this.spotAssetMap.get(coin);
             if (symbol) {
                 resolved = symbol;
-                this.logger.debug({ coin, resolved }, 'Resolved spot asset');
             } else {
                 this.logger.warn(
-                    {
-                        coin,
-                        mapSize: this.spotAssetMap.size,
-                        sampleKeys: Array.from(this.spotAssetMap.keys()).slice(0, 5),
-                    },
-                    'Unknown spot asset ID - not found in asset map',
+                    { coin, mapSize: this.spotAssetMap.size },
+                    'Unknown spot asset ID',
                 );
             }
         }
@@ -94,5 +104,26 @@ export class HyperliquidSdkService implements OnModuleInit {
         }
 
         return resolved;
+    }
+
+    async pairExists(symbol: string): Promise<boolean> {
+        const spotMeta = await this.getSdk().info.spot.getSpotMeta(true);
+        return spotMeta.tokens.some((token) => token.name === symbol);
+    }
+
+    private async loadSpotMeta(): Promise<void> {
+        try {
+            this.spotMeta = await this.sdk.info.spot.getSpotMeta(true);
+
+            for (const token of this.spotMeta.tokens) {
+                const key = `@${token.index}`;
+                this.spotAssetMap.set(key, token.name);
+            }
+
+            this.logger.info({ tokensCount: this.spotMeta.tokens.length }, 'Spot meta loaded');
+        } catch (error) {
+            this.logger.error({ error }, 'Failed to load spot meta');
+            throw error;
+        }
     }
 }

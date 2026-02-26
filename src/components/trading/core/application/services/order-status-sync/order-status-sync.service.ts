@@ -1,13 +1,13 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { logger } from '@/infra/logger/logger';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { Config } from '@/config/config.schema';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
@@ -20,7 +20,7 @@ export class OrderStatusSyncService {
     private readonly accountAddress: string;
 
     constructor(
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly configService: ConfigService<Config, true>,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
     ) {
@@ -78,7 +78,7 @@ export class OrderStatusSyncService {
             if (!order.exchangeOrderId) return;
 
             try {
-                const exchangeOrderStatus = await this.orderClient.getOrderStatus(
+                const exchangeOrderStatus = await this.exchange.getOrderStatus(
                     this.accountAddress,
                     order.exchangeOrderId,
                 );

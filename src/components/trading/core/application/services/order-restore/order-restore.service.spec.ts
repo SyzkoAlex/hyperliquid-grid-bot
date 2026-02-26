@@ -9,7 +9,7 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 describe('OrderRestoreService', () => {
     let service: OrderRestoreService;

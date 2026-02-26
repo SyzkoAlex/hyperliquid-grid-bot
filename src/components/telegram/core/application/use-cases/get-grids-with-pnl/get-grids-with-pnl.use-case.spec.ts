@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GetGridsWithPnlUseCase } from './get-grids-with-pnl.use-case';
 import { GridFilter } from './grid-filter';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';

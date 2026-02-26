@@ -30,7 +30,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
         this.allowedManagerChatId = telegramConfig.allowedManagerChatId;
-        this.parseMode = telegramConfig.formatting.parseMode;
+        this.parseMode = telegramConfig.formatting.parseMode as TelegramParseMode;
     }
 
     async onModuleInit() {

@@ -6,12 +6,14 @@ import { HttpModule } from '@/infra/http/http.module';
 import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersWebsocketAdapter } from './orders-websocket.adapter';
-import { HyperliquidOrderClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order-client.adapter';
-import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
+import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { EXCHANGE_CLIENT_PORT } from '@components/trading/core/application/ports/exchange-client.port';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import {
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderType } from '@domain/models/order/order-type';
@@ -20,16 +22,14 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
 import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
-import type { HyperliquidWsOrderStatus } from '@/components/trading/adapters/outbound/exchange/hyperliquid/types/hyperliquid-ws-user-event';
+import type { OrderStatusUpdate } from '@components/trading/core/application/use-cases/process-order-status/order-status-update';
 
 describe('OrdersWebsocketAdapter (Integration)', () => {
     let module: TestingModule;
-    let controller: OrdersWebsocketAdapter;
+    let processOrderStatus: ProcessOrderStatusUseCase;
     let gridsApi: GridsApiPort;
-    let hyperliquidOrderClient: HyperliquidOrderClientAdapter;
+    let exchange: ExchangePort;
     let db: DrizzleDb;
-
-    let statusCallback: (status: HyperliquidWsOrderStatus) => void;
 
     beforeAll(async () => {
         await initializeTestModule();
@@ -42,10 +42,6 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
     });
 
     afterAll(async () => {
-        if (controller) {
-            controller.onModuleDestroy();
-        }
-
         if (module) {
             await module.close();
         }
@@ -126,25 +122,19 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
                 levelIndex: 6,
             });
 
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockResolvedValue({
+            vi.mocked(exchange.placeSpotOrder).mockResolvedValue({
                 exchangeOrderId: '88888',
                 status: OrderStatus.Placed,
             });
 
-            const statusEvent: HyperliquidWsOrderStatus = {
-                order: {
-                    coin: 'ETH',
-                    oid: 77777,
-                    side: 'A',
-                    limitPx: '3000',
-                    sz: '0.1',
-                    timestamp: Date.now() - 10000,
-                },
+            const statusEvent: OrderStatusUpdate = {
+                exchangeOrderId: 77777,
+                coin: 'ETH',
                 status: 'filled',
                 statusTimestamp: Date.now(),
             };
 
-            await statusCallback(statusEvent);
+            await processOrderStatus.execute({ orderStatus: statusEvent });
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('77777');
             expect(updatedOrder?.status).toBe(OrderStatus.Filled);
@@ -169,46 +159,29 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
                 amount: 1,
             });
 
-            const statusEvent: HyperliquidWsOrderStatus = {
-                order: {
-                    coin: 'SOL',
-                    oid: 33333,
-                    side: 'B',
-                    limitPx: '120',
-                    sz: '1',
-                    timestamp: Date.now() - 10000,
-                },
+            const statusEvent: OrderStatusUpdate = {
+                exchangeOrderId: 33333,
+                coin: 'SOL',
                 status: 'canceled',
                 statusTimestamp: Date.now(),
             };
 
-            await statusCallback(statusEvent);
+            await processOrderStatus.execute({ orderStatus: statusEvent });
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('33333');
             expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
         });
 
         it('should ignore status events for non-grid orders', async () => {
-            const statusEvent: HyperliquidWsOrderStatus = {
-                order: {
-                    coin: 'BTC',
-                    oid: 99999,
-                    side: 'B',
-                    limitPx: '50000',
-                    sz: '0.01',
-                    timestamp: Date.now() - 10000,
-                },
+            const statusEvent: OrderStatusUpdate = {
+                exchangeOrderId: 99999,
+                coin: 'BTC',
                 status: 'filled',
                 statusTimestamp: Date.now(),
             };
 
-            await statusCallback(statusEvent);
-        });
-    });
-
-    describe('Controller Lifecycle', () => {
-        it('should subscribe to events on module init', () => {
-            expect(statusCallback).toBeDefined();
+            const result = await processOrderStatus.execute({ orderStatus: statusEvent });
+            expect(result.isGridOrder).toBe(false);
         });
     });
 
@@ -216,25 +189,20 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
         db = await DatabaseTestHelper.initialize();
         await CacheTestHelper.initialize();
 
-        const mockHyperliquidOrderClient = {
+        const mockExchange = {
             getOpenSpotOrders: vi.fn(),
             getOrderStatus: vi.fn(),
-            getUserState: vi.fn(),
             placeSpotOrder: vi.fn(),
             cancelSpotOrder: vi.fn(),
+            getCurrentPrice: vi.fn(),
+            getUserSpotState: vi.fn(),
+            pairExists: vi.fn(),
         };
 
-        const mockOrderEventsListener = {
+        const mockWsAdapter = {
             onModuleInit: vi.fn(),
             onModuleDestroy: vi.fn(),
-            connect: vi.fn(),
-            disconnect: vi.fn(),
-            onOrderStatus: vi.fn((callback) => {
-                statusCallback = callback;
-                return () => {
-                    // unsubscribe
-                };
-            }),
+            isConnected: vi.fn().mockReturnValue(false),
         };
 
         const moduleBuilder = Test.createTestingModule({
@@ -248,15 +216,13 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
         });
 
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
-        moduleBuilder.overrideProvider(EXCHANGE_CLIENT_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
+        moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockExchange);
+        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
 
         module = await moduleBuilder.compile();
 
-        controller = module.get<OrdersWebsocketAdapter>(OrdersWebsocketAdapter);
+        processOrderStatus = module.get<ProcessOrderStatusUseCase>(ProcessOrderStatusUseCase);
         gridsApi = module.get<GridsApiPort>(GRIDS_API_PORT);
-        hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(EXCHANGE_CLIENT_PORT);
-
-        controller.onModuleInit();
+        exchange = module.get<ExchangePort>(EXCHANGE_PORT);
     }
 });

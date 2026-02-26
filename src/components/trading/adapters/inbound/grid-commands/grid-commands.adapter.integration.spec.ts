@@ -6,12 +6,12 @@ import { HttpModule } from '@/infra/http/http.module';
 import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { GridCommandsAdapter } from './grid-commands.adapter';
-import { HyperliquidOrderClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order-client.adapter';
-import { HyperliquidInfoClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-info-client.adapter';
-import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
+import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { EXCHANGE_CLIENT_PORT } from '@components/trading/core/application/ports/exchange-client.port';
-import { EXCHANGE_INFO_PORT } from '@components/trading/core/application/ports/exchange-info.port';
+import {
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import {
     EVENT_PUBLISHER_PORT,
     EventPublisherPort,
@@ -47,8 +47,7 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 describe('GridCommandsAdapter (Integration)', () => {
     let module: TestingModule;
     let gridsApi: GridsApiPort;
-    let hyperliquidOrderClient: HyperliquidOrderClientAdapter;
-    let hyperliquidInfoClient: HyperliquidInfoClientAdapter;
+    let exchange: ExchangePort;
     let publisher: EventPublisherPort;
     let subscriber: EventSubscriberPort;
 
@@ -56,8 +55,7 @@ describe('GridCommandsAdapter (Integration)', () => {
         const env = await setupTestEnvironment();
         module = env.module;
         gridsApi = env.gridsApi;
-        hyperliquidOrderClient = env.hyperliquidOrderClient;
-        hyperliquidInfoClient = env.hyperliquidInfoClient;
+        exchange = env.exchange;
         publisher = env.publisher;
         subscriber = env.subscriber;
     });
@@ -101,12 +99,12 @@ describe('GridCommandsAdapter (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock successful order placements
             let orderIdCounter = 1;
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
+            vi.mocked(exchange.placeSpotOrder).mockImplementation(async () => ({
                 exchangeOrderId: `order-${orderIdCounter++}`,
                 status: OrderStatus.Placed,
             }));
@@ -155,7 +153,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(grid.status).toBe(GridStatus.Running);
 
             // Verify orders were placed
-            expect(hyperliquidOrderClient.placeSpotOrder).toHaveBeenCalled();
+            expect(exchange.placeSpotOrder).toHaveBeenCalled();
 
             // Verify success event data
             expect(successEvent.symbol).toBe('BTC');
@@ -184,11 +182,11 @@ describe('GridCommandsAdapter (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(3500));
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getCurrentPrice).mockResolvedValue(Price.from(3500));
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
+            vi.mocked(exchange.placeSpotOrder).mockImplementation(async () => ({
                 exchangeOrderId: `order-${orderIdCounter++}`,
                 status: OrderStatus.Placed,
             }));
@@ -247,11 +245,11 @@ describe('GridCommandsAdapter (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(125));
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getCurrentPrice).mockResolvedValue(Price.from(125));
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
+            vi.mocked(exchange.placeSpotOrder).mockImplementation(async () => ({
                 exchangeOrderId: `order-${orderIdCounter++}`,
                 status: OrderStatus.Placed,
             }));
@@ -294,12 +292,8 @@ describe('GridCommandsAdapter (Integration)', () => {
     describe('Error Handling', () => {
         it('should publish error event when API fails', async () => {
             // Mock API failure
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockRejectedValue(
-                new Error('Network timeout'),
-            );
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockRejectedValue(
-                new Error('Network timeout'),
-            );
+            vi.mocked(exchange.getCurrentPrice).mockRejectedValue(new Error('Network timeout'));
+            vi.mocked(exchange.getUserSpotState).mockRejectedValue(new Error('Network timeout'));
 
             // Subscribe to error events
             const errorHandler = vi.fn();
@@ -337,8 +331,8 @@ describe('GridCommandsAdapter (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             const errorHandler = vi.fn();
             subscriber.subscribe(EventType.GridCreatedError, errorHandler);
@@ -381,14 +375,12 @@ describe('GridCommandsAdapter (Integration)', () => {
                 ],
             });
 
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockResolvedValue(Price.from(50000));
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getCurrentPrice).mockResolvedValue(Price.from(50000));
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             // Mock order placement failure — OrderPlacementService catches individual errors
             // so the grid creation itself succeeds (success event published, not error event)
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockRejectedValue(
-                new Error('Order rejected'),
-            );
+            vi.mocked(exchange.placeSpotOrder).mockRejectedValue(new Error('Order rejected'));
 
             let unsubscribe: (() => void) | undefined;
             const successEventPromise = new Promise<GridCreatedSuccessEvent>((resolve) => {
@@ -421,7 +413,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(grids.length).toBe(1);
 
             // Verify order placement was attempted
-            expect(hyperliquidOrderClient.placeSpotOrder).toHaveBeenCalled();
+            expect(exchange.placeSpotOrder).toHaveBeenCalled();
         });
     });
 
@@ -449,15 +441,15 @@ describe('GridCommandsAdapter (Integration)', () => {
             });
 
             // Mock different prices for different symbols
-            vi.mocked(hyperliquidInfoClient.getCurrentPrice).mockImplementation(async (symbol) => {
+            vi.mocked(exchange.getCurrentPrice).mockImplementation(async (symbol) => {
                 if (symbol.toString() === 'BTC') return Price.from(50000);
                 if (symbol.toString() === 'ETH') return Price.from(3500);
                 return Price.from(100);
             });
-            vi.mocked(hyperliquidInfoClient.getUserSpotState).mockResolvedValue(mockUserState);
+            vi.mocked(exchange.getUserSpotState).mockResolvedValue(mockUserState);
 
             let orderIdCounter = 1;
-            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockImplementation(async () => ({
+            vi.mocked(exchange.placeSpotOrder).mockImplementation(async () => ({
                 exchangeOrderId: `order-${orderIdCounter++}`,
                 status: OrderStatus.Placed,
             }));
@@ -524,29 +516,22 @@ async function setupTestEnvironment() {
     await CacheTestHelper.initialize();
 
     // Create mocked Hyperliquid clients
-    const mockHyperliquidOrderClient = {
+    const mockExchange = {
         getOpenSpotOrders: vi.fn(),
         getOrderStatus: vi.fn(),
         placeSpotOrder: vi.fn(),
         cancelSpotOrder: vi.fn(),
-    };
-
-    const mockHyperliquidInfoClient = {
         getUserSpotState: vi.fn(),
         getCurrentPrice: vi.fn(),
+        pairExists: vi.fn(),
     };
 
-    // Mock websocket client (not needed for this test)
-    const mockOrderEventsListener = {
+    const mockWsAdapter = {
         onModuleInit: vi.fn(),
         onModuleDestroy: vi.fn(),
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-        onFill: vi.fn(() => () => {}),
-        onOrderStatus: vi.fn(() => () => {}),
+        isConnected: vi.fn().mockReturnValue(false),
     };
 
-    // Create NestJS testing module with TradingModule
     const moduleBuilder = Test.createTestingModule({
         imports: [
             ScheduleModule.forRoot(),
@@ -557,19 +542,15 @@ async function setupTestEnvironment() {
         ],
     });
 
-    // Override providers
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
-    moduleBuilder.overrideProvider(EXCHANGE_CLIENT_PORT).useValue(mockHyperliquidOrderClient);
-    moduleBuilder.overrideProvider(EXCHANGE_INFO_PORT).useValue(mockHyperliquidInfoClient);
-    moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
+    moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockExchange);
+    moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
 
     // Compile module
     const module = await moduleBuilder.compile();
 
-    // Get instances from module
     const gridsApi = module.get<GridsApiPort>(GRIDS_API_PORT);
-    const hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(EXCHANGE_CLIENT_PORT);
-    const hyperliquidInfoClient = module.get<HyperliquidInfoClientAdapter>(EXCHANGE_INFO_PORT);
+    const exchange = module.get<ExchangePort>(EXCHANGE_PORT);
     const publisher = module.get<EventPublisherPort>(EVENT_PUBLISHER_PORT);
     const subscriber = module.get<EventSubscriberPort>(EVENT_SUBSCRIBER_PORT);
 
@@ -581,8 +562,7 @@ async function setupTestEnvironment() {
     return {
         module,
         gridsApi,
-        hyperliquidOrderClient,
-        hyperliquidInfoClient,
+        exchange,
         publisher,
         subscriber,
         db,

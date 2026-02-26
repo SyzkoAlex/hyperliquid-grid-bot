@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { GridCardData, GridListItemMessage } from './grid-list-item.message';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridPnl, OrderStats } from '@components/telegram/core/domain/models/grid-with-pnl';
+import { GridPnl, OrderStats } from '../../../../core/domain/models/grid-pnl';
 
 function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): GridDto {
     return {

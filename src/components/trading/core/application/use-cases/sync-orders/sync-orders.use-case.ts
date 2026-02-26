@@ -1,9 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
@@ -19,7 +19,7 @@ export class SyncOrdersUseCase {
 
     constructor(
         private readonly configService: ConfigService<Config, true>,
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly hyperliquidOrderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
@@ -30,9 +30,7 @@ export class SyncOrdersUseCase {
     async execute(): Promise<SyncOrdersResult> {
         const result = SyncOrdersResult.empty();
 
-        const exchangeOpenOrders = await this.hyperliquidOrderClient.getOpenSpotOrders(
-            this.accountAddress,
-        );
+        const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(this.accountAddress);
 
         // Fetch all active grids
         const activeGrids = await this.grids.findActiveGrids();

@@ -5,12 +5,14 @@ import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
 import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersPollingAdapter } from './orders-polling.adapter';
-import { HyperliquidOrderClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order-client.adapter';
-import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
+import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { EXCHANGE_CLIENT_PORT } from '@components/trading/core/application/ports/exchange-client.port';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import {
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderType } from '@domain/models/order/order-type';
@@ -30,7 +32,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
     let module: TestingModule;
     let monitor: OrdersPollingAdapter;
     let gridsApi: GridsApiPort;
-    let hyperliquidOrderClient: HyperliquidOrderClientAdapter;
+    let hyperliquidOrderClient: ExchangePort;
     let db: DrizzleDb;
 
     beforeAll(async () => {
@@ -261,11 +263,10 @@ describe('OrdersPollingAdapter (Integration)', () => {
             cancelSpotOrder: vi.fn(),
         };
 
-        const mockOrderEventsListener = {
+        const mockWsAdapter = {
             onModuleInit: vi.fn(),
             onModuleDestroy: vi.fn(),
-            connect: vi.fn(),
-            disconnect: vi.fn(),
+            isConnected: vi.fn().mockReturnValue(false),
         };
 
         const moduleBuilder = Test.createTestingModule({
@@ -279,13 +280,13 @@ describe('OrdersPollingAdapter (Integration)', () => {
         });
 
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
-        moduleBuilder.overrideProvider(EXCHANGE_CLIENT_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrderEventsListener).useValue(mockOrderEventsListener);
+        moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockHyperliquidOrderClient);
+        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
 
         module = await moduleBuilder.compile();
 
         monitor = module.get<OrdersPollingAdapter>(OrdersPollingAdapter);
         gridsApi = module.get<GridsApiPort>(GRIDS_API_PORT);
-        hyperliquidOrderClient = module.get<HyperliquidOrderClientAdapter>(EXCHANGE_CLIENT_PORT);
+        hyperliquidOrderClient = module.get<ExchangePort>(EXCHANGE_PORT);
     }
 });

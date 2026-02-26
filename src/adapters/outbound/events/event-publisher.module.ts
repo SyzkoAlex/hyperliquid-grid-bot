@@ -5,10 +5,7 @@ import { EVENT_PUBLISHER_PORT } from '@/core/application/ports/outbound/event-pu
 
 @Module({
     imports: [InProcessEventBusModule],
-    providers: [
-        EventPublisherAdapter,
-        { provide: EVENT_PUBLISHER_PORT, useExisting: EventPublisherAdapter },
-    ],
+    providers: [{ provide: EVENT_PUBLISHER_PORT, useClass: EventPublisherAdapter }],
     exports: [EVENT_PUBLISHER_PORT],
 })
 export class EventPublisherModule {}

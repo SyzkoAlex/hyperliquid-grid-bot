@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProcessOrderStatusUseCase } from './process-order-status.use-case';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { HyperliquidWsOrderStatus } from '@/components/trading/adapters/outbound/exchange/hyperliquid/types/hyperliquid-ws-user-event';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderStatusUpdate } from './order-status-update';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
@@ -67,19 +67,12 @@ describe('ProcessOrderStatusUseCase', () => {
 
     const createOrderStatus = (
         status: 'filled' | 'canceled' | 'marginCanceled' | 'rejected' | 'open' | 'triggered',
-    ): HyperliquidWsOrderStatus =>
-        ({
-            order: {
-                oid: 123,
-                coin: 'BTC',
-                side: 'B',
-                limitPx: '50000',
-                sz: '0.01',
-                timestamp: Date.now(),
-            },
-            status,
-            statusTimestamp: Date.now(),
-        }) as any;
+    ): OrderStatusUpdate => ({
+        exchangeOrderId: 123,
+        coin: 'BTC',
+        status,
+        statusTimestamp: Date.now(),
+    });
 
     describe('execute - order not found', () => {
         it('should return success false when order is not a grid order', async () => {

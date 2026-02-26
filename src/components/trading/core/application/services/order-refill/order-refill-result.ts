@@ -1,4 +1,4 @@
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 /**
  * Result of OrderRefillService

@@ -10,7 +10,7 @@ import { Handler } from '../handler';
 import { GetGridsWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';
 import { GridWithPnl } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
-import { GridListItemMessage } from '@components/telegram/core/domain/models/messages/grid-list-item.message';
+import { GridListItemMessage } from '../../messages/grid-list-item.message';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
 import { toInlineKeyboard } from '../inline-keyboard';

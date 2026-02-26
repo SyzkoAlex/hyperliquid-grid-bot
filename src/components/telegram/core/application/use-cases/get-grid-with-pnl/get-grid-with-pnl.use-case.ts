@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { OrderStatus } from '@domain/models/order/order-status';
 import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
@@ -22,7 +23,10 @@ export class GetGridWithPnlUseCase {
             this.tradingApi.getCurrentPrice(grid.symbol),
         ]);
 
-        const pnl = this.pnlCalculator.calculate(orders, currentPrice);
+        const filled = orders
+            .filter((o) => o.status === OrderStatus.Filled && o.price !== null)
+            .map((o) => ({ side: o.side, price: o.price!, amount: o.amount }));
+        const pnl = this.pnlCalculator.calculate(filled, currentPrice);
         const orderStats = computeOrderStats(orders);
 
         return { grid, pnl, currentPrice, orderStats, orders };

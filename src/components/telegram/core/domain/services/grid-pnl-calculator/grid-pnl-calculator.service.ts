@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
 import { OrderSide } from '@domain/models/order/order-side';
-import { OrderStatus } from '@domain/models/order/order-status';
 import { GridPnl } from '../../models/grid-pnl';
 
 /**
@@ -18,28 +16,29 @@ export class GridPnlCalculatorService {
      * gridProfit   = Σ(filled_sell × price) − Σ(filled_buy × price), gross (no fees)
      * unrealizedPnl = qtyHeld × (currentPrice − avgBuyPrice)
      *
+     * Expects only filled orders with non-null prices (caller filters).
+     *
      * @see docs/GRID-PNL-RESEARCH.md
      */
-    calculate(orders: OrderDto[], currentPrice: number): GridPnl {
-        const filled = orders.filter((o) => o.status === OrderStatus.Filled && o.price !== null);
-
+    calculate(
+        filledOrders: { side: OrderSide; price: number; amount: number }[],
+        currentPrice: number,
+    ): GridPnl {
         let sellVolume = 0;
         let buyVolume = 0;
         let totalBuyQty = 0;
         let totalSellQty = 0;
         let weightedBuyPriceSum = 0;
 
-        for (const order of filled) {
-            const price = order.price!;
-            const amount = order.amount;
-            const value = price * amount;
+        for (const order of filledOrders) {
+            const value = order.price * order.amount;
 
             if (order.side === OrderSide.Sell) {
                 sellVolume += value;
-                totalSellQty += amount;
+                totalSellQty += order.amount;
             } else {
                 buyVolume += value;
-                totalBuyQty += amount;
+                totalBuyQty += order.amount;
                 weightedBuyPriceSum += value;
             }
         }

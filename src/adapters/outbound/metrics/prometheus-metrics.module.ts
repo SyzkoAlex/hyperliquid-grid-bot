@@ -5,10 +5,7 @@ import { METRICS_PORT } from '@/core/application/ports/outbound/metrics.port';
 
 @Module({
     imports: [ConfigModule],
-    providers: [
-        PrometheusMetricsAdapter,
-        { provide: METRICS_PORT, useExisting: PrometheusMetricsAdapter },
-    ],
-    exports: [METRICS_PORT, PrometheusMetricsAdapter],
+    providers: [{ provide: METRICS_PORT, useClass: PrometheusMetricsAdapter }],
+    exports: [METRICS_PORT],
 })
 export class PrometheusMetricsModule {}

@@ -1,23 +1,15 @@
 import { Module } from '@nestjs/common';
-import { HttpModule } from '@/infra/http/http.module';
-import { HyperliquidApiClient } from './hyperliquid-api.client';
+import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { HyperliquidSdkService } from './hyperliquid-sdk.service';
-import { HyperliquidSdkClient } from './hyperliquid-sdk.client';
-import { HyperliquidWsClient } from './hyperliquid-ws.client';
+import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
+import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
 
 @Module({
-    imports: [HttpModule],
     providers: [
-        HyperliquidApiClient,
         HyperliquidSdkService,
-        HyperliquidSdkClient,
-        HyperliquidWsClient,
+        HyperliquidExchangeMapper,
+        { provide: EXCHANGE_PORT, useClass: HyperliquidExchangeAdapter },
     ],
-    exports: [
-        HyperliquidApiClient,
-        HyperliquidSdkService,
-        HyperliquidSdkClient,
-        HyperliquidWsClient,
-    ],
+    exports: [EXCHANGE_PORT],
 })
 export class HyperliquidModule {}

@@ -33,6 +33,15 @@ export const logger: Logger = pino({
                   },
               }
             : undefined,
+    serializers: {
+        err: (error: Error & { response?: { data?: unknown } }) => {
+            const serialized = pino.stdSerializers.err(error) as Record<string, unknown>;
+            if (error.response?.data !== undefined) {
+                serialized.responseData = error.response.data;
+            }
+            return serialized;
+        },
+    },
     formatters: {
         level: (label) => {
             return { level: label };

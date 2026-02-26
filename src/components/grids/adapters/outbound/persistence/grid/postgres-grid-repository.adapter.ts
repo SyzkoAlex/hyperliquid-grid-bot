@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { DRIZZLE_DB } from '@/infra/database/database.module';
 import { Grid } from '../../../../core/domain/models/grid/grid';
@@ -7,10 +7,11 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 import { grids } from '@/infra/database/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 import { logger } from '@/infra/logger/logger';
+import { GridRepositoryPort } from '../../../../core/application/ports/grid-repository.port';
 import { PostgresGridMapper } from './postgres-grid.mapper';
 
 @Injectable()
-export class PostgresGridRepositoryAdapter {
+export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
     private readonly logger = logger.child({ context: PostgresGridRepositoryAdapter.name });
 
     constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb) {}

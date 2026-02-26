@@ -1,12 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import {
-    EXCHANGE_INFO_PORT,
-    ExchangeInfoPort,
-} from '@components/trading/core/application/ports/exchange-info.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
 import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
@@ -23,7 +23,7 @@ export class CreateAndStartGridUseCase {
     private readonly logger = logger.child({ context: CreateAndStartGridUseCase.name });
 
     constructor(
-        @Inject(EXCHANGE_INFO_PORT) private readonly infoClient: ExchangeInfoPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly capitalCalculator: CapitalCalculatorService,
         private readonly gridLevelsCalculator: GridLevelsCalculatorService,
@@ -34,7 +34,7 @@ export class CreateAndStartGridUseCase {
     async execute(params: CreateAndStartGridParams): Promise<CreateAndStartGridResult> {
         this.logger.info({ params }, 'Creating and starting grid');
 
-        const currentPrice = await this.infoClient.getCurrentPrice(
+        const currentPrice = await this.exchange.getCurrentPrice(
             TradingSymbol.create(params.symbol),
         );
 
@@ -54,7 +54,7 @@ export class CreateAndStartGridUseCase {
         params: CreateAndStartGridParams,
         currentPrice: Price,
     ): Promise<{ investmentUSDC: Decimal; investmentBase: Decimal }> {
-        const userState = await this.infoClient.getUserSpotState(params.address);
+        const userState = await this.exchange.getUserSpotState(params.address);
         const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
             userState,
             params.symbol,
@@ -122,7 +122,11 @@ export class CreateAndStartGridUseCase {
         );
 
         const levelsWithSizes = this.gridLevelsCalculator.calculateLevelsWithSizes(
-            grid,
+            grid.lowerPrice,
+            grid.upperPrice,
+            grid.levels,
+            grid.investmentUSDC,
+            grid.investmentBase,
             currentPrice,
         );
 

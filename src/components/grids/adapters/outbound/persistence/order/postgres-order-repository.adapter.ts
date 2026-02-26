@@ -7,10 +7,11 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderDbRecord, orders } from '@/infra/database/schema';
 import { logger } from '@/infra/logger/logger';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
+import { OrderRepositoryPort } from '../../../../core/application/ports/order-repository.port';
 import { PostgresOrderMapper } from './postgres-order.mapper';
 
 @Injectable()
-export class PostgresOrderRepositoryAdapter {
+export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
     private readonly logger = logger.child({ context: PostgresOrderRepositoryAdapter.name });
 
     constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb) {}

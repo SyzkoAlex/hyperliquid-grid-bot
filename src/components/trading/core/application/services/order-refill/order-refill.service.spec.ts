@@ -6,8 +6,8 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const REFILL_ORDER_ID = '880e8400-e29b-41d4-a716-446655440003';
@@ -104,13 +104,14 @@ describe('OrderRefillService', () => {
         };
 
         const mockProfitCalculator = {
-            calculate: vi.fn().mockImplementation((order: OrderDto, grid: GridDto) => {
-                if (order.side === OrderSide.Sell) {
-                    const spacing = (grid.upperPrice - grid.lowerPrice) / (grid.levels - 1);
-                    return Decimal.from(spacing * order.amount);
-                }
-                return null;
-            }),
+            calculate: vi
+                .fn()
+                .mockImplementation(
+                    (amount: number, upperPrice: number, lowerPrice: number, levels: number) => {
+                        const spacing = (upperPrice - lowerPrice) / (levels - 1);
+                        return Decimal.from(spacing * amount);
+                    },
+                ),
         };
 
         service = new OrderRefillService(

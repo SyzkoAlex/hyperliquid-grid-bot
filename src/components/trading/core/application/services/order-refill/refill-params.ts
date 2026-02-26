@@ -1,5 +1,5 @@
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';

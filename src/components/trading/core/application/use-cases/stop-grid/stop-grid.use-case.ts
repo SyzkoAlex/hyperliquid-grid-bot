@@ -3,9 +3,9 @@ import { logger } from '@/infra/logger/logger';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class StopGridUseCase {
 
     constructor(
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
     ) {}
 
     async execute(gridId: string): Promise<void> {
@@ -31,7 +31,7 @@ export class StopGridUseCase {
         for (const order of activeOrders) {
             if (!order.exchangeOrderId) continue;
             try {
-                await this.orderClient.cancelSpotOrder({
+                await this.exchange.cancelSpotOrder({
                     symbol: TradingSymbol.create(order.symbol),
                     exchangeOrderId: order.exchangeOrderId,
                 });

@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GridLevelsCalculatorService } from './grid-levels-calculator.service';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
-import { GridStatus } from '@domain/models/grid/grid-status';
 import { Price } from '@domain/models/primitives/price';
 import { OrderSide } from '@domain/models/order/order-side';
 
@@ -13,30 +10,33 @@ describe('GridLevelsCalculatorService', () => {
         service = new GridLevelsCalculatorService(10);
     });
 
-    function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
-        return {
-            id: crypto.randomUUID(),
-            symbol: 'BTC',
-            mode: GridMode.Neutral,
-            status: GridStatus.Running,
-            lowerPrice: 45000,
-            upperPrice: 55000,
-            levels: 10,
-            investmentUSDC: 5000,
-            investmentBase: 0.1,
-            trailingEnabled: false,
-            trailingTriggerPercent: 5,
-            trailingStepPercent: 10,
-            trailingPartialClosePercent: 50,
-            ...overrides,
-        };
+    const defaults = {
+        lowerPrice: 45000,
+        upperPrice: 55000,
+        levels: 10,
+        investmentUSDC: 5000,
+        investmentBase: 0.1,
+    };
+
+    function calc(
+        overrides: Partial<typeof defaults> = {},
+        currentPrice: Price = Price.from(50000),
+    ) {
+        const p = { ...defaults, ...overrides };
+        return service.calculateLevelsWithSizes(
+            p.lowerPrice,
+            p.upperPrice,
+            p.levels,
+            p.investmentUSDC,
+            p.investmentBase,
+            currentPrice,
+        );
     }
 
     describe('calculateLevelsWithSizes', () => {
         it('should calculate levels and sizes for neutral grid', () => {
-            const grid = makeGrid();
             const currentPrice = Price.from(50000);
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc({}, currentPrice);
 
             expect(result).toHaveLength(10);
 
@@ -62,17 +62,10 @@ describe('GridLevelsCalculatorService', () => {
         });
 
         it('should distribute capital evenly across buy levels', () => {
-            const grid = makeGrid({
-                lowerPrice: 40000,
-                upperPrice: 50000,
-                levels: 5,
-            });
-
             const currentPrice = Price.from(45000);
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc({ lowerPrice: 40000, upperPrice: 50000, levels: 5 }, currentPrice);
 
             const buyLevels = result.filter((l) => l.side === OrderSide.Buy);
-
             const expectedQuotePerLevel = 5000 / buyLevels.length;
 
             buyLevels.forEach((level) => {
@@ -81,19 +74,13 @@ describe('GridLevelsCalculatorService', () => {
         });
 
         it('should distribute base tokens evenly across sell levels', () => {
-            const grid = makeGrid({
-                mode: GridMode.Long,
-                lowerPrice: 50000,
-                upperPrice: 60000,
-                levels: 5,
-                investmentUSDC: 3000,
-            });
-
             const currentPrice = Price.from(55000);
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc(
+                { lowerPrice: 50000, upperPrice: 60000, levels: 5, investmentUSDC: 3000 },
+                currentPrice,
+            );
 
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
-
             const expectedBasePerLevel = 0.1 / sellLevels.length;
 
             sellLevels.forEach((level) => {
@@ -102,15 +89,10 @@ describe('GridLevelsCalculatorService', () => {
         });
 
         it('should split orders at current price', () => {
-            const grid = makeGrid({
-                symbol: 'ETH',
-                lowerPrice: 2000,
-                upperPrice: 3000,
-                investmentBase: 2,
-            });
-
-            const currentPrice = Price.from(2500);
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc(
+                { lowerPrice: 2000, upperPrice: 3000, investmentBase: 2 },
+                Price.from(2500),
+            );
 
             const buyLevels = result.filter((l) => l.side === OrderSide.Buy);
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
@@ -120,31 +102,20 @@ describe('GridLevelsCalculatorService', () => {
         });
 
         it('should handle all sell levels when price below lower bound', () => {
-            const grid = makeGrid({
-                symbol: 'SOL',
-                lowerPrice: 100,
-                upperPrice: 150,
-                investmentBase: 50,
-            });
-
-            const currentPrice = Price.from(80);
-
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc(
+                { lowerPrice: 100, upperPrice: 150, investmentBase: 50 },
+                Price.from(80),
+            );
 
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
             expect(sellLevels).toHaveLength(10);
         });
 
         it('should calculate correct amounts for buy orders', () => {
-            const grid = makeGrid({
-                lowerPrice: 45000,
-                upperPrice: 50000,
-                levels: 5,
-            });
-
-            const currentPrice = Price.from(55000); // All buys
-
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc(
+                { lowerPrice: 45000, upperPrice: 50000, levels: 5 },
+                Price.from(55000),
+            );
 
             result.forEach((level) => {
                 expect(level.side).toBe(OrderSide.Buy);
@@ -157,17 +128,10 @@ describe('GridLevelsCalculatorService', () => {
         });
 
         it('should calculate correct amounts for sell orders', () => {
-            const grid = makeGrid({
-                mode: GridMode.Long,
-                lowerPrice: 50000,
-                upperPrice: 55000,
-                levels: 5,
-                investmentUSDC: 3000,
-            });
-
-            const currentPrice = Price.from(45000); // All sells
-
-            const result = service.calculateLevelsWithSizes(grid, currentPrice);
+            const result = calc(
+                { lowerPrice: 50000, upperPrice: 55000, levels: 5, investmentUSDC: 3000 },
+                Price.from(45000),
+            );
 
             result.forEach((level) => {
                 expect(level.side).toBe(OrderSide.Sell);

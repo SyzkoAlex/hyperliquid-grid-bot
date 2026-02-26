@@ -2,13 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HyperliquidModule } from './adapters/outbound/exchange/hyperliquid/hyperliquid.module';
 import { Config } from '@/config/config.schema';
-import { HyperliquidOrderClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order-client.adapter';
-import { HyperliquidInfoClientAdapter } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-info-client.adapter';
-import { HyperliquidOrderMapper } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-order.mapper';
-import { HyperliquidInfoMapper } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-info-mapper';
-import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
-import { EXCHANGE_CLIENT_PORT } from '@components/trading/core/application/ports/exchange-client.port';
-import { EXCHANGE_INFO_PORT } from '@components/trading/core/application/ports/exchange-info.port';
 import { CreateAndStartGridUseCase } from '@components/trading/core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
@@ -28,7 +21,6 @@ import { StopGridUseCase } from '@components/trading/core/application/use-cases/
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
-import { HyperliquidWsClient } from '@components/trading/adapters/outbound/exchange/hyperliquid/hyperliquid-ws.client';
 import { GridsModule } from '@components/grids/grids.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
@@ -39,13 +31,7 @@ import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
 @Module({
     imports: [HyperliquidModule, GridsModule, EventPublisherModule, EventSubscriberModule],
     providers: [
-        { provide: EXCHANGE_CLIENT_PORT, useClass: HyperliquidOrderClientAdapter },
-        { provide: EXCHANGE_INFO_PORT, useClass: HyperliquidInfoClientAdapter },
         { provide: TRADING_API_PORT, useClass: TradingApiAdapter },
-        HyperliquidOrderMapper,
-        HyperliquidInfoMapper,
-        HyperliquidWsClient,
-        OrderEventsListener,
         EventDeserializer,
         CreateAndStartGridUseCase,
         SyncOrdersUseCase,

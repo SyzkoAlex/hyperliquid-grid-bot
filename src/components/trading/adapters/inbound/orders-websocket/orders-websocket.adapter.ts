@@ -1,57 +1,104 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { logger } from '@/infra/logger/logger';
-import { OrderEventsListener } from '@components/trading/adapters/outbound/exchange/hyperliquid/order-events.listener';
+import { WebSocketClient } from '@/infra/websocket/websocket-client';
+import { OrderStatusUpdate } from '@components/trading/core/application/use-cases/process-order-status/order-status-update';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
-import { HyperliquidWsOrderStatus } from '@/components/trading/adapters/outbound/exchange/hyperliquid/types/hyperliquid-ws-user-event';
+import { Config } from '@/config/config.schema';
 
-/**
- * Orders WebSocket Adapter
- *
- * Adapter that listens for order status changes via WebSocket.
- * This provides faster order detection (100-200ms) compared to polling (10s).
- *
- * ## Subscriptions:
- * - userEvents: Order status changes (filled, canceled, rejected)
- *
- * ## Event handling:
- * - filled (status) → trigger grid refill logic
- * - canceled → remove order from active orders
- */
+interface HyperliquidWsOrderStatus {
+    order: {
+        coin: string;
+        oid: number;
+        side: 'B' | 'A';
+        limitPx: string;
+        sz: string;
+        timestamp: number;
+    };
+    status: string;
+    statusTimestamp: number;
+}
+
+interface HyperliquidWsEvent {
+    channel: string;
+    data: HyperliquidWsOrderStatus[];
+}
+
 @Injectable()
 export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
     private readonly logger = logger.child({ context: OrdersWebsocketAdapter.name });
-    private unsubscribeStatus?: () => void;
+    private readonly wsClient: WebSocketClient;
+    private readonly accountAddress: string;
 
     constructor(
-        private readonly orderEventsAdapter: OrderEventsListener,
+        private readonly configService: ConfigService<Config, true>,
         private readonly processOrderStatus: ProcessOrderStatusUseCase,
-    ) {}
+    ) {
+        const hyperliquidConfig = this.configService.get('hyperliquid', { infer: true });
+        this.accountAddress = hyperliquidConfig.accountAddress;
+
+        this.wsClient = new WebSocketClient({
+            url: hyperliquidConfig.websocketUrl,
+            maxReconnectAttempts: hyperliquidConfig.websocket.maxReconnectAttempts,
+            baseReconnectDelay: hyperliquidConfig.websocket.baseReconnectDelay,
+        });
+
+        this.wsClient.onOpen(() => this.subscribeToOrderUpdates());
+        this.wsClient.onMessage((message) => this.handleMessage(message));
+    }
 
     onModuleInit(): void {
-        this.unsubscribeStatus = this.orderEventsAdapter.onOrderStatus((status) =>
-            this.handleOrderStatus(status),
-        );
-
+        this.wsClient.connect();
         this.logger.info('Orders WebSocket adapter initialized');
     }
 
     onModuleDestroy(): void {
-        if (this.unsubscribeStatus) {
-            this.unsubscribeStatus();
-        }
-        this.logger.info('Orders WebSocket adapter destroyed');
+        this.wsClient.disconnect();
     }
 
-    private async handleOrderStatus(orderStatus: HyperliquidWsOrderStatus): Promise<void> {
+    isConnected(): boolean {
+        return this.wsClient.isConnected();
+    }
+
+    private subscribeToOrderUpdates(): void {
+        this.wsClient.send({
+            method: 'subscribe',
+            subscription: { type: 'orderUpdates', user: this.accountAddress },
+        });
+        this.logger.info({ user: this.accountAddress }, 'Subscribed to orderUpdates');
+    }
+
+    private handleMessage(message: any): void {
+        this.logger.debug({ message }, 'WebSocket message received');
+
+        if (message.channel === 'orderUpdates') {
+            this.handleOrderUpdates(message as HyperliquidWsEvent);
+        }
+
+        if (message.channel === 'subscriptionResponse') {
+            this.logger.info({ message }, 'Subscription confirmed');
+        }
+    }
+
+    private handleOrderUpdates(event: HyperliquidWsEvent): void {
+        this.logger.debug({ statusCount: event.data.length }, 'Received order updates');
+
+        for (const raw of event.data) {
+            const update = this.toOrderStatusUpdate(raw);
+            this.processUpdate(update);
+        }
+    }
+
+    private async processUpdate(update: OrderStatusUpdate): Promise<void> {
         try {
-            const result = await this.processOrderStatus.execute({ orderStatus });
+            const result = await this.processOrderStatus.execute({ orderStatus: update });
 
             if (result.isGridOrder) {
                 this.logger.info(
                     {
-                        oid: orderStatus.order.oid,
-                        status: orderStatus.status,
-                        coin: orderStatus.order.coin,
+                        oid: update.exchangeOrderId,
+                        status: update.status,
+                        coin: update.coin,
                         success: result.success,
                     },
                     'Order status event processed',
@@ -59,9 +106,18 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
             }
         } catch (error) {
             this.logger.error(
-                { error, oid: orderStatus.order.oid },
+                { error, oid: update.exchangeOrderId },
                 'Error processing order status event',
             );
         }
+    }
+
+    private toOrderStatusUpdate(raw: HyperliquidWsOrderStatus): OrderStatusUpdate {
+        return {
+            exchangeOrderId: raw.order.oid,
+            coin: raw.order.coin,
+            status: raw.status,
+            statusTimestamp: raw.statusTimestamp,
+        };
     }
 }

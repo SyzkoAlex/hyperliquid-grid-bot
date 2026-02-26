@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderPlacementService } from './order-placement.service';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -7,8 +7,8 @@ import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { Price } from '@domain/models/primitives/price';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 const MOCK_GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const MOCK_ORDER_ID = '660e8400-e29b-41d4-a716-446655440001';

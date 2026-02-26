@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode.enum';
 
 export const telegramWebhookSchema = z.object({
     url: z.string().optional(),
@@ -16,7 +15,7 @@ export const telegramNotificationsSchema = z.object({
 });
 
 export const telegramFormattingSchema = z.object({
-    parseMode: z.nativeEnum(TelegramParseMode),
+    parseMode: z.enum(['HTML', 'Markdown', 'MarkdownV2']),
     disableWebPagePreview: z.coerce.boolean(),
 });
 

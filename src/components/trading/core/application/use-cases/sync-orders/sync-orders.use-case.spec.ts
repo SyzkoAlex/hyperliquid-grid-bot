@@ -8,8 +8,8 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 
@@ -55,7 +55,7 @@ describe('SyncOrdersUseCase', () => {
     beforeEach(() => {
         mockOrderClient = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
-            getSpotPrice: vi.fn().mockResolvedValue(Price.from(50500)),
+            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(50500)),
         };
 
         mockGrids = {

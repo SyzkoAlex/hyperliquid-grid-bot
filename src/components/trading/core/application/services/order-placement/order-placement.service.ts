@@ -1,18 +1,17 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
-import { extractErrorDetails } from '@/infra/logger/extract-error-details';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
 
 @Injectable()
@@ -20,7 +19,7 @@ export class OrderPlacementService {
     private readonly logger = logger.child({ context: OrderPlacementService.name });
 
     constructor(
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
     ) {}
 
@@ -34,10 +33,7 @@ export class OrderPlacementService {
                     placedCount++;
                 }
             } catch (error) {
-                this.logger.error(
-                    { ...extractErrorDetails(error), level: level.index },
-                    'Failed to place grid order',
-                );
+                this.logger.error({ err: error, level: level.index }, 'Failed to place grid order');
             }
         }
 
@@ -46,7 +42,7 @@ export class OrderPlacementService {
 
     private async placeOrderForLevel(grid: GridDto, level: GridLevel): Promise<boolean> {
         const order = await this.createAndSavePendingOrder(grid, level);
-        const result = await this.orderClient.placeSpotOrder({
+        const result = await this.exchange.placeSpotOrder({
             symbol: TradingSymbol.create(grid.symbol),
             side: level.side,
             price: level.price,

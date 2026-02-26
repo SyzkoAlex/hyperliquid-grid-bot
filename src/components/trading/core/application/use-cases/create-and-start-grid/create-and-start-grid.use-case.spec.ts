@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateAndStartGridUseCase } from './create-and-start-grid.use-case';
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 
 describe('CreateAndStartGridUseCase', () => {
     let useCase: CreateAndStartGridUseCase;
-    let infoClient: any;
+    let exchange: any;
     let grids: any;
     let capitalCalculator: any;
     let gridLevelsCalculator: any;
@@ -33,7 +33,7 @@ describe('CreateAndStartGridUseCase', () => {
     });
 
     beforeEach(() => {
-        infoClient = {
+        exchange = {
             getUserSpotState: vi.fn(),
             getCurrentPrice: vi.fn(),
         };
@@ -60,7 +60,7 @@ describe('CreateAndStartGridUseCase', () => {
         };
 
         useCase = new CreateAndStartGridUseCase(
-            infoClient,
+            exchange,
             grids,
             capitalCalculator,
             gridLevelsCalculator,
@@ -119,8 +119,8 @@ describe('CreateAndStartGridUseCase', () => {
 
             const gridDto = makeGridDto();
 
-            infoClient.getUserSpotState.mockResolvedValue(userState);
-            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            exchange.getUserSpotState.mockResolvedValue(userState);
+            exchange.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);
@@ -136,7 +136,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(result.investmentUSDC).toEqual(distribution.investmentUSDC);
             expect(result.investmentBase).toEqual(distribution.investmentBase);
 
-            expect(infoClient.getUserSpotState).toHaveBeenCalledWith('0x123');
+            expect(exchange.getUserSpotState).toHaveBeenCalledWith('0x123');
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
 
             expect(capitalCalculator.calculateDistribution).toHaveBeenCalledWith({
@@ -152,12 +152,16 @@ describe('CreateAndStartGridUseCase', () => {
             expect(grids.createGrid).toHaveBeenCalledTimes(1);
             expect(grids.updateGridStatus).toHaveBeenCalledWith(gridDto.id, GridStatus.Running);
 
-            expect(infoClient.getCurrentPrice).toHaveBeenCalledWith(
+            expect(exchange.getCurrentPrice).toHaveBeenCalledWith(
                 expect.objectContaining({ value: 'BTC' }),
             );
 
             expect(gridLevelsCalculator.calculateLevelsWithSizes).toHaveBeenCalledWith(
-                gridDto,
+                gridDto.lowerPrice,
+                gridDto.upperPrice,
+                gridDto.levels,
+                gridDto.investmentUSDC,
+                gridDto.investmentBase,
                 currentPrice,
             );
 
@@ -208,8 +212,8 @@ describe('CreateAndStartGridUseCase', () => {
 
             const gridDto = makeGridDto({ symbol: 'ETH', mode: GridMode.Long, levels: 5 });
 
-            infoClient.getUserSpotState.mockResolvedValue(userState);
-            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            exchange.getUserSpotState.mockResolvedValue(userState);
+            exchange.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);
@@ -261,8 +265,8 @@ describe('CreateAndStartGridUseCase', () => {
 
             const gridDto = makeGridDto({ symbol: 'SOL', levels: 5 });
 
-            infoClient.getUserSpotState.mockResolvedValue(userState);
-            infoClient.getCurrentPrice.mockResolvedValue(currentPrice);
+            exchange.getUserSpotState.mockResolvedValue(userState);
+            exchange.getCurrentPrice.mockResolvedValue(currentPrice);
             userBalanceExtractor.extractBalances.mockReturnValue(balances);
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);

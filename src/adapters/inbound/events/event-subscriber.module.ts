@@ -5,10 +5,7 @@ import { EVENT_SUBSCRIBER_PORT } from '@/core/application/ports/inbound/event-su
 
 @Module({
     imports: [InProcessEventBusModule],
-    providers: [
-        EventSubscriberAdapter,
-        { provide: EVENT_SUBSCRIBER_PORT, useExisting: EventSubscriberAdapter },
-    ],
+    providers: [{ provide: EVENT_SUBSCRIBER_PORT, useClass: EventSubscriberAdapter }],
     exports: [EVENT_SUBSCRIBER_PORT],
 })
 export class EventSubscriberModule {}

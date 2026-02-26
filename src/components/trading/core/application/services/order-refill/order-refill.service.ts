@@ -1,14 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OrderType } from '@domain/models/order/order-type';
+import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import {
-    EXCHANGE_CLIENT_PORT,
-    ExchangeClientPort,
-} from '@components/trading/core/application/ports/exchange-client.port';
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
-import { OrderDto } from '@/components/grids/api/dto/order.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
 import {
     EVENT_PUBLISHER_PORT,
@@ -28,7 +29,7 @@ export class OrderRefillService {
     private readonly logger = logger.child({ context: OrderRefillService.name });
 
     constructor(
-        @Inject(EXCHANGE_CLIENT_PORT) private readonly orderClient: ExchangeClientPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(EVENT_PUBLISHER_PORT) private readonly publisher: EventPublisherPort,
         private readonly profitCalculator: ProfitCalculatorService,
@@ -63,7 +64,15 @@ export class OrderRefillService {
 
             await this.updateOrderAsPlaced(refillOrder, placeResult);
 
-            const profit = this.profitCalculator.calculate(filledOrder, grid);
+            const profit =
+                filledOrder.side === OrderSide.Sell
+                    ? this.profitCalculator.calculate(
+                          filledOrder.amount,
+                          grid.upperPrice,
+                          grid.lowerPrice,
+                          grid.levels,
+                      )
+                    : null;
             await this.publishTradeEvent(filledOrder, grid, profit);
 
             this.logSuccess(grid, filledOrder, refillOrder, refillParams, profit);
@@ -125,7 +134,7 @@ export class OrderRefillService {
         grid: GridDto,
         refillParams: RefillParams,
     ) {
-        return await this.orderClient.placeSpotOrder({
+        return await this.exchange.placeSpotOrder({
             symbol: TradingSymbol.create(grid.symbol),
             side: refillParams.side,
             price: refillParams.price,

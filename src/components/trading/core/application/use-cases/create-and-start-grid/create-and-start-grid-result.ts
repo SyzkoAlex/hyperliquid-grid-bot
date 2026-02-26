@@ -1,4 +1,4 @@
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { Decimal } from '@domain/models/primitives/decimal';
 
 export class CreateAndStartGridResult {

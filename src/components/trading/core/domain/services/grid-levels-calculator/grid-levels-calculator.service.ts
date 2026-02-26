@@ -1,4 +1,3 @@
-import { GridDto } from '@/components/grids/api/dto/grid.dto';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -47,16 +46,20 @@ import { GridLevel } from './grid-level';
 export class GridLevelsCalculatorService {
     constructor(private readonly minOrderNotional: number) {}
 
-    /**
-     * Calculate grid levels with order sizes
-     *
-     * @param grid - Grid DTO with configuration
-     * @param currentPrice - Current market price from exchange
-     * @returns Array of levels with prices, sides, and order sizes
-     */
-    calculateLevelsWithSizes(grid: GridDto, currentPrice: Price): GridLevel[] {
-        const levels = this.calculateLevels(grid, currentPrice);
-        const levelsWithSizes = this.calculateOrderSizes(grid, levels);
+    calculateLevelsWithSizes(
+        lowerPrice: number,
+        upperPrice: number,
+        levels: number,
+        investmentUSDC: number,
+        investmentBase: number,
+        currentPrice: Price,
+    ): GridLevel[] {
+        const gridLevels = this.calculateLevels(lowerPrice, upperPrice, levels, currentPrice);
+        const levelsWithSizes = this.calculateOrderSizes(
+            investmentUSDC,
+            investmentBase,
+            gridLevels,
+        );
         this.validateMinOrderNotional(levelsWithSizes);
         return levelsWithSizes;
     }
@@ -74,38 +77,48 @@ export class GridLevelsCalculatorService {
         }
     }
 
-    private getLevelPrice(grid: GridDto, levelIndex: number): Price {
-        const priceStep = (grid.upperPrice - grid.lowerPrice) / (grid.levels - 1);
-        return Price.from(grid.lowerPrice + priceStep * levelIndex);
+    private getLevelPrice(
+        lowerPrice: number,
+        upperPrice: number,
+        levels: number,
+        levelIndex: number,
+    ): Price {
+        const priceStep = (upperPrice - lowerPrice) / (levels - 1);
+        return Price.from(lowerPrice + priceStep * levelIndex);
     }
 
-    private calculateLevels(grid: GridDto, currentPrice: Price): GridLevel[] {
-        const levels: GridLevel[] = [];
+    private calculateLevels(
+        lowerPrice: number,
+        upperPrice: number,
+        levels: number,
+        currentPrice: Price,
+    ): GridLevel[] {
+        const result: GridLevel[] = [];
 
-        for (let i = 0; i < grid.levels; i++) {
-            const levelPrice = this.getLevelPrice(grid, i);
+        for (let i = 0; i < levels; i++) {
+            const levelPrice = this.getLevelPrice(lowerPrice, upperPrice, levels, i);
             const isBelowCurrentPrice = levelPrice.lt(currentPrice);
 
-            levels.push({
+            result.push({
                 index: i,
                 price: levelPrice,
                 side: isBelowCurrentPrice ? OrderSide.Buy : OrderSide.Sell,
             });
         }
 
-        return levels;
+        return result;
     }
 
-    private calculateOrderSizes(grid: GridDto, levels: GridLevel[]): GridLevel[] {
+    private calculateOrderSizes(
+        investmentUSDC: number,
+        investmentBase: number,
+        levels: GridLevel[],
+    ): GridLevel[] {
         const buyLevels = levels.filter((l) => l.side === OrderSide.Buy);
         const sellLevels = levels.filter((l) => l.side === OrderSide.Sell);
 
-        const quotePerBuyLevel = Decimal.from(grid.investmentUSDC).div(
-            Decimal.from(buyLevels.length),
-        );
-        const basePerSellLevel = Decimal.from(grid.investmentBase).div(
-            Decimal.from(sellLevels.length),
-        );
+        const quotePerBuyLevel = Decimal.from(investmentUSDC).div(Decimal.from(buyLevels.length));
+        const basePerSellLevel = Decimal.from(investmentBase).div(Decimal.from(sellLevels.length));
 
         return levels.map((level) => {
             if (level.side === OrderSide.Buy) {
