@@ -1,7 +1,9 @@
 import { TelegramMessage } from './telegram-message';
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
+import { EMOJI } from '../constants/emoji.constants';
 
 interface TradeClosedProps {
+    gridId: string;
     symbol: string;
     side: string;
     price: number;
@@ -18,19 +20,18 @@ export class TradeClosedMessage extends TelegramMessage {
 
     constructor(props: TradeClosedProps) {
         super();
+        const arrow = props.side === 'buy' ? EMOJI.ARROW_DOWN : EMOJI.ARROW_UP;
+        const shortId = props.gridId.slice(0, 8);
+        const profitSign = props.profit >= 0 ? '+' : '';
         this.text =
-            `🔴 <b>Order Filled (${props.side.toUpperCase()})</b>\n\n` +
-            `<b>Symbol:</b> ${props.symbol}\n` +
-            `<b>Price:</b> $${props.price}\n` +
-            `<b>Amount:</b> ${props.amount}\n` +
-            `<b>Total:</b> $${props.total}\n\n` +
-            `<b>Profit:</b> ${props.profit >= 0 ? '+' : ''}$${props.profit} (${props.profitPercent}%)\n` +
-            `<b>Grid Level:</b> ${props.level}/${props.totalLevels}\n` +
-            `<b>Status:</b> ✅ Active`;
+            `${arrow} <b>${props.side.toUpperCase()} ${props.amount} ${props.symbol}</b> @ $${props.price}\n` +
+            `$${props.total} · Profit: ${profitSign}$${props.profit} (${props.profitPercent}%)\n` +
+            `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
     }
 
     static fromEvent(event: OrderClosedEvent): TradeClosedMessage {
         return new TradeClosedMessage({
+            gridId: event.gridId,
             symbol: event.symbol,
             side: event.side,
             price: event.price,

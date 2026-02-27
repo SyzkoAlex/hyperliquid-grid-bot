@@ -3,23 +3,17 @@ import { OrderSide } from '@domain/models/order/order-side';
 import { GridPnl } from '../../models/grid-pnl';
 
 /**
- * Grid PnL Calculator Service
+ * Grid PnL Calculator
  *
- * @see docs/GRID-PNL-RESEARCH.md — research on correct PnL calculation
- * (Total PnL, Unrealized PnL, Grid Profit, vs HODL, fee breakeven)
+ * gridProfit    — realized profit from completed buy→sell cycles (sell revenue minus cost basis of sold tokens)
+ * unrealizedPnl — mark-to-market P&L of tokens still held (qtyHeld × (currentPrice − avgBuyPrice))
  *
- * TODO: GridPnlCalculatorService — fees (not stored per-order yet)
+ * Invariant: gridProfit + unrealizedPnl = sellVolume + qtyHeld × currentPrice − buyVolume
+ *
+ * @see docs/GRID-PNL-CALCULATION.md
  */
 @Injectable()
 export class GridPnlCalculatorService {
-    /**
-     * gridProfit   = Σ(filled_sell × price) − Σ(filled_buy × price), gross (no fees)
-     * unrealizedPnl = qtyHeld × (currentPrice − avgBuyPrice)
-     *
-     * Expects only filled orders with non-null prices (caller filters).
-     *
-     * @see docs/GRID-PNL-RESEARCH.md
-     */
     calculate(
         filledOrders: { side: OrderSide; price: number; amount: number }[],
         currentPrice: number,
@@ -28,7 +22,6 @@ export class GridPnlCalculatorService {
         let buyVolume = 0;
         let totalBuyQty = 0;
         let totalSellQty = 0;
-        let weightedBuyPriceSum = 0;
 
         for (const order of filledOrders) {
             const value = order.price * order.amount;
@@ -39,13 +32,12 @@ export class GridPnlCalculatorService {
             } else {
                 buyVolume += value;
                 totalBuyQty += order.amount;
-                weightedBuyPriceSum += value;
             }
         }
 
-        const gridProfit = sellVolume - buyVolume;
+        const avgBuyPrice = totalBuyQty > 0 ? buyVolume / totalBuyQty : 0;
         const qtyHeld = totalBuyQty - totalSellQty;
-        const avgBuyPrice = totalBuyQty > 0 ? weightedBuyPriceSum / totalBuyQty : 0;
+        const gridProfit = sellVolume - totalSellQty * avgBuyPrice;
         const unrealizedPnl = qtyHeld * (currentPrice - avgBuyPrice);
 
         return { gridProfit, unrealizedPnl };

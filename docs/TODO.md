@@ -65,7 +65,7 @@
 
 **Problem:** The current implementation only computes a naive `sellVolume − buyVolume` diff without fees, unrealized PnL, or HODL comparison. This gives a misleading picture of actual bot performance.
 
-**Reference:** `docs/GRID-PNL-RESEARCH.md`
+**Reference:** `docs/GRID-PNL-CALCULATION.md`
 
 - [ ] Track cumulative fees paid per grid and subtract them from realized grid profit
 - [ ] Add `unrealizedPnl` calculation: `Qty_held × (currentPrice − avgBuyPrice)`
@@ -115,7 +115,7 @@
 - [x] Global error handler middleware — catches unhandled errors, replies with friendly message, prevents crash
 - [x] Callback dedup middleware — prevents duplicate handler execution on rapid button clicks
 
-#### Grid View rework (Phase 5, GRID-PNL-RESEARCH.md)
+#### Grid View rework (Phase 5, GRID-PNL-CALCULATION.md)
 
 - [ ] **Rework `GridPnlCalculatorService`**: `calculate(orders, currentPrice) → { gridProfit, unrealizedPnl }`
     - `gridProfit` = Σ(filled_sell × price) − Σ(filled_buy × price)

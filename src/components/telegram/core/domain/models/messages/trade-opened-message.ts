@@ -1,7 +1,9 @@
 import { TelegramMessage } from './telegram-message';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
+import { EMOJI } from '../constants/emoji.constants';
 
 interface TradeOpenedProps {
+    gridId: string;
     symbol: string;
     side: string;
     price: number;
@@ -16,18 +18,17 @@ export class TradeOpenedMessage extends TelegramMessage {
 
     constructor(props: TradeOpenedProps) {
         super();
+        const arrow = props.side === 'buy' ? EMOJI.ARROW_DOWN : EMOJI.ARROW_UP;
+        const shortId = props.gridId.slice(0, 8);
         this.text =
-            `🟢 <b>Order Filled (${props.side.toUpperCase()})</b>\n\n` +
-            `<b>Symbol:</b> ${props.symbol}\n` +
-            `<b>Price:</b> $${props.price}\n` +
-            `<b>Amount:</b> ${props.amount}\n` +
-            `<b>Total:</b> $${props.total}\n\n` +
-            `<b>Grid Level:</b> ${props.level}/${props.totalLevels}\n` +
-            `<b>Status:</b> ✅ Active`;
+            `${arrow} <b>${props.side.toUpperCase()} ${props.amount} ${props.symbol}</b> @ $${props.price}\n` +
+            `Total: $${props.total}\n` +
+            `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
     }
 
     static fromEvent(event: OrderOpenedEvent): TradeOpenedMessage {
         return new TradeOpenedMessage({
+            gridId: event.gridId,
             symbol: event.symbol,
             side: event.side,
             price: event.price,
