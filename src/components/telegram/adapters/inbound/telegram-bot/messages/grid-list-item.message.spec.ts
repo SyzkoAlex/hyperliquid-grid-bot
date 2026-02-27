@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { GridCardData, GridListItemMessage } from './grid-list-item.message';
+import { GridListItemMessage } from './grid-list-item.message';
+import { GridWithPnl } from '../../../../core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridMode } from '@domain/models/grid/grid-mode';
@@ -7,7 +8,8 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridPnl, OrderStats } from '../../../../core/domain/models/grid-pnl';
+import { GridPnl } from '../../../../core/domain/models/grid-pnl';
+import { OrderStats } from '../../../../core/domain/models/order-stats';
 
 function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): GridDto {
     return {
@@ -59,7 +61,7 @@ function makeData(
     pnl: GridPnl = DEFAULT_PNL,
     orderStats: OrderStats = DEFAULT_ORDER_STATS,
     orders: OrderDto[] = [],
-): GridCardData {
+): GridWithPnl {
     return { grid, pnl, currentPrice: 95000, orderStats, orders };
 }
 
@@ -152,8 +154,8 @@ describe('GridListItemMessage', () => {
             expect(result).toMatch(/Grid APR:.*\+8[0-9]{2}\./); // 8xx.x%
         });
 
-        it('shows Spot Grid Bot header', () => {
-            expect(GridListItemMessage.profitTab(makeData(makeGrid()))).toContain('Spot Grid Bot');
+        it('shows grid short id in header', () => {
+            expect(GridListItemMessage.profitTab(makeData(makeGrid()))).toContain('Grid (');
         });
 
         it('shows Investment and levels', () => {
@@ -252,11 +254,22 @@ describe('GridListItemMessage', () => {
             expect(result).toContain('no filled orders yet');
         });
 
-        it('always shows the display limit note', () => {
+        it('does not show display limit note when no filled orders', () => {
             const result = GridListItemMessage.historyTab(
                 makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, []),
             );
-            expect(result).toContain('Showing last 30 filled orders');
+            expect(result).not.toContain('Showing last');
+        });
+
+        it('shows display limit note with actual count when filled orders exist', () => {
+            const orders = [
+                makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, 6),
+                makeOrder(OrderSide.Buy, OrderStatus.Filled, 90000, 0),
+            ];
+            const result = GridListItemMessage.historyTab(
+                makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, orders),
+            );
+            expect(result).toContain('Showing last 2 filled orders');
         });
 
         it('only shows the last 30 when there are more than 30 filled orders', () => {
@@ -267,6 +280,7 @@ describe('GridListItemMessage', () => {
                 makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, orders),
             );
             expect(result.match(/▲ Sell/g)?.length).toBe(30);
+            expect(result).toContain('Showing last 30 filled orders');
         });
     });
 });

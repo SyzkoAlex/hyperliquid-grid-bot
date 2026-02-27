@@ -3,7 +3,7 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { computeOrderStats } from '../../../domain/models/grid-pnl';
+import { computeOrderStats } from '../../../domain/models/order-stats';
 import { GridWithPnl } from '../get-grids-with-pnl/grid-with-pnl';
 
 @Injectable()

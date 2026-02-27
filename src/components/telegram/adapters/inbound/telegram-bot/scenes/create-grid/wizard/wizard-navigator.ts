@@ -4,6 +4,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { WizardStep } from './wizard-step';
 import { StepCompleted } from './step-result';
 import { WizardMessageManager } from './wizard-message-manager';
+import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
 
 @Injectable()
 export class WizardNavigator {
@@ -113,12 +114,12 @@ export class WizardNavigator {
         await ctx.scene.leave();
 
         if (hasStarted) {
-            await ctx.reply('❌ Grid creation cancelled');
+            await ctx.reply(CommonMessages.GRID_CREATION_CANCELLED);
         }
     }
 
     getCurrentStep(ctx: BotContext): SceneStep | null {
-        return ctx.session.createGrid?.currentStep || null;
+        return ctx.session.createGrid?.currentStep ?? null;
     }
 
     getStepInstance(stepId: SceneStep): WizardStep | undefined {

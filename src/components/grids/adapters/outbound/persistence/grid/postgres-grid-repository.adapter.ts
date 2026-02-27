@@ -5,7 +5,7 @@ import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { grids } from '@/infra/database/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { logger } from '@/infra/logger/logger';
 import { GridRepositoryPort } from '../../../../core/application/ports/grid-repository.port';
 import { PostgresGridMapper } from './postgres-grid.mapper';
@@ -74,7 +74,11 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
 
     async findManyByStatus(status: GridStatus): Promise<Grid[]> {
         try {
-            const result = await this.db.select().from(grids).where(eq(grids.status, status));
+            const result = await this.db
+                .select()
+                .from(grids)
+                .where(eq(grids.status, status))
+                .orderBy(asc(grids.createdAt));
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error, status }, 'Failed to find grids by status');
@@ -84,7 +88,7 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
 
     async findAll(): Promise<Grid[]> {
         try {
-            const result = await this.db.select().from(grids);
+            const result = await this.db.select().from(grids).orderBy(asc(grids.createdAt));
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error }, 'Failed to find all grids');

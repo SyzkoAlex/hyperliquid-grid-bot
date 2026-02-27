@@ -4,7 +4,7 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { computeOrderStats } from '../../../domain/models/grid-pnl';
+import { computeOrderStats } from '../../../domain/models/order-stats';
 import { GridFilter } from './grid-filter';
 import { GridWithPnl } from './grid-with-pnl';
 
@@ -19,7 +19,7 @@ export class GetGridsWithPnlUseCase {
     async execute(filter: GridFilter = GridFilter.All): Promise<GridWithPnl[]> {
         const gridList = await this.fetchGrids(filter);
 
-        return Promise.all(
+        const result = await Promise.all(
             gridList.map(async (grid) => {
                 const [orders, currentPrice] = await Promise.all([
                     this.grids.findOrdersByGridId(grid.id),
@@ -33,6 +33,17 @@ export class GetGridsWithPnlUseCase {
                 return { grid, pnl, currentPrice, orderStats, orders };
             }),
         );
+
+        if (filter === GridFilter.Stopped) {
+            result.sort((a, b) => (b.grid.stoppedAt ?? 0) - (a.grid.stoppedAt ?? 0));
+        }
+
+        return result;
+    }
+
+    async count(filter: GridFilter): Promise<number> {
+        const grids = await this.fetchGrids(filter);
+        return grids.length;
     }
 
     private async fetchGrids(filter: GridFilter) {

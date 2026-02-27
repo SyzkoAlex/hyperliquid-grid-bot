@@ -14,13 +14,17 @@ import { BotContext } from '../../types/bot-context';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
 import { WizardNavigator } from './wizard/wizard-navigator';
 import { WizardMessageManager } from './wizard/wizard-message-manager';
+import { isReplyMenuText } from '../../handlers/main-menu.keyboard';
+import { SceneHandler } from '../scene-handler';
+import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
 import { logger } from '@/infra/logger/logger';
 
 export const CREATE_GRID_SCENE_ID = 'create_grid';
 
 @Injectable()
-export class CreateGridSceneHandler {
+export class CreateGridSceneHandler implements SceneHandler {
     readonly id = CREATE_GRID_SCENE_ID;
+    private readonly logger = logger.child({ context: CreateGridSceneHandler.name });
 
     constructor(
         private readonly navigator: WizardNavigator,
@@ -73,11 +77,7 @@ export class CreateGridSceneHandler {
 
     private async handlePairAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        if (!('match' in ctx) || !ctx.match) {
-            return;
-        }
-        const match = ctx.match as RegExpMatchArray;
-        const symbol = match[1] || '';
+        const symbol = ctx.match![1];
 
         const result = await this.selectPairStep.handlePairSelection(ctx, symbol);
         if (result) {
@@ -100,11 +100,7 @@ export class CreateGridSceneHandler {
 
     private async handleLevelsAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        if (!('match' in ctx) || !ctx.match) {
-            return;
-        }
-        const match = ctx.match as RegExpMatchArray;
-        const levels = parseInt(match[1] || '0', 10);
+        const levels = parseInt(ctx.match![1], 10);
 
         const result = await this.advancedLevelsStep.handleLevelsSelection(ctx, levels);
         if (result) {
@@ -119,8 +115,8 @@ export class CreateGridSceneHandler {
         try {
             await this.confirmStep.execute(ctx);
         } catch (error) {
-            logger.error({ error }, 'Failed to execute confirm step');
-            await ctx.reply('❌ Failed to create grid. Please try again.');
+            this.logger.error({ error }, 'Failed to execute confirm step');
+            await ctx.reply(CommonMessages.CREATE_GRID_ERROR);
         }
 
         delete ctx.session.createGrid;
@@ -144,7 +140,7 @@ export class CreateGridSceneHandler {
 
         const text = ctx.message.text;
 
-        if (text.startsWith('/')) {
+        if (text.startsWith('/') || isReplyMenuText(text)) {
             await ctx.scene.leave();
             return;
         }

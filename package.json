@@ -8,7 +8,7 @@
     "scripts": {
         "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
         "start": "node dist/src/main.js",
-        "start:dev": "node -r @swc-node/register src/main.ts",
+        "start:dev": "node --watch -r @swc-node/register src/main.ts",
         "lint": "eslint \"src/**/*.ts\" --quiet",
         "lint:fix": "eslint \"src/**/*.ts\" --fix",
         "format": "prettier --write \"src/**/*.ts\"",

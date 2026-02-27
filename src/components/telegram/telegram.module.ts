@@ -27,6 +27,7 @@ import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-wit
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
 import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
+import { PendingCreationMessageStore } from './core/application/services/pending-creation-message.store';
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { GridsModule } from '@components/grids/grids.module';
 import { TradingModule } from '@components/trading/trading.module';
@@ -37,10 +38,11 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
 @Module({
     imports: [GridsModule, TradingModule, EventPublisherModule, EventSubscriberModule],
     providers: [
-        { provide: TELEGRAM_NOTIFICATION_PORT, useClass: TelegramBotService },
-        RedisSessionStore,
         TelegramBotService,
+        { provide: TELEGRAM_NOTIFICATION_PORT, useExisting: TelegramBotService },
+        RedisSessionStore,
         NotificationMessageFactory,
+        PendingCreationMessageStore,
         NotifyUserUseCase,
         StartHandler,
         HelpHandler,

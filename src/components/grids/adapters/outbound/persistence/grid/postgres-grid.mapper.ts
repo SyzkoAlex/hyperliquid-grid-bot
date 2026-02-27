@@ -15,7 +15,7 @@ export class PostgresGridMapper {
     /**
      * Convert Grid domain entity to database record
      */
-    static toDbRecord(grid: Grid): Omit<GridDbRecord, 'createdAt' | 'updatedAt'> {
+    static toDbRecord(grid: Grid): Omit<GridDbRecord, 'updatedAt'> {
         return {
             id: grid.id.toString(),
             symbol: grid.symbol.toString(),
@@ -32,6 +32,7 @@ export class PostgresGridMapper {
             trailingPartialClosePercent: grid.trailingPartialClosePercent.toString(),
             trailingCount: grid.trailingCount,
             lastTrailingAt: grid.lastTrailingAt?.toDate() ?? null,
+            createdAt: grid.createdAt.toDate(),
             startedAt: grid.startedAt?.toDate() ?? null,
             stoppedAt: grid.stoppedAt?.toDate() ?? null,
         };
@@ -57,6 +58,7 @@ export class PostgresGridMapper {
                 trailingStepPercent: parseFloat(row.trailingStepPercent),
                 trailingPartialClosePercent: parseFloat(row.trailingPartialClosePercent),
                 trailingCount: row.trailingCount,
+                createdAt: row.createdAt ? Timestamp.from(row.createdAt) : undefined,
                 startedAt: row.startedAt ? Timestamp.from(row.startedAt) : undefined,
                 stoppedAt: row.stoppedAt ? Timestamp.from(row.stoppedAt) : undefined,
                 lastTrailingAt: row.lastTrailingAt ? Timestamp.from(row.lastTrailingAt) : undefined,

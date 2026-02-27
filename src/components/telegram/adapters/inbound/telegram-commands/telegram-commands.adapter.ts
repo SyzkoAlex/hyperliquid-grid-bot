@@ -10,7 +10,9 @@ import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
 } from '@components/telegram/adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-command.enum';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 
 @Injectable()
@@ -52,7 +54,7 @@ export class TelegramCommandsAdapter implements OnModuleInit {
         this.telegramBotService.onAction(TelegramAction.CreateGrid, (ctx: BotContext) =>
             this.handleCreateGrid(ctx),
         );
-        this.telegramBotService.onHears('➕ Create Grid', async (ctx: BotContext) => {
+        this.telegramBotService.onHears(BUTTON_LABELS.CREATE_GRID, async (ctx: BotContext) => {
             await ctx.scene.enter(CREATE_GRID_SCENE_ID);
         });
     }
@@ -63,11 +65,16 @@ export class TelegramCommandsAdapter implements OnModuleInit {
     }
 
     private registerStubHandlers() {
-        this.telegramBotService.onHears(
-            ['💰 Balance', '📈 Stats', '⚙️ Settings'],
-            async (ctx: BotContext) => {
-                await ctx.reply('🚧 Coming soon');
-            },
-        );
+        const stubReply = async (ctx: BotContext) => {
+            await ctx.reply(CommonMessages.COMING_SOON);
+        };
+        const stubAction = async (ctx: BotContext) => {
+            await ctx.answerCbQuery();
+            await ctx.editMessageText(CommonMessages.COMING_SOON);
+        };
+
+        this.telegramBotService.onHears([BUTTON_LABELS.BALANCE, BUTTON_LABELS.SETTINGS], stubReply);
+        this.telegramBotService.onAction(TelegramAction.ShowBalance, stubAction);
+        this.telegramBotService.onAction(TelegramAction.ShowSettings, stubAction);
     }
 }

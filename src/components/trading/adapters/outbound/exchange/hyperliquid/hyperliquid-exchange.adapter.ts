@@ -12,6 +12,7 @@ import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { HyperliquidSdkService } from './hyperliquid-sdk.service';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
+import { HyperliquidSymbol } from './types/hyperliquid-symbol';
 import { HyperliquidOpenOrder } from './types/hyperliquid-open-order';
 import { HyperliquidOrderStatusResponse } from './types/hyperliquid-order-status-response';
 import { HyperliquidUserStateResponse } from './types/hyperliquid-user-state-response';
@@ -46,7 +47,7 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
         try {
             const sdk = this.sdkService.getSdk();
             const cancelRequest = {
-                coin: params.symbol.toString(),
+                coin: HyperliquidSymbol.toSpotFormat(params.symbol.toString()),
                 o: Number(params.exchangeOrderId),
             };
 

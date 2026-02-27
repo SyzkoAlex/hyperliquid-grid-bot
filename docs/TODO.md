@@ -162,6 +162,17 @@
 - [ ] Partial position close logic
 - [ ] Grid bounds shifting logic
 
+### Cancel Orphaned Exchange Orders in Order Restore
+
+**Problem:** When a grid is stopped, some orders may not get cancelled on the exchange (e.g. network error, partial failure). These orphaned orders remain active on the exchange with no corresponding active grid, and can get filled unexpectedly (causing "Insufficient spot balance" errors for other grids).
+
+**Solution:** In `OrderRestoreService.restoreOrders()`, after restoring pending orders, also detect and cancel orphaned exchange orders:
+
+- [ ] Fetch all active exchange orders (already available as `exchangeOpenOrders` param)
+- [ ] For each exchange order with a valid cloid, resolve the associated grid
+- [ ] If the grid is stopped/not found — cancel the order on the exchange
+- [ ] Log cancelled orphaned orders with grid/order details
+
 ### Risk Management
 
 - [ ] Order placement retry logic (3 attempts with backoff)

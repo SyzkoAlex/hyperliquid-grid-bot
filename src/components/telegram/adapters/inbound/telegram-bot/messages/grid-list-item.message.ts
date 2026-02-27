@@ -1,17 +1,16 @@
-import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { PriceFormatter } from '../../../../core/domain/models/formatters/price.formatter';
 import { EMOJI } from '../../../../core/domain/models/constants/emoji.constants';
-import { GridPnl, OrderStats } from '../../../../core/domain/models/grid-pnl';
+import { GridWithPnl } from '../../../../core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
 
 const STATUS_EMOJI: Record<GridStatus, string> = {
     [GridStatus.Running]: EMOJI.GREEN_CIRCLE,
     [GridStatus.Stopped]: EMOJI.RED_CIRCLE,
-    [GridStatus.Paused]: '⏸',
-    [GridStatus.Idle]: '🔵',
+    [GridStatus.Paused]: EMOJI.PAUSE,
+    [GridStatus.Idle]: EMOJI.BLUE_CIRCLE,
     [GridStatus.Error]: EMOJI.WARNING,
 };
 
@@ -24,32 +23,24 @@ const STATUS_LABEL: Record<GridStatus, string> = {
 };
 
 const ORDER_SIDE_EMOJI: Record<string, string> = {
-    [OrderSide.Buy]: '▼',
-    [OrderSide.Sell]: '▲',
+    [OrderSide.Buy]: EMOJI.ARROW_DOWN,
+    [OrderSide.Sell]: EMOJI.ARROW_UP,
 };
 
 const HISTORY_DISPLAY_LIMIT = 30;
-
-export interface GridCardData {
-    grid: GridDto;
-    pnl: GridPnl;
-    currentPrice: number;
-    orderStats: OrderStats;
-    orders: OrderDto[];
-}
+const SEPARATOR = '━━━━━━━━━━━━━━━━━━';
 
 export class GridListItemMessage {
+    /** Full paginated list: header + compact lines */
+    static list(header: string, items: GridWithPnl[], startIndex: number): string {
+        if (items.length === 0) return header;
+        const lines = items.map((item, i) => this.compactLine(startIndex + i + 1, item));
+        return [header, '', ...lines].join('\n');
+    }
+
     /** Compact card shown in /grids list */
-    static fromCardData({ grid, pnl, currentPrice, orderStats }: GridCardData): string {
-        const pair = `${grid.symbol}/USDC`;
-        const shortId = grid.id.slice(0, 8);
-
-        const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
-        const label = STATUS_LABEL[grid.status] ?? grid.status;
-        const duration = grid.startedAt
-            ? ` · ${GridListItemMessage.formatDuration(grid.startedAt)}`
-            : '';
-
+    static fromCardData({ grid, pnl, currentPrice, orderStats }: GridWithPnl): string {
+        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
         const investment = grid.investmentUSDC;
         const pnlStr = GridListItemMessage.formatPnl(totalPnl);
@@ -66,19 +57,35 @@ export class GridListItemMessage {
             `<b>Investment (USDC):</b> $${PriceFormatter.format(investment)}\n` +
             `<b>Price Range:</b> $${lower} – $${upper}\n` +
             `<b>Current Price:</b> $${price}\n` +
-            `<b>Profitable Trades:</b> ${orderStats.filledCycles}`
+            `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n` +
+            SEPARATOR
+        );
+    }
+
+    /** Compact entry for grids list (max 3 lines) */
+    static compactLine(index: number, { grid, pnl, currentPrice }: GridWithPnl): string {
+        const shortId = grid.id.slice(0, 8);
+        const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
+        const pnlStr = GridListItemMessage.formatPnl(totalPnl);
+        const pnlPct = GridListItemMessage.formatPnlPercent(totalPnl, grid.investmentUSDC);
+        const lower = PriceFormatter.format(grid.lowerPrice);
+        const upper = PriceFormatter.format(grid.upperPrice);
+        const price = PriceFormatter.format(currentPrice);
+        const outOfRange =
+            grid.status === GridStatus.Running &&
+            GridListItemMessage.isOutOfRange(grid, currentPrice);
+        const warn = outOfRange ? ` ${EMOJI.WARNING}` : '';
+
+        return (
+            `<b>${index}. ${grid.symbol}/USDC</b> (<code>${shortId}</code>)${warn}\n` +
+            `     $${lower} – $${upper} · Price: $${price}\n` +
+            `     PnL: ${pnlStr} (${pnlPct}) · $${PriceFormatter.format(grid.investmentUSDC)}`
         );
     }
 
     /** Detail view: main profit/stats view */
-    static profitTab({ grid, pnl, currentPrice, orderStats }: GridCardData): string {
-        const pair = `${grid.symbol}/USDC`;
-        const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
-        const label = STATUS_LABEL[grid.status] ?? grid.status;
-        const duration = grid.startedAt
-            ? ` · ${GridListItemMessage.formatDuration(grid.startedAt)}`
-            : '';
-
+    static profitTab({ grid, pnl, currentPrice, orderStats }: GridWithPnl): string {
+        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
         const investment = grid.investmentUSDC;
         const totalPnlStr = GridListItemMessage.formatPnl(totalPnl);
@@ -98,9 +105,16 @@ export class GridListItemMessage {
             ? new Date(grid.startedAt).toISOString().slice(0, 16).replace('T', ' ')
             : '—';
 
+        const outOfRange = GridListItemMessage.isOutOfRange(grid, currentPrice);
+        const rangeWarning =
+            outOfRange && grid.status === GridStatus.Running
+                ? `\n${EMOJI.WARNING} <b>Price is out of grid range!</b>\n`
+                : '';
+
         return (
-            `<b>${pair}</b> · Spot Grid Bot\n` +
+            `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
             `${emoji} ${label}${duration}\n` +
+            rangeWarning +
             `\n` +
             `<b>Total PnL:</b>    ${totalPnlStr} (${totalPnlPct})\n` +
             `<b>Grid Profit:</b>  ${gridProfitStr}\n` +
@@ -111,19 +125,15 @@ export class GridListItemMessage {
             `<b>Investment:</b> $${investmentStr}\n` +
             `<b>Range:</b> $${lower} – $${upper} · ${grid.levels} levels\n` +
             `<b>Current Price:</b> $${price}\n` +
-            `<b>Started:</b> ${startedStr}`
+            `<b>Started:</b> ${startedStr}\n` +
+            SEPARATOR
         );
     }
 
     /** Detail view: active orders list */
-    static ordersTab({ grid, currentPrice, orders }: GridCardData): string {
-        const pair = `${grid.symbol}/USDC`;
+    static ordersTab({ grid, currentPrice, orders }: GridWithPnl): string {
+        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
         const symbol = grid.symbol;
-        const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
-        const label = STATUS_LABEL[grid.status] ?? grid.status;
-        const duration = grid.startedAt
-            ? ` · ${GridListItemMessage.formatDuration(grid.startedAt)}`
-            : '';
 
         const active = orders
             .filter((o) => o.status === OrderStatus.Placed || o.status === OrderStatus.Pending)
@@ -137,24 +147,21 @@ export class GridListItemMessage {
                 : active.map((o) => GridListItemMessage.formatOrderLine(o, symbol));
 
         return (
-            `<b>${pair}</b> · Active Orders\n` +
+            `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
+            `<b>Active Orders</b>\n` +
             `${emoji} ${label}${duration}\n` +
             `\n` +
             `${lines.join('\n')}\n` +
             `\n` +
-            `<b>Current Price:</b> $${price}`
+            `<b>Current Price:</b> $${price}\n` +
+            SEPARATOR
         );
     }
 
     /** Detail view: order history (last 30 non-active orders) */
-    static historyTab({ grid, orders }: GridCardData): string {
-        const pair = `${grid.symbol}/USDC`;
+    static historyTab({ grid, orders }: GridWithPnl): string {
+        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
         const symbol = grid.symbol;
-        const emoji = STATUS_EMOJI[grid.status] ?? EMOJI.WARNING;
-        const label = STATUS_LABEL[grid.status] ?? grid.status;
-        const duration = grid.startedAt
-            ? ` · ${GridListItemMessage.formatDuration(grid.startedAt)}`
-            : '';
 
         const filled = orders
             .filter((o) => o.status === OrderStatus.Filled)
@@ -166,13 +173,17 @@ export class GridListItemMessage {
                 ? ['no filled orders yet']
                 : filled.map((o) => GridListItemMessage.formatOrderLine(o, symbol));
 
+        const limitNote =
+            filled.length > 0 ? `\n<i>Showing last ${filled.length} filled orders</i>\n` : '';
+
         return (
-            `<b>${pair}</b> · Order History\n` +
+            `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
+            `<b>Order History</b>\n` +
             `${emoji} ${label}${duration}\n` +
+            limitNote +
             `\n` +
-            `<i>Showing last ${HISTORY_DISPLAY_LIMIT} filled orders</i>\n` +
-            `\n` +
-            `${lines.join('\n')}`
+            `${lines.join('\n')}\n` +
+            SEPARATOR
         );
     }
 
@@ -182,6 +193,18 @@ export class GridListItemMessage {
         const p = order.price !== null ? `$${PriceFormatter.format(order.price)}` : '—';
         const amt = order.amount;
         return `${sideEmoji} ${side}  Lv.${order.levelIndex + 1}  ${p} · ${amt} ${symbol}`;
+    }
+
+    private static headerParts(grid: GridWithPnl['grid']) {
+        return {
+            pair: `${grid.symbol}/USDC`,
+            shortId: grid.id.slice(0, 8),
+            emoji: STATUS_EMOJI[grid.status] ?? EMOJI.WARNING,
+            label: STATUS_LABEL[grid.status] ?? grid.status,
+            duration: grid.startedAt
+                ? ` · ${GridListItemMessage.formatDuration(grid.startedAt)}`
+                : '',
+        };
     }
 
     private static formatDuration(startedAtMs: number): string {
@@ -220,5 +243,12 @@ export class GridListItemMessage {
         const apr = (gridProfit / investment / runningDays) * 365 * 100;
         const sign = apr >= 0 ? '+' : '';
         return `${sign}${apr.toFixed(1)}%`;
+    }
+
+    private static isOutOfRange(
+        grid: { lowerPrice: number; upperPrice: number },
+        currentPrice: number,
+    ): boolean {
+        return currentPrice < grid.lowerPrice || currentPrice > grid.upperPrice;
     }
 }

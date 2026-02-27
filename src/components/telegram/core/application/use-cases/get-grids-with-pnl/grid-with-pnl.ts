@@ -1,8 +1,7 @@
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-import { GridPnl, OrderStats } from '../../../domain/models/grid-pnl';
-
-export { GridPnl, OrderStats };
+import { GridPnl } from '../../../domain/models/grid-pnl';
+import { OrderStats } from '../../../domain/models/order-stats';
 
 export interface GridWithPnl {
     grid: GridDto;

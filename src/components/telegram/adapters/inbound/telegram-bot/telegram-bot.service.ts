@@ -6,9 +6,9 @@ import { logger } from '@/infra/logger/logger';
 import { BotContext } from './types/bot-context';
 import { SessionData } from './types/session-data';
 import { RedisSessionStore } from './redis-session-store';
-import { CreateGridSceneHandler } from './scenes/create-grid/create-grid.scene';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode.enum';
+import { SceneHandler } from './scenes/scene-handler';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
 import { createErrorHandlerMiddleware } from './middleware/error-handler.middleware';
 import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
 
@@ -20,7 +20,6 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     private readonly enabled: boolean;
     private readonly botToken: string;
     private readonly allowedManagerChatId: number;
-    private readonly parseMode: TelegramParseMode;
 
     constructor(
         configService: ConfigService<Config, true>,
@@ -30,7 +29,6 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
         this.allowedManagerChatId = telegramConfig.allowedManagerChatId;
-        this.parseMode = telegramConfig.formatting.parseMode as TelegramParseMode;
     }
 
     async onModuleInit() {
@@ -82,7 +80,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         return this._bot;
     }
 
-    registerScene(sceneHandler: CreateGridSceneHandler): void {
+    registerScene(sceneHandler: SceneHandler): void {
         const scene = sceneHandler.createScene();
         this.stage.register(scene);
     }
@@ -90,32 +88,46 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     async sendMessage(chatId: number, message: string): Promise<void> {
         try {
             await this.bot.telegram.sendMessage(chatId, message, {
-                parse_mode: this.parseMode,
+                parse_mode: 'HTML',
             });
         } catch (error) {
-            if (
-                error.response?.error_code === 400 &&
-                error.response?.description?.includes('chat not found')
-            ) {
-                this.logger.warn(
-                    { chatId, errorDescription: error.response.description },
-                    'Cannot send message - user has not started conversation with bot yet. User must press /start first.',
-                );
-                return;
-            }
-            if (error.response?.error_code === 403) {
-                this.logger.warn(
-                    { chatId, errorDescription: error.response.description },
-                    'Cannot send message - bot was blocked by user',
-                );
-                return;
-            }
+            if (this.isIgnorableError(error)) return;
             throw error;
         }
     }
 
-    getParseMode(): TelegramParseMode {
-        return this.parseMode;
+    async editMessage(chatId: number, messageId: number, message: string): Promise<void> {
+        try {
+            await this.bot.telegram.editMessageText(chatId, messageId, undefined, message, {
+                parse_mode: 'HTML',
+            });
+        } catch (error) {
+            if (this.isIgnorableError(error)) return;
+            throw error;
+        }
+    }
+
+    private isIgnorableError(error: {
+        response?: { error_code?: number; description?: string };
+    }): boolean {
+        if (
+            error.response?.error_code === 400 &&
+            error.response?.description?.includes('chat not found')
+        ) {
+            this.logger.warn(
+                { errorDescription: error.response.description },
+                'Cannot send message - user has not started conversation with bot yet. User must press /start first.',
+            );
+            return true;
+        }
+        if (error.response?.error_code === 403) {
+            this.logger.warn(
+                { errorDescription: error.response.description },
+                'Cannot send message - bot was blocked by user',
+            );
+            return true;
+        }
+        return false;
     }
 
     onCommand(command: string, handler: (ctx: BotContext) => Promise<void>): void {
@@ -136,9 +148,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
 
             if (!chatId || chatId !== this.allowedManagerChatId) {
                 this.logger.warn(
-                    `Unauthorized access attempt from chatId: ${chatId}, expected: ${this.allowedManagerChatId}`,
+                    { chatId, expected: this.allowedManagerChatId },
+                    'Unauthorized access attempt',
                 );
-                await ctx.reply('⛔ Unauthorized access');
+                await ctx.reply(`${EMOJI.FORBIDDEN} Unauthorized access`);
                 return;
             }
 

@@ -1,12 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { OrderStatus } from '@domain/models/order/order-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 
 @Injectable()
 export class StopGridUseCase {
@@ -29,22 +31,42 @@ export class StopGridUseCase {
 
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
         for (const order of activeOrders) {
-            if (!order.exchangeOrderId) continue;
-            try {
-                await this.exchange.cancelSpotOrder({
-                    symbol: TradingSymbol.create(order.symbol),
-                    exchangeOrderId: order.exchangeOrderId,
-                });
-            } catch (error) {
-                this.logger.warn(
-                    { error, orderId: order.id },
-                    'Failed to cancel order during grid stop',
-                );
-            }
+            await this.cancelOrder(order);
         }
 
         await this.grids.updateGridStatus(gridId, GridStatus.Stopped);
 
-        this.logger.info({ gridId }, 'Grid stopped successfully');
+        this.logger.info(
+            { gridId, cancelledOrders: activeOrders.length },
+            'Grid stopped successfully',
+        );
+    }
+
+    private async cancelOrder(order: OrderDto): Promise<void> {
+        if (!order.exchangeOrderId) {
+            await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
+            return;
+        }
+
+        try {
+            const result = await this.exchange.cancelSpotOrder({
+                symbol: TradingSymbol.create(order.symbol),
+                exchangeOrderId: order.exchangeOrderId,
+            });
+
+            if (!result.success) {
+                this.logger.warn(
+                    { orderId: order.id, error: result.error },
+                    'Exchange cancel failed, marking order as cancelled in DB',
+                );
+            }
+        } catch (error) {
+            this.logger.warn(
+                { error, orderId: order.id },
+                'Failed to cancel order on exchange during grid stop',
+            );
+        }
+
+        await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
     }
 }

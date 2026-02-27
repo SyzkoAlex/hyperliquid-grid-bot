@@ -34,6 +34,7 @@ export class Grid {
     private readonly _trailingTriggerPercent: number;
     private readonly _trailingStepPercent: number;
     private readonly _trailingPartialClosePercent: number;
+    private readonly _createdAt: Timestamp;
     private _startedAt: Timestamp | null;
     private _stoppedAt: Timestamp | null;
     private _lastTrailingAt: Timestamp | null;
@@ -53,6 +54,7 @@ export class Grid {
         this._trailingTriggerPercent = params.trailingTriggerPercent ?? 5;
         this._trailingStepPercent = params.trailingStepPercent ?? 10;
         this._trailingPartialClosePercent = params.trailingPartialClosePercent ?? 50;
+        this._createdAt = params.createdAt ?? Timestamp.now();
         this._startedAt = params.startedAt ?? null;
         this._stoppedAt = params.stoppedAt ?? null;
         this._lastTrailingAt = params.lastTrailingAt ?? null;
@@ -243,6 +245,10 @@ export class Grid {
 
     get trailingPartialClosePercent(): number {
         return this._trailingPartialClosePercent;
+    }
+
+    get createdAt(): Timestamp {
+        return this._createdAt;
     }
 
     get startedAt(): Timestamp | null {

@@ -16,7 +16,7 @@ export class StartHandler implements Handler {
 
     private async handle(ctx: BotContext): Promise<void> {
         await ctx.reply(new WelcomeMessage().toString(), {
-            parse_mode: this.telegramBotService.getParseMode(),
+            parse_mode: 'HTML',
             ...replyMenuKeyboard(),
         });
     }

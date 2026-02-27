@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
-import {
-    TelegramCommand,
-    TelegramAction,
-} from '@components/telegram/core/domain/models/telegram-command.enum';
+import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command.enum';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
 import { HelpMessage } from '@components/telegram/core/domain/models/messages/help-message';
 import { Handler } from '../handler';
-import { backToMenuKeyboard } from '../main-menu.keyboard';
+import { backToMenuKeyboard } from '../back-to-menu.keyboard';
 import { toInlineKeyboard } from '../inline-keyboard';
 
 @Injectable()
@@ -17,19 +16,23 @@ export class HelpHandler implements Handler {
     register(): void {
         this.telegramBotService.onCommand(TelegramCommand.Help, (ctx) => this.handle(ctx));
         this.telegramBotService.onAction(TelegramAction.ShowHelp, (ctx) => this.handleAction(ctx));
-        this.telegramBotService.onHears('❓ Help', (ctx) => this.handle(ctx));
+        this.telegramBotService.onHears(BUTTON_LABELS.HELP, (ctx) => this.handle(ctx));
+    }
+
+    private helpText() {
+        return new HelpMessage().toString();
+    }
+
+    private helpMarkup() {
+        return { parse_mode: 'HTML' as const, ...toInlineKeyboard(backToMenuKeyboard()) };
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        const keyboard = backToMenuKeyboard();
-        const markup = toInlineKeyboard(keyboard);
-        await ctx.reply(new HelpMessage().toString(), { parse_mode: 'HTML', ...markup });
+        await ctx.reply(this.helpText(), this.helpMarkup());
     }
 
     private async handleAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        const keyboard = backToMenuKeyboard();
-        const markup = toInlineKeyboard(keyboard);
-        await ctx.editMessageText(new HelpMessage().toString(), { parse_mode: 'HTML', ...markup });
+        await ctx.editMessageText(this.helpText(), this.helpMarkup());
     }
 }

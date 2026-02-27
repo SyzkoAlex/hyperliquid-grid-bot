@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Grid } from '../core/domain/models/grid/grid';
 import { GridId } from '../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -174,6 +174,7 @@ export class GridsApiAdapter implements GridsApiPort {
             trailingTriggerPercent: grid.trailingTriggerPercent,
             trailingStepPercent: grid.trailingStepPercent,
             trailingPartialClosePercent: grid.trailingPartialClosePercent,
+            createdAt: grid.createdAt.toDate().getTime(),
             startedAt: grid.startedAt?.toDate().getTime(),
             stoppedAt: grid.stoppedAt?.toDate().getTime(),
         };

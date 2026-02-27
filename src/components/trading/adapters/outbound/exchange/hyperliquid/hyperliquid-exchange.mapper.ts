@@ -42,7 +42,7 @@ export class HyperliquidExchangeMapper {
         const symbol = params.symbol.toString();
         const coin = HyperliquidSymbol.toSpotFormat(symbol);
         const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
-        const sz = roundToDecimals(params.amount.toNumber(), szDecimals);
+        const sz = floorToDecimals(params.amount.toNumber(), szDecimals);
         const limitPx = roundToDecimals(params.price.toNumber(), szDecimals);
 
         return {
@@ -165,4 +165,10 @@ export class HyperliquidExchangeMapper {
 function roundToDecimals(value: number, decimals: number): number {
     const multiplier = Math.pow(10, decimals);
     return Math.round(value * multiplier) / multiplier;
+}
+
+/** Truncate to avoid exceeding available balance when rounding order sizes */
+function floorToDecimals(value: number, decimals: number): number {
+    const multiplier = Math.pow(10, decimals);
+    return Math.floor(value * multiplier) / multiplier;
 }

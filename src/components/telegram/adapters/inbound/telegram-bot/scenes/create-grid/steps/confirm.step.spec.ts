@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmStep } from './confirm.step';
 import { CreateGridUseCase } from '@components/telegram/core/application/use-cases/create-grid/create-grid.use-case';
+import { PendingCreationMessageStore } from '@components/telegram/core/application/services/pending-creation-message.store';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { GridMode } from '@domain/models/grid/grid-mode';
@@ -8,13 +9,16 @@ import { GridMode } from '@domain/models/grid/grid-mode';
 describe('ConfirmStep', () => {
     let step: ConfirmStep;
     let mockCreateGridUseCase: CreateGridUseCase;
+    let pendingCreationMessageStore: PendingCreationMessageStore;
 
     beforeEach(() => {
         mockCreateGridUseCase = {
-            execute: vi.fn(),
+            execute: vi.fn().mockResolvedValue(undefined),
         } as unknown as CreateGridUseCase;
 
-        step = new ConfirmStep(mockCreateGridUseCase);
+        pendingCreationMessageStore = new PendingCreationMessageStore();
+
+        step = new ConfirmStep(mockCreateGridUseCase, pendingCreationMessageStore);
     });
 
     describe('execute', () => {
@@ -43,6 +47,24 @@ describe('ConfirmStep', () => {
             expect(ctx.reply).toHaveBeenCalled();
         });
 
+        it('should store pending creation message for later editing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                symbol: 'BTC',
+                upperPrice: 55000,
+                lowerPrice: 45000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+                mode: CreateGridMode.Advanced,
+                gridMode: GridMode.Neutral,
+            };
+
+            await step.execute(ctx);
+
+            const pending = pendingCreationMessageStore.consume();
+            expect(pending).toEqual({ chatId: 123, messageId: 456 });
+        });
+
         it('should handle invalid state gracefully', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
@@ -62,7 +84,7 @@ describe('ConfirmStep', () => {
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {
-            reply: vi.fn(),
+            reply: vi.fn().mockResolvedValue({ chat: { id: 123 }, message_id: 456 }),
             session,
             scene: { leave: vi.fn() },
         } as unknown as BotContext;

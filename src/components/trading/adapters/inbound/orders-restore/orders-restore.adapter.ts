@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { RestoreOrdersUseCase } from '@components/trading/core/application/use-cases/restore-orders/restore-orders.use-case';
@@ -16,7 +16,7 @@ import { Config } from '@/config/config.schema';
  * - Periodically
  */
 @Injectable()
-export class OrdersRestoreAdapter implements OnModuleInit, OnModuleDestroy {
+export class OrdersRestoreAdapter implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly logger = logger.child({ context: OrdersRestoreAdapter.name });
     private readonly intervalName = 'orders-restore';
     private isRunning = false;
@@ -27,13 +27,11 @@ export class OrdersRestoreAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly configService: ConfigService<Config, true>,
     ) {}
 
-    async onModuleInit(): Promise<void> {
-        // Run immediately on startup
-        await this.runRestore();
-
-        // Schedule periodic restore
+    onApplicationBootstrap(): void {
         const config = this.configService.get('orders', { infer: true });
         const intervalMs = config.recoveryIntervalMs;
+
+        this.runRestore();
 
         const interval = setInterval(() => {
             this.runRestore();

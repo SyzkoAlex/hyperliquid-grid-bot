@@ -21,6 +21,7 @@ export interface GridCreateParams {
     trailingStepPercent?: number;
     trailingPartialClosePercent?: number;
     trailingCount?: number;
+    createdAt?: Timestamp;
     startedAt?: Timestamp;
     stoppedAt?: Timestamp;
     lastTrailingAt?: Timestamp;

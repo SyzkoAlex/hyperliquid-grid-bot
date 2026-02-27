@@ -21,6 +21,7 @@ describe('OrderRefillService', () => {
         createOrder: ReturnType<typeof vi.fn>;
         updateOrderExchangeId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
+        findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
     };
     let mockEventBus: {
         publish: ReturnType<typeof vi.fn>;
@@ -97,6 +98,7 @@ describe('OrderRefillService', () => {
             createOrder: vi.fn().mockResolvedValue(makeRefillOrderDto()),
             updateOrderExchangeId: vi.fn().mockResolvedValue(undefined),
             updateOrderStatus: vi.fn().mockResolvedValue(undefined),
+            findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
         };
 
         mockEventBus = {
@@ -267,6 +269,23 @@ describe('OrderRefillService', () => {
                 expect.any(String),
                 OrderStatus.Failed,
             );
+        });
+
+        it('should skip refill when active order already exists at target level', async () => {
+            mockOrderRepository.findActiveOrdersByGridId.mockResolvedValue([
+                makeRefillOrderDto({
+                    levelIndex: 6,
+                    side: OrderSide.Sell,
+                    status: OrderStatus.Placed,
+                }),
+            ]);
+
+            const result = await service.processOne(testBuyOrder, testGrid);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Active order already exists');
+            expect(mockOrderRepository.createOrder).not.toHaveBeenCalled();
+            expect(mockOrderClient.placeSpotOrder).not.toHaveBeenCalled();
         });
 
         it('should calculate correct profit for sell orders', async () => {

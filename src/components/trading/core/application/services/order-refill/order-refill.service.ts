@@ -55,6 +55,24 @@ export class OrderRefillService {
                 return this.handleEdgeLevel(filledOrder);
             }
 
+            if (
+                await this.hasActiveOrderAtLevel(
+                    grid.id,
+                    refillParams.levelIndex,
+                    refillParams.side,
+                )
+            ) {
+                this.logger.warn(
+                    {
+                        gridId: grid.id,
+                        levelIndex: refillParams.levelIndex,
+                        side: refillParams.side,
+                    },
+                    'Refill skipped: active order already exists at target level',
+                );
+                return OrderRefillResult.failure('Active order already exists at target level');
+            }
+
             const refillOrder = await this.createAndSavePendingOrder(grid, refillParams);
             const placeResult = await this.placeOrderOnExchange(refillOrder, grid, refillParams);
 
@@ -246,6 +264,15 @@ export class OrderRefillService {
         );
 
         return OrderRefillResult.failure(errorMessage);
+    }
+
+    private async hasActiveOrderAtLevel(
+        gridId: string,
+        levelIndex: number,
+        side: OrderSide,
+    ): Promise<boolean> {
+        const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
+        return activeOrders.some((o) => o.levelIndex === levelIndex && o.side === side);
     }
 
     private deduplicateOrders(filledOrders: OrderDto[], grid: GridDto): OrderDto[] {
