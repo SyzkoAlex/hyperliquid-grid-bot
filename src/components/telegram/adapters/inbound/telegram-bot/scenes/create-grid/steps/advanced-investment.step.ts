@@ -53,6 +53,16 @@ export class AdvancedInvestmentStep implements WizardStep {
                     this.accountAddress,
                     symbol,
                 );
+
+                if (balanceInfo.baseBalance.isZero()) {
+                    await this.messageManager.sendEnterMessage(
+                        ctx,
+                        ValidationMessages.zeroBaseBalance(symbol),
+                        keyboard,
+                    );
+                    return;
+                }
+
                 message = AdvancedInvestmentMessages.promptWithBalance(
                     symbol,
                     balanceInfo.usdcBalance,

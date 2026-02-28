@@ -60,6 +60,12 @@ export class CreateAndStartGridUseCase {
             params.symbol,
         );
 
+        if (baseBalance.isZero()) {
+            throw new Error(
+                `Cannot create grid: zero ${params.symbol} balance. Neutral grid requires both USDC and ${params.symbol}.`,
+            );
+        }
+
         const distribution = this.capitalCalculator.calculateDistribution({
             mode: params.mode,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
