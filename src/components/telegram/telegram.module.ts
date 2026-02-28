@@ -22,8 +22,10 @@ import { WizardNavigator } from './adapters/inbound/telegram-bot/scenes/create-g
 import { WizardMessageManager } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 import { GridsHandler } from './adapters/inbound/telegram-bot/handlers/grids/grids.handler';
 import { GridViewHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/grid-view.handler';
+import { BalanceHandler } from './adapters/inbound/telegram-bot/handlers/balance/balance.handler';
 import { GetGridsWithPnlUseCase } from './core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
+import { GetUserBalanceUseCase } from './core/application/use-cases/get-user-balance/get-user-balance.use-case';
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
 import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
@@ -60,6 +62,8 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         GridPnlCalculatorService,
         GridsHandler,
         GridViewHandler,
+        BalanceHandler,
+        GetUserBalanceUseCase,
         SelectPairStep,
         SelectModeStep,
         QuickStartStep,

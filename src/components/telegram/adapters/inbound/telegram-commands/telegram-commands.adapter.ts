@@ -6,6 +6,7 @@ import { HelpHandler } from '@components/telegram/adapters/inbound/telegram-bot/
 import { MainMenuHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/main-menu/main-menu.handler';
 import { GridsHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grids/grids.handler';
 import { GridViewHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-view.handler';
+import { BalanceHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/balance/balance.handler';
 import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
@@ -26,6 +27,7 @@ export class TelegramCommandsAdapter implements OnModuleInit {
         private readonly mainMenuHandler: MainMenuHandler,
         private readonly gridsHandler: GridsHandler,
         private readonly gridViewHandler: GridViewHandler,
+        private readonly balanceHandler: BalanceHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
     ) {}
 
@@ -46,6 +48,7 @@ export class TelegramCommandsAdapter implements OnModuleInit {
         this.mainMenuHandler.register();
         this.gridsHandler.register();
         this.gridViewHandler.register();
+        this.balanceHandler.register();
         this.registerCreateGridHandler();
         this.registerStubHandlers();
     }
@@ -73,8 +76,7 @@ export class TelegramCommandsAdapter implements OnModuleInit {
             await ctx.editMessageText(CommonMessages.COMING_SOON);
         };
 
-        this.telegramBotService.onHears([BUTTON_LABELS.BALANCE, BUTTON_LABELS.SETTINGS], stubReply);
-        this.telegramBotService.onAction(TelegramAction.ShowBalance, stubAction);
+        this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, stubReply);
         this.telegramBotService.onAction(TelegramAction.ShowSettings, stubAction);
     }
 }

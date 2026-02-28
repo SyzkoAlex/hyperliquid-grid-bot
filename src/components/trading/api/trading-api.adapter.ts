@@ -27,11 +27,24 @@ export class TradingApiAdapter implements TradingApiPort {
     async getUserSpotState(user: string): Promise<UserStateDto> {
         const userState = await this.exchange.getUserSpotState(user);
         const usdcBalance = userState.withdrawableBalance.toNumber();
+        const usdc = {
+            available: usdcBalance,
+            total: userState.usdcTotal.toNumber(),
+            hold: userState.usdcHold.toNumber(),
+        };
         const spotBalances: Record<string, number> = {};
+        const spotPositions: Record<string, { available: number; total: number; hold: number }> =
+            {};
         for (const pos of userState.assetPositions) {
-            spotBalances[pos.symbol.toString()] = pos.size.toNumber();
+            const symbol = pos.symbol.toString();
+            spotBalances[symbol] = pos.size.toNumber();
+            spotPositions[symbol] = {
+                available: pos.size.toNumber(),
+                total: pos.total.toNumber(),
+                hold: pos.hold.toNumber(),
+            };
         }
-        return { usdcBalance, spotBalances };
+        return { usdcBalance, usdc, spotBalances, spotPositions };
     }
 
     async pairExists(symbol: string): Promise<boolean> {

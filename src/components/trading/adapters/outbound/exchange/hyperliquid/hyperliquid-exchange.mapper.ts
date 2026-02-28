@@ -128,26 +128,32 @@ export class HyperliquidExchangeMapper {
     }
 
     toUserState(response: HyperliquidUserStateResponse): UserState {
-        const usdcBalance = this.findUsdcBalance(response.balances);
+        const usdc = this.findUsdcBalance(response.balances);
         const assetPositions = response.balances
             .filter((b) => b.coin !== 'USDC')
             .map((b) => this.toAssetPosition(b));
 
         return UserState.create({
-            withdrawableBalance: usdcBalance,
+            withdrawableBalance: usdc.available,
+            usdcTotal: usdc.total,
+            usdcHold: usdc.hold,
             assetPositions,
         });
     }
 
-    private findUsdcBalance(balances: HyperliquidUserStateResponse['balances']): Decimal {
+    private findUsdcBalance(balances: HyperliquidUserStateResponse['balances']): {
+        available: Decimal;
+        total: Decimal;
+        hold: Decimal;
+    } {
         const usdcBalance = balances.find((b) => b.coin === 'USDC');
         if (!usdcBalance) {
-            return Decimal.zero();
+            return { available: Decimal.zero(), total: Decimal.zero(), hold: Decimal.zero() };
         }
 
         const total = Decimal.from(parseFloat(usdcBalance.total || '0'));
         const hold = Decimal.from(parseFloat(usdcBalance.hold || '0'));
-        return total.sub(hold);
+        return { available: total.sub(hold), total, hold };
     }
 
     private toAssetPosition(

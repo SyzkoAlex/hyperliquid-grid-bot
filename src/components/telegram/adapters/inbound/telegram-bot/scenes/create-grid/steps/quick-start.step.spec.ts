@@ -42,7 +42,9 @@ describe('QuickStartStep', () => {
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 10000,
+                usdc: { available: 10000, total: 10000, hold: 0 },
                 spotBalances: { BTC: 1 },
+                spotPositions: { BTC: { available: 1, total: 1, hold: 0 } },
             });
 
             const result = await step.handleTextInput(ctx, '1000');
@@ -103,7 +105,9 @@ describe('QuickStartStep', () => {
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 100,
+                usdc: { available: 100, total: 100, hold: 0 },
                 spotBalances: { BTC: 1 },
+                spotPositions: { BTC: { available: 1, total: 1, hold: 0 } },
             });
             vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
                 investmentUSDC: 500,
