@@ -228,6 +228,58 @@ describe('CreateAndStartGridUseCase', () => {
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
 
+        it('should throw when base token balance is zero', async () => {
+            const params = {
+                chatId: 123456,
+                address: '0x123',
+                symbol: 'BTC',
+                mode: GridMode.Neutral,
+                lowerPrice: 45000,
+                upperPrice: 55000,
+                levels: 10,
+                totalInvestmentUSDC: 10000,
+                trailingEnabled: false,
+            };
+
+            exchange.getUserSpotState.mockResolvedValue({});
+            exchange.getCurrentPrice.mockResolvedValue(Price.from(50000));
+            userBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(10000),
+                baseBalance: Decimal.from(0),
+            });
+
+            await expect(useCase.execute(params)).rejects.toThrow(
+                'Cannot create grid: zero BTC balance',
+            );
+            expect(capitalCalculator.calculateDistribution).not.toHaveBeenCalled();
+        });
+
+        it('should throw when USDC balance is zero', async () => {
+            const params = {
+                chatId: 123456,
+                address: '0x123',
+                symbol: 'BTC',
+                mode: GridMode.Neutral,
+                lowerPrice: 45000,
+                upperPrice: 55000,
+                levels: 10,
+                totalInvestmentUSDC: 10000,
+                trailingEnabled: false,
+            };
+
+            exchange.getUserSpotState.mockResolvedValue({});
+            exchange.getCurrentPrice.mockResolvedValue(Price.from(50000));
+            userBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(0),
+                baseBalance: Decimal.from(0.5),
+            });
+
+            await expect(useCase.execute(params)).rejects.toThrow(
+                'Cannot create grid: zero USDC balance',
+            );
+            expect(capitalCalculator.calculateDistribution).not.toHaveBeenCalled();
+        });
+
         it('should skip orders without exchange order ID', async () => {
             const params = {
                 chatId: 123456,

@@ -38,6 +38,44 @@ describe('AdvancedInvestmentStep', () => {
         step = new AdvancedInvestmentStep(mockMessageManager, mockTradingApi, mockConfigService);
     });
 
+    describe('enter', () => {
+        it('should show zero base balance warning when base token is zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: {},
+                spotPositions: {},
+            });
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('You have no HYPE tokens');
+            expect(message).toContain('USDC: 5000');
+        });
+
+        it('should show zero USDC balance warning when USDC is zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 0,
+                usdc: { available: 0, total: 0, hold: 0 },
+                spotBalances: { HYPE: 500 },
+                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
+            });
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('You have no USDC');
+            expect(message).toContain('HYPE: 500');
+        });
+    });
+
     describe('handleTextInput', () => {
         it('should accept valid investment amount with sufficient balance', async () => {
             const ctx = createMockContext();

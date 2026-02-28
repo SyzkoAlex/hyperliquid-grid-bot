@@ -35,6 +35,44 @@ describe('QuickStartStep', () => {
         step = new QuickStartStep(mockTradingApi, mockMessageManager, mockConfigService);
     });
 
+    describe('enter', () => {
+        it('should show zero base balance warning when base token is zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 1000,
+                usdc: { available: 1000, total: 1000, hold: 0 },
+                spotBalances: {},
+                spotPositions: {},
+            });
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('You have no BTC tokens');
+            expect(message).toContain('USDC: 1000');
+        });
+
+        it('should show zero USDC balance warning when USDC is zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 0,
+                usdc: { available: 0, total: 0, hold: 0 },
+                spotBalances: { BTC: 0.5 },
+                spotPositions: { BTC: { available: 0.5, total: 0.5, hold: 0 } },
+            });
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('You have no USDC');
+            expect(message).toContain('BTC: 0.5');
+        });
+    });
+
     describe('handleTextInput', () => {
         it('should calculate grid params with ±20% range and sufficient balance', async () => {
             const ctx = createMockContext();

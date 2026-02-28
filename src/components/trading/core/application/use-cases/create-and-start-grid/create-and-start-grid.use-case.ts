@@ -62,7 +62,13 @@ export class CreateAndStartGridUseCase {
 
         if (baseBalance.isZero()) {
             throw new Error(
-                `Cannot create grid: zero ${params.symbol} balance. Neutral grid requires both USDC and ${params.symbol}.`,
+                `Cannot create grid: zero ${params.symbol} balance. Grid requires both USDC and ${params.symbol}.`,
+            );
+        }
+
+        if (usdcBalance.isZero()) {
+            throw new Error(
+                `Cannot create grid: zero USDC balance. Grid requires both USDC and ${params.symbol}.`,
             );
         }
 

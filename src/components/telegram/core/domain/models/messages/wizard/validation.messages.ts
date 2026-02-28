@@ -92,11 +92,25 @@ export class ValidationMessages {
         return `${EMOJI.ERROR} Invalid grid configuration. Please start over.`;
     }
 
-    static zeroBaseBalance(symbol: string): string {
+    static zeroBaseBalance(symbol: string, usdcBalance: Decimal): string {
         return (
             `${EMOJI.WARNING} You have no ${symbol} tokens!\n\n` +
-            `Neutral grid requires both USDC and ${symbol}.\n` +
+            `${EMOJI.MONEY} Your balance:\n` +
+            `  • USDC: ${usdcBalance.toString()}\n` +
+            `  • ${symbol}: 0\n\n` +
+            `Grid requires both USDC and ${symbol}.\n` +
             `Please buy some ${symbol} first, then create the grid.`
+        );
+    }
+
+    static zeroUsdcBalance(symbol: string, baseBalance: Decimal): string {
+        return (
+            `${EMOJI.WARNING} You have no USDC!\n\n` +
+            `${EMOJI.MONEY} Your balance:\n` +
+            `  • USDC: 0\n` +
+            `  • ${symbol}: ${baseBalance.toString()}\n\n` +
+            `Grid requires both USDC and ${symbol}.\n` +
+            `Please add USDC first, then create the grid.`
         );
     }
 }

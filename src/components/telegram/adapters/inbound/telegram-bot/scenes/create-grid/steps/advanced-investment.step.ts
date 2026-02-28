@@ -57,7 +57,16 @@ export class AdvancedInvestmentStep implements WizardStep {
                 if (balanceInfo.baseBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
                         ctx,
-                        ValidationMessages.zeroBaseBalance(symbol),
+                        ValidationMessages.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
+                        keyboard,
+                    );
+                    return;
+                }
+
+                if (balanceInfo.usdcBalance.isZero()) {
+                    await this.messageManager.sendEnterMessage(
+                        ctx,
+                        ValidationMessages.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
                         keyboard,
                     );
                     return;
