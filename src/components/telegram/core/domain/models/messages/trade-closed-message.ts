@@ -1,6 +1,7 @@
 import { TelegramMessage } from './telegram-message';
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
 import { EMOJI } from '../constants/emoji.constants';
+import { formatFiat } from '../formatters/format-fiat';
 
 interface TradeClosedProps {
     gridId: string;
@@ -25,7 +26,7 @@ export class TradeClosedMessage extends TelegramMessage {
         const profitSign = props.profit >= 0 ? '+' : '';
         this.text =
             `${arrow} <b>${props.side.toUpperCase()} ${props.amount} ${props.symbol}</b> @ $${props.price}\n` +
-            `$${props.total} · Profit: ${profitSign}$${props.profit} (${props.profitPercent}%)\n` +
+            `$${formatFiat(props.total)} · Profit: ${profitSign}$${formatFiat(props.profit)} (${props.profitPercent}%)\n` +
             `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
     }
 

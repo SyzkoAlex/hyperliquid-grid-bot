@@ -1,6 +1,7 @@
 import { EMOJI } from '../../constants/emoji.constants';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { PriceFormatter } from '../../formatters/price.formatter';
+import { formatFiat } from '../../formatters/format-fiat';
 
 export class ValidationMessages {
     static invalidPrice(): string {
@@ -28,10 +29,10 @@ export class ValidationMessages {
         perOrderAmount: number,
         minInvestment: number,
     ): string {
-        const minTotal = (minInvestment * levels).toFixed(2);
+        const minTotal = formatFiat(minInvestment * levels);
         return (
             `${EMOJI.ERROR} Order size too small!\n\n` +
-            `With ${levels} levels, each order would be ${perOrderAmount.toFixed(2)} USDC.\n` +
+            `With ${levels} levels, each order would be ${formatFiat(perOrderAmount)} USDC.\n` +
             `Minimum per order: ${minInvestment} USDC\n\n` +
             `Please increase your investment to at least ${minTotal} USDC.`
         );
@@ -52,19 +53,19 @@ export class ValidationMessages {
         let message = `${EMOJI.ERROR} Insufficient balance!\n\n`;
         message += `${EMOJI.MONEY} Your balance:\n`;
         message += `  • USDC: ${usdcBalance.toString()}\n`;
-        message += `  • ${symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n`;
-        message += `${symbol} price: $${currentPrice.toFixed(2)}\n`;
-        message += `Total balance: ${totalBalance.toFixed(2)} USDC\n\n`;
+        message += `  • ${symbol}: ${baseBalance.toString()} (${formatFiat(baseInUsdc.toNumber())} USDC)\n\n`;
+        message += `${symbol} price: $${formatFiat(currentPrice)}\n`;
+        message += `Total balance: ${formatFiat(totalBalance.toNumber())} USDC\n\n`;
         message += `${EMOJI.CHART_UP} Required for full grid:\n`;
         message += `  • USDC: ${requiredUsdc.toString()}\n`;
         message += `  • ${symbol}: ${requiredBase.toString()}\n\n`;
 
         if (usdcShortfall && usdcShortfall.gt(Decimal.zero())) {
-            message += `${EMOJI.WARNING} USDC shortfall: ${usdcShortfall.toFixed(2)} USDC\n`;
+            message += `${EMOJI.WARNING} USDC shortfall: ${formatFiat(usdcShortfall.toNumber())} USDC\n`;
         }
         if (baseShortfall && baseShortfall.gt(Decimal.zero())) {
             const baseShortfallUsdc = baseShortfall.mul(Decimal.from(currentPrice));
-            message += `${EMOJI.WARNING} ${symbol} shortfall: ${baseShortfall.toFixed(6)} (~${baseShortfallUsdc.toFixed(2)} USDC)\n`;
+            message += `${EMOJI.WARNING} ${symbol} shortfall: ${baseShortfall.toFixed(6)} (~${formatFiat(baseShortfallUsdc.toNumber())} USDC)\n`;
         }
 
         message += `\nPlease reduce your investment or add more funds.`;

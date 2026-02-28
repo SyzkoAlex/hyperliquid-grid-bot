@@ -1,6 +1,7 @@
 import { EMOJI } from '../../constants/emoji.constants';
 import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
+import { formatFiat } from '../../formatters/format-fiat';
 
 export class AdvancedInvestmentMessages {
     static promptWithoutBalance(): string {
@@ -20,9 +21,9 @@ export class AdvancedInvestmentMessages {
         return (
             `${EMOJI.MONEY} Your balance:\n` +
             `  • USDC: ${usdcBalance.toString()}\n` +
-            `  • ${symbol}: ${baseBalance.toString()} (${baseInUsdc.toFixed(2)} USDC)\n\n` +
-            `${symbol} price: $${currentPrice.toFixed(2)}\n\n` +
-            `Total balance: ${totalBalance.toFixed(2)} USDC\n\n` +
+            `  • ${symbol}: ${baseBalance.toString()} (${formatFiat(baseInUsdc.toNumber())} USDC)\n\n` +
+            `${symbol} price: $${formatFiat(currentPrice)}\n\n` +
+            `Total balance: ${formatFiat(totalBalance.toNumber())} USDC\n\n` +
             `How much USDC do you want to invest?\n\n` +
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
             `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels, neutral mode)\n` +

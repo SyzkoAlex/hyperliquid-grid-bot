@@ -11,6 +11,7 @@ import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/tradin
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
 import { AdvancedPreviewMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
 
 @Injectable()
 export class AdvancedPreviewStep implements WizardStep {
@@ -32,7 +33,7 @@ export class AdvancedPreviewStep implements WizardStep {
         const state = session.createGrid!;
         const orderSize =
             state.totalInvestmentUSDC && state.levels
-                ? (state.totalInvestmentUSDC / state.levels).toFixed(2)
+                ? formatFiat(state.totalInvestmentUSDC / state.levels)
                 : 'N/A';
 
         const keyboard: InlineButton[][] = [

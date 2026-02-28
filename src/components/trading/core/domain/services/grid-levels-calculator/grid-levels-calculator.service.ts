@@ -71,7 +71,7 @@ export class GridLevelsCalculatorService {
             }
             if (level.amountUSDC < this.minOrderNotional) {
                 throw new Error(
-                    `Order notional value $${level.amountUSDC.toFixed(2)} at level ${level.index} is below minimum $${this.minOrderNotional}. Increase investment or reduce number of levels.`,
+                    `Order notional value $${level.amountUSDC.toFixed(2)} at level ${level.index} is below minimum $${this.minOrderNotional.toFixed(2)}. Increase investment or reduce number of levels.`,
                 );
             }
         }
