@@ -1,7 +1,8 @@
 import { TelegramMessage } from './telegram-message';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
 import { EMOJI } from '../constants/emoji.constants';
-import { formatFiat } from '../formatters/format-fiat';
+import { formatToken } from '../formatters/format-token';
+import { formatPrice } from '../formatters/format-price';
 
 interface TradeOpenedProps {
     gridId: string;
@@ -22,8 +23,8 @@ export class TradeOpenedMessage extends TelegramMessage {
         const arrow = props.side === 'buy' ? EMOJI.ARROW_DOWN : EMOJI.ARROW_UP;
         const shortId = props.gridId.slice(0, 8);
         this.text =
-            `${arrow} <b>${props.side.toUpperCase()} ${props.amount} ${props.symbol}</b> @ $${props.price}\n` +
-            `Total: $${formatFiat(props.total)}\n` +
+            `${arrow} <b>${props.side.toUpperCase()} ${props.symbol}</b>\n` +
+            `${formatToken(props.amount)} × ${formatPrice(props.price)} = ${formatPrice(props.total)}\n` +
             `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
     }
 
