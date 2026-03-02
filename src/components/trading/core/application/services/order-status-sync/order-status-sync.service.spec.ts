@@ -189,7 +189,7 @@ describe('OrderStatusSyncService', () => {
             );
         });
 
-        it('should mark orders as missing when API fails', async () => {
+        it('should skip orders when API fails instead of marking as missing', async () => {
             const order1 = createDbOrder('order-1');
             const order2 = createDbOrder('order-2');
             const dbOrders = [order1, order2];
@@ -199,13 +199,37 @@ describe('OrderStatusSyncService', () => {
             const result = await service.process(dbOrders, []);
 
             expect(result.filledOrders).toHaveLength(0);
-            expect(result.processed).toBe(2);
-            expect(result.missing).toBe(2);
-            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
+            expect(result.processed).toBe(0);
+            expect(result.missing).toBe(0);
+            expect(mockOrderRepository.updateOrderStatus).not.toHaveBeenCalled();
+        });
+
+        it('should skip errored orders while processing successful ones', async () => {
+            const order1 = createDbOrder('order-1');
+            const order2 = createDbOrder('order-2');
+            const dbOrders = [order1, order2];
+
+            mockOrderClient.getOrderStatus.mockImplementation(
+                async (_user: string, oid: string) => {
+                    if (oid === 'order-1') {
+                        return createHistoryRecord(oid, ExchangeOrderStatus.FILLED);
+                    }
+                    throw new Error('Network error');
+                },
+            );
+
+            const result = await service.process(dbOrders, []);
+
+            expect(result.filledOrders).toHaveLength(1);
+            expect(result.filledOrders).toContainEqual(order1);
+            expect(result.processed).toBe(1);
+            expect(result.filled).toBe(1);
+            expect(result.missing).toBe(0);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(1);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
                 order1.id,
-                OrderStatus.Missing,
-                undefined,
+                OrderStatus.Filled,
+                expect.any(Date),
             );
         });
 

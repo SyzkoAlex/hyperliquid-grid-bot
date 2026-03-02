@@ -47,10 +47,18 @@ export class OrderStatusSyncService {
             'Detected closed orders, fetching statuses',
         );
 
-        const statusInfoMap = await this.fetchExchangeOrderStatuses(closedOrders);
+        const { statusMap, fetchErrorIds } = await this.fetchExchangeOrderStatuses(closedOrders);
 
         for (const order of closedOrders) {
-            const exchangeOrderInfo = statusInfoMap.get(order.exchangeOrderId!);
+            if (fetchErrorIds.has(order.exchangeOrderId!)) {
+                this.logger.warn(
+                    { orderId: order.id, exchangeOrderId: order.exchangeOrderId },
+                    'Skipping order - failed to fetch status from exchange',
+                );
+                continue;
+            }
+
+            const exchangeOrderInfo = statusMap.get(order.exchangeOrderId!);
             const newStatus = this.resolveOrderStatus(order, exchangeOrderInfo);
 
             await this.updateOrderStatus(order, newStatus, exchangeOrderInfo?.statusTimestamp);
@@ -71,8 +79,9 @@ export class OrderStatusSyncService {
 
     private async fetchExchangeOrderStatuses(
         closedOrders: OrderDto[],
-    ): Promise<Map<string, ExchangeOrderInfo>> {
+    ): Promise<{ statusMap: Map<string, ExchangeOrderInfo>; fetchErrorIds: Set<string> }> {
         const statusMap = new Map<string, ExchangeOrderInfo>();
+        const fetchErrorIds = new Set<string>();
 
         const statusPromises = closedOrders.map(async (order) => {
             if (!order.exchangeOrderId) return;
@@ -87,6 +96,7 @@ export class OrderStatusSyncService {
                     statusMap.set(order.exchangeOrderId, exchangeOrderStatus);
                 }
             } catch (error) {
+                fetchErrorIds.add(order.exchangeOrderId);
                 this.logger.error(
                     { error, orderId: order.id, exchangeOrderId: order.exchangeOrderId },
                     'Failed to fetch order status',
@@ -97,11 +107,11 @@ export class OrderStatusSyncService {
         await Promise.allSettled(statusPromises);
 
         this.logger.debug(
-            { requested: closedOrders.length, found: statusMap.size },
+            { requested: closedOrders.length, found: statusMap.size, errors: fetchErrorIds.size },
             'Fetched order statuses from exchange',
         );
 
-        return statusMap;
+        return { statusMap, fetchErrorIds };
     }
 
     private resolveOrderStatus(
