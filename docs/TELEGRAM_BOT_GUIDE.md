@@ -54,7 +54,7 @@ telegram/core/domain/models/
 │   │   └── {step-name}.messages.ts
 │   └── {feature}-message.ts
 ├── inline-button.ts
-├── telegram-command.enum.ts     # TelegramCommand, TelegramAction, GridAction
+├── telegram-command.ts          # TelegramCommand, TelegramAction, GridAction
 └── telegram-parse-mode.ts
 ```
 
@@ -127,7 +127,7 @@ export class HelpHandler implements Handler {
 
 ### Static Actions
 
-Define in `telegram-command.enum.ts`:
+Define in `telegram-command.ts`:
 
 ```typescript
 export enum TelegramCommand {

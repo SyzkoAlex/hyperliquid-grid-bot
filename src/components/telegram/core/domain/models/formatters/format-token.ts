@@ -7,9 +7,5 @@
  * @example formatToken(1.5)              → "1.5"
  */
 export function formatToken(value: number): string {
-    const maxDecimals = 5;
-    const fixed = value.toFixed(maxDecimals);
-    const parsed = parseFloat(fixed);
-    const trimmed = parsed.toString();
-    return trimmed;
+    return parseFloat(value.toFixed(5)).toString();
 }

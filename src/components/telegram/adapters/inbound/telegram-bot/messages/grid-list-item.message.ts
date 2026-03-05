@@ -28,7 +28,6 @@ const ORDER_SIDE_EMOJI: Record<string, string> = {
 };
 
 const HISTORY_DISPLAY_LIMIT = 30;
-const SEPARATOR = '';
 
 export class GridListItemMessage {
     /** Full paginated list: header + compact lines */
@@ -57,8 +56,7 @@ export class GridListItemMessage {
             `<b>Investment (USDC):</b> $${PriceFormatter.format(investment)}\n` +
             `<b>Price Range:</b> $${lower} – $${upper}\n` +
             `<b>Current Price:</b> $${price}\n` +
-            `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n` +
-            SEPARATOR
+            `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n`
         );
     }
 
@@ -125,8 +123,7 @@ export class GridListItemMessage {
             `<b>Investment:</b> $${investmentStr}\n` +
             `<b>Range:</b> $${lower} – $${upper} · ${grid.levels} levels\n` +
             `<b>Current Price:</b> $${price}\n` +
-            `<b>Started:</b> ${startedStr}\n` +
-            SEPARATOR
+            `<b>Started:</b> ${startedStr}\n`
         );
     }
 
@@ -151,8 +148,7 @@ export class GridListItemMessage {
             `<b>Active Orders (${active.length})</b>\n` +
             `<b>Current Price:</b> $${price}\n` +
             `\n` +
-            `${lines.join('\n')}\n` +
-            SEPARATOR
+            `${lines.join('\n')}\n`
         );
     }
 
@@ -180,8 +176,7 @@ export class GridListItemMessage {
             `<b>Current Price:</b> $${PriceFormatter.format(currentPrice)}\n` +
             limitNote +
             `\n` +
-            `${lines.join('\n')}\n` +
-            SEPARATOR
+            `${lines.join('\n')}\n`
         );
     }
 
