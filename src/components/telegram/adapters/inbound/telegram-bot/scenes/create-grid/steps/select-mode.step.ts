@@ -7,7 +7,7 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SelectModeMessages } from '@components/telegram/core/domain/models/messages/wizard/select-mode.messages';
 
 @Injectable()

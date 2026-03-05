@@ -11,8 +11,8 @@ import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
 } from '@components/telegram/adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 

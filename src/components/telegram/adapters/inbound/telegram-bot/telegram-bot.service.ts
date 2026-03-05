@@ -8,7 +8,7 @@ import { SessionData } from './types/session-data';
 import { RedisSessionStore } from './redis-session-store';
 import { SceneHandler } from './scenes/scene-handler';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { createErrorHandlerMiddleware } from './middleware/error-handler.middleware';
 import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
 

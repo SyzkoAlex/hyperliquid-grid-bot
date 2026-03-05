@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createErrorHandlerMiddleware } from './error-handler.middleware';
 import { BotContext } from '../types/bot-context';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 
 const mockLog = { error: vi.fn() };
 

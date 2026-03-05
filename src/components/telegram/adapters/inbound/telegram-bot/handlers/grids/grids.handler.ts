@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
-import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command.enum';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
+import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { GridsAction } from '@components/telegram/core/domain/models/grids-action';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { Handler } from '../handler';
 import { GetGridsWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';

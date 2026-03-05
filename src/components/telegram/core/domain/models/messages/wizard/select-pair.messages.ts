@@ -1,4 +1,4 @@
-import { EMOJI } from '../../constants/emoji.constants';
+import { EMOJI } from '../../constants/emoji';
 
 export class SelectPairMessages {
     static readonly PROMPT = 'Select token (all pairs trade against USDC):';

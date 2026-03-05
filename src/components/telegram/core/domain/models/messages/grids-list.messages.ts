@@ -1,4 +1,4 @@
-import { EMOJI } from '../constants/emoji.constants';
+import { EMOJI } from '../constants/emoji';
 
 export class GridsListMessages {
     static activeHeader(count: number, page?: number, totalPages?: number): string {

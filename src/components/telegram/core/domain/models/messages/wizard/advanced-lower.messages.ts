@@ -1,4 +1,4 @@
-import { EMOJI } from '../../constants/emoji.constants';
+import { EMOJI } from '../../constants/emoji';
 import { PriceFormatter } from '../../formatters/price.formatter';
 
 export class AdvancedLowerMessages {

@@ -3,7 +3,7 @@ import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { PriceFormatter } from '../../../../core/domain/models/formatters/price.formatter';
-import { EMOJI } from '../../../../core/domain/models/constants/emoji.constants';
+import { EMOJI } from '../../../../core/domain/models/constants/emoji';
 import { GridWithPnl } from '../../../../core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
 
 const STATUS_EMOJI: Record<GridStatus, string> = {
@@ -28,7 +28,7 @@ const ORDER_SIDE_EMOJI: Record<string, string> = {
 };
 
 const HISTORY_DISPLAY_LIMIT = 30;
-const SEPARATOR = '━━━━━━━━━━━━━━━━━━';
+const SEPARATOR = '';
 
 export class GridListItemMessage {
     /** Full paginated list: header + compact lines */
@@ -132,7 +132,7 @@ export class GridListItemMessage {
 
     /** Detail view: active orders list */
     static ordersTab({ grid, currentPrice, orders }: GridWithPnl): string {
-        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
+        const { pair, shortId } = GridListItemMessage.headerParts(grid);
         const symbol = grid.symbol;
 
         const active = orders
@@ -148,19 +148,17 @@ export class GridListItemMessage {
 
         return (
             `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
-            `<b>Active Orders</b>\n` +
-            `${emoji} ${label}${duration}\n` +
+            `<b>Active Orders (${active.length})</b>\n` +
+            `<b>Current Price:</b> $${price}\n` +
             `\n` +
             `${lines.join('\n')}\n` +
-            `\n` +
-            `<b>Current Price:</b> $${price}\n` +
             SEPARATOR
         );
     }
 
     /** Detail view: order history (last 30 non-active orders) */
-    static historyTab({ grid, orders }: GridWithPnl): string {
-        const { pair, shortId, emoji, label, duration } = GridListItemMessage.headerParts(grid);
+    static historyTab({ grid, orders, currentPrice }: GridWithPnl): string {
+        const { pair, shortId } = GridListItemMessage.headerParts(grid);
         const symbol = grid.symbol;
 
         const filled = orders
@@ -178,8 +176,8 @@ export class GridListItemMessage {
 
         return (
             `<b>${pair}</b> · Grid (<code>${shortId}</code>)\n` +
-            `<b>Order History</b>\n` +
-            `${emoji} ${label}${duration}\n` +
+            `<b>Order History (${filled.length})</b>\n` +
+            `<b>Current Price:</b> $${PriceFormatter.format(currentPrice)}\n` +
             limitNote +
             `\n` +
             `${lines.join('\n')}\n` +

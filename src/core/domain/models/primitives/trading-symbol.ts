@@ -9,13 +9,6 @@ export class TradingSymbol {
         return this.value;
     }
 
-    /**
-     * Convert to Hyperliquid SPOT format (e.g., 'BTC' -> 'BTC-SPOT')
-     */
-    toSpot(): string {
-        return `${this.value}-SPOT`;
-    }
-
     equals(other: TradingSymbol): boolean {
         return this.value === other.value;
     }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { WelcomeMessage } from '@components/telegram/core/domain/models/messages/welcome-message';
 import { Handler } from '../handler';
 import { mainMenuKeyboard } from '../main-menu.keyboard';

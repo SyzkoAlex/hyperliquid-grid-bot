@@ -13,7 +13,7 @@ import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { AdvancedInvestmentMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
 import { fetchBalanceInfo } from '../helpers/balance-info';

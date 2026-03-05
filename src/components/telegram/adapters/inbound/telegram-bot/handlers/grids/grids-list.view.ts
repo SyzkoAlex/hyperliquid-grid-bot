@@ -1,6 +1,6 @@
 import { GridAction } from '@components/telegram/core/domain/models/grid-action';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { GridWithPnl } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-with-pnl';
 import { GridListItemMessage } from '../../messages/grid-list-item.message';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';

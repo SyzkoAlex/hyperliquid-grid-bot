@@ -55,7 +55,7 @@ telegram/core/domain/models/
 │   └── {feature}-message.ts
 ├── inline-button.ts
 ├── telegram-command.enum.ts     # TelegramCommand, TelegramAction, GridAction
-└── telegram-parse-mode.enum.ts
+└── telegram-parse-mode.ts
 ```
 
 ---

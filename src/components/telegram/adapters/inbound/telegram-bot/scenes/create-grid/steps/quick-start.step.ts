@@ -13,7 +13,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { QuickStartMessages } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
 import { fetchBalanceInfo } from '../helpers/balance-info';

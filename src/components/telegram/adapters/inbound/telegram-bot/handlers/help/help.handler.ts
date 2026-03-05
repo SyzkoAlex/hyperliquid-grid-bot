@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
-import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command.enum';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { HelpMessage } from '@components/telegram/core/domain/models/messages/help-message';
 import { Handler } from '../handler';
 import { backToMenuKeyboard } from '../back-to-menu.keyboard';

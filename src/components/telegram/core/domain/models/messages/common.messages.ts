@@ -1,4 +1,4 @@
-import { EMOJI } from '../constants/emoji.constants';
+import { EMOJI } from '../constants/emoji';
 
 export class CommonMessages {
     static readonly COMING_SOON = `${EMOJI.CONSTRUCTION} Coming soon`;

@@ -1,5 +1,5 @@
 import { TelegramMessage } from './telegram-message';
-import { EMOJI } from '../constants/emoji.constants';
+import { EMOJI } from '../constants/emoji';
 import { UserBalance } from '../user-balance';
 import { formatFiat } from '../formatters/format-fiat';
 

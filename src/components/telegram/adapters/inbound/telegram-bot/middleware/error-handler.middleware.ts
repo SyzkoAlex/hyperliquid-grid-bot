@@ -1,7 +1,7 @@
 import { MiddlewareFn } from 'telegraf';
 import { createContextLogger } from '@/infra/logger/logger';
 import { BotContext } from '../types/bot-context';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji.constants';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 
 function getTelegramErrorDescription(error: unknown): string {
     if (

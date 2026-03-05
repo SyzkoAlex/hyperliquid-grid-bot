@@ -225,8 +225,33 @@ describe('GridListItemMessage', () => {
     });
 
     describe('historyTab (order history)', () => {
-        it('shows Order History header', () => {
-            expect(GridListItemMessage.historyTab(makeData(makeGrid()))).toContain('Order History');
+        it('shows Order History header with count of filled orders shown', () => {
+            const orders = [
+                makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, 6),
+                makeOrder(OrderSide.Buy, OrderStatus.Filled, 90000, 0),
+            ];
+            const result = GridListItemMessage.historyTab(
+                makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, orders),
+            );
+            expect(result).toContain('<b>Order History (2)</b>');
+        });
+
+        it('shows Order History header with count 0 when no filled orders', () => {
+            const result = GridListItemMessage.historyTab(
+                makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, []),
+            );
+            expect(result).toContain('<b>Order History (0)</b>');
+        });
+
+        it('shows current price line right after the header', () => {
+            const result = GridListItemMessage.historyTab(makeData(makeGrid()));
+            expect(result).toContain('<b>Current Price:</b> $95000');
+        });
+
+        it('does not show status/duration row', () => {
+            const result = GridListItemMessage.historyTab(makeData(makeGrid(GridStatus.Running)));
+            expect(result).not.toContain('Active');
+            expect(result).not.toContain('🟢');
         });
 
         it('shows only filled orders with side emoji', () => {
@@ -280,6 +305,7 @@ describe('GridListItemMessage', () => {
                 makeData(makeGrid(), DEFAULT_PNL, DEFAULT_ORDER_STATS, orders),
             );
             expect(result.match(/▲ Sell/g)?.length).toBe(30);
+            expect(result).toContain('<b>Order History (30)</b>');
             expect(result).toContain('Showing last 30 filled orders');
         });
     });

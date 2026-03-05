@@ -1,4 +1,4 @@
-import { EMOJI } from './emoji.constants';
+import { EMOJI } from './emoji';
 
 export const BUTTON_LABELS = {
     BACK: `${EMOJI.BACK} Back`,

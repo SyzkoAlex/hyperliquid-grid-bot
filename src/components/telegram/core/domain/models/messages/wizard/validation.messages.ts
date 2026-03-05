@@ -1,4 +1,4 @@
-import { EMOJI } from '../../constants/emoji.constants';
+import { EMOJI } from '../../constants/emoji';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { PriceFormatter } from '../../formatters/price.formatter';
 import { formatFiat } from '../../formatters/format-fiat';

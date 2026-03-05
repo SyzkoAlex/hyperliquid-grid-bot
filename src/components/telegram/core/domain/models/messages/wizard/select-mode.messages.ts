@@ -1,4 +1,4 @@
-import { EMOJI } from '../../constants/emoji.constants';
+import { EMOJI } from '../../constants/emoji';
 import { WIZARD_CONFIG } from '../../constants/wizard-config';
 
 export class SelectModeMessages {

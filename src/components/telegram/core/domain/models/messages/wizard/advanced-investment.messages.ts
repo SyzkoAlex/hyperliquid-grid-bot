@@ -1,4 +1,4 @@
-import { EMOJI } from '../../constants/emoji.constants';
+import { EMOJI } from '../../constants/emoji';
 import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { formatFiat } from '../../formatters/format-fiat';

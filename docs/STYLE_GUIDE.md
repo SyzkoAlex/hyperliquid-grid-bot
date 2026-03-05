@@ -35,6 +35,7 @@
 - Boolean: `is/has/can/should` prefix (`isValid`, `hasPermission`)
 - Repository single: `findOne*` (`findOneById`)
 - Repository multiple: `findMany*` (`findManyActive`)
+- **No type suffixes in filenames** — never `foo.enum.ts`, `foo.constant.ts`, `foo.constants.ts`, `foo.interface.ts`, `foo.type.ts`; use `foo.ts`
 
 ## Comments
 

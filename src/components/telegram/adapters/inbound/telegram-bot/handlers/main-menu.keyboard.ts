@@ -1,7 +1,7 @@
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
-import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action.enum';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { GridsAction } from '@components/telegram/core/domain/models/grids-action';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { Markup } from 'telegraf';
 
 export function mainMenuKeyboard(): InlineButton[][] {

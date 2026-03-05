@@ -8,7 +8,7 @@ import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { CreateGridMode } from '../create-grid-mode';
 import { Inject } from '@nestjs/common';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels.constants';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { AdvancedPreviewMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
 import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';

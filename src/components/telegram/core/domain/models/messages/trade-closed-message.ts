@@ -1,6 +1,6 @@
 import { TelegramMessage } from './telegram-message';
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
-import { EMOJI } from '../constants/emoji.constants';
+import { EMOJI } from '../constants/emoji';
 import { formatToken } from '../formatters/format-token';
 import { formatPrice } from '../formatters/format-price';
 
