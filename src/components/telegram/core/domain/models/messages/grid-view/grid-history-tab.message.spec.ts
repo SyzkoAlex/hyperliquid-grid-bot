@@ -8,8 +8,8 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridPnl } from '../../../../../core/domain/models/grid-pnl';
-import { OrderStats } from '../../../../../core/domain/models/order-stats';
+import { GridPnl } from '@components/telegram/core/domain/models/grid-pnl';
+import { OrderStats } from '@components/telegram/core/domain/models/order-stats';
 
 function makeGrid(status: GridStatus = GridStatus.Running): GridDto {
     return {

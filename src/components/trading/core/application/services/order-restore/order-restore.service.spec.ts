@@ -202,7 +202,7 @@ describe('OrderRestoreService', () => {
             expect(mockOrderRepository.updateOrderStatus).not.toHaveBeenCalled();
         });
 
-        it('should not mark pending order without placedAt as missing', async () => {
+        it('should not mark pending order without placedAt as missing when createdAt is fresh', async () => {
             const orderId = crypto.randomUUID();
             const pendingOrder = createPendingOrder(orderId, undefined);
 
@@ -212,6 +212,25 @@ describe('OrderRestoreService', () => {
 
             expect(result).toBe(0);
             expect(mockOrderRepository.updateOrderStatus).not.toHaveBeenCalled();
+        });
+
+        it('should mark pending order as missing when placedAt is absent but createdAt is stale', async () => {
+            const orderId = crypto.randomUUID();
+            const staleCreatedAt = Date.now() - staleThresholdMs - 1000;
+            const pendingOrder: OrderDto = {
+                ...createPendingOrder(orderId, undefined),
+                createdAt: staleCreatedAt,
+            };
+
+            mockOrderRepository.findOrdersByStatus.mockResolvedValue([pendingOrder]);
+
+            const result = await service.restoreOrders([]);
+
+            expect(result).toBe(0);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                orderId,
+                OrderStatus.Missing,
+            );
         });
 
         it('should restore some orders and mark others as missing', async () => {

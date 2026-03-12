@@ -100,7 +100,14 @@ export class OrderRefillService {
             return OrderRefillResult.success(refillOrder, profit?.toNumber());
         } catch (error) {
             if (refillOrder) {
-                await this.grids.updateOrderStatus(refillOrder.id, OrderStatus.Failed);
+                try {
+                    await this.grids.updateOrderStatus(refillOrder.id, OrderStatus.Failed);
+                } catch (cleanupError) {
+                    this.logger.error(
+                        { cleanupError, orderId: refillOrder.id },
+                        'Failed to mark stuck pending order as failed',
+                    );
+                }
             }
             return this.handleError(error, filledOrder);
         }

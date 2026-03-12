@@ -276,6 +276,20 @@ describe('OrderRefillService', () => {
             );
         });
 
+        it('should mark pending order as failed when placement throws an exception', async () => {
+            mockOrderClient.placeSpotOrder.mockRejectedValue(new Error('Network timeout'));
+
+            const result = await service.processOne(testBuyOrder, testGrid);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Network timeout');
+            expect(mockOrderRepository.createOrder).toHaveBeenCalledTimes(1);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                REFILL_ORDER_ID,
+                OrderStatus.Failed,
+            );
+        });
+
         it('should skip refill when active order already exists at target level', async () => {
             mockOrderRepository.findActiveOrdersByGridId.mockResolvedValue([
                 makeRefillOrderDto({
