@@ -13,6 +13,7 @@ export interface OrderDto {
     price: number | null;
     amount: number;
     exchangeOrderId: string | null;
+    createdAt: number;
     placedAt?: number;
     filledAt?: number;
 }

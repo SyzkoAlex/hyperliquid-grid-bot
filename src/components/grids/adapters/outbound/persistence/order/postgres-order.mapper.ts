@@ -30,6 +30,7 @@ export class PostgresOrderMapper {
             status: row.status as OrderStatus,
             gridId: GridId.from(row.gridId),
             levelIndex: row.levelIndex,
+            createdAt: row.createdAt ? Timestamp.from(row.createdAt) : undefined,
             placedAt: row.placedAt ? Timestamp.from(row.placedAt) : undefined,
             filledAt: row.filledAt ? Timestamp.from(row.filledAt) : undefined,
             cancelledAt: row.cancelledAt ? Timestamp.from(row.cancelledAt) : undefined,

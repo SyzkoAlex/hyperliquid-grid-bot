@@ -95,11 +95,8 @@ export class OrderRestoreService {
     }
 
     private async cleanupStaleOrder(order: OrderDto): Promise<void> {
-        if (!order.placedAt) {
-            return;
-        }
-
-        const orderAge = Date.now() - order.placedAt;
+        const referenceTime = order.placedAt ?? order.createdAt;
+        const orderAge = Date.now() - referenceTime;
         if (orderAge < this.staleThresholdMs) {
             return;
         }

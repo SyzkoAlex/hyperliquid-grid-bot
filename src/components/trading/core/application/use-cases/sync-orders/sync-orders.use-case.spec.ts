@@ -49,6 +49,7 @@ describe('SyncOrdersUseCase', () => {
         status: OrderStatus.Placed,
         levelIndex: 5,
         exchangeOrderId: null,
+        createdAt: Date.now(),
         ...overrides,
     });
 

@@ -58,6 +58,7 @@ describe('OrderRestoreService', () => {
             status: OrderStatus.Pending,
             levelIndex: 5,
             exchangeOrderId: null,
+            createdAt: Date.now(),
             placedAt,
         });
 

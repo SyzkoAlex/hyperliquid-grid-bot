@@ -49,6 +49,8 @@ export class OrderRefillService {
     async processOne(filledOrder: OrderDto, grid: GridDto): Promise<OrderRefillResult> {
         this.logOrderProcessing(filledOrder, grid);
 
+        let refillOrder: OrderDto | null = null;
+
         try {
             const refillParams = RefillParams.calc(filledOrder, grid);
             if (!refillParams) {
@@ -73,7 +75,7 @@ export class OrderRefillService {
                 return OrderRefillResult.failure('Active order already exists at target level');
             }
 
-            const refillOrder = await this.createAndSavePendingOrder(grid, refillParams);
+            refillOrder = await this.createAndSavePendingOrder(grid, refillParams);
             const placeResult = await this.placeOrderOnExchange(refillOrder, grid, refillParams);
 
             if (!this.isPlacementSuccessful(placeResult)) {
@@ -97,6 +99,9 @@ export class OrderRefillService {
 
             return OrderRefillResult.success(refillOrder, profit?.toNumber());
         } catch (error) {
+            if (refillOrder) {
+                await this.grids.updateOrderStatus(refillOrder.id, OrderStatus.Failed);
+            }
             return this.handleError(error, filledOrder);
         }
     }

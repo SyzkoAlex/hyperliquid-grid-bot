@@ -56,6 +56,7 @@ describe('OrderRefillService', () => {
         price: 50000,
         amount: 0.01,
         exchangeOrderId: 'exchange-789',
+        createdAt: Date.now(),
     };
 
     // Test sell order at level 6
@@ -70,6 +71,7 @@ describe('OrderRefillService', () => {
         price: 51000,
         amount: 0.01,
         exchangeOrderId: 'exchange-012',
+        createdAt: Date.now(),
     };
 
     const makeRefillOrderDto = (overrides: Partial<OrderDto> = {}): OrderDto => ({
@@ -83,6 +85,7 @@ describe('OrderRefillService', () => {
         price: 51000,
         amount: 0.01,
         exchangeOrderId: null,
+        createdAt: Date.now(),
         ...overrides,
     });
 
@@ -212,6 +215,7 @@ describe('OrderRefillService', () => {
                 price: 55000,
                 amount: 0.01,
                 exchangeOrderId: 'exchange-top',
+                createdAt: Date.now(),
             };
 
             const result = await service.processOne(filledBuyOrder, testGrid);
@@ -236,6 +240,7 @@ describe('OrderRefillService', () => {
                 price: 45000,
                 amount: 0.01,
                 exchangeOrderId: 'exchange-bottom',
+                createdAt: Date.now(),
             };
 
             const result = await service.processOne(filledSellOrder, testGrid);

@@ -63,6 +63,7 @@ describe('OrderStatusSyncService', () => {
             status: OrderStatus.Placed,
             levelIndex: 5,
             exchangeOrderId,
+            createdAt: Date.now(),
         });
 
         const createExchangeOrder = (exchangeOrderId: string): ExchangeOpenOrder => ({
@@ -258,6 +259,7 @@ describe('OrderStatusSyncService', () => {
                 status: OrderStatus.Pending,
                 levelIndex: 5,
                 exchangeOrderId: null,
+                createdAt: Date.now(),
             };
 
             const dbOrders = [orderWithoutId];

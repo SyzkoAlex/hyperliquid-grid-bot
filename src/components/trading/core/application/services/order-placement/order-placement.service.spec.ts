@@ -24,6 +24,7 @@ const makeMockOrderDto = (overrides: Partial<OrderDto> = {}): OrderDto => ({
     price: 45000,
     amount: 0.0555,
     exchangeOrderId: null,
+    createdAt: Date.now(),
     ...overrides,
 });
 

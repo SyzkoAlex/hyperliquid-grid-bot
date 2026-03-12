@@ -47,6 +47,7 @@ describe('ProcessOrderStatusUseCase', () => {
         price: 50000,
         amount: 0.01,
         exchangeOrderId: '123',
+        createdAt: Date.now(),
     });
 
     const createGrid = (status: GridStatus = GridStatus.Running): GridDto => ({

@@ -22,6 +22,7 @@ export interface OrderParams {
     gridId: GridId;
     levelIndex: number;
 
+    createdAt?: Timestamp;
     placedAt?: Timestamp;
     filledAt?: Timestamp;
     cancelledAt?: Timestamp;
@@ -45,6 +46,7 @@ export class Order {
     private readonly _gridId: GridId;
     private readonly _levelIndex: number;
 
+    private readonly _createdAt: Timestamp;
     private _placedAt: Timestamp | null;
     private _filledAt: Timestamp | null;
     private _cancelledAt: Timestamp | null;
@@ -60,6 +62,7 @@ export class Order {
         this._status = params.status;
         this._gridId = params.gridId;
         this._levelIndex = params.levelIndex;
+        this._createdAt = params.createdAt ?? Timestamp.now();
         this._placedAt = params.placedAt ?? null;
         this._filledAt = params.filledAt ?? null;
         this._cancelledAt = params.cancelledAt ?? null;
@@ -123,6 +126,10 @@ export class Order {
 
     get status(): OrderStatus {
         return this._status;
+    }
+
+    get createdAt(): Timestamp {
+        return this._createdAt;
     }
 
     get placedAt(): Timestamp | null {
