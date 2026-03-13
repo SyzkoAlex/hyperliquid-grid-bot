@@ -226,7 +226,7 @@ export class OrderRefillService {
                 filledAmount,
                 total,
                 profit.toNumber(),
-                filledOrder.levelIndex,
+                filledOrder.levelIndex + 1,
                 grid.levels,
             );
             await this.publisher.publish(closedEvent);
@@ -240,7 +240,7 @@ export class OrderRefillService {
             filledPrice,
             filledAmount,
             total,
-            filledOrder.levelIndex,
+            filledOrder.levelIndex + 1,
             grid.levels,
         );
         await this.publisher.publish(openedEvent);

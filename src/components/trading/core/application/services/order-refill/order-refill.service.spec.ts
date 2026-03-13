@@ -161,8 +161,10 @@ describe('OrderRefillService', () => {
             // Should NOT calculate profit (buy order)
             expect(result.profit).toBeUndefined();
 
-            // Should publish OrderOpenedEvent
-            expect(mockEventBus.publish).toHaveBeenCalled();
+            // Should publish OrderOpenedEvent with 1-based level
+            expect(mockEventBus.publish).toHaveBeenCalledWith(
+                expect.objectContaining({ level: 6, totalLevels: 11 }),
+            );
         });
 
         it('should place BUY order one level down when SELL order fills', async () => {
@@ -201,6 +203,11 @@ describe('OrderRefillService', () => {
             // Should calculate profit (sell order)
             expect(result.profit).toBeDefined();
             expect(result.profit).toBeGreaterThan(0);
+
+            // Should publish OrderClosedEvent with 1-based level
+            expect(mockEventBus.publish).toHaveBeenCalledWith(
+                expect.objectContaining({ level: 7, totalLevels: 11 }),
+            );
         });
 
         it('should not place refill when BUY order at top level fills', async () => {
