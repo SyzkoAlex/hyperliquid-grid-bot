@@ -1,28 +1,29 @@
 {
-  "$schema": "https://json.schemastore.org/swcrc",
-  "jsc": {
-    "parser": {
-      "syntax": "typescript",
-      "decorators": true,
-      "dynamicImport": true
+    "$schema": "https://json.schemastore.org/swcrc",
+    "jsc": {
+        "parser": {
+            "syntax": "typescript",
+            "decorators": true,
+            "dynamicImport": true
+        },
+        "transform": {
+            "legacyDecorator": true,
+            "decoratorMetadata": true
+        },
+        "target": "es2021",
+        "keepClassNames": true,
+        "baseUrl": "./",
+        "paths": {
+            "@/*": ["src/*"],
+            "@domain/*": ["src/core/domain/*"],
+            "@infra/*": ["src/infra/*"],
+            "@components/*": ["src/components/*"],
+            "@apps/*": ["src/apps/*"],
+            "@utils/*": ["src/utils/*"],
+            "@adapters/*": ["src/adapters/*"]
+        }
     },
-    "transform": {
-      "legacyDecorator": true,
-      "decoratorMetadata": true
-    },
-    "target": "es2021",
-    "keepClassNames": true,
-    "baseUrl": "./",
-    "paths": {
-      "@/*": ["src/*"],
-      "@domain/*": ["src/domain/*"],
-      "@infra/*": ["src/infra/*"],
-      "@components/*": ["src/components/*"],
-      "@apps/*": ["src/apps/*"],
-      "@utils/*": ["src/utils/*"]
+    "module": {
+        "type": "es6"
     }
-  },
-  "module": {
-    "type": "es6"
-  }
 }

@@ -1,30 +1,25 @@
-import { AppTypes } from './infra/config/app.types';
-import { loadConfiguration } from './infra/config/configuration';
-import { logger } from './infra/logger/logger';
-import { bootstrapBotApp } from './apps/bot/bootstrap-bot';
+import { loadConfiguration } from '@/config/configuration';
+import { logger } from '@/infra/logger/logger';
+import { bootstrapAllInOneApp } from './apps/all-in-one/bootstrap-all-in-one';
 import manifest from '../package.json';
 
 function bootstrap(): Promise<void> {
     registerErrorHandlers();
 
     const config = loadConfiguration();
-    const type = config.app.type as AppTypes;
     const version = manifest.version;
 
-    logger.info({ app: config.app.name }, `Starting ${type}. Version ${version}`);
+    logger.info({ app: config.app.name }, `Starting application. Version ${version}`);
 
-    switch (type) {
-        case AppTypes.BOT:
-            return bootstrapBotApp();
-        default:
-            throw new Error(
-                `Unknown application type "${type}". Available types: ${Object.values(AppTypes)}`,
-            );
-    }
+    return bootstrapAllInOneApp();
 }
 
 bootstrap().catch((error) => {
-    logger.fatal({ error }, 'Failed to start application');
+    logger.fatal(
+        { error, message: error.message, stack: error.stack },
+        'Failed to start application',
+    );
+    console.error('Bootstrap error:', error);
     process.exit(1);
 });
 

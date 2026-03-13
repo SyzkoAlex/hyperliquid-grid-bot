@@ -1,5 +1,4 @@
 app:
-    type: bot
     name: hyperliquid-grid-bot
     port: ${APP_PORT:3000}
     host: ${APP_HOST:0.0.0.0}
@@ -35,26 +34,30 @@ hyperliquid:
 telegram:
     enabled: ${TELEGRAM_ENABLED:true}
     botToken: ${TELEGRAM_BOT_TOKEN:0000000000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}
-    allowedChatIds:
-        - ${TELEGRAM_ALLOWED_CHAT_IDS:0}
+    allowedManagerChatId: ${TELEGRAM_ALLOWED_MANAGER_CHAT_ID:0}
+    notificationChatId: ${TELEGRAM_NOTIFICATION_CHAT_ID:0}
     mode: ${TELEGRAM_MODE:polling}
     webhook:
         url: ${TELEGRAM_WEBHOOK_URL:}
         path: /telegram/webhook
-    notifications:
+    notifications: # TODO sync with NotifyUserUseCase
         tradeOpened: true
         tradeClosed: true
         stopLoss: true
         gridStarted: true
         gridStopped: true
         errors: true
-        fundingPayment: true
-        liquidationAlert: true
     formatting:
         parseMode: HTML
         disableWebPagePreview: true
     rateLimit:
         maxMessagesPerMinute: 20
+    session:
+        ttlSeconds: 86400
+        keyPrefix: "tg:session:"
+    pagination:
+        activePageSize: 5
+        stoppedPageSize: 5
 
 grid:
     defaultLevels: ${GRID_DEFAULT_LEVELS:20}
@@ -73,13 +76,9 @@ orders:
     pollIntervalMs: ${ORDERS_POLL_INTERVAL_MS:10000}
     recoveryIntervalMs: ${ORDERS_RECOVERY_INTERVAL_MS:600000} # 10 minutes
     pendingCleanupThresholdMs: ${ORDERS_PENDING_CLEANUP_THRESHOLD_MS:300000} # 5 minutes
-    # Time buffer (in ms) added before oldest order update when fetching historical orders
-    # Ensures status changes that occurred slightly before the last update aren't missed
-    # Helps handle clock skew and slight delays in order state propagation
-    historyFetchBufferMs: ${ORDERS_HISTORY_FETCH_BUFFER_MS:3600000} # 1 hour
 
 logging:
-    level: ${LOG_LEVEL:info}
+    level: ${LOG_LEVEL:trace}
     pretty: ${LOG_PRETTY:true}
 
 metrics:

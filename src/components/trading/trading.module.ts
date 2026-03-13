@@ -1,60 +1,65 @@
 import { Module } from '@nestjs/common';
-import { HyperliquidSdkService } from '@components/trading/secondary/client/hyperliquid/hyperliquid-sdk.service';
-import { HyperliquidOrderClient } from '@components/trading/secondary/client/hyperliquid/hyperliquid-order.client';
-import { HyperliquidOrderMapper } from '@components/trading/secondary/client/hyperliquid/hyperliquid-order.mapper';
-import { HyperliquidUserStateMapper } from '@components/trading/secondary/client/hyperliquid/hyperliquid-user-state.mapper';
-import { HyperliquidUserEventsClient } from '@components/trading/secondary/client/hyperliquid/hyperliquid-user-events.client';
-import { PostgresGridRepository } from '@components/trading/secondary/repository/grid/postgres-grid.repository';
-import { PostgresGridMapper } from '@components/trading/secondary/repository/grid/postgres-grid.mapper';
-import { PostgresOrderRepository } from '@components/trading/secondary/repository/order/postgres-order.repository';
-import { PostgresOrderMapper } from '@components/trading/secondary/repository/order/postgres-order.mapper';
-import { CreateAndStartGridUseCase } from '@components/trading/core/use-cases/create-and-start-grid/create-and-start-grid.use-case';
-import { SyncOrdersUseCase } from '@components/trading/core/use-cases/sync-orders/sync-orders.use-case';
-import { ProcessOrderStatusUseCase } from '@components/trading/core/use-cases/process-order-status/process-order-status.use-case';
-import { RestoreOrdersUseCase } from '@components/trading/core/use-cases/restore-orders/restore-orders.use-case';
-import { CapitalCalculatorService } from '@components/trading/core/services/capital-calculator/capital-calculator.service';
-import { GridLevelsCalculatorService } from '@components/trading/core/services/grid-levels-calculator/grid-levels-calculator.service';
-import { UserBalanceExtractorService } from '@components/trading/core/services/user-balance-extractor/user-balance-extractor.service';
-import { OrderStatusSyncService } from '@components/trading/core/services/order-status-sync/order-status-sync.service';
-import { OrderRefillService } from '@components/trading/core/services/order-refill/order-refill.service';
-import { OrderRestoreService } from '@components/trading/core/services/order-restore/order-restore.service';
-import { OrderPlacementService } from '@components/trading/core/services/order-placement/order-placement.service';
-import { ProfitCalculatorService } from '@components/trading/core/services/profit-calculator/profit-calculator.service';
-import { GridCommandsController } from '@components/trading/controllers/grid-commands/grid-commands.controller';
-import { CreateGridHandler } from '@components/trading/controllers/grid-commands/handlers/create-grid/create-grid.handler';
-import { OrdersPollingController } from '@components/trading/controllers/orders-polling/orders-polling.controller';
-import { OrdersWebsocketController } from '@components/trading/controllers/orders-websocket/orders-websocket.controller';
-import { OrdersRestoreController } from '@components/trading/controllers/orders-restore/orders-restore.controller';
+import { ConfigService } from '@nestjs/config';
+import { HyperliquidModule } from './adapters/outbound/exchange/hyperliquid/hyperliquid.module';
+import { Config } from '@/config/config.schema';
+import { CreateAndStartGridUseCase } from '@components/trading/core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case';
+import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
+import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
+import { RestoreOrdersUseCase } from '@components/trading/core/application/use-cases/restore-orders/restore-orders.use-case';
+import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
+import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
+import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
+import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
+import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
+import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
+import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
+import { ProfitCalculatorService } from '@components/trading/core/domain/services/profit-calculator/profit-calculator.service';
+import { GridCommandsAdapter } from '@components/trading/adapters/inbound/grid-commands/grid-commands.adapter';
+import { CreateGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/create-grid/create-grid.handler';
+import { StopGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
+import { StopGridUseCase } from '@components/trading/core/application/use-cases/stop-grid/stop-grid.use-case';
+import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
+import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
+import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
+import { GridsModule } from '@components/grids/grids.module';
+import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
+import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
+import { EventDeserializer } from '@domain/models/events/event-deserializer';
+import { TradingApiAdapter } from '@components/trading/api/trading-api.adapter';
+import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
 
 @Module({
+    imports: [HyperliquidModule, GridsModule, EventPublisherModule, EventSubscriberModule],
     providers: [
-        HyperliquidSdkService,
-        HyperliquidOrderClient,
-        HyperliquidOrderMapper,
-        HyperliquidUserStateMapper,
-        HyperliquidUserEventsClient,
-        PostgresGridRepository,
-        PostgresGridMapper,
-        PostgresOrderRepository,
-        PostgresOrderMapper,
+        { provide: TRADING_API_PORT, useClass: TradingApiAdapter },
+        EventDeserializer,
         CreateAndStartGridUseCase,
         SyncOrdersUseCase,
         ProcessOrderStatusUseCase,
         RestoreOrdersUseCase,
         CapitalCalculatorService,
-        GridLevelsCalculatorService,
+        {
+            provide: GridLevelsCalculatorService,
+            useFactory: (configService: ConfigService<Config, true>) => {
+                const { minOrderNotional } = configService.get('hyperliquid', { infer: true });
+                return new GridLevelsCalculatorService(minOrderNotional);
+            },
+            inject: [ConfigService],
+        },
         UserBalanceExtractorService,
         OrderStatusSyncService,
         OrderRefillService,
         OrderRestoreService,
         OrderPlacementService,
         ProfitCalculatorService,
-
-        GridCommandsController,
+        GridCommandsAdapter,
         CreateGridHandler,
-        OrdersPollingController,
-        OrdersWebsocketController,
-        OrdersRestoreController,
+        StopGridHandler,
+        StopGridUseCase,
+        OrdersPollingAdapter,
+        OrdersWebsocketAdapter,
+        OrdersRestoreAdapter,
     ],
+    exports: [TRADING_API_PORT],
 })
 export class TradingModule {}

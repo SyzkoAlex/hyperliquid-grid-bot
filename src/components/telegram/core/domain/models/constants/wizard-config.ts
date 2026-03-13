@@ -1,0 +1,9 @@
+export const WIZARD_CONFIG = {
+    MIN_INVESTMENT: 10,
+    PRICE_RANGE_PERCENT: 20,
+    DEFAULT_LEVELS: 10,
+    MIN_LEVELS: 3,
+    MAX_LEVELS: 100,
+    PRESET_LEVELS: [5, 10, 20, 50],
+    POPULAR_TOKENS: ['HYPE', 'BTC', 'ETH', 'SOL'],
+} as const;

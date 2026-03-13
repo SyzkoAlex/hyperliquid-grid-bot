@@ -18,13 +18,11 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
-            '@domain': path.resolve(__dirname, './src/domain'),
-            '@infra': path.resolve(__dirname, './src/infra'),
+            '@domain': path.resolve(__dirname, './src/core/domain'),
             '@components': path.resolve(__dirname, './src/components'),
             '@apps': path.resolve(__dirname, './src/apps'),
-            '@utils': path.resolve(__dirname, './src/utils'),
+            '@adapters': path.resolve(__dirname, './src/adapters'),
         },
         extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
     },
 });
-

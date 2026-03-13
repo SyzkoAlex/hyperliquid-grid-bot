@@ -53,5 +53,7 @@ tsconfig.tsbuildinfo
 
 
 # AI
+.ai
 .claude
 .junie
+.cursor

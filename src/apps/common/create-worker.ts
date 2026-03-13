@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { logger } from '../../infra/logger/logger';
+import { logger } from '@/infra/logger/logger';
 
 export async function createWorker(appModule: any) {
     const app = await NestFactory.create(appModule, {

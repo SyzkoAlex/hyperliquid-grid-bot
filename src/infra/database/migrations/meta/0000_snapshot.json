@@ -1,5 +1,5 @@
 {
-  "id": "425bb082-b5fb-4f29-b5d8-537be9a1be78",
+  "id": "2c039ca5-1242-4de3-b5cb-64a93cddafff",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -182,13 +182,6 @@
           "type": "numeric(20, 8)",
           "primaryKey": false,
           "notNull": true
-        },
-        "filled_amount": {
-          "name": "filled_amount",
-          "type": "numeric(20, 8)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'0'"
         },
         "status": {
           "name": "status",
