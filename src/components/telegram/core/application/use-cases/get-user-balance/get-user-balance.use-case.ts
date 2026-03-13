@@ -17,27 +17,15 @@ export class GetUserBalanceUseCase {
 
     async execute(): Promise<UserBalance> {
         const state = await this.tradingApi.getUserSpotState(this.accountAddress);
-        const symbols = Object.keys(state.spotPositions);
 
-        const tokens: TokenBalance[] = await Promise.all(
-            symbols.map(async (symbol) => {
-                const pos = state.spotPositions[symbol];
-                const price = await this.tradingApi.getCurrentPrice(symbol);
-                const valueUsdc = pos.total * price;
-                return {
-                    symbol,
-                    available: pos.available,
-                    inOrders: pos.hold,
-                    total: pos.total,
-                    price,
-                    valueUsdc,
-                };
-            }),
+        const allTokens = await Promise.all(
+            Object.keys(state.spotPositions).map((symbol) =>
+                this.fetchTokenBalance(symbol, state.spotPositions[symbol]),
+            ),
         );
 
-        const nonZeroTokens = tokens.filter((t) => t.total > 0);
-        const tokensValue = nonZeroTokens.reduce((sum, t) => sum + t.valueUsdc, 0);
-        const totalValueUsdc = state.usdc.total + tokensValue;
+        const tokens = allTokens.filter((t) => t.total > 0);
+        const totalValueUsdc = state.usdc.total + tokens.reduce((sum, t) => sum + t.valueUsdc, 0);
 
         return {
             usdc: {
@@ -45,8 +33,23 @@ export class GetUserBalanceUseCase {
                 inOrders: state.usdc.hold,
                 total: state.usdc.total,
             },
-            tokens: nonZeroTokens,
+            tokens,
             totalValueUsdc,
+        };
+    }
+
+    private async fetchTokenBalance(
+        symbol: string,
+        pos: { available: number; hold: number; total: number },
+    ): Promise<TokenBalance> {
+        const price = await this.tradingApi.getCurrentPrice(symbol);
+        return {
+            symbol,
+            available: pos.available,
+            inOrders: pos.hold,
+            total: pos.total,
+            price,
+            valueUsdc: pos.total * price,
         };
     }
 }

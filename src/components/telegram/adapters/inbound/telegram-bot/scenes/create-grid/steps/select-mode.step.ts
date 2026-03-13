@@ -8,7 +8,8 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { SelectModeMessages } from '@components/telegram/core/domain/models/messages/wizard/select-mode.messages';
+import { SelectModeTexts } from '@components/telegram/core/domain/models/messages/wizard/select-mode.texts';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class SelectModeStep implements WizardStep {
@@ -28,9 +29,9 @@ export class SelectModeStep implements WizardStep {
 
         await this.messageManager.sendEnterMessage(
             ctx,
-            SelectModeMessages.PROMPT,
+            SelectModeTexts.PROMPT,
             keyboard,
-            'HTML',
+            TelegramParseMode.HTML,
         );
     }
 
@@ -43,8 +44,8 @@ export class SelectModeStep implements WizardStep {
 
         const confirmText =
             mode === CreateGridMode.Quick
-                ? SelectModeMessages.QUICK_MODE_CONFIRMATION
-                : SelectModeMessages.ADVANCED_MODE_CONFIRMATION;
+                ? SelectModeTexts.QUICK_MODE_CONFIRMATION
+                : SelectModeTexts.ADVANCED_MODE_CONFIRMATION;
         const nextStep = mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Upper;
 
         return {

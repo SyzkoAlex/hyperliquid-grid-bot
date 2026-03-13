@@ -54,6 +54,10 @@ telegram:
         maxMessagesPerMinute: 20
     session:
         ttlSeconds: 86400
+        keyPrefix: "tg:session:"
+    pagination:
+        activePageSize: 5
+        stoppedPageSize: 5
 
 grid:
     defaultLevels: ${GRID_DEFAULT_LEVELS:20}

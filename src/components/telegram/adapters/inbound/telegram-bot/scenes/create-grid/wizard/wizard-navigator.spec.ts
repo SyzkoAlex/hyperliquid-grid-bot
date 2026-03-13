@@ -62,6 +62,47 @@ describe('WizardNavigator', () => {
     });
 
     describe('completeStep', () => {
+        it('returns early when currentStep is falsy', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { stepHistory: [], stepMessages: {} };
+
+            await navigator.completeStep(ctx, {
+                nextStep: SceneStep.Mode,
+            });
+
+            expect(mockMessageManager.deleteEnterMessages).not.toHaveBeenCalled();
+            expect(mockModeStep.enter).not.toHaveBeenCalled();
+        });
+
+        it('does not call sendConfirmation when confirmations is empty', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+                stepMessages: {},
+            };
+
+            await navigator.completeStep(ctx, {
+                nextStep: SceneStep.Mode,
+                confirmations: [],
+            });
+
+            expect(mockMessageManager.sendConfirmation).not.toHaveBeenCalled();
+            expect(mockModeStep.enter).toHaveBeenCalledWith(ctx);
+        });
+
+        it('initializes stepHistory if undefined', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepMessages: {},
+            };
+
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Mode });
+
+            expect(ctx.session.createGrid?.stepHistory).toContain(SceneStep.Pair);
+        });
+
         it('deletes enter messages, sends confirmations, and navigates to next step', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
@@ -162,6 +203,33 @@ describe('WizardNavigator', () => {
             expect(ctx.session.createGrid).toBeUndefined();
             expect(ctx.scene.leave).toHaveBeenCalled();
         });
+
+        it('sends cancellation message when stepHistory is non-empty', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Mode,
+                stepHistory: [SceneStep.Pair],
+                stepMessages: {},
+            };
+
+            await navigator.handleCancel(ctx);
+
+            expect(ctx.reply).toHaveBeenCalled();
+            expect(ctx.session.createGrid).toBeUndefined();
+        });
+
+        it('does not send cancellation message when stepHistory is empty', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+                stepMessages: {},
+            };
+
+            await navigator.handleCancel(ctx);
+
+            expect(ctx.reply).not.toHaveBeenCalled();
+        });
     });
 
     describe('getCurrentStep', () => {
@@ -176,6 +244,17 @@ describe('WizardNavigator', () => {
             const ctx = createMockContext();
 
             expect(navigator.getCurrentStep(ctx)).toBeNull();
+        });
+    });
+
+    describe('getStepInstance', () => {
+        it('returns registered step by id', () => {
+            expect(navigator.getStepInstance(SceneStep.Pair)).toBe(mockPairStep);
+            expect(navigator.getStepInstance(SceneStep.Mode)).toBe(mockModeStep);
+        });
+
+        it('returns undefined for unregistered step', () => {
+            expect(navigator.getStepInstance(SceneStep.Quick)).toBeUndefined();
         });
     });
 });

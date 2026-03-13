@@ -1,58 +1,69 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { OrderStatus } from '@domain/models/order/order-status';
-import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
-import { computeOrderStats } from '../../../domain/models/order-stats';
 import { GridFilter } from './grid-filter';
-import { GridWithPnl } from './grid-with-pnl';
+import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotFactory } from '../../services/grid-snapshot-factory/grid-snapshot.factory';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
+
+export interface GridsPage {
+    items: GridSnapshot[];
+    totalCount: number;
+    currentPage: number;
+}
 
 @Injectable()
 export class GetGridsWithPnlUseCase {
     constructor(
-        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(GRIDS_API_PORT) private readonly gridsApi: GridsApiPort,
         @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
-        private readonly pnlCalculator: GridPnlCalculatorService,
+        private readonly snapshotFactory: GridSnapshotFactory,
     ) {}
 
-    async execute(filter: GridFilter = GridFilter.All): Promise<GridWithPnl[]> {
-        const gridList = await this.fetchGrids(filter);
+    async execute(filter: GridFilter, page: number, pageSize: number): Promise<GridsPage> {
+        const status = this.filterToStatus(filter);
+        const {
+            items: gridList,
+            totalCount,
+            currentPage,
+        } = await this.gridsApi.findGridsPaged({ status, page, pageSize });
+        const items = await this.enrichWithPnl(gridList);
+        return { items, totalCount, currentPage };
+    }
 
-        const result = await Promise.all(
-            gridList.map(async (grid) => {
-                const [orders, currentPrice] = await Promise.all([
-                    this.grids.findOrdersByGridId(grid.id),
-                    this.tradingApi.getCurrentPrice(grid.symbol),
-                ]);
-                const filled = orders
-                    .filter((o) => o.status === OrderStatus.Filled && o.price !== null)
-                    .map((o) => ({ side: o.side, price: o.price!, amount: o.amount }));
-                const pnl = this.pnlCalculator.calculate(filled, currentPrice);
-                const orderStats = computeOrderStats(orders);
-                return { grid, pnl, currentPrice, orderStats, orders };
-            }),
+    private async enrichWithPnl(gridList: GridDto[]): Promise<GridSnapshot[]> {
+        const gridIds = gridList.map((g) => g.id);
+        const symbols = gridList.map((g) => g.symbol);
+        const [allOrders, prices] = await Promise.all([
+            this.gridsApi.findOrdersByGridIds(gridIds),
+            this.tradingApi.getCurrentPrices(symbols),
+        ]);
+        const ordersByGridId = this.groupOrdersByGridId(allOrders);
+        return gridList.map((grid, i) =>
+            this.snapshotFactory.create(grid, ordersByGridId.get(grid.id) ?? [], prices[i]),
         );
-
-        if (filter === GridFilter.Stopped) {
-            result.sort((a, b) => (b.grid.stoppedAt ?? 0) - (a.grid.stoppedAt ?? 0));
-        }
-
-        return result;
     }
 
-    async count(filter: GridFilter): Promise<number> {
-        const grids = await this.fetchGrids(filter);
-        return grids.length;
+    private groupOrdersByGridId(orders: OrderDto[]): Map<string, OrderDto[]> {
+        const map = new Map<string, OrderDto[]>();
+        for (const order of orders) {
+            const list = map.get(order.gridId) ?? [];
+            list.push(order);
+            map.set(order.gridId, list);
+        }
+        return map;
     }
 
-    private async fetchGrids(filter: GridFilter) {
-        if (filter === GridFilter.Running) {
-            return this.grids.findGridsByStatus(GridStatus.Running);
+    private filterToStatus(filter: GridFilter): GridStatus | undefined {
+        switch (filter) {
+            case GridFilter.Running:
+                return GridStatus.Running;
+            case GridFilter.Stopped:
+                return GridStatus.Stopped;
+            case GridFilter.All:
+                return undefined;
         }
-        if (filter === GridFilter.Stopped) {
-            return this.grids.findGridsByStatus(GridStatus.Stopped);
-        }
-        return this.grids.findAllGrids();
     }
 }

@@ -14,8 +14,11 @@ import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedInvestmentMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    AdvancedInvestmentPromptMessage,
+    AdvancedInvestmentConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { fetchBalanceInfo } from '../helpers/balance-info';
 import { validateInvestment } from '../helpers/investment-validator';
 
@@ -44,7 +47,7 @@ export class AdvancedInvestmentStep implements WizardStep {
             ],
         ];
 
-        let message = AdvancedInvestmentMessages.promptWithoutBalance();
+        let message = AdvancedInvestmentPromptMessage.create().text;
 
         if (symbol) {
             try {
@@ -57,7 +60,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                 if (balanceInfo.baseBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
                         ctx,
-                        ValidationMessages.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
+                        ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
                         keyboard,
                     );
                     return;
@@ -66,22 +69,22 @@ export class AdvancedInvestmentStep implements WizardStep {
                 if (balanceInfo.usdcBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
                         ctx,
-                        ValidationMessages.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
+                        ValidationTexts.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
                         keyboard,
                     );
                     return;
                 }
 
-                message = AdvancedInvestmentMessages.promptWithBalance(
+                message = AdvancedInvestmentPromptMessage.create({
                     symbol,
-                    balanceInfo.usdcBalance,
-                    balanceInfo.baseBalance,
-                    balanceInfo.baseInUsdc,
-                    balanceInfo.totalBalance,
-                    balanceInfo.currentPrice,
-                    balanceInfo.suggestedMaxRounded,
+                    usdcBalance: balanceInfo.usdcBalance,
+                    baseBalance: balanceInfo.baseBalance,
+                    baseInUsdc: balanceInfo.baseInUsdc,
+                    totalBalance: balanceInfo.totalBalance,
+                    currentPrice: balanceInfo.currentPrice,
+                    suggestedMax: balanceInfo.suggestedMaxRounded,
                     levels,
-                );
+                }).text;
             } catch (error) {
                 logger.warn({ error }, 'Failed to fetch balance in advanced investment step');
             }
@@ -139,13 +142,13 @@ export class AdvancedInvestmentStep implements WizardStep {
             session.createGrid.gridMode = GridMode.Neutral;
             return {
                 nextStep: SceneStep.Preview,
-                confirmations: [AdvancedInvestmentMessages.confirmation(investment)],
+                confirmations: [AdvancedInvestmentConfirmationMessage.create(investment).text],
             };
         } catch (error) {
             logger.error({ error }, 'Failed to validate balance in advanced investment step');
             await this.messageManager.sendEnterMessage(
                 ctx,
-                ValidationMessages.fetchDataFailed(session.createGrid.symbol),
+                ValidationTexts.fetchDataFailed(session.createGrid.symbol),
             );
             return null;
         }

@@ -14,8 +14,11 @@ import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { QuickStartMessages } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    QuickStartPromptMessage,
+    QuickStartConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { fetchBalanceInfo } from '../helpers/balance-info';
 import { validateInvestment } from '../helpers/investment-validator';
 
@@ -43,7 +46,7 @@ export class QuickStartStep implements WizardStep {
             ],
         ];
 
-        let message = QuickStartMessages.promptWithoutBalance();
+        let message = QuickStartPromptMessage.create().text;
 
         if (symbol) {
             try {
@@ -56,7 +59,7 @@ export class QuickStartStep implements WizardStep {
                 if (balanceInfo.baseBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
                         ctx,
-                        ValidationMessages.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
+                        ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
                         keyboard,
                     );
                     return;
@@ -65,21 +68,21 @@ export class QuickStartStep implements WizardStep {
                 if (balanceInfo.usdcBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
                         ctx,
-                        ValidationMessages.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
+                        ValidationTexts.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
                         keyboard,
                     );
                     return;
                 }
 
-                message = QuickStartMessages.promptWithBalance(
+                message = QuickStartPromptMessage.create({
                     symbol,
-                    balanceInfo.usdcBalance,
-                    balanceInfo.baseBalance,
-                    balanceInfo.baseInUsdc,
-                    balanceInfo.totalBalance,
-                    balanceInfo.currentPrice,
-                    balanceInfo.suggestedMaxRounded,
-                );
+                    usdcBalance: balanceInfo.usdcBalance,
+                    baseBalance: balanceInfo.baseBalance,
+                    baseInUsdc: balanceInfo.baseInUsdc,
+                    totalBalance: balanceInfo.totalBalance,
+                    currentPrice: balanceInfo.currentPrice,
+                    suggestedMax: balanceInfo.suggestedMaxRounded,
+                }).text;
             } catch (error) {
                 logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
@@ -141,12 +144,12 @@ export class QuickStartStep implements WizardStep {
 
             return {
                 nextStep: SceneStep.Preview,
-                confirmations: [QuickStartMessages.confirmation(investment)],
+                confirmations: [QuickStartConfirmationMessage.create(investment).text],
             };
         } catch (error) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                ValidationMessages.fetchDataFailed(session.createGrid.symbol),
+                ValidationTexts.fetchDataFailed(session.createGrid.symbol),
             );
             return null;
         }

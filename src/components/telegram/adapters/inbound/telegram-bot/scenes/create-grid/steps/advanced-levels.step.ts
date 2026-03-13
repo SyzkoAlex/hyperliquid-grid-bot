@@ -8,8 +8,11 @@ import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedLevelsMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-levels.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    AdvancedLevelsTexts,
+    AdvancedLevelsConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/advanced-levels.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
 export class AdvancedLevelsStep implements WizardStep {
@@ -28,7 +31,7 @@ export class AdvancedLevelsStep implements WizardStep {
             ],
         ];
 
-        await this.messageManager.sendEnterMessage(ctx, AdvancedLevelsMessages.PROMPT, keyboard);
+        await this.messageManager.sendEnterMessage(ctx, AdvancedLevelsTexts.PROMPT, keyboard);
     }
 
     async handleLevelsSelection(ctx: BotContext, levels: number): Promise<StepResult> {
@@ -40,7 +43,7 @@ export class AdvancedLevelsStep implements WizardStep {
         if (levels < WIZARD_CONFIG.MIN_LEVELS || levels > WIZARD_CONFIG.MAX_LEVELS) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                ValidationMessages.invalidLevelsRange(
+                ValidationTexts.invalidLevelsRange(
                     WIZARD_CONFIG.MIN_LEVELS,
                     WIZARD_CONFIG.MAX_LEVELS,
                 ),
@@ -51,7 +54,7 @@ export class AdvancedLevelsStep implements WizardStep {
         session.createGrid.levels = levels;
         return {
             nextStep: SceneStep.Investment,
-            confirmations: [AdvancedLevelsMessages.confirmation(levels)],
+            confirmations: [AdvancedLevelsConfirmationMessage.create(levels).text],
         };
     }
 
@@ -64,7 +67,7 @@ export class AdvancedLevelsStep implements WizardStep {
         const levels = parseInt(text, 10);
 
         if (isNaN(levels)) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidNumber());
+            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidNumber());
             return null;
         }
 

@@ -17,6 +17,43 @@ describe('SelectModeStep', () => {
         step = new SelectModeStep(mockMessageManager);
     });
 
+    describe('enter', () => {
+        it('sends prompt with Quick and Advanced mode buttons', async () => {
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
+                ctx,
+                expect.any(String),
+                expect.arrayContaining([
+                    expect.arrayContaining([
+                        expect.objectContaining({ action: 'create_grid:mode:quick' }),
+                    ]),
+                ]),
+                'HTML',
+            );
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('deletes mode from session', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { mode: CreateGridMode.Quick };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.mode).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
+    });
+
     describe('handleModeSelection', () => {
         it('should set quick mode in session', async () => {
             const ctx = createMockContext();

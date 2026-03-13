@@ -24,6 +24,10 @@ export class TradingApiAdapter implements TradingApiPort {
         return price.toNumber();
     }
 
+    async getCurrentPrices(symbols: string[]): Promise<number[]> {
+        return Promise.all(symbols.map((s) => this.getCurrentPrice(s)));
+    }
+
     async getUserSpotState(user: string): Promise<UserStateDto> {
         const userState = await this.exchange.getUserSpotState(user);
         const usdcBalance = userState.withdrawableBalance.toNumber();

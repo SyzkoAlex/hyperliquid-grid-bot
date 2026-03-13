@@ -3,9 +3,11 @@ import { logger } from '@/infra/logger/logger';
 import { TelegramBotService } from '@components/telegram/adapters/inbound/telegram-bot/telegram-bot.service';
 import { StartHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/start/start.handler';
 import { HelpHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/help/help.handler';
-import { MainMenuHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/main-menu/main-menu.handler';
 import { GridsHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grids/grids.handler';
-import { GridViewHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-view.handler';
+import { GridProfitTabHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-profit-tab.handler';
+import { GridOrdersTabHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-orders-tab.handler';
+import { GridHistoryTabHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-history-tab.handler';
+import { StopGridHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/stop-grid.handler';
 import { BalanceHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/balance/balance.handler';
 import {
     CREATE_GRID_SCENE_ID,
@@ -13,7 +15,7 @@ import {
 } from '@components/telegram/adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 
 @Injectable()
@@ -24,9 +26,11 @@ export class TelegramCommandsAdapter implements OnModuleInit {
         private readonly telegramBotService: TelegramBotService,
         private readonly startHandler: StartHandler,
         private readonly helpHandler: HelpHandler,
-        private readonly mainMenuHandler: MainMenuHandler,
         private readonly gridsHandler: GridsHandler,
-        private readonly gridViewHandler: GridViewHandler,
+        private readonly gridProfitTabHandler: GridProfitTabHandler,
+        private readonly gridOrdersTabHandler: GridOrdersTabHandler,
+        private readonly gridHistoryTabHandler: GridHistoryTabHandler,
+        private readonly stopGridHandler: StopGridHandler,
         private readonly balanceHandler: BalanceHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
     ) {}
@@ -45,9 +49,11 @@ export class TelegramCommandsAdapter implements OnModuleInit {
     private registerHandlers() {
         this.startHandler.register();
         this.helpHandler.register();
-        this.mainMenuHandler.register();
         this.gridsHandler.register();
-        this.gridViewHandler.register();
+        this.gridProfitTabHandler.register();
+        this.gridOrdersTabHandler.register();
+        this.gridHistoryTabHandler.register();
+        this.stopGridHandler.register();
         this.balanceHandler.register();
         this.registerCreateGridHandler();
         this.registerStubHandlers();
@@ -69,11 +75,11 @@ export class TelegramCommandsAdapter implements OnModuleInit {
 
     private registerStubHandlers() {
         const stubReply = async (ctx: BotContext) => {
-            await ctx.reply(CommonMessages.COMING_SOON);
+            await ctx.reply(CommonTexts.COMING_SOON);
         };
         const stubAction = async (ctx: BotContext) => {
             await ctx.answerCbQuery();
-            await ctx.editMessageText(CommonMessages.COMING_SOON);
+            await ctx.editMessageText(CommonTexts.COMING_SOON);
         };
 
         this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, stubReply);

@@ -9,8 +9,11 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedUpperMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-upper.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    AdvancedUpperPromptMessage,
+    AdvancedUpperConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/advanced-upper.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
 export class AdvancedUpperStep implements WizardStep {
@@ -36,12 +39,15 @@ export class AdvancedUpperStep implements WizardStep {
                 const currentPrice = await this.tradingApi.getCurrentPrice(
                     session.createGrid.symbol,
                 );
-                message = AdvancedUpperMessages.prompt(session.createGrid.symbol, currentPrice);
+                message = AdvancedUpperPromptMessage.create(
+                    session.createGrid.symbol,
+                    currentPrice,
+                ).text;
             } catch (error) {
-                message = AdvancedUpperMessages.prompt(session.createGrid.symbol);
+                message = AdvancedUpperPromptMessage.create(session.createGrid.symbol).text;
             }
         } else {
-            message = AdvancedUpperMessages.prompt();
+            message = AdvancedUpperPromptMessage.create().text;
         }
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard);
@@ -56,14 +62,14 @@ export class AdvancedUpperStep implements WizardStep {
         const price = parseFloat(text);
 
         if (isNaN(price) || price <= 0) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidPrice());
+            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidPrice());
             return null;
         }
 
         session.createGrid.upperPrice = price;
         return {
             nextStep: SceneStep.Lower,
-            confirmations: [AdvancedUpperMessages.confirmation(price)],
+            confirmations: [AdvancedUpperConfirmationMessage.create(price).text],
         };
     }
 

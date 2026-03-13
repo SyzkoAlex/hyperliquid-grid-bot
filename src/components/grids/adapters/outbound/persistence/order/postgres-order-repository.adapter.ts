@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { DRIZZLE_DB } from '@/infra/database/database.module';
 import { Order } from '../../../../core/domain/models/order/order';
@@ -85,19 +85,6 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
         }
     }
 
-    async findManyPendingByGridId(gridId: string): Promise<Order[]> {
-        try {
-            const rows = await this.db
-                .select()
-                .from(orders)
-                .where(and(eq(orders.gridId, gridId), eq(orders.status, OrderStatus.Pending)));
-            return rows.map((row) => PostgresOrderMapper.toDomain(row));
-        } catch (error) {
-            this.logger.error({ error, gridId }, 'Failed to find pending orders by grid ID');
-            throw error;
-        }
-    }
-
     async updateExchangeOrderId(
         orderId: string,
         exchangeOrderId: string,
@@ -119,21 +106,6 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
         }
     }
 
-    async findManyStalePending(olderThan: Date): Promise<Order[]> {
-        try {
-            const rows = await this.db
-                .select()
-                .from(orders)
-                .where(
-                    and(eq(orders.status, OrderStatus.Pending), lt(orders.createdAt, olderThan)),
-                );
-            return rows.map((row) => PostgresOrderMapper.toDomain(row));
-        } catch (error) {
-            this.logger.error({ error, olderThan }, 'Failed to find stale pending orders');
-            throw error;
-        }
-    }
-
     async findManyByStatus(status: OrderStatus): Promise<Order[]> {
         try {
             const rows = await this.db.select().from(orders).where(eq(orders.status, status));
@@ -144,14 +116,14 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
         }
     }
 
-    async findManyByIds(orderIds: string[]): Promise<Order[]> {
-        if (orderIds.length === 0) return [];
+    async findManyByGridIds(gridIds: string[]): Promise<Order[]> {
+        if (gridIds.length === 0) return [];
         try {
-            const rows = await this.db.select().from(orders).where(inArray(orders.id, orderIds));
+            const rows = await this.db.select().from(orders).where(inArray(orders.gridId, gridIds));
             return rows.map((row) => PostgresOrderMapper.toDomain(row));
         } catch (error) {
-            this.logger.error({ error, orderIds }, 'Failed to find orders by IDs');
-            throw error;
+            this.logger.error({ error, gridIds }, 'Failed to find orders by grid IDs');
+            return [];
         }
     }
 

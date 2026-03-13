@@ -38,6 +38,39 @@ Core `gridProfit` + `unrealizedPnl` are implemented. Remaining:
 - [ ] Add `vsHodl = currentEquity − hodlEquity` comparison
 - [ ] Add breakeven check: warn if `gridStep / avgPrice < 2 × feeRate`
 
+### Grid Gap Scan
+
+**Problem:** the system is purely event-driven (`fill → refill`). If an order is cancelled, fails,
+or a WS event is lost, the gap in the grid persists indefinitely. Example: grid `de8a2d64`,
+level 1 sell (83.3454) was cancelled by the exchange — bot placed nothing in its place.
+
+**Solution:** a new `GridGapScanUseCase` running periodically (~5 min) as a safety net.
+
+Gap detection logic per running grid:
+- Load all `filled` (history) and `placed`/`pending` (active) orders
+- For each level N: if there is a `filled buy` at N without a `placed sell` at N+1 → gap
+- For each level N: if there is a `filled sell` at N without a `placed buy` at N-1 → gap
+- Before placing a missing order, check current price — skip if sell would be below bid or buy above ask
+
+Implementation structure:
+```
+trading/adapters/inbound/grid-gap-scan/
+  grid-gap-scan.adapter.ts          # periodic trigger (OnModuleInit + setInterval)
+trading/core/application/
+  use-cases/scan-grid-gaps/
+    scan-grid-gaps.use-case.ts      # orchestrator: iterates grids, calls detector + refill
+  services/grid-gap-detector/
+    grid-gap-detector.service.ts    # pure logic: filled + placed orders → list of RefillParams
+```
+
+Required changes:
+- [ ] `OrderRepositoryPort.findFilledOrdersByGridId(gridId)` — add (currently only `findActiveOrders` exists)
+- [ ] `GridsApiPort` — expose filled orders method
+- [ ] `GridGapDetectorService` — pure, no I/O, returns `RefillParams[]`
+- [ ] `ScanGridGapsUseCase` — calls detector, then `OrderRefillService.processOne()` per gap
+- [ ] `GridGapScanAdapter` — periodic trigger, concurrency guard, interval from config
+- [ ] Config: `orders.gapScanIntervalMs: 300000`
+
 ### Risk Management
 
 - [ ] Order placement retry logic (3 attempts with backoff)

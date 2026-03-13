@@ -159,6 +159,70 @@ describe('QuickStartStep', () => {
         });
     });
 
+    describe('enter (additional paths)', () => {
+        it('should show balance info when symbol exists and both balances are non-zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { BTC: 0.1 },
+                spotPositions: { BTC: { available: 0.1, total: 0.1, hold: 0 } },
+            });
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+
+        it('should show fallback message when symbol is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+
+            await step.enter(ctx);
+
+            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+
+        it('should show fallback message when balance fetch fails', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('clears all quick-start fields', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                totalInvestmentUSDC: 1000,
+                upperPrice: 60000,
+                lowerPrice: 40000,
+                levels: 10,
+            };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
+            expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.levels).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
+    });
+
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {

@@ -7,8 +7,11 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedLowerMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-lower.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    AdvancedLowerPromptMessage,
+    AdvancedLowerConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/advanced-lower.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
 export class AdvancedLowerStep implements WizardStep {
@@ -25,7 +28,7 @@ export class AdvancedLowerStep implements WizardStep {
         ];
 
         const session = ctx.session;
-        const message = AdvancedLowerMessages.prompt(session.createGrid?.upperPrice);
+        const message = AdvancedLowerPromptMessage.create(session.createGrid?.upperPrice).text;
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard);
     }
@@ -39,14 +42,14 @@ export class AdvancedLowerStep implements WizardStep {
         const price = parseFloat(text);
 
         if (isNaN(price) || price <= 0) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidPrice());
+            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidPrice());
             return null;
         }
 
         if (price >= session.createGrid.upperPrice) {
             await this.messageManager.sendEnterMessage(
                 ctx,
-                ValidationMessages.lowerPriceMustBeLess(session.createGrid.upperPrice),
+                ValidationTexts.lowerPriceMustBeLess(session.createGrid.upperPrice),
             );
             return null;
         }
@@ -54,7 +57,7 @@ export class AdvancedLowerStep implements WizardStep {
         session.createGrid.lowerPrice = price;
         return {
             nextStep: SceneStep.Levels,
-            confirmations: [AdvancedLowerMessages.confirmation(price)],
+            confirmations: [AdvancedLowerConfirmationMessage.create(price).text],
         };
     }
 

@@ -9,9 +9,10 @@ import { CreateGridMode } from '../create-grid-mode';
 import { Inject } from '@nestjs/common';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedPreviewMessages } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import { AdvancedPreviewMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class AdvancedPreviewStep implements WizardStep {
@@ -24,7 +25,7 @@ export class AdvancedPreviewStep implements WizardStep {
 
     async enter(ctx: BotContext): Promise<void> {
         if (!this.validateState(ctx)) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationMessages.invalidState());
+            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidState());
             await ctx.scene.leave();
             return;
         }
@@ -51,18 +52,18 @@ export class AdvancedPreviewStep implements WizardStep {
             // Ignore error, just don't show current price
         }
 
-        const message = AdvancedPreviewMessages.preview(
-            state.symbol!,
-            state.gridMode!,
-            state.lowerPrice!,
-            state.upperPrice!,
+        const message = AdvancedPreviewMessage.create({
+            symbol: state.symbol!,
+            mode: state.gridMode!,
+            lowerPrice: state.lowerPrice!,
+            upperPrice: state.upperPrice!,
             currentPrice,
-            state.levels!,
-            state.totalInvestmentUSDC!,
+            levels: state.levels!,
+            totalInvestment: state.totalInvestmentUSDC!,
             orderSize,
-        );
+        }).text;
 
-        await this.messageManager.sendEnterMessage(ctx, message, keyboard, 'HTML');
+        await this.messageManager.sendEnterMessage(ctx, message, keyboard, TelegramParseMode.HTML);
     }
 
     private validateState(ctx: BotContext): boolean {

@@ -1,7 +1,7 @@
 import { MiddlewareFn } from 'telegraf';
 import { createContextLogger } from '@/infra/logger/logger';
 import { BotContext } from '../types/bot-context';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 function getTelegramErrorDescription(error: unknown): string {
     if (
@@ -51,7 +51,7 @@ export function createErrorHandlerMiddleware(): MiddlewareFn<BotContext> {
                 if (ctx.callbackQuery) {
                     await ctx.answerCbQuery().catch(() => void 0);
                 }
-                await ctx.reply(`${EMOJI.ERROR} Something went wrong. Please try again later.`);
+                await ctx.reply(CommonTexts.UNHANDLED_ERROR);
             } catch (replyError) {
                 log.error({ error: replyError }, 'Failed to send error reply to user');
             }

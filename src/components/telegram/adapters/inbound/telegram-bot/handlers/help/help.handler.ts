@@ -6,8 +6,7 @@ import { TelegramAction } from '@components/telegram/core/domain/models/telegram
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { HelpMessage } from '@components/telegram/core/domain/models/messages/help-message';
 import { Handler } from '../handler';
-import { backToMenuKeyboard } from '../back-to-menu.keyboard';
-import { toInlineKeyboard } from '../inline-keyboard';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class HelpHandler implements Handler {
@@ -19,20 +18,14 @@ export class HelpHandler implements Handler {
         this.telegramBotService.onHears(BUTTON_LABELS.HELP, (ctx) => this.handle(ctx));
     }
 
-    private helpText() {
-        return new HelpMessage().toString();
-    }
-
-    private helpMarkup() {
-        return { parse_mode: 'HTML' as const, ...toInlineKeyboard(backToMenuKeyboard()) };
-    }
-
     private async handle(ctx: BotContext): Promise<void> {
-        await ctx.reply(this.helpText(), this.helpMarkup());
+        await ctx.reply(HelpMessage.create().text, { parse_mode: TelegramParseMode.HTML });
     }
 
     private async handleAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        await ctx.editMessageText(this.helpText(), this.helpMarkup());
+        await ctx.editMessageText(HelpMessage.create().text, {
+            parse_mode: TelegramParseMode.HTML,
+        });
     }
 }

@@ -73,7 +73,36 @@ describe('AdvancedPreviewStep', () => {
         });
     });
 
+    describe('enter (additional paths)', () => {
+        it('should build preview with null price when getCurrentPrice throws', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                symbol: 'BTC',
+                mode: CreateGridMode.Advanced,
+                gridMode: GridMode.Neutral,
+                upperPrice: 55000,
+                lowerPrice: 45000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+            };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API error'));
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+    });
+
     describe('rollbackState', () => {
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid).toBeUndefined();
+        });
+
         it('should clear quick mode fields', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {

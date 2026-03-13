@@ -25,6 +25,12 @@ export const telegramRateLimitSchema = z.object({
 
 export const telegramSessionSchema = z.object({
     ttlSeconds: z.coerce.number().int().positive(),
+    keyPrefix: z.string().min(1),
+});
+
+export const telegramPaginationSchema = z.object({
+    activePageSize: z.coerce.number().int().positive(),
+    stoppedPageSize: z.coerce.number().int().positive(),
 });
 
 export const telegramSchema = z.object({
@@ -38,6 +44,7 @@ export const telegramSchema = z.object({
     formatting: telegramFormattingSchema,
     rateLimit: telegramRateLimitSchema,
     session: telegramSessionSchema,
+    pagination: telegramPaginationSchema,
 });
 
 export type TelegramConfig = z.infer<typeof telegramSchema>;

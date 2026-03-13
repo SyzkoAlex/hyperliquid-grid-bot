@@ -6,6 +6,7 @@ export const TRADING_API_PORT = Symbol('TRADING_API_PORT');
 
 export interface TradingApiPort {
     getCurrentPrice(symbol: string): Promise<number>;
+    getCurrentPrices(symbols: string[]): Promise<number[]>;
     getUserSpotState(user: string): Promise<UserStateDto>;
     pairExists(symbol: string): Promise<boolean>;
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto;

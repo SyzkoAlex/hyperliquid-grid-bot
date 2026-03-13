@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridUseCase } from '@components/telegram/core/application/use-cases/create-grid/create-grid.use-case';
-import { PendingCreationMessageStore } from '@components/telegram/core/application/services/pending-creation-message.store';
+import { PendingCreationMessageStore } from '../../../pending-creation-message.store';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
-import { ConfirmMessages } from '@components/telegram/core/domain/models/messages/wizard/confirm.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import { GridCreatingMessage } from '@components/telegram/core/domain/models/messages/wizard/confirm.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { logger } from '@/infra/logger/logger';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class ConfirmStep {
@@ -21,19 +22,19 @@ export class ConfirmStep {
         const state = session.createGrid;
 
         if (!this.validateState(state)) {
-            await ctx.reply(ValidationMessages.invalidGridConfig());
+            await ctx.reply(ValidationTexts.invalidGridConfig());
             return;
         }
 
         const sentMessage = await ctx.reply(
-            ConfirmMessages.creating(
-                state!.symbol!,
-                state!.lowerPrice!,
-                state!.upperPrice!,
-                state!.levels!,
-                state!.totalInvestmentUSDC,
-            ),
-            { parse_mode: 'HTML' },
+            GridCreatingMessage.create({
+                symbol: state!.symbol!,
+                lowerPrice: state!.lowerPrice!,
+                upperPrice: state!.upperPrice!,
+                levels: state!.levels!,
+                totalInvestment: state!.totalInvestmentUSDC,
+            }).text,
+            { parse_mode: TelegramParseMode.HTML },
         );
 
         this.pendingCreationMessageStore.save(sentMessage.chat.id, sentMessage.message_id);

@@ -1,4 +1,6 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Config } from '@/config/config.schema';
 import {
     EVENT_SUBSCRIBER_PORT,
     EventSubscriberPort,
@@ -11,6 +13,9 @@ import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-create
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserUseCase } from '@components/telegram/core/application/use-cases/notify-user/notify-user.use-case';
+import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
+import { TelegramBotService } from '@components/telegram/adapters/inbound/telegram-bot/telegram-bot.service';
+import { PendingCreationMessageStore } from '@components/telegram/adapters/inbound/telegram-bot/pending-creation-message.store';
 import { logger } from '@/infra/logger/logger';
 
 /**
@@ -21,12 +26,19 @@ import { logger } from '@/infra/logger/logger';
 @Injectable()
 export class TradingEventsAdapter implements OnModuleInit {
     private readonly logger = logger.child({ context: TradingEventsAdapter.name });
+    private readonly notificationChatId: number;
 
     constructor(
         @Inject(EVENT_SUBSCRIBER_PORT) private readonly subscriber: EventSubscriberPort,
         private readonly deserializer: EventDeserializer,
         private readonly notifyUser: NotifyUserUseCase,
-    ) {}
+        private readonly messageFactory: NotificationMessageFactory,
+        private readonly botService: TelegramBotService,
+        private readonly pendingCreationMessageStore: PendingCreationMessageStore,
+        configService: ConfigService<Config, true>,
+    ) {
+        this.notificationChatId = configService.get('telegram', { infer: true }).notificationChatId;
+    }
 
     onModuleInit() {
         this.subscribeToEvents();
@@ -63,7 +75,7 @@ export class TradingEventsAdapter implements OnModuleInit {
                     event.eventType,
                     event.serialize(),
                 ) as GridCreatedSuccessEvent;
-                await this.notifyUser.execute({ event: typed });
+                await this.notifyCreationResult(typed);
             },
         );
 
@@ -74,8 +86,20 @@ export class TradingEventsAdapter implements OnModuleInit {
                     event.eventType,
                     event.serialize(),
                 ) as GridCreatedErrorEvent;
-                await this.notifyUser.execute({ event: typed });
+                await this.notifyCreationResult(typed);
             },
         );
+    }
+
+    private async notifyCreationResult(
+        event: GridCreatedSuccessEvent | GridCreatedErrorEvent,
+    ): Promise<void> {
+        const text = this.messageFactory.buildFromEvent(event).text;
+        const pending = this.pendingCreationMessageStore.consume();
+        if (pending) {
+            await this.botService.editMessage(pending.chatId, pending.messageId, text);
+        } else {
+            await this.botService.sendMessage(this.notificationChatId, text);
+        }
     }
 }

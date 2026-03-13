@@ -2,7 +2,6 @@ import { EMOJI } from './emoji';
 
 export const BUTTON_LABELS = {
     BACK: `${EMOJI.BACK} Back`,
-    BACK_TO_MENU: '« Back to Menu',
     CANCEL: `${EMOJI.CANCEL} Cancel`,
     CONFIRM: `${EMOJI.SUCCESS} Confirm`,
     OTHER_TOKEN: `${EMOJI.SEARCH} Other token`,
@@ -19,4 +18,5 @@ export const BUTTON_LABELS = {
     CREATE_GRID: `${EMOJI.PLUS} Create Grid`,
     SETTINGS: `${EMOJI.SETTINGS} Settings`,
     HELP: `${EMOJI.HELP} Help`,
+    REFRESH: `${EMOJI.REFRESH} Refresh`,
 } as const;

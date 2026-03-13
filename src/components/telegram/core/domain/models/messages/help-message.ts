@@ -1,7 +1,5 @@
-import { TelegramMessage } from './telegram-message';
-
-export class HelpMessage extends TelegramMessage {
-    protected readonly text =
+export class HelpMessage {
+    readonly text =
         '<b>🤖 Hyperliquid Grid Bot</b>\n\n' +
         'Automates grid trading on Hyperliquid perpetuals.\n\n' +
         '<b>💡 How it works</b>\n' +
@@ -14,4 +12,10 @@ export class HelpMessage extends TelegramMessage {
         'Trading involves financial risk. Only use funds you can afford to lose.\n\n' +
         '<b>🐛 Support</b>\n' +
         '<a href="https://github.com/SyzkoAlex/hyperliquid-grid-bot/issues">Report an issue</a>';
+
+    private constructor() {}
+
+    static create(): HelpMessage {
+        return new HelpMessage();
+    }
 }

@@ -9,6 +9,7 @@ import { GetUserBalanceUseCase } from '@components/telegram/core/application/use
 import { Handler } from '../handler';
 import { toInlineKeyboard } from '../inline-keyboard';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class BalanceHandler implements Handler {
@@ -27,23 +28,26 @@ export class BalanceHandler implements Handler {
 
     private async handle(ctx: BotContext): Promise<void> {
         const view = await this.buildView();
-        await ctx.reply(view.text, { parse_mode: 'HTML', ...toInlineKeyboard(view.keyboard) });
+        await ctx.reply(view.text, {
+            parse_mode: TelegramParseMode.HTML,
+            ...toInlineKeyboard(view.keyboard),
+        });
     }
 
     private async handleAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
         const view = await this.buildView();
         await ctx.editMessageText(view.text, {
-            parse_mode: 'HTML',
+            parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
     private async buildView(): Promise<{ text: string; keyboard: InlineButton[][] }> {
         const balance = await this.getBalanceUseCase.execute();
-        const text = new BalanceMessage(balance).toString();
+        const text = BalanceMessage.create(balance).text;
         const keyboard: InlineButton[][] = [
-            [{ text: '🔄 Refresh', action: TelegramAction.ShowBalance }],
+            [{ text: BUTTON_LABELS.REFRESH, action: TelegramAction.ShowBalance }],
         ];
         return { text, keyboard };
     }

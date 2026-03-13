@@ -1,8 +1,10 @@
 import { EMOJI } from '../../constants/emoji';
 import { PriceFormatter } from '../../formatters/price.formatter';
 
-export class AdvancedUpperMessages {
-    static prompt(symbol?: string, currentPrice?: number): string {
+export class AdvancedUpperPromptMessage {
+    readonly text: string;
+
+    private constructor(symbol?: string, currentPrice?: number) {
         let message = 'Enter upper price for the grid:';
 
         if (symbol && currentPrice !== undefined) {
@@ -11,10 +13,22 @@ export class AdvancedUpperMessages {
             message += `\n\n${EMOJI.WARNING} Could not fetch current price`;
         }
 
-        return message;
+        this.text = message;
     }
 
-    static confirmation(price: number): string {
-        return `${EMOJI.SUCCESS} Upper price set: ${PriceFormatter.format(price)}`;
+    static create(symbol?: string, currentPrice?: number): AdvancedUpperPromptMessage {
+        return new AdvancedUpperPromptMessage(symbol, currentPrice);
+    }
+}
+
+export class AdvancedUpperConfirmationMessage {
+    readonly text: string;
+
+    private constructor(price: number) {
+        this.text = `${EMOJI.SUCCESS} Upper price set: ${PriceFormatter.format(price)}`;
+    }
+
+    static create(price: number): AdvancedUpperConfirmationMessage {
+        return new AdvancedUpperConfirmationMessage(price);
     }
 }

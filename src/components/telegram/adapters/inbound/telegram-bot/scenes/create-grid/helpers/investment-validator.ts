@@ -6,7 +6,7 @@ interface CapitalDistribution {
 }
 import { GridMode } from '@domain/models/grid/grid-mode';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 
 export interface InvestmentValidationParams {
@@ -34,7 +34,7 @@ export async function validateInvestment(
     if (isNaN(investment) || investment < WIZARD_CONFIG.MIN_INVESTMENT) {
         return {
             valid: false,
-            errorMessage: ValidationMessages.invalidAmount(WIZARD_CONFIG.MIN_INVESTMENT),
+            errorMessage: ValidationTexts.invalidAmount(WIZARD_CONFIG.MIN_INVESTMENT),
         };
     }
 
@@ -42,7 +42,7 @@ export async function validateInvestment(
     if (perOrderAmount < WIZARD_CONFIG.MIN_INVESTMENT) {
         return {
             valid: false,
-            errorMessage: ValidationMessages.orderSizeTooSmall(
+            errorMessage: ValidationTexts.orderSizeTooSmall(
                 levels,
                 perOrderAmount,
                 WIZARD_CONFIG.MIN_INVESTMENT,
@@ -83,7 +83,7 @@ export async function validateInvestment(
 
         return {
             valid: false,
-            errorMessage: ValidationMessages.insufficientBalance(
+            errorMessage: ValidationTexts.insufficientBalance(
                 symbol,
                 usdcBalance,
                 baseBalance,

@@ -5,7 +5,7 @@ import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { grids } from '@/infra/database/schema';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { logger } from '@/infra/logger/logger';
 import { GridRepositoryPort } from '../../../../core/application/ports/grid-repository.port';
 import { PostgresGridMapper } from './postgres-grid.mapper';
@@ -58,41 +58,41 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
         }
     }
 
-    async findManyActiveByIds(gridIds: string[]): Promise<Grid[]> {
-        if (gridIds.length === 0) return [];
+    async findManyByStatusPaged(
+        status: GridStatus | undefined,
+        offset: number,
+        limit: number,
+    ): Promise<Grid[]> {
         try {
+            const orderExpr =
+                status === GridStatus.Stopped ? desc(grids.stoppedAt) : asc(grids.createdAt);
             const result = await this.db
                 .select()
                 .from(grids)
-                .where(and(inArray(grids.id, gridIds), eq(grids.status, GridStatus.Running)));
+                .where(status !== undefined ? eq(grids.status, status) : undefined)
+                .orderBy(orderExpr)
+                .limit(limit)
+                .offset(offset);
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
-            this.logger.error({ error, gridIds }, 'Failed to find active grids by IDs');
+            this.logger.error(
+                { error, status, offset, limit },
+                'Failed to find paged grids by status',
+            );
             return [];
         }
     }
 
-    async findManyByStatus(status: GridStatus): Promise<Grid[]> {
+    async countByStatus(status: GridStatus | undefined): Promise<number> {
         try {
             const result = await this.db
-                .select()
+                .select({ count: count() })
                 .from(grids)
-                .where(eq(grids.status, status))
-                .orderBy(asc(grids.createdAt));
-            return result.map((row) => PostgresGridMapper.toDomain(row));
+                .where(status !== undefined ? eq(grids.status, status) : undefined);
+            return result[0].count;
         } catch (error) {
-            this.logger.error({ error, status }, 'Failed to find grids by status');
-            return [];
-        }
-    }
-
-    async findAll(): Promise<Grid[]> {
-        try {
-            const result = await this.db.select().from(grids).orderBy(asc(grids.createdAt));
-            return result.map((row) => PostgresGridMapper.toDomain(row));
-        } catch (error) {
-            this.logger.error({ error }, 'Failed to find all grids');
-            return [];
+            this.logger.error({ error, status }, 'Failed to count grids by status');
+            return 0;
         }
     }
 }

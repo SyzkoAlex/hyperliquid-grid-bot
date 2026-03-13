@@ -8,7 +8,10 @@ export interface GridRepositoryPort {
     save(grid: Grid): Promise<void>;
     findOneById(id: GridId): Promise<Grid | null>;
     findManyActive(): Promise<Grid[]>;
-    findManyActiveByIds(gridIds: string[]): Promise<Grid[]>;
-    findManyByStatus(status: GridStatus): Promise<Grid[]>;
-    findAll(): Promise<Grid[]>;
+    findManyByStatusPaged(
+        status: GridStatus | undefined,
+        offset: number,
+        limit: number,
+    ): Promise<Grid[]>;
+    countByStatus(status: GridStatus | undefined): Promise<number>;
 }

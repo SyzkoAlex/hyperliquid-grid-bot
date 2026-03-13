@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Config } from '@/config/config.schema';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
@@ -8,19 +10,29 @@ import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants
 import { Handler } from '../handler';
 import { GetGridsWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';
-import { GridsListMessages } from '@components/telegram/core/domain/models/messages/grids-list.messages';
+import {
+    ActiveGridsHeaderMessage,
+    StoppedGridsHeaderMessage,
+} from '@components/telegram/core/domain/models/messages/grids/grids-list.messages';
+import { GridListMessage } from '@components/telegram/core/domain/models/messages/grids/grid-list.message';
 import { toInlineKeyboard } from '../inline-keyboard';
-import { GridsListView } from './grids-list.view';
-
-const ACTIVE_PAGE_SIZE = 4;
-const STOPPED_PAGE_SIZE = 5;
+import { GridsListKeyboard } from './grids-list.keyboard';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class GridsHandler implements Handler {
+    private readonly activePageSize: number;
+    private readonly stoppedPageSize: number;
+
     constructor(
         private readonly telegramBotService: TelegramBotService,
         private readonly getGridsWithPnlUseCase: GetGridsWithPnlUseCase,
-    ) {}
+        configService: ConfigService<Config, true>,
+    ) {
+        const pagination = configService.get('telegram', { infer: true }).pagination;
+        this.activePageSize = pagination.activePageSize;
+        this.stoppedPageSize = pagination.stoppedPageSize;
+    }
 
     register(): void {
         this.telegramBotService.onCommand(TelegramCommand.Grids, (ctx) => this.sendActiveList(ctx));
@@ -40,58 +52,94 @@ export class GridsHandler implements Handler {
     }
 
     private async sendActiveList(ctx: BotContext): Promise<void> {
-        const view = await this.buildActiveView(1);
-        await ctx.reply(view.text, { parse_mode: 'HTML', ...toInlineKeyboard(view.keyboard) });
+        const currentPage = 1;
+        const view = await this.buildActiveView(currentPage);
+        await ctx.reply(view.text, {
+            parse_mode: TelegramParseMode.HTML,
+            ...toInlineKeyboard(view.keyboard),
+        });
     }
 
     private async editActiveList(ctx: BotContext, page: number): Promise<void> {
         await ctx.answerCbQuery();
         const view = await this.buildActiveView(page);
         await ctx.editMessageText(view.text, {
-            parse_mode: 'HTML',
+            parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
     private async sendStoppedList(ctx: BotContext): Promise<void> {
-        const view = await this.buildStoppedView(1);
-        await ctx.reply(view.text, { parse_mode: 'HTML', ...toInlineKeyboard(view.keyboard) });
+        const currentPage = 1;
+        const view = await this.buildStoppedView(currentPage);
+        await ctx.reply(view.text, {
+            parse_mode: TelegramParseMode.HTML,
+            ...toInlineKeyboard(view.keyboard),
+        });
     }
 
     private async editStoppedList(ctx: BotContext, page: number): Promise<void> {
         await ctx.answerCbQuery();
         const view = await this.buildStoppedView(page);
         await ctx.editMessageText(view.text, {
-            parse_mode: 'HTML',
+            parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
     private async buildActiveView(page: number) {
-        const items = await this.getGridsWithPnlUseCase.execute(GridFilter.Running);
-        const paged = GridsListView.paginate(items, page, ACTIVE_PAGE_SIZE);
-        const header = GridsListMessages.activeHeader(items.length, paged.page, paged.totalPages);
-        return GridsListView.build(
-            header,
-            paged.items,
-            paged.startIndex,
-            GridsAction.activePage,
-            paged.page,
-            paged.totalPages,
+        const { items, totalCount, currentPage } = await this.getGridsWithPnlUseCase.execute(
+            GridFilter.Running,
+            page,
+            this.activePageSize,
         );
+        const { totalPages, startIndex } = this.resolvePagination(
+            totalCount,
+            currentPage,
+            this.activePageSize,
+        );
+        const header = ActiveGridsHeaderMessage.create(totalCount, currentPage, totalPages).text;
+        const text = GridListMessage.create(header, items, startIndex).text;
+        const keyboard = GridsListKeyboard.create(
+            items,
+            startIndex,
+            GridsAction.activePage,
+            currentPage,
+            totalPages,
+        );
+        return { text, keyboard };
     }
 
     private async buildStoppedView(page: number) {
-        const items = await this.getGridsWithPnlUseCase.execute(GridFilter.Stopped);
-        const paged = GridsListView.paginate(items, page, STOPPED_PAGE_SIZE);
-        const header = GridsListMessages.stoppedHeader(paged.page, paged.totalPages, items.length);
-        return GridsListView.build(
-            header,
-            paged.items,
-            paged.startIndex,
-            GridsAction.stoppedPage,
-            paged.page,
-            paged.totalPages,
+        const { items, totalCount, currentPage } = await this.getGridsWithPnlUseCase.execute(
+            GridFilter.Stopped,
+            page,
+            this.stoppedPageSize,
         );
+        const { totalPages, startIndex } = this.resolvePagination(
+            totalCount,
+            currentPage,
+            this.stoppedPageSize,
+        );
+        const header = StoppedGridsHeaderMessage.create(currentPage, totalPages, totalCount).text;
+        const text = GridListMessage.create(header, items, startIndex).text;
+        const keyboard = GridsListKeyboard.create(
+            items,
+            startIndex,
+            GridsAction.stoppedPage,
+            currentPage,
+            totalPages,
+        );
+        return { text, keyboard };
+    }
+
+    private resolvePagination(
+        totalCount: number,
+        currentPage: number,
+        pageSize: number,
+    ): { totalPages: number; startIndex: number } {
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const startIndex = (currentPage - 1) * pageSize;
+        return { totalPages, startIndex };
     }
 }

@@ -4,7 +4,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { WizardStep } from './wizard-step';
 import { StepCompleted } from './step-result';
 import { WizardMessageManager } from './wizard-message-manager';
-import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 @Injectable()
 export class WizardNavigator {
@@ -114,7 +114,7 @@ export class WizardNavigator {
         await ctx.scene.leave();
 
         if (hasStarted) {
-            await ctx.reply(CommonMessages.GRID_CREATION_CANCELLED);
+            await ctx.reply(CommonTexts.GRID_CREATION_CANCELLED);
         }
     }
 

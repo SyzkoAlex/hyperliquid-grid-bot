@@ -1,16 +1,17 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Scenes, session, Telegraf } from 'telegraf';
+import { Scenes, Telegraf } from 'telegraf';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { BotContext } from './types/bot-context';
-import { SessionData } from './types/session-data';
-import { RedisSessionStore } from './redis-session-store';
+import { CacheSessionStore } from './cache-session-store';
 import { SceneHandler } from './scenes/scene-handler';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { createErrorHandlerMiddleware } from './middleware/error-handler.middleware';
 import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
+import { createSessionMiddleware } from './middleware/session.middleware';
+import { createAuthMiddleware } from './middleware/auth.middleware';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy, TelegramNotificationPort {
@@ -23,7 +24,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
 
     constructor(
         configService: ConfigService<Config, true>,
-        private readonly sessionStore: RedisSessionStore,
+        private readonly sessionStore: CacheSessionStore,
     ) {
         const telegramConfig = configService.get('telegram', { infer: true });
         this.enabled = telegramConfig.enabled;
@@ -51,13 +52,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         //   error-handler — safety net for handler errors; wraps everything below
         //   dedup       — block duplicate button presses while a handler is running
         //   stage       — scenes and registered command/action handlers
-        this._bot.use(
-            session<SessionData, BotContext>({
-                store: this.sessionStore,
-                defaultSession: () => ({}),
-            }),
-        );
-        this.registerAuthMiddleware();
+        this._bot.use(createSessionMiddleware(this.sessionStore));
+        this._bot.use(createAuthMiddleware(this.allowedManagerChatId));
         this._bot.use(createErrorHandlerMiddleware());
         this._bot.use(createCallbackDedupMiddleware());
         this._bot.use(this.stage.middleware());
@@ -88,7 +84,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     async sendMessage(chatId: number, message: string): Promise<void> {
         try {
             await this.bot.telegram.sendMessage(chatId, message, {
-                parse_mode: 'HTML',
+                parse_mode: TelegramParseMode.HTML,
             });
         } catch (error) {
             if (this.isIgnorableError(error)) return;
@@ -99,7 +95,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     async editMessage(chatId: number, messageId: number, message: string): Promise<void> {
         try {
             await this.bot.telegram.editMessageText(chatId, messageId, undefined, message, {
-                parse_mode: 'HTML',
+                parse_mode: TelegramParseMode.HTML,
             });
         } catch (error) {
             if (this.isIgnorableError(error)) return;
@@ -140,23 +136,6 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
 
     onHears(text: string | string[], handler: (ctx: BotContext) => Promise<void>): void {
         this.bot.hears(text, handler);
-    }
-
-    private registerAuthMiddleware(): void {
-        this.bot.use(async (ctx: BotContext, next) => {
-            const chatId = ctx.chat?.id;
-
-            if (!chatId || chatId !== this.allowedManagerChatId) {
-                this.logger.warn(
-                    { chatId, expected: this.allowedManagerChatId },
-                    'Unauthorized access attempt',
-                );
-                await ctx.reply(`${EMOJI.FORBIDDEN} Unauthorized access`);
-                return;
-            }
-
-            return next();
-        });
     }
 
     async launch(): Promise<void> {

@@ -1,5 +1,4 @@
 import { OrderSide } from '@domain/models/order/order-side';
-import { OrderStatus } from '@domain/models/order/order-status';
 
 export interface OrderStats {
     activeBuys: number;
@@ -11,11 +10,7 @@ export interface OrderStats {
     filledCycles: number;
 }
 
-type OrderData = { status: OrderStatus; side: OrderSide; price: number | null; amount: number };
-
-function isActive(o: OrderData): boolean {
-    return o.status === OrderStatus.Pending || o.status === OrderStatus.Placed;
-}
+type OrderData = { side: OrderSide; price: number | null; amount: number };
 
 function weightedAvgPrice(orders: OrderData[]): number {
     if (orders.length === 0) return 0;
@@ -30,9 +25,12 @@ function weightedAvgPrice(orders: OrderData[]): number {
     return sumQty > 0 ? sumPriceQty / sumQty : 0;
 }
 
-export function computeOrderStats(orders: OrderData[]): OrderStats {
-    const activeBuyOrders = orders.filter((o) => isActive(o) && o.side === OrderSide.Buy);
-    const activeSellOrders = orders.filter((o) => isActive(o) && o.side === OrderSide.Sell);
+export function computeOrderStats(
+    activeOrders: OrderData[],
+    filledOrders: OrderData[],
+): OrderStats {
+    const activeBuyOrders = activeOrders.filter((o) => o.side === OrderSide.Buy);
+    const activeSellOrders = activeOrders.filter((o) => o.side === OrderSide.Sell);
 
     const avgActiveBuyPrice = weightedAvgPrice(activeBuyOrders);
     const avgActiveSellPrice = weightedAvgPrice(activeSellOrders);
@@ -47,8 +45,6 @@ export function computeOrderStats(orders: OrderData[]): OrderStats {
         avgActiveSellPrice,
         lowestActiveBuyPrice: buyPrices.length > 0 ? Math.min(...buyPrices) : 0,
         highestActiveSellPrice: sellPrices.length > 0 ? Math.max(...sellPrices) : 0,
-        filledCycles: orders.filter(
-            (o) => o.status === OrderStatus.Filled && o.side === OrderSide.Sell,
-        ).length,
+        filledCycles: filledOrders.filter((o) => o.side === OrderSide.Sell).length,
     };
 }

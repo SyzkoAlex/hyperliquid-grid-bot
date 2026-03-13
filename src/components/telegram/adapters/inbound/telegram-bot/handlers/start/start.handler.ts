@@ -5,6 +5,7 @@ import { TelegramCommand } from '@components/telegram/core/domain/models/telegra
 import { WelcomeMessage } from '@components/telegram/core/domain/models/messages/welcome-message';
 import { Handler } from '../handler';
 import { replyMenuKeyboard } from '../main-menu.keyboard';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class StartHandler implements Handler {
@@ -15,8 +16,8 @@ export class StartHandler implements Handler {
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        await ctx.reply(new WelcomeMessage().toString(), {
-            parse_mode: 'HTML',
+        await ctx.reply(WelcomeMessage.create().text, {
+            parse_mode: TelegramParseMode.HTML,
             ...replyMenuKeyboard(),
         });
     }

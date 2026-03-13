@@ -170,6 +170,82 @@ describe('AdvancedInvestmentStep', () => {
         });
     });
 
+    describe('enter (additional paths)', () => {
+        it('should show balance info when symbol exists and both balances are non-zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { HYPE: 500 },
+                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
+            });
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+
+        it('should show fallback message when symbol is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { levels: 10 };
+
+            await step.enter(ctx);
+
+            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+
+        it('should show fallback message when balance fetch fails', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+    });
+
+    describe('handleTextInput (additional paths)', () => {
+        it('should handle validateInvestment throwing an error', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                levels: 10,
+                symbol: 'HYPE',
+                upperPrice: 11,
+                lowerPrice: 9,
+            };
+            vi.mocked(mockTradingApi.getUserSpotState).mockRejectedValue(
+                new Error('Network error'),
+            );
+
+            const result = await step.handleTextInput(ctx, '1000');
+
+            expect(result).toBeNull();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('deletes totalInvestmentUSDC from session', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { totalInvestmentUSDC: 1000 };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
+    });
+
     function createMockContext(): BotContext {
         const session = { createGrid: {} };
         return {

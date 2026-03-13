@@ -1,13 +1,11 @@
-import { TelegramMessage } from './telegram-message';
 import { EMOJI } from '../constants/emoji';
 import { UserBalance } from '../user-balance';
 import { formatFiat } from '../formatters/format-fiat';
 
-export class BalanceMessage extends TelegramMessage {
-    protected readonly text: string;
+export class BalanceMessage {
+    readonly text: string;
 
-    constructor(balance: UserBalance) {
-        super();
+    private constructor(balance: UserBalance) {
         const lines: string[] = [];
 
         lines.push(`<b>${EMOJI.MONEY_BAG} Balance</b>`);
@@ -39,6 +37,10 @@ export class BalanceMessage extends TelegramMessage {
         lines.push(`<b>Portfolio:</b> $${formatFiat(balance.totalValueUsdc)}`);
 
         this.text = lines.join('\n');
+    }
+
+    static create(balance: UserBalance): BalanceMessage {
+        return new BalanceMessage(balance);
     }
 }
 

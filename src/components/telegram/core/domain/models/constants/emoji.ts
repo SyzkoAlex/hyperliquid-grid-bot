@@ -29,4 +29,5 @@ export const EMOJI = {
     PLUS: '➕',
     HELP: '❓',
     ARCHIVE: '📦',
+    REFRESH: '🔄',
 } as const;

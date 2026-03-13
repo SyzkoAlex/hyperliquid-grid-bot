@@ -44,6 +44,34 @@ describe('AdvancedUpperStep', () => {
 
             expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
         });
+
+        it('should show prompt without price when symbol is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+
+            await step.enter(ctx);
+
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('deletes upperPrice from session', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { upperPrice: 55000 };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
     });
 
     describe('handleTextInput', () => {

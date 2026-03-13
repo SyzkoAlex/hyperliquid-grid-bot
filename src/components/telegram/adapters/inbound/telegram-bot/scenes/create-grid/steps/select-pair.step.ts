@@ -10,8 +10,11 @@ import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { SelectPairMessages } from '@components/telegram/core/domain/models/messages/wizard/select-pair.messages';
-import { ValidationMessages } from '@components/telegram/core/domain/models/messages/wizard/validation.messages';
+import {
+    SelectPairTexts,
+    SelectPairConfirmationMessage,
+} from '@components/telegram/core/domain/models/messages/wizard/select-pair.messages';
+import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
 export class SelectPairStep implements WizardStep {
@@ -31,7 +34,7 @@ export class SelectPairStep implements WizardStep {
             [{ text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL }],
         ];
 
-        await this.messageManager.sendEnterMessage(ctx, SelectPairMessages.PROMPT, keyboard);
+        await this.messageManager.sendEnterMessage(ctx, SelectPairTexts.PROMPT, keyboard);
     }
 
     async handlePairSelection(ctx: BotContext, symbol: string): Promise<StepResult> {
@@ -41,7 +44,7 @@ export class SelectPairStep implements WizardStep {
             if (!exists) {
                 await this.messageManager.sendEnterMessage(
                     ctx,
-                    ValidationMessages.tokenNotFound(symbol),
+                    ValidationTexts.tokenNotFound(symbol),
                 );
                 return null;
             }
@@ -50,19 +53,16 @@ export class SelectPairStep implements WizardStep {
 
             return {
                 nextStep: SceneStep.Mode,
-                confirmations: [SelectPairMessages.confirmation(symbol)],
+                confirmations: [SelectPairConfirmationMessage.create(symbol).text],
             };
         } catch (error) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationMessages.invalidTokenFormat(),
-            );
+            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidTokenFormat());
             return null;
         }
     }
 
     async handleOtherPair(ctx: BotContext): Promise<void> {
-        await this.messageManager.sendEnterMessage(ctx, SelectPairMessages.OTHER_TOKEN_PROMPT);
+        await this.messageManager.sendEnterMessage(ctx, SelectPairTexts.OTHER_TOKEN_PROMPT);
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {

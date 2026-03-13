@@ -15,9 +15,11 @@ export interface GridsApiPort {
     // ── Grids — read ───────────────────────────────────────────────
     findGridById(id: string): Promise<GridDto | null>;
     findActiveGrids(): Promise<GridDto[]>;
-    findActiveGridsByIds(gridIds: string[]): Promise<GridDto[]>;
-    findGridsByStatus(status: GridStatus): Promise<GridDto[]>;
-    findAllGrids(): Promise<GridDto[]>;
+    findGridsPaged(filter: {
+        status?: GridStatus;
+        page: number;
+        pageSize: number;
+    }): Promise<{ items: GridDto[]; totalCount: number; currentPage: number }>;
 
     // ── Orders — write ─────────────────────────────────────────────
     createOrder(dto: CreateOrderDto): Promise<OrderDto>;
@@ -33,9 +35,7 @@ export interface GridsApiPort {
     findActiveOrdersByGridId(gridId: string): Promise<OrderDto[]>;
     findOrdersByGridId(gridId: string): Promise<OrderDto[]>;
     findOrderByExchangeId(exchangeOrderId: string): Promise<OrderDto | null>;
-    findPendingOrdersByGridId(gridId: string): Promise<OrderDto[]>;
-    findStalePendingOrders(olderThan: Date): Promise<OrderDto[]>;
     findOrdersByStatus(status: OrderStatus): Promise<OrderDto[]>;
-    findOrdersByIds(orderIds: string[]): Promise<OrderDto[]>;
+    findOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]>;
     findPlacedOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]>;
 }

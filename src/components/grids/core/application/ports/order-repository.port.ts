@@ -9,10 +9,8 @@ export interface OrderRepositoryPort {
     findManyActive(gridId: GridId): Promise<Order[]>;
     findManyByGridId(gridId: GridId): Promise<Order[]>;
     findOneByExchangeOrderId(exchangeOrderId: string): Promise<Order | null>;
-    findManyPendingByGridId(gridId: string): Promise<Order[]>;
-    findManyStalePending(olderThan: Date): Promise<Order[]>;
     findManyByStatus(status: OrderStatus): Promise<Order[]>;
-    findManyByIds(orderIds: string[]): Promise<Order[]>;
+    findManyByGridIds(gridIds: string[]): Promise<Order[]>;
     findManyPlacedByGridIds(gridIds: string[]): Promise<Order[]>;
     updateStatus(orderId: string, status: OrderStatus, filledAt?: Date): Promise<void>;
     updateExchangeOrderId(

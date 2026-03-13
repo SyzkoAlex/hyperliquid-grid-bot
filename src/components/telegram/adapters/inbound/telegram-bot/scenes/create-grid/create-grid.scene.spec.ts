@@ -14,6 +14,7 @@ import { AdvancedPreviewStep } from './steps/advanced-preview.step';
 import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
 import { SceneStep } from './create-grid-scene-step';
+import { CreateGridMode } from './create-grid-mode';
 
 describe('CreateGridSceneHandler', () => {
     let handler: CreateGridSceneHandler;
@@ -107,6 +108,139 @@ describe('CreateGridSceneHandler', () => {
         });
     });
 
+    describe('handlePairAction', () => {
+        it('answers callback query and calls selectPairStep.handlePairSelection', async () => {
+            const ctx = createMockContext({
+                match: [undefined, 'BTC'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockSelectPairStep.handlePairSelection).mockResolvedValue(null);
+
+            await (
+                handler as unknown as { handlePairAction(ctx: BotContext): Promise<void> }
+            ).handlePairAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockSelectPairStep.handlePairSelection).toHaveBeenCalledWith(ctx, 'BTC');
+            expect(mockNavigator.completeStep).not.toHaveBeenCalled();
+        });
+
+        it('calls navigator.completeStep when result is non-null', async () => {
+            const result = { nextStep: SceneStep.Mode, confirmations: ['OK'] };
+            const ctx = createMockContext({
+                match: [undefined, 'ETH'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockSelectPairStep.handlePairSelection).mockResolvedValue(result);
+
+            await (
+                handler as unknown as { handlePairAction(ctx: BotContext): Promise<void> }
+            ).handlePairAction(ctx);
+
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+        });
+    });
+
+    describe('handleOtherPairAction', () => {
+        it('answers callback query and calls selectPairStep.handleOtherPair', async () => {
+            const ctx = createMockContext();
+
+            await (
+                handler as unknown as { handleOtherPairAction(ctx: BotContext): Promise<void> }
+            ).handleOtherPairAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockSelectPairStep.handleOtherPair).toHaveBeenCalledWith(ctx);
+        });
+    });
+
+    describe('handleModeAction', () => {
+        it('answers callback query and calls selectModeStep.handleModeSelection with Quick', async () => {
+            const ctx = createMockContext();
+            vi.mocked(mockSelectModeStep.handleModeSelection).mockResolvedValue(null);
+
+            await (
+                handler as unknown as {
+                    handleModeAction(ctx: BotContext, mode: CreateGridMode): Promise<void>;
+                }
+            ).handleModeAction(ctx, CreateGridMode.Quick);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockSelectModeStep.handleModeSelection).toHaveBeenCalledWith(
+                ctx,
+                CreateGridMode.Quick,
+            );
+        });
+
+        it('calls navigator.completeStep when mode selection returns result', async () => {
+            const result = { nextStep: SceneStep.Quick, confirmations: ['Quick mode'] };
+            const ctx = createMockContext();
+            vi.mocked(mockSelectModeStep.handleModeSelection).mockResolvedValue(result);
+
+            await (
+                handler as unknown as {
+                    handleModeAction(ctx: BotContext, mode: CreateGridMode): Promise<void>;
+                }
+            ).handleModeAction(ctx, CreateGridMode.Quick);
+
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+        });
+    });
+
+    describe('handleLevelsAction', () => {
+        it('answers callback query and calls advancedLevelsStep.handleLevelsSelection', async () => {
+            const ctx = createMockContext({
+                match: [undefined, '10'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockAdvancedLevelsStep.handleLevelsSelection).mockResolvedValue(null);
+
+            await (
+                handler as unknown as { handleLevelsAction(ctx: BotContext): Promise<void> }
+            ).handleLevelsAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockAdvancedLevelsStep.handleLevelsSelection).toHaveBeenCalledWith(ctx, 10);
+        });
+
+        it('calls navigator.completeStep when levels result is non-null', async () => {
+            const result = { nextStep: SceneStep.Investment, confirmations: ['10 levels'] };
+            const ctx = createMockContext({
+                match: [undefined, '10'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockAdvancedLevelsStep.handleLevelsSelection).mockResolvedValue(result);
+
+            await (
+                handler as unknown as { handleLevelsAction(ctx: BotContext): Promise<void> }
+            ).handleLevelsAction(ctx);
+
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+        });
+    });
+
+    describe('handleBackAction', () => {
+        it('answers callback query and calls navigator.handleBack', async () => {
+            const ctx = createMockContext();
+
+            await (
+                handler as unknown as { handleBackAction(ctx: BotContext): Promise<void> }
+            ).handleBackAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockNavigator.handleBack).toHaveBeenCalledWith(ctx);
+        });
+    });
+
+    describe('handleCancelAction', () => {
+        it('answers callback query and calls navigator.handleCancel', async () => {
+            const ctx = createMockContext();
+
+            await (
+                handler as unknown as { handleCancelAction(ctx: BotContext): Promise<void> }
+            ).handleCancelAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockNavigator.handleCancel).toHaveBeenCalledWith(ctx);
+        });
+    });
+
     describe('handleConfirmAction (via private access)', () => {
         it('deletes all messages, executes confirm step, clears session, and leaves scene', async () => {
             const ctx = createMockContext();
@@ -187,6 +321,90 @@ describe('CreateGridSceneHandler', () => {
 
             expect(mockStep.handleTextInput).toHaveBeenCalledWith(ctx, 'BTC');
             expect(mockNavigator.completeStep).toHaveBeenCalled();
+        });
+
+        it('leaves scene when text is a reply menu label', async () => {
+            const ctx = {
+                ...createMockContext(),
+                message: { text: '📊 Grids' },
+            } as unknown as BotContext;
+
+            await (
+                handler as unknown as { handleTextInput(ctx: BotContext): Promise<void> }
+            ).handleTextInput(ctx);
+
+            expect(ctx.scene.leave).toHaveBeenCalled();
+        });
+
+        it('returns without delegating when getCurrentStep is null', async () => {
+            vi.mocked(mockNavigator.getCurrentStep).mockReturnValue(null);
+
+            const ctx = {
+                ...createMockContext(),
+                message: { text: 'BTC' },
+            } as unknown as BotContext;
+
+            await (
+                handler as unknown as { handleTextInput(ctx: BotContext): Promise<void> }
+            ).handleTextInput(ctx);
+
+            expect(mockNavigator.getStepInstance).not.toHaveBeenCalled();
+            expect(mockNavigator.completeStep).not.toHaveBeenCalled();
+        });
+
+        it('returns without delegating when step has no handleTextInput', async () => {
+            const mockStep = { enter: vi.fn(), rollbackState: vi.fn() };
+            vi.mocked(mockNavigator.getCurrentStep).mockReturnValue(SceneStep.Pair);
+            vi.mocked(mockNavigator.getStepInstance).mockReturnValue(
+                mockStep as unknown as WizardStep,
+            );
+
+            const ctx = {
+                ...createMockContext(),
+                message: { text: 'BTC' },
+            } as unknown as BotContext;
+
+            await (
+                handler as unknown as { handleTextInput(ctx: BotContext): Promise<void> }
+            ).handleTextInput(ctx);
+
+            expect(mockNavigator.completeStep).not.toHaveBeenCalled();
+        });
+
+        it('does not call completeStep when handleTextInput returns null', async () => {
+            const mockStep = {
+                handleTextInput: vi.fn().mockResolvedValue(null),
+            };
+            vi.mocked(mockNavigator.getCurrentStep).mockReturnValue(SceneStep.Pair);
+            vi.mocked(mockNavigator.getStepInstance).mockReturnValue(
+                mockStep as unknown as WizardStep,
+            );
+
+            const ctx = {
+                ...createMockContext(),
+                message: { text: 'invalid' },
+            } as unknown as BotContext;
+
+            await (
+                handler as unknown as { handleTextInput(ctx: BotContext): Promise<void> }
+            ).handleTextInput(ctx);
+
+            expect(mockStep.handleTextInput).toHaveBeenCalledWith(ctx, 'invalid');
+            expect(mockNavigator.completeStep).not.toHaveBeenCalled();
+        });
+
+        it('returns early when message is undefined', async () => {
+            const ctx = {
+                ...createMockContext(),
+                message: undefined,
+            } as unknown as BotContext;
+
+            await (
+                handler as unknown as { handleTextInput(ctx: BotContext): Promise<void> }
+            ).handleTextInput(ctx);
+
+            expect(ctx.scene.leave).not.toHaveBeenCalled();
+            expect(mockNavigator.getCurrentStep).not.toHaveBeenCalled();
         });
     });
 });

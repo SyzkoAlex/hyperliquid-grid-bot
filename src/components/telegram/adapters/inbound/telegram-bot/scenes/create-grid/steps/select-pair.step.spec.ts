@@ -24,6 +24,53 @@ describe('SelectPairStep', () => {
         step = new SelectPairStep(mockTradingApi, mockMessageManager);
     });
 
+    describe('enter', () => {
+        it('sends prompt with popular token buttons and cancel', async () => {
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
+                ctx,
+                expect.any(String),
+                expect.arrayContaining([
+                    expect.arrayContaining([expect.objectContaining({ text: 'HYPE' })]),
+                ]),
+            );
+        });
+    });
+
+    describe('handleOtherPair', () => {
+        it('sends other token prompt message', async () => {
+            const ctx = createMockContext();
+
+            await step.handleOtherPair(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
+                ctx,
+                expect.any(String),
+            );
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('deletes symbol from session', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.symbol).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
+    });
+
     describe('handlePairSelection', () => {
         it('should accept valid symbol and set in session', async () => {
             const ctx = createMockContext();

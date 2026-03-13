@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmStep } from './confirm.step';
 import { CreateGridUseCase } from '@components/telegram/core/application/use-cases/create-grid/create-grid.use-case';
-import { PendingCreationMessageStore } from '@components/telegram/core/application/services/pending-creation-message.store';
+import { PendingCreationMessageStore } from '../../../pending-creation-message.store';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { GridMode } from '@domain/models/grid/grid-mode';

@@ -5,6 +5,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { logger } from '@/infra/logger/logger';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { toInlineKeyboard } from '../../../handlers/inline-keyboard';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class WizardMessageManager {
@@ -12,7 +13,7 @@ export class WizardMessageManager {
         ctx: BotContext,
         text: string,
         buttons?: InlineButton[][],
-        parseMode: 'HTML' | 'Markdown' = 'HTML',
+        parseMode: TelegramParseMode = TelegramParseMode.HTML,
     ): Promise<void> {
         const state = ctx.session.createGrid;
         if (!state?.currentStep) {
@@ -39,7 +40,7 @@ export class WizardMessageManager {
             return;
         }
 
-        const message = await ctx.reply(text, { parse_mode: 'HTML' });
+        const message = await ctx.reply(text, { parse_mode: TelegramParseMode.HTML });
 
         this.ensureStepMessages(state, stepId);
         state.stepMessages![stepId].confirmationMessageIds.push(message.message_id);

@@ -110,6 +110,39 @@ describe('WizardMessageManager', () => {
         });
     });
 
+    describe('deleteConfirmationMessages', () => {
+        it('deletes all tracked confirmation messages and clears the array', async () => {
+            const ctx = createMockContext(SceneStep.Pair);
+            ctx.session.createGrid!.stepMessages![SceneStep.Pair].confirmationMessageIds = [20, 21];
+
+            await manager.deleteConfirmationMessages(ctx, SceneStep.Pair);
+
+            expect(ctx.deleteMessage).toHaveBeenCalledWith(20);
+            expect(ctx.deleteMessage).toHaveBeenCalledWith(21);
+            expect(
+                ctx.session.createGrid!.stepMessages![SceneStep.Pair].confirmationMessageIds,
+            ).toEqual([]);
+        });
+
+        it('handles delete failure gracefully without throwing', async () => {
+            const ctx = createMockContext(SceneStep.Pair);
+            ctx.session.createGrid!.stepMessages![SceneStep.Pair].confirmationMessageIds = [20];
+            vi.mocked(ctx.deleteMessage).mockRejectedValue(new Error('message not found'));
+
+            await expect(
+                manager.deleteConfirmationMessages(ctx, SceneStep.Pair),
+            ).resolves.not.toThrow();
+        });
+
+        it('does nothing when no confirmation messages exist', async () => {
+            const ctx = createMockContext(SceneStep.Pair);
+
+            await manager.deleteConfirmationMessages(ctx, SceneStep.Pair);
+
+            expect(ctx.deleteMessage).not.toHaveBeenCalled();
+        });
+    });
+
     describe('deleteAllMessages', () => {
         it('deletes all messages across all steps', async () => {
             const ctx = createMockContext(SceneStep.Pair);

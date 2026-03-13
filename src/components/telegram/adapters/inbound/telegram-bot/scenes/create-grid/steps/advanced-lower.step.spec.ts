@@ -16,6 +16,44 @@ describe('AdvancedLowerStep', () => {
         step = new AdvancedLowerStep(mockMessageManager);
     });
 
+    describe('enter', () => {
+        it('sends prompt with upper price info and Back/Cancel buttons', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { upperPrice: 55000 };
+
+            await step.enter(ctx);
+
+            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
+                ctx,
+                expect.any(String),
+                expect.arrayContaining([
+                    expect.arrayContaining([
+                        expect.objectContaining({ action: 'create_grid:back' }),
+                        expect.objectContaining({ action: 'create_grid:cancel' }),
+                    ]),
+                ]),
+            );
+        });
+    });
+
+    describe('rollbackState', () => {
+        it('deletes lowerPrice from session', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { lowerPrice: 45000 };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
+        });
+
+        it('does nothing when createGrid is undefined', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = undefined;
+
+            expect(() => step.rollbackState(ctx)).not.toThrow();
+        });
+    });
+
     describe('handleTextInput', () => {
         it('should accept valid lower price', async () => {
             const ctx = createMockContext();

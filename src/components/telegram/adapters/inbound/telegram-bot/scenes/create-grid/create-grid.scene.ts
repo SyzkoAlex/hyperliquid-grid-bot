@@ -16,7 +16,7 @@ import { WizardNavigator } from './wizard/wizard-navigator';
 import { WizardMessageManager } from './wizard/wizard-message-manager';
 import { isReplyMenuText } from '../../handlers/main-menu.keyboard';
 import { SceneHandler } from '../scene-handler';
-import { CommonMessages } from '@components/telegram/core/domain/models/messages/common.messages';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { logger } from '@/infra/logger/logger';
 
 export const CREATE_GRID_SCENE_ID = 'create_grid';
@@ -76,61 +76,78 @@ export class CreateGridSceneHandler implements SceneHandler {
     }
 
     private async handlePairAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-        const symbol = ctx.match![1];
-
-        const result = await this.selectPairStep.handlePairSelection(ctx, symbol);
-        if (result) {
-            await this.navigator.completeStep(ctx, result);
+        try {
+            const symbol = ctx.match![1];
+            const result = await this.selectPairStep.handlePairSelection(ctx, symbol);
+            if (result) {
+                await this.navigator.completeStep(ctx, result);
+            }
+        } finally {
+            await ctx.answerCbQuery();
         }
     }
 
     private async handleOtherPairAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-        await this.selectPairStep.handleOtherPair(ctx);
+        try {
+            await this.selectPairStep.handleOtherPair(ctx);
+        } finally {
+            await ctx.answerCbQuery();
+        }
     }
 
     private async handleModeAction(ctx: BotContext, mode: CreateGridMode): Promise<void> {
-        await ctx.answerCbQuery();
-        const result = await this.selectModeStep.handleModeSelection(ctx, mode);
-        if (result) {
-            await this.navigator.completeStep(ctx, result);
+        try {
+            const result = await this.selectModeStep.handleModeSelection(ctx, mode);
+            if (result) {
+                await this.navigator.completeStep(ctx, result);
+            }
+        } finally {
+            await ctx.answerCbQuery();
         }
     }
 
     private async handleLevelsAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-        const levels = parseInt(ctx.match![1], 10);
-
-        const result = await this.advancedLevelsStep.handleLevelsSelection(ctx, levels);
-        if (result) {
-            await this.navigator.completeStep(ctx, result);
+        try {
+            const levels = parseInt(ctx.match![1], 10);
+            const result = await this.advancedLevelsStep.handleLevelsSelection(ctx, levels);
+            if (result) {
+                await this.navigator.completeStep(ctx, result);
+            }
+        } finally {
+            await ctx.answerCbQuery();
         }
     }
 
     private async handleConfirmAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-
-        await this.messageManager.deleteAllMessages(ctx);
         try {
-            await this.confirmStep.execute(ctx);
-        } catch (error) {
-            this.logger.error({ error }, 'Failed to execute confirm step');
-            await ctx.reply(CommonMessages.CREATE_GRID_ERROR);
+            await this.messageManager.deleteAllMessages(ctx);
+            try {
+                await this.confirmStep.execute(ctx);
+            } catch (error) {
+                this.logger.error({ error }, 'Failed to execute confirm step');
+                await ctx.reply(CommonTexts.CREATE_GRID_ERROR);
+            }
+            delete ctx.session.createGrid;
+            await ctx.scene.leave();
+        } finally {
+            await ctx.answerCbQuery();
         }
-
-        delete ctx.session.createGrid;
-        await ctx.scene.leave();
     }
 
     private async handleBackAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-        await this.navigator.handleBack(ctx);
+        try {
+            await this.navigator.handleBack(ctx);
+        } finally {
+            await ctx.answerCbQuery();
+        }
     }
 
     private async handleCancelAction(ctx: BotContext): Promise<void> {
-        await ctx.answerCbQuery();
-        await this.navigator.handleCancel(ctx);
+        try {
+            await this.navigator.handleCancel(ctx);
+        } finally {
+            await ctx.answerCbQuery();
+        }
     }
 
     private async handleTextInput(ctx: BotContext): Promise<void> {
