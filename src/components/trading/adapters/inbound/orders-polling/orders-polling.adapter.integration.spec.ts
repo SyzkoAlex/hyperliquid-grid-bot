@@ -6,6 +6,7 @@ import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersPollingAdapter } from './orders-polling.adapter';
 import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
+import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
@@ -271,6 +272,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
 
         const moduleBuilder = Test.createTestingModule({
             imports: [
+                MockDistributedLockModule,
                 ScheduleModule.forRoot(),
                 AppConfigModule.forRoot(),
                 DatabaseModule,

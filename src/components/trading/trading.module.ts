@@ -14,6 +14,8 @@ import { OrderRefillService } from '@components/trading/core/application/service
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
 import { ProfitCalculatorService } from '@components/trading/core/domain/services/profit-calculator/profit-calculator.service';
+import { RefillOrderPlacementService } from '@components/trading/core/application/services/refill-order-placement/refill-order-placement.service';
+import { TradeEventPublisher } from '@components/trading/core/application/services/trade-event-publisher/trade-event-publisher.service';
 import { GridCommandsAdapter } from '@components/trading/adapters/inbound/grid-commands/grid-commands.adapter';
 import { CreateGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/create-grid/create-grid.handler';
 import { StopGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
@@ -48,6 +50,8 @@ import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
         },
         UserBalanceExtractorService,
         OrderStatusSyncService,
+        RefillOrderPlacementService,
+        TradeEventPublisher,
         OrderRefillService,
         OrderRestoreService,
         OrderPlacementService,

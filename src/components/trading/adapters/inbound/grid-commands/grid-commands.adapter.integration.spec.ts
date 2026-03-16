@@ -7,6 +7,7 @@ import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { GridCommandsAdapter } from './grid-commands.adapter';
 import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
+import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
@@ -534,6 +535,7 @@ async function setupTestEnvironment() {
 
     const moduleBuilder = Test.createTestingModule({
         imports: [
+            MockDistributedLockModule,
             ScheduleModule.forRoot(),
             AppConfigModule.forRoot(),
             DatabaseModule,

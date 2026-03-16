@@ -1,4 +1,6 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { TelegramBotService } from '@components/telegram/adapters/inbound/telegram-bot/telegram-bot.service';
 import { StartHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/start/start.handler';
@@ -17,10 +19,13 @@ import { TelegramAction } from '@components/telegram/core/domain/models/telegram
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
+import { ManagedLockHandle } from '@/core/application/services/managed-lock/managed-lock-handle';
+import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 
 @Injectable()
-export class TelegramCommandsAdapter implements OnModuleInit {
+export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
     private readonly logger = logger.child({ context: TelegramCommandsAdapter.name });
+    private managedLockHandle: ManagedLockHandle | null = null;
 
     constructor(
         private readonly telegramBotService: TelegramBotService,
@@ -33,13 +38,30 @@ export class TelegramCommandsAdapter implements OnModuleInit {
         private readonly stopGridHandler: StopGridHandler,
         private readonly balanceHandler: BalanceHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
+        private readonly managedLock: ManagedLockService,
+        private readonly configService: ConfigService<Config, true>,
     ) {}
 
     async onModuleInit() {
+        const { botLockTtlMs } = this.configService.get('telegram', { infer: true });
+
+        this.managedLockHandle = this.managedLock.hold({
+            lockName: 'telegram-bot',
+            ttlMs: botLockTtlMs,
+            onAcquired: () => this.startBot(),
+        });
+    }
+
+    async onModuleDestroy() {
+        this.telegramBotService.stop();
+        await this.managedLockHandle?.dispose();
+    }
+
+    private async startBot() {
         this.registerScenes();
         this.registerHandlers();
         await this.telegramBotService.launch();
-        this.logger.info('Telegram bot controller initialized');
+        this.logger.info('Telegram bot started (lock acquired)');
     }
 
     private registerScenes() {

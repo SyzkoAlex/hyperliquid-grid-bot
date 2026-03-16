@@ -58,6 +58,7 @@ telegram:
     pagination:
         activePageSize: 5
         stoppedPageSize: 5
+    botLockTtlMs: ${TELEGRAM_BOT_LOCK_TTL_MS:60000} # 60 seconds
 
 grid:
     defaultLevels: ${GRID_DEFAULT_LEVELS:20}
@@ -76,6 +77,8 @@ orders:
     pollIntervalMs: ${ORDERS_POLL_INTERVAL_MS:10000}
     recoveryIntervalMs: ${ORDERS_RECOVERY_INTERVAL_MS:600000} # 10 minutes
     pendingCleanupThresholdMs: ${ORDERS_PENDING_CLEANUP_THRESHOLD_MS:300000} # 5 minutes
+    syncLockTtlMs: ${ORDERS_SYNC_LOCK_TTL_MS:30000} # 30 seconds
+    restoreLockTtlMs: ${ORDERS_RESTORE_LOCK_TTL_MS:60000} # 60 seconds
 
 logging:
     level: ${LOG_LEVEL:trace}
@@ -83,5 +86,4 @@ logging:
 
 metrics:
     enabled: ${METRICS_ENABLED:true}
-    port: ${METRICS_PORT:9090}
     path: /metrics

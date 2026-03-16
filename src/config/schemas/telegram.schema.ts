@@ -45,6 +45,7 @@ export const telegramSchema = z.object({
     rateLimit: telegramRateLimitSchema,
     session: telegramSessionSchema,
     pagination: telegramPaginationSchema,
+    botLockTtlMs: z.coerce.number().int().positive(),
 });
 
 export type TelegramConfig = z.infer<typeof telegramSchema>;
