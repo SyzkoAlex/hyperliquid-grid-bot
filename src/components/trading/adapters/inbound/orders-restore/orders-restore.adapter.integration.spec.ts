@@ -6,6 +6,7 @@ import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersRestoreAdapter } from './orders-restore.adapter';
 import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
+import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
@@ -297,6 +298,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
 
         const moduleBuilder = Test.createTestingModule({
             imports: [
+                MockDistributedLockModule,
                 ScheduleModule.forRoot(),
                 AppConfigModule.forRoot(),
                 DatabaseModule,

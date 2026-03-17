@@ -6,6 +6,7 @@ import { HttpModule } from '@/infra/http/http.module';
 import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersWebsocketAdapter } from './orders-websocket.adapter';
+import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { ProcessOrderStatusUseCase } from '@components/trading/core/application/use-cases/process-order-status/process-order-status.use-case';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -207,6 +208,7 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
 
         const moduleBuilder = Test.createTestingModule({
             imports: [
+                MockDistributedLockModule,
                 ScheduleModule.forRoot(),
                 AppConfigModule.forRoot(),
                 DatabaseModule,

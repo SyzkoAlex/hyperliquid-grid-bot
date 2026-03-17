@@ -1,9 +1,13 @@
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Inject } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { RestoreOrdersUseCase } from '@components/trading/core/application/use-cases/restore-orders/restore-orders.use-case';
 import { logger } from '@/infra/logger/logger';
 import { Config } from '@/config/config.schema';
+import {
+    DISTRIBUTED_LOCK_PORT,
+    DistributedLockPort,
+} from '@/core/application/ports/outbound/distributed-lock.port';
 
 /**
  * Order Restore Monitor
@@ -25,6 +29,7 @@ export class OrdersRestoreAdapter implements OnApplicationBootstrap, OnModuleDes
         private readonly restoreOrdersUseCase: RestoreOrdersUseCase,
         private readonly schedulerRegistry: SchedulerRegistry,
         private readonly configService: ConfigService<Config, true>,
+        @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
     ) {}
 
     onApplicationBootstrap(): void {
@@ -49,6 +54,17 @@ export class OrdersRestoreAdapter implements OnApplicationBootstrap, OnModuleDes
         }
     }
 
+    private async executeRestore(): Promise<void> {
+        const restoreResult = await this.restoreOrdersUseCase.execute();
+
+        if (restoreResult.hasErrors) {
+            this.logger.error(
+                { errors: restoreResult.errors },
+                'Order restore completed with errors',
+            );
+        }
+    }
+
     private async runRestore(): Promise<void> {
         if (this.isRunning) {
             this.logger.debug('Restore already running, skipping');
@@ -58,13 +74,12 @@ export class OrdersRestoreAdapter implements OnApplicationBootstrap, OnModuleDes
         this.isRunning = true;
 
         try {
-            const restoreResult = await this.restoreOrdersUseCase.execute();
-
-            if (restoreResult.hasErrors) {
-                this.logger.error(
-                    { errors: restoreResult.errors },
-                    'Order restore completed with errors',
-                );
+            const { restoreLockTtlMs } = this.configService.get('orders', { infer: true });
+            const result = await this.lock.withLock('orders-restore', restoreLockTtlMs, () =>
+                this.executeRestore(),
+            );
+            if (result === null) {
+                this.logger.debug('Orders restore skipped: another instance holds the lock');
             }
         } catch (error) {
             this.logger.error({ error }, 'Error in restore process');

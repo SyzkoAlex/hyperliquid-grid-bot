@@ -31,6 +31,7 @@ import { GetUserBalanceUseCase } from './core/application/use-cases/get-user-bal
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
 import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
+import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 import { GridSnapshotFactory } from './core/application/services/grid-snapshot-factory/grid-snapshot.factory';
 import { PendingCreationMessageStore } from './adapters/inbound/telegram-bot/pending-creation-message.store';
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
@@ -44,6 +45,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
     imports: [GridsModule, TradingModule, EventPublisherModule, EventSubscriberModule],
     providers: [
         TelegramBotService,
+        ManagedLockService,
         { provide: TELEGRAM_NOTIFICATION_PORT, useExisting: TelegramBotService },
         CacheSessionStore,
         NotificationMessageFactory,

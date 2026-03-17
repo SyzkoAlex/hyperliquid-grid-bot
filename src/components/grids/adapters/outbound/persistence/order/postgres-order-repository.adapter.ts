@@ -9,6 +9,7 @@ import { logger } from '@/infra/logger/logger';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { OrderRepositoryPort } from '../../../../core/application/ports/order-repository.port';
 import { PostgresOrderMapper } from './postgres-order.mapper';
+import { DuplicateActiveOrderError } from '../../../../core/domain/errors/duplicate-active-order.error';
 
 @Injectable()
 export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
@@ -21,9 +22,30 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
             await this.db.insert(orders).values(PostgresOrderMapper.toDbRecord(order));
             this.logger.debug({ orderId: order.id.toString() }, 'Order saved');
         } catch (error) {
-            this.logger.error({ error, orderId: order.id.toString() }, 'Failed to save order');
-            throw error;
+            this.handleSaveError(error, order);
         }
+    }
+
+    private handleSaveError(error: unknown, order: Order): never {
+        if (this.isDuplicateActiveLevelError(error)) {
+            throw new DuplicateActiveOrderError(
+                order.gridId.toString(),
+                order.levelIndex,
+                order.side,
+            );
+        }
+        this.logger.error({ error, orderId: order.id.toString() }, 'Failed to save order');
+        throw error;
+    }
+
+    private isDuplicateActiveLevelError(error: unknown): boolean {
+        const PG_UNIQUE_VIOLATION = '23505';
+        return (
+            error instanceof Error &&
+            'code' in error &&
+            (error as NodeJS.ErrnoException).code === PG_UNIQUE_VIOLATION &&
+            error.message.includes('idx_orders_active_level')
+        );
     }
 
     async findManyActive(gridId: GridId): Promise<Order[]> {

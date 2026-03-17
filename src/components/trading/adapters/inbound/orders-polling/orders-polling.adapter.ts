@@ -1,9 +1,13 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
 import { logger } from '@/infra/logger/logger';
 import { Config } from '@/config/config.schema';
+import {
+    DISTRIBUTED_LOCK_PORT,
+    DistributedLockPort,
+} from '@/core/application/ports/outbound/distributed-lock.port';
 
 /**
  * Orders Monitor
@@ -20,6 +24,7 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly configService: ConfigService<Config, true>,
         private readonly syncOrders: SyncOrdersUseCase,
         private readonly schedulerRegistry: SchedulerRegistry,
+        @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
     ) {}
 
     onModuleInit(): void {
@@ -48,7 +53,13 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         this.isProcessing = true;
 
         try {
-            await this.syncOrders.execute();
+            const { syncLockTtlMs } = this.configService.get('orders', { infer: true });
+            const result = await this.lock.withLock('orders-sync', syncLockTtlMs, () =>
+                this.syncOrders.execute(),
+            );
+            if (result === null) {
+                this.logger.debug('Orders sync skipped: another instance holds the lock');
+            }
         } catch (error) {
             this.logger.error({ error }, 'Error in orders sync check');
         } finally {

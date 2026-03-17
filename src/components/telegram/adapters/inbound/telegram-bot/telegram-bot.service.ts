@@ -62,10 +62,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     }
 
     async onModuleDestroy() {
-        if (this._bot) {
-            this._bot.stop();
-            this.logger.info('Telegram bot stopped');
-        }
+        this.stop();
     }
 
     get bot(): Telegraf<BotContext> {
@@ -141,5 +138,12 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     async launch(): Promise<void> {
         await this.bot.launch();
         this.logger.info('Telegram bot launched');
+    }
+
+    stop(): void {
+        if (this._bot) {
+            this._bot.stop();
+            this.logger.info('Telegram bot stopped');
+        }
     }
 }
