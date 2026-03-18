@@ -43,12 +43,12 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nodejs
 
-# Expose metrics port
-EXPOSE 9090
+# Expose app port
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:9090/health/live', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD node -e "require('http').get('http://localhost:3000/health/live', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
 # Start bot
 CMD ["node", "dist/src/main.js"]
