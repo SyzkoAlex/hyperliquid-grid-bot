@@ -35,7 +35,7 @@ RUN pnpm install --prod --ignore-scripts
 # Copy built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/config ./config
-COPY --from=builder /app/src/infra/database/migrations ./migrations
+COPY --from=builder /app/src/infra/database/migrations ./dist/migrations
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
