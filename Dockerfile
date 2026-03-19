@@ -47,8 +47,8 @@ USER nodejs
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD node -e "require('http').get('http://localhost:3000/health/live', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
+  CMD node -e "const req = require('http').get('http://localhost:3000/health/live', (r) => process.exit(r.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1));"
 
 # Start bot
 CMD ["node", "dist/src/main.js"]
