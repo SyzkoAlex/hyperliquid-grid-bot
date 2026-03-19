@@ -1,11 +1,14 @@
 import { createWorker } from '../common/create-worker';
 import { AllInOneAppModule } from './all-in-one-app.module';
 import { logger } from '@/infra/logger/logger';
+import { loadConfiguration } from '@/config/configuration';
 
 export async function bootstrapAllInOneApp(): Promise<void> {
     const app = await createWorker(AllInOneAppModule);
 
-    await app.init();
+    const { port, host } = loadConfiguration().app;
+
+    await app.listen(port, host);
 
     logger.info(
         {
