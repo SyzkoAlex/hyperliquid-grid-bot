@@ -48,7 +48,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
-  CMD wget -qO /dev/null http://localhost:3000/health/live || exit 1
+  CMD wget -qO /dev/null http://127.0.0.1:3000/health/live || exit 1
 
 # Start bot
 CMD ["node", "dist/src/main.js"]
