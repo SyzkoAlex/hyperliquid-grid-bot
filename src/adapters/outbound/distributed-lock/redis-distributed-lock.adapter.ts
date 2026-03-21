@@ -55,12 +55,12 @@ export class RedisDistributedLockAdapter
 
     async tryAcquire(lockName: string, ttlMs: number): Promise<LockHandle | null> {
         const key = `lock:${lockName}`;
-        this.logger.debug({ lockName, ttlMs }, 'Attempting to acquire lock');
+        this.logger.trace({ lockName, ttlMs }, 'Attempting to acquire lock');
 
         const result = await this.client.set(key, this.instanceId, { NX: true, PX: ttlMs });
 
         if (result === 'OK') {
-            this.logger.debug({ lockName }, 'Lock acquired');
+            this.logger.trace({ lockName }, 'Lock acquired');
             return { lockName, ownerId: this.instanceId };
         }
 
@@ -75,7 +75,7 @@ export class RedisDistributedLockAdapter
             arguments: [handle.ownerId],
         });
         const released = deleted === 1;
-        this.logger.debug({ lockName: handle.lockName, released }, 'Lock release attempt');
+        this.logger.trace({ lockName: handle.lockName, released }, 'Lock release attempt');
         return released;
     }
 
@@ -86,7 +86,7 @@ export class RedisDistributedLockAdapter
             arguments: [handle.ownerId, String(ttlMs)],
         });
         const extended = result === 1;
-        this.logger.debug({ lockName: handle.lockName, extended }, 'Lock extend attempt');
+        this.logger.trace({ lockName: handle.lockName, extended }, 'Lock extend attempt');
         return extended;
     }
 
