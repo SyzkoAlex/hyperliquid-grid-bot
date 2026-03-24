@@ -15,9 +15,13 @@ describe('ProcessOrderStatusUseCase', () => {
         findOrderByExchangeId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
         findGridById: ReturnType<typeof vi.fn>;
+        findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
     };
     let mockOrderRefillService: {
         processOne: ReturnType<typeof vi.fn>;
+    };
+    let mockRefillPlacement: {
+        placeRefillOrder: ReturnType<typeof vi.fn>;
     };
 
     const gridId = '550e8400-e29b-41d4-a716-446655440000';
@@ -27,13 +31,22 @@ describe('ProcessOrderStatusUseCase', () => {
             findOrderByExchangeId: vi.fn(),
             updateOrderStatus: vi.fn(),
             findGridById: vi.fn(),
+            findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
         };
 
         mockOrderRefillService = {
             processOne: vi.fn(),
         };
 
-        useCase = new ProcessOrderStatusUseCase(mockGrids as any, mockOrderRefillService as any);
+        mockRefillPlacement = {
+            placeRefillOrder: vi.fn().mockResolvedValue({ success: true }),
+        };
+
+        useCase = new ProcessOrderStatusUseCase(
+            mockGrids as any,
+            mockOrderRefillService as any,
+            mockRefillPlacement as any,
+        );
     });
 
     const createOrder = (status: OrderStatus = OrderStatus.Placed): OrderDto => ({
@@ -66,9 +79,7 @@ describe('ProcessOrderStatusUseCase', () => {
         trailingPartialClosePercent: 50,
     });
 
-    const createOrderStatus = (
-        status: 'filled' | 'canceled' | 'marginCanceled' | 'rejected' | 'open' | 'triggered',
-    ): OrderStatusUpdate => ({
+    const createOrderStatus = (status: string): OrderStatusUpdate => ({
         exchangeOrderId: 123,
         coin: 'BTC',
         status,
@@ -234,6 +245,59 @@ describe('ProcessOrderStatusUseCase', () => {
                 order.id,
                 OrderStatus.Cancelled,
             );
+        });
+
+        it('should handle selfTradeCanceled order', async () => {
+            const orderStatus = createOrderStatus('selfTradeCanceled');
+            const order = createOrder(OrderStatus.Placed);
+            const grid = createGrid(GridStatus.Running);
+
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
+            mockGrids.findGridById.mockResolvedValue(grid);
+
+            const result = await useCase.execute({ orderStatus });
+
+            expect(result.success).toBe(true);
+            expect(result.isGridOrder).toBe(true);
+            expect(result.status).toBe('selfTradeCanceled');
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                order.id,
+                OrderStatus.Cancelled,
+            );
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledWith(
+                grid,
+                expect.objectContaining({
+                    side: order.side,
+                    levelIndex: order.levelIndex,
+                }),
+            );
+        });
+
+        it('should skip recovery if grid is not running', async () => {
+            const orderStatus = createOrderStatus('selfTradeCanceled');
+            const order = createOrder(OrderStatus.Placed);
+
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
+            mockGrids.findGridById.mockResolvedValue(createGrid(GridStatus.Stopped));
+
+            await useCase.execute({ orderStatus });
+
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        });
+
+        it('should skip recovery if conflicting order exists at same level', async () => {
+            const orderStatus = createOrderStatus('selfTradeCanceled');
+            const order = createOrder(OrderStatus.Placed);
+
+            mockGrids.findOrderByExchangeId.mockResolvedValue(order);
+            mockGrids.findGridById.mockResolvedValue(createGrid(GridStatus.Running));
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([
+                { ...order, id: 'other-id', side: 'sell' },
+            ]);
+
+            await useCase.execute({ orderStatus });
+
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
         });
 
         it('should skip if already cancelled', async () => {

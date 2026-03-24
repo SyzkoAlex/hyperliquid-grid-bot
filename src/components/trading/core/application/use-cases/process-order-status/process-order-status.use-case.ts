@@ -2,10 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
+import { RefillOrderPlacementService } from '@components/trading/core/application/services/refill-order-placement/refill-order-placement.service';
+import { RefillParams } from '@components/trading/core/application/services/order-refill/refill-params';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderStatusUpdate } from './order-status-update';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { Price } from '@domain/models/primitives/price';
+import { Decimal } from '@domain/models/primitives/decimal';
 
 export interface ProcessOrderStatusParams {
     orderStatus: OrderStatusUpdate;
@@ -31,6 +35,7 @@ export class ProcessOrderStatusUseCase {
     constructor(
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderRefillService: OrderRefillService,
+        private readonly refillPlacement: RefillOrderPlacementService,
     ) {}
 
     async execute(params: ProcessOrderStatusParams): Promise<ProcessOrderStatusResult> {
@@ -63,11 +68,36 @@ export class ProcessOrderStatusUseCase {
                 case 'filled':
                     return this.handleFilled(orderStatus, gridOrder);
 
+                case 'selfTradeCanceled':
+                    return this.handleSelfTradeCanceled(orderStatus, gridOrder);
+
                 case 'canceled':
                 case 'marginCanceled':
+                case 'vaultWithdrawalCanceled':
+                case 'openInterestCapCanceled':
+                case 'reduceOnlyCanceled':
+                case 'siblingFilledCanceled':
+                case 'delistedCanceled':
+                case 'liquidatedCanceled':
+                case 'scheduledCancel':
                     return this.handleCanceled(orderStatus, gridOrder);
 
                 case 'rejected':
+                case 'tickRejected':
+                case 'minTradeNtlRejected':
+                case 'perpMarginRejected':
+                case 'reduceOnlyRejected':
+                case 'badAloPxRejected':
+                case 'iocCancelRejected':
+                case 'badTriggerPxRejected':
+                case 'marketOrderNoLiquidityRejected':
+                case 'positionIncreaseAtOpenInterestCapRejected':
+                case 'positionFlipAtOpenInterestCapRejected':
+                case 'tooAggressiveAtOpenInterestCapRejected':
+                case 'openInterestIncreaseRejected':
+                case 'insufficientSpotBalanceRejected':
+                case 'oracleRejected':
+                case 'perpMaxPositionRejected':
                     return this.handleFailed(orderStatus, gridOrder);
 
                 case 'open':
@@ -191,6 +221,94 @@ export class ProcessOrderStatusUseCase {
             isGridOrder: true,
             orderId: orderStatus.exchangeOrderId,
             status: 'filled',
+        };
+    }
+
+    private async handleSelfTradeCanceled(
+        orderStatus: OrderStatusUpdate,
+        gridOrder: OrderDto,
+    ): Promise<ProcessOrderStatusResult> {
+        if (gridOrder.status !== OrderStatus.Cancelled) {
+            await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Cancelled);
+            this.logger.warn(
+                {
+                    oid: orderStatus.exchangeOrderId,
+                    gridOrderId: gridOrder.id,
+                    levelIndex: gridOrder.levelIndex,
+                    side: gridOrder.side,
+                },
+                'Order cancelled due to self-trade prevention, attempting recovery',
+            );
+        }
+
+        const grid = await this.grids.findGridById(gridOrder.gridId);
+
+        if (!grid || grid.status !== GridStatus.Running) {
+            return {
+                success: true,
+                isGridOrder: true,
+                orderId: orderStatus.exchangeOrderId,
+                status: 'selfTradeCanceled',
+            };
+        }
+
+        const activeOrders = await this.grids.findActiveOrdersByGridId(grid.id);
+        const hasConflict = activeOrders.some(
+            (o) => o.levelIndex === gridOrder.levelIndex && o.side !== gridOrder.side,
+        );
+
+        if (hasConflict) {
+            this.logger.warn(
+                {
+                    oid: orderStatus.exchangeOrderId,
+                    levelIndex: gridOrder.levelIndex,
+                    side: gridOrder.side,
+                },
+                'STP recovery skipped: conflicting order on opposite side at same level',
+            );
+            return {
+                success: true,
+                isGridOrder: true,
+                orderId: orderStatus.exchangeOrderId,
+                status: 'selfTradeCanceled',
+            };
+        }
+
+        const params = new RefillParams(
+            gridOrder.side,
+            gridOrder.levelIndex,
+            Price.from(gridOrder.price!),
+            Decimal.from(gridOrder.amount),
+        );
+
+        const result = await this.refillPlacement.placeRefillOrder(grid, params);
+
+        if (result.success) {
+            this.logger.info(
+                {
+                    oid: orderStatus.exchangeOrderId,
+                    levelIndex: gridOrder.levelIndex,
+                    side: gridOrder.side,
+                },
+                'Order re-placed after STP cancellation',
+            );
+        } else {
+            this.logger.warn(
+                {
+                    oid: orderStatus.exchangeOrderId,
+                    levelIndex: gridOrder.levelIndex,
+                    side: gridOrder.side,
+                    error: result.error,
+                },
+                'STP recovery failed to re-place order',
+            );
+        }
+
+        return {
+            success: true,
+            isGridOrder: true,
+            orderId: orderStatus.exchangeOrderId,
+            status: 'selfTradeCanceled',
         };
     }
 
