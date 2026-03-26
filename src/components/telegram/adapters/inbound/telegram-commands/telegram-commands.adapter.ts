@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
@@ -21,6 +21,10 @@ import { CommonTexts } from '@components/telegram/core/domain/models/messages/co
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 import { ManagedLockHandle } from '@/core/application/services/managed-lock/managed-lock-handle';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
+
+// Time to wait after stopping the bot before releasing the lock, to let in-flight
+// getUpdates responses finish processing before another instance can acquire the lock.
+const BOT_DRAIN_DELAY_MS = 2000;
 
 @Injectable()
 export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
@@ -49,11 +53,13 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
             lockName: 'telegram-bot',
             ttlMs: botLockTtlMs,
             onAcquired: () => this.startBot(),
+            onLost: () => this.stopBot(),
         });
     }
 
     async onModuleDestroy() {
         this.telegramBotService.stop();
+        await new Promise<void>((resolve) => setTimeout(resolve, BOT_DRAIN_DELAY_MS));
         await this.managedLockHandle?.dispose();
     }
 
@@ -62,6 +68,11 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         this.registerHandlers();
         await this.telegramBotService.launch();
         this.logger.info('Telegram bot started (lock acquired)');
+    }
+
+    private async stopBot(): Promise<void> {
+        this.telegramBotService.stop();
+        this.logger.info('Telegram bot stopped (lock lost)');
     }
 
     private registerScenes() {

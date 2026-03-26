@@ -34,7 +34,7 @@ hyperliquid:
 telegram:
     enabled: ${TELEGRAM_ENABLED:true}
     botToken: ${TELEGRAM_BOT_TOKEN:0000000000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}
-    allowedManagerChatId: ${TELEGRAM_ALLOWED_MANAGER_CHAT_ID:0}
+    allowedManagerChatId: ${TELEGRAM_ALLOWED_MANAGER_CHAT_ID:0}  # this is user id, not chat id
     notificationChatId: ${TELEGRAM_NOTIFICATION_CHAT_ID:0}
     mode: ${TELEGRAM_MODE:polling}
     webhook:

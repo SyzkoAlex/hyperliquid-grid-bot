@@ -43,14 +43,4 @@ function registerErrorHandlers(): void {
         );
         process.exit(1);
     });
-
-    process.on('SIGTERM', async () => {
-        logger.info('SIGTERM received, shutting down gracefully');
-        process.exit(0);
-    });
-
-    process.on('SIGINT', async () => {
-        logger.info('SIGINT received, shutting down gracefully');
-        process.exit(0);
-    });
 }

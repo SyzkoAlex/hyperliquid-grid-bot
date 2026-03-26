@@ -6,4 +6,5 @@ export interface ManagedLockOptions {
     /** How often to retry acquisition when lock is held. Default: ttlMs / 2 */
     retryIntervalMs?: number;
     onAcquired: () => Promise<void>;
+    onLost?: () => Promise<void>;
 }

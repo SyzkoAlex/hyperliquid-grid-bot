@@ -94,6 +94,13 @@ export class ManagedLock implements ManagedLockHandle {
 
     private async onLockLost(): Promise<void> {
         this.logger.warn('Lock lost, attempting re-acquisition');
+
+        try {
+            await this.options.onLost?.();
+        } catch (err) {
+            this.logger.error({ err }, 'onLost threw, continuing with retry');
+        }
+
         this.handle = null;
         this.clearRenewInterval();
         this.scheduleRetry();

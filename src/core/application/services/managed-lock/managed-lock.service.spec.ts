@@ -165,6 +165,77 @@ describe('ManagedLockService', () => {
             expect(mockLock.tryAcquire).toHaveBeenCalledTimes(2);
         });
 
+        it('should call onLost when extend returns false', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            vi.mocked(mockLock.extend).mockResolvedValue(false);
+            const onLost = vi.fn().mockResolvedValue(undefined);
+
+            service.hold({ lockName: LOCK_NAME, ttlMs: TTL_MS, onAcquired: vi.fn(), onLost });
+            await flushAsync();
+
+            const renewalIntervalMs = Math.floor(TTL_MS / 3);
+            await vi.advanceTimersByTimeAsync(renewalIntervalMs);
+            await flushAsync();
+
+            expect(onLost).toHaveBeenCalledOnce();
+        });
+
+        it('should call onLost when extend throws', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            vi.mocked(mockLock.extend).mockRejectedValue(new Error('Redis error'));
+            const onLost = vi.fn().mockResolvedValue(undefined);
+
+            service.hold({ lockName: LOCK_NAME, ttlMs: TTL_MS, onAcquired: vi.fn(), onLost });
+            await flushAsync();
+
+            const renewalIntervalMs = Math.floor(TTL_MS / 3);
+            await vi.advanceTimersByTimeAsync(renewalIntervalMs);
+            await flushAsync();
+
+            expect(onLost).toHaveBeenCalledOnce();
+        });
+
+        it('should still retry even if onLost throws', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            vi.mocked(mockLock.extend).mockResolvedValue(false);
+            const retryIntervalMs = 500;
+            const onLost = vi.fn().mockRejectedValue(new Error('stop failed'));
+
+            service.hold({
+                lockName: LOCK_NAME,
+                ttlMs: TTL_MS,
+                retryIntervalMs,
+                onAcquired: vi.fn(),
+                onLost,
+            });
+            await flushAsync();
+
+            const renewalIntervalMs = Math.floor(TTL_MS / 3);
+            await vi.advanceTimersByTimeAsync(renewalIntervalMs);
+            await flushAsync();
+
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(null);
+            await vi.advanceTimersByTimeAsync(retryIntervalMs);
+            expect(mockLock.tryAcquire).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not call onLost when disposed', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            const onLost = vi.fn();
+
+            const handle = service.hold({
+                lockName: LOCK_NAME,
+                ttlMs: TTL_MS,
+                onAcquired: vi.fn(),
+                onLost,
+            });
+            await flushAsync();
+
+            await handle.dispose();
+
+            expect(onLost).not.toHaveBeenCalled();
+        });
+
         it('should re-acquire and call onAcquired again after lock is lost and re-acquired', async () => {
             vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
             vi.mocked(mockLock.extend).mockResolvedValue(false);
