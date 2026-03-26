@@ -37,10 +37,11 @@ import { GridLevel } from './grid-level';
  * ```
  *
  * **Sell Orders (above current price):**
+ * To ensure equal notional (USDC value) per level, we use the harmonic mean:
  * ```
- * basePerLevel = totalInvestmentBase / sellLevelsCount
- * amountBase = basePerLevel             (tokens to sell)
- * amountUSDC = basePerLevel * price    (USDC to receive)
+ * usdcPerLevel = investmentBase / Σ(1/price_i)   (constant USDC notional per level)
+ * amountBase_i = usdcPerLevel / price_i           (varies by price)
+ * amountUSDC   = usdcPerLevel                     (same for all sell levels)
  * ```
  */
 export class GridLevelsCalculatorService {
@@ -118,7 +119,14 @@ export class GridLevelsCalculatorService {
         const sellLevels = levels.filter((l) => l.side === OrderSide.Sell);
 
         const quotePerBuyLevel = Decimal.from(investmentUSDC).div(Decimal.from(buyLevels.length));
-        const basePerSellLevel = Decimal.from(investmentBase).div(Decimal.from(sellLevels.length));
+
+        // Equal USDC notional per sell level via harmonic distribution:
+        // usdcPerSellLevel = investmentBase / Σ(1/price_i)
+        const sumInvPrices = sellLevels.reduce(
+            (sum, level) => sum.add(Decimal.from(1).div(Decimal.from(level.price.toNumber()))),
+            Decimal.from(0),
+        );
+        const usdcPerSellLevel = Decimal.from(investmentBase).div(sumInvPrices);
 
         return levels.map((level) => {
             if (level.side === OrderSide.Buy) {
@@ -132,10 +140,10 @@ export class GridLevelsCalculatorService {
             } else {
                 return {
                     ...level,
-                    amountBase: basePerSellLevel.toNumber(),
-                    amountUSDC: basePerSellLevel
-                        .mul(Decimal.from(level.price.toNumber()))
+                    amountBase: usdcPerSellLevel
+                        .div(Decimal.from(level.price.toNumber()))
                         .toNumber(),
+                    amountUSDC: usdcPerSellLevel.toNumber(),
                 };
             }
         });

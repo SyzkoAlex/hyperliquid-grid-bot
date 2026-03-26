@@ -73,7 +73,7 @@ describe('GridLevelsCalculatorService', () => {
             });
         });
 
-        it('should distribute base tokens evenly across sell levels', () => {
+        it('should distribute equal USDC notional across sell levels', () => {
             const currentPrice = Price.from(55000);
             const result = calc(
                 { lowerPrice: 50000, upperPrice: 60000, levels: 5, investmentUSDC: 3000 },
@@ -81,10 +81,10 @@ describe('GridLevelsCalculatorService', () => {
             );
 
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
-            const expectedBasePerLevel = 0.1 / sellLevels.length;
+            const firstNotional = sellLevels[0].amountUSDC!;
 
             sellLevels.forEach((level) => {
-                expect(level.amountBase).toBeCloseTo(expectedBasePerLevel, 5);
+                expect(level.amountUSDC).toBeCloseTo(firstNotional, 5);
             });
         });
 
