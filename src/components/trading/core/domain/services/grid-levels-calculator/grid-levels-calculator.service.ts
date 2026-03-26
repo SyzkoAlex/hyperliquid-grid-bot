@@ -37,11 +37,12 @@ import { GridLevel } from './grid-level';
  * ```
  *
  * **Sell Orders (above current price):**
- * To ensure equal notional (USDC value) per level, we use the harmonic mean:
+ * Base tokens are distributed equally. This gives equal notional at CURRENT price
+ * (which is what the exchange uses to validate minimum order value):
  * ```
- * usdcPerLevel = investmentBase / Σ(1/price_i)   (constant USDC notional per level)
- * amountBase_i = usdcPerLevel / price_i           (varies by price)
- * amountUSDC   = usdcPerLevel                     (same for all sell levels)
+ * basePerLevel = totalInvestmentBase / sellLevelsCount
+ * amountBase = basePerLevel                (tokens to sell, same for all sell levels)
+ * amountUSDC = basePerLevel * price        (USDC to receive, varies by level price)
  * ```
  */
 export class GridLevelsCalculatorService {
@@ -55,26 +56,36 @@ export class GridLevelsCalculatorService {
         investmentBase: number,
         currentPrice: Price,
     ): GridLevel[] {
+        const totalInvestmentUSDC = investmentUSDC + investmentBase * currentPrice.toNumber();
         const gridLevels = this.calculateLevels(lowerPrice, upperPrice, levels, currentPrice);
         const levelsWithSizes = this.calculateOrderSizes(
             investmentUSDC,
             investmentBase,
             gridLevels,
         );
-        this.validateMinOrderNotional(levelsWithSizes);
+        this.validateMinOrderNotional(levelsWithSizes, totalInvestmentUSDC, currentPrice);
         return levelsWithSizes;
     }
 
-    private validateMinOrderNotional(levels: GridLevel[]): void {
-        for (const level of levels) {
-            if (level.amountUSDC === undefined) {
-                continue;
-            }
-            if (level.amountUSDC < this.minOrderNotional) {
-                throw new Error(
-                    `Order notional value $${level.amountUSDC.toFixed(2)} at level ${level.index} is below minimum $${this.minOrderNotional.toFixed(2)}. Increase investment or reduce number of levels.`,
-                );
-            }
+    private validateMinOrderNotional(
+        levels: GridLevel[],
+        totalInvestmentUSDC: number,
+        currentPrice: Price,
+    ): void {
+        // Exchange validates order notional at current market price, not limit price.
+        // For buy levels: amountBase * currentPrice > amountUSDC (current > limitPrice) — passes easier.
+        // For sell levels: amountBase * currentPrice < amountUSDC (current < limitPrice) — stricter check.
+        const minNotionalAtCurrentPrice = levels
+            .filter((l) => l.amountBase !== undefined)
+            .reduce((min, l) => Math.min(min, l.amountBase! * currentPrice.toNumber()), Infinity);
+
+        if (minNotionalAtCurrentPrice < this.minOrderNotional) {
+            const minRequiredUSDC = Math.ceil(
+                totalInvestmentUSDC * (this.minOrderNotional / minNotionalAtCurrentPrice),
+            );
+            throw new Error(
+                `Order notional value $${minNotionalAtCurrentPrice.toFixed(2)} per level is below minimum $${this.minOrderNotional.toFixed(2)}. Minimum investment for current configuration: $${minRequiredUSDC}. Increase investment or reduce number of levels.`,
+            );
         }
     }
 
@@ -119,14 +130,7 @@ export class GridLevelsCalculatorService {
         const sellLevels = levels.filter((l) => l.side === OrderSide.Sell);
 
         const quotePerBuyLevel = Decimal.from(investmentUSDC).div(Decimal.from(buyLevels.length));
-
-        // Equal USDC notional per sell level via harmonic distribution:
-        // usdcPerSellLevel = investmentBase / Σ(1/price_i)
-        const sumInvPrices = sellLevels.reduce(
-            (sum, level) => sum.add(Decimal.from(1).div(Decimal.from(level.price.toNumber()))),
-            Decimal.from(0),
-        );
-        const usdcPerSellLevel = Decimal.from(investmentBase).div(sumInvPrices);
+        const basePerSellLevel = Decimal.from(investmentBase).div(Decimal.from(sellLevels.length));
 
         return levels.map((level) => {
             if (level.side === OrderSide.Buy) {
@@ -140,10 +144,10 @@ export class GridLevelsCalculatorService {
             } else {
                 return {
                     ...level,
-                    amountBase: usdcPerSellLevel
-                        .div(Decimal.from(level.price.toNumber()))
+                    amountBase: basePerSellLevel.toNumber(),
+                    amountUSDC: basePerSellLevel
+                        .mul(Decimal.from(level.price.toNumber()))
                         .toNumber(),
-                    amountUSDC: usdcPerSellLevel.toNumber(),
                 };
             }
         });
