@@ -27,8 +27,9 @@ export class GridListMessage {
     private static compactLine(index: number, { grid, pnl, currentPrice }: GridSnapshot): string {
         const shortId = grid.id.slice(0, 8);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
+        const totalInvestment = grid.investmentUSDC + grid.investmentBase * currentPrice;
         const pnlStr = formatPnl(totalPnl);
-        const pnlPct = formatPnlPercent(totalPnl, grid.investmentUSDC);
+        const pnlPct = formatPnlPercent(totalPnl, totalInvestment);
         const lower = PriceFormatter.format(grid.lowerPrice);
         const upper = PriceFormatter.format(grid.upperPrice);
         const price = PriceFormatter.format(currentPrice);
@@ -39,7 +40,7 @@ export class GridListMessage {
         return (
             `<b>${index}. ${grid.symbol}/USDC</b> (<code>${shortId}</code>)${warn}\n` +
             `     $${lower} – $${upper} · Price: $${price}\n` +
-            `     PnL: ${pnlStr} (${pnlPct}) · $${PriceFormatter.format(grid.investmentUSDC)}`
+            `     PnL: ${pnlStr} (${pnlPct}) · $${PriceFormatter.format(totalInvestment)}`
         );
     }
 }

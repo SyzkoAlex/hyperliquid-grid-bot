@@ -15,7 +15,7 @@ export class GridProfitTabMessage {
     private constructor({ grid, pnl, currentPrice, orderStats }: GridSnapshot) {
         const { pair, shortId, emoji, label, duration } = gridHeaderParts(grid);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
-        const investment = grid.investmentUSDC;
+        const investment = grid.investmentUSDC + grid.investmentBase * currentPrice;
         const totalPnlStr = formatPnl(totalPnl);
         const totalPnlPct = formatPnlPercent(totalPnl, investment);
         const gridProfitStr = formatPnl(pnl.gridProfit);

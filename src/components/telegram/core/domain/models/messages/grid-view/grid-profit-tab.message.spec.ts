@@ -67,15 +67,14 @@ describe('GridProfitTabMessage', () => {
     });
 
     it('calculates correct Grid APR for a 3-day old grid', () => {
-        // profit=$36.5, investment=$500, runningHours=72 → runningDays=3
-        // APR = (36.5 / 500 / 3) * 365 * 100 = 888.17%
+        // profit=$36.5, totalInvestment=$500 + 0.001*95000=$595, runningHours=72 → runningDays=3
+        // APR = (36.5 / 595 / 3) * 365 * 100 ≈ 746.6%
         const startedAt = Date.now() - 72 * 60 * 60 * 1000;
         const grid = makeGrid(GridStatus.Running, startedAt);
         const pnl: GridPnl = { gridProfit: 36.5, unrealizedPnl: 0 };
         const result = GridProfitTabMessage.create(makeData(grid, pnl)).text;
         expect(result).toContain('Grid APR:');
-        expect(result).not.toContain('14568');
-        expect(result).toMatch(/Grid APR:.*\+8[0-9]{2}\./); // 8xx.x%
+        expect(result).toMatch(/Grid APR:.*\+7[0-9]{2}\./); // 7xx.x%
     });
 
     it('shows grid short id in header', () => {
