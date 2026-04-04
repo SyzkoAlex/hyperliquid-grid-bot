@@ -6,6 +6,7 @@ import { ExchangeCancelOrderParams } from '@components/trading/core/domain/model
 import { ExchangeCancelOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-cancel-order-result';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
+import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchange-order/exchange-order-fill';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 
 export const EXCHANGE_PORT = Symbol('EXCHANGE_PORT');
@@ -16,6 +17,7 @@ export interface ExchangePort {
     getCurrentPrice(symbol: TradingSymbol): Promise<Price>;
     getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]>;
     getOrderStatus(user: string, oid: number | string): Promise<ExchangeOrderInfo | null>;
+    getOrderFills(user: string, oid: number, startTime: number): Promise<ExchangeOrderFill[]>;
     getUserSpotState(user: string): Promise<UserState>;
     pairExists(symbol: TradingSymbol): Promise<boolean>;
 }

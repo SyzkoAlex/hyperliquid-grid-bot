@@ -9,6 +9,7 @@ import { ExchangeCancelOrderParams } from '@components/trading/core/domain/model
 import { ExchangeCancelOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-cancel-order-result';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
+import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchange-order/exchange-order-fill';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
@@ -144,6 +145,25 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             throw error;
         } finally {
             this.metrics.observeExchangeApiDuration('getOrderStatus', stop());
+        }
+    }
+
+    async getOrderFills(
+        user: string,
+        oid: number,
+        startTime: number,
+    ): Promise<ExchangeOrderFill[]> {
+        const stop = startTimer();
+        try {
+            const sdk = this.sdkService.getSdk();
+            const endTime = startTime + 60_000;
+            const fills = await sdk.info.getUserFillsByTime(user, startTime, endTime, true);
+            return this.mapper.toExchangeOrderFills(fills, oid);
+        } catch (error) {
+            this.logger.error({ err: error, user, oid }, 'Failed to get order fills');
+            return [];
+        } finally {
+            this.metrics.observeExchangeApiDuration('getOrderFills', stop());
         }
     }
 

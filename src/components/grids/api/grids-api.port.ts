@@ -24,6 +24,7 @@ export interface GridsApiPort {
     // ── Orders — write ─────────────────────────────────────────────
     createOrder(dto: CreateOrderDto): Promise<OrderDto>;
     updateOrderStatus(orderId: string, status: OrderStatus, filledAt?: Date): Promise<void>;
+    updateOrderFee(orderId: string, feeUsdc: number): Promise<void>;
     updateOrderExchangeId(
         orderId: string,
         exchangeOrderId: string,

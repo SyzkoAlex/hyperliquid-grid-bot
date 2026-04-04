@@ -3,6 +3,7 @@ import { logger } from '@/infra/logger/logger';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { RefillOrderPlacementService } from '@components/trading/core/application/services/refill-order-placement/refill-order-placement.service';
+import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
 import { RefillParams } from '@components/trading/core/application/services/order-refill/refill-params';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderStatusUpdate } from './order-status-update';
@@ -36,6 +37,7 @@ export class ProcessOrderStatusUseCase {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderRefillService: OrderRefillService,
         private readonly refillPlacement: RefillOrderPlacementService,
+        private readonly feeSyncService: OrderFeeSyncService,
     ) {}
 
     async execute(params: ProcessOrderStatusParams): Promise<ProcessOrderStatusResult> {
@@ -183,6 +185,14 @@ export class ProcessOrderStatusUseCase {
 
         const fillTime = new Date(orderStatus.statusTimestamp);
         await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Filled, fillTime);
+
+        this.feeSyncService
+            .syncFee(
+                gridOrder.id,
+                orderStatus.exchangeOrderId.toString(),
+                orderStatus.statusTimestamp,
+            )
+            .catch(() => {});
 
         this.logger.info(
             { oid: orderStatus.exchangeOrderId, gridOrderId: gridOrder.id },

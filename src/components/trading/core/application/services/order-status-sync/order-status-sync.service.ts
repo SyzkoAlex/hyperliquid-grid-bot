@@ -13,6 +13,7 @@ import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.po
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { OrderStatusSyncResult } from './order-status-sync-result';
 import { ExchangeStatusMapper } from '@components/trading/core/domain/models/exchange-order/exchange-status.mapper';
+import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
 
 @Injectable()
 export class OrderStatusSyncService {
@@ -23,6 +24,7 @@ export class OrderStatusSyncService {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly configService: ConfigService<Config, true>,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        private readonly feeSyncService: OrderFeeSyncService,
     ) {
         this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
     }
@@ -141,6 +143,11 @@ export class OrderStatusSyncService {
             newStatus,
             newStatus === OrderStatus.Filled ? filledTimestamp : undefined,
         );
+
+        if (newStatus === OrderStatus.Filled && order.exchangeOrderId) {
+            const fillTime = statusTimestamp ?? Date.now();
+            this.feeSyncService.syncFee(order.id, order.exchangeOrderId, fillTime).catch(() => {});
+        }
     }
 
     private updateProcessResult(

@@ -13,6 +13,7 @@ export interface OrderRepositoryPort {
     findManyByGridIds(gridIds: string[]): Promise<Order[]>;
     findManyPlacedByGridIds(gridIds: string[]): Promise<Order[]>;
     updateStatus(orderId: string, status: OrderStatus, filledAt?: Date): Promise<void>;
+    updateFee(orderId: string, feeUsdc: string): Promise<void>;
     updateExchangeOrderId(
         orderId: string,
         exchangeOrderId: string,

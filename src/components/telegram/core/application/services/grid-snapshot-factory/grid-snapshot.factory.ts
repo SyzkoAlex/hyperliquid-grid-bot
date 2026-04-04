@@ -15,7 +15,12 @@ export class GridSnapshotFactory {
         const filledOrders = this.getFilledOrders(orders);
 
         const pnl = this.pnlCalculator.calculate(
-            filledOrders.map((o) => ({ side: o.side, price: o.price!, amount: o.amount })),
+            filledOrders.map((o) => ({
+                side: o.side,
+                price: o.price!,
+                amount: o.amount,
+                feeUsdc: o.feeUsdc,
+            })),
             currentPrice,
         );
         const orderStats = computeOrderStats(activeOrders, filledOrders);

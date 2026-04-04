@@ -26,7 +26,7 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 5.5, unrealizedPnl: -1.2 };
+const DEFAULT_PNL: GridPnl = { gridProfit: 5.5, unrealizedPnl: -1.2, totalFees: 0 };
 const DEFAULT_ORDER_STATS: OrderStats = {
     activeBuys: 4,
     activeSells: 5,

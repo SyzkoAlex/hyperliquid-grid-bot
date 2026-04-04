@@ -51,6 +51,7 @@ describe('GridPnlCalculatorService', () => {
             const result = service.calculate([], 100);
             expect(result.gridProfit).toBe(0);
             expect(result.unrealizedPnl).toBe(0);
+            expect(result.totalFees).toBe(0);
         });
     });
 
@@ -171,6 +172,41 @@ describe('GridPnlCalculatorService', () => {
                 expect(result.gridProfit + result.unrealizedPnl).toBeCloseTo(expected, 6);
             });
         }
+    });
+
+    describe('totalFees', () => {
+        it('returns zero totalFees when no feeUsdc provided', () => {
+            const orders = [buy(100, 1), sell(110, 1)];
+            const result = service.calculate(orders, 115);
+            expect(result.totalFees).toBe(0);
+        });
+
+        it('sums feeUsdc across all orders', () => {
+            const orders = [
+                { ...buy(100, 1), feeUsdc: 0.04 },
+                { ...sell(110, 1), feeUsdc: 0.044 },
+            ];
+            const result = service.calculate(orders, 115);
+            expect(result.totalFees).toBeCloseTo(0.084);
+            expect(result.gridProfit).toBeCloseTo(10);
+        });
+
+        it('handles mix of orders with and without feeUsdc', () => {
+            const orders = [{ ...buy(100, 1), feeUsdc: 0.04 }, sell(110, 1)];
+            const result = service.calculate(orders, 115);
+            expect(result.totalFees).toBeCloseTo(0.04);
+        });
+
+        it('gridProfit remains gross (unchanged) when fees are present', () => {
+            const ordersWithFees = [
+                { ...buy(100, 1), feeUsdc: 0.04 },
+                { ...sell(110, 1), feeUsdc: 0.044 },
+            ];
+            const ordersWithoutFees = [buy(100, 1), sell(110, 1)];
+            const withFees = service.calculate(ordersWithFees, 115);
+            const withoutFees = service.calculate(ordersWithoutFees, 115);
+            expect(withFees.gridProfit).toBeCloseTo(withoutFees.gridProfit);
+        });
     });
 
     describe('real-world: grid 9fc4d4b7 scenario (HYPE/USDC)', () => {

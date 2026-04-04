@@ -23,6 +23,9 @@ describe('ProcessOrderStatusUseCase', () => {
     let mockRefillPlacement: {
         placeRefillOrder: ReturnType<typeof vi.fn>;
     };
+    let mockFeeSyncService: {
+        syncFee: ReturnType<typeof vi.fn>;
+    };
 
     const gridId = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -42,10 +45,15 @@ describe('ProcessOrderStatusUseCase', () => {
             placeRefillOrder: vi.fn().mockResolvedValue({ success: true }),
         };
 
+        mockFeeSyncService = {
+            syncFee: vi.fn().mockResolvedValue(undefined),
+        };
+
         useCase = new ProcessOrderStatusUseCase(
             mockGrids as any,
             mockOrderRefillService as any,
             mockRefillPlacement as any,
+            mockFeeSyncService as any,
         );
     });
 
@@ -125,6 +133,11 @@ describe('ProcessOrderStatusUseCase', () => {
                 expect.any(Date),
             );
             expect(mockOrderRefillService.processOne).toHaveBeenCalledWith(filledOrder, grid);
+            expect(mockFeeSyncService.syncFee).toHaveBeenCalledWith(
+                order.id,
+                '123',
+                expect.any(Number),
+            );
         });
 
         it('should skip processing if order already filled', async () => {

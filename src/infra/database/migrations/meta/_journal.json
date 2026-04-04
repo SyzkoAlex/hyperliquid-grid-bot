@@ -15,6 +15,13 @@
       "when": 1771439454200,
       "tag": "0001_add_active_order_level_index",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775161567005,
+      "tag": "0002_adorable_shard",
+      "breakpoints": true
     }
   ]
 }

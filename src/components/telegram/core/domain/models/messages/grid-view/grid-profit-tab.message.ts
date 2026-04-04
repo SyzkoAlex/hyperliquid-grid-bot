@@ -14,13 +14,13 @@ export class GridProfitTabMessage {
 
     private constructor({ grid, pnl, currentPrice, orderStats }: GridSnapshot) {
         const { pair, shortId, emoji, label, duration } = gridHeaderParts(grid);
-        const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
+        const gridProfitNet = pnl.gridProfit - pnl.totalFees;
+        const totalPnl = gridProfitNet + pnl.unrealizedPnl;
         const investment = grid.investmentUSDC + grid.investmentBase * currentPrice;
         const totalPnlStr = formatPnl(totalPnl);
         const totalPnlPct = formatPnlPercent(totalPnl, investment);
-        const gridProfitStr = formatPnl(pnl.gridProfit);
         const unrealizedStr = formatPnl(pnl.unrealizedPnl);
-        const gridApr = formatGridApr(pnl.gridProfit, investment, grid.startedAt);
+        const gridApr = formatGridApr(gridProfitNet, investment, grid.startedAt);
         const lower = PriceFormatter.format(grid.lowerPrice);
         const upper = PriceFormatter.format(grid.upperPrice);
         const price = PriceFormatter.format(currentPrice);
@@ -41,7 +41,8 @@ export class GridProfitTabMessage {
             rangeWarning +
             `\n` +
             `<b>Total PnL:</b>    ${totalPnlStr} (${totalPnlPct})\n` +
-            `<b>Grid Profit:</b>  ${gridProfitStr}\n` +
+            `<b>Grid Profit:</b>  ${formatPnl(gridProfitNet)}\n` +
+            `<b>Fees Paid:</b>    ${formatPnl(-pnl.totalFees)}\n` +
             `<b>Grid APR:</b>     ${gridApr}\n` +
             `<b>Unrealized:</b>   ${unrealizedStr}\n` +
             `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n` +

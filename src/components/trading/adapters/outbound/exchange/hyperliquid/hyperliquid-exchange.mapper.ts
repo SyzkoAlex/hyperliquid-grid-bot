@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { UserFills } from 'hyperliquid';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -9,6 +10,7 @@ import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
+import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchange-order/exchange-order-fill';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
@@ -117,6 +119,16 @@ export class HyperliquidExchangeMapper {
             reduceOnly: apiOrder.reduceOnly ?? false,
             placedAt: apiOrder.timestamp,
         };
+    }
+
+    toExchangeOrderFills(fills: UserFills, oid: number): ExchangeOrderFill[] {
+        return fills
+            .filter((f) => f.oid === oid)
+            .map((f) => ({
+                oid: f.oid,
+                feeUsdc: parseFloat(f.fee),
+                time: f.time,
+            }));
     }
 
     toExchangeOrderInfo(input: HyperliquidOrderStatusFound): ExchangeOrderInfo {

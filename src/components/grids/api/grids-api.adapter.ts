@@ -106,6 +106,10 @@ export class GridsApiAdapter implements GridsApiPort {
         return this.orderRepo.updateStatus(orderId, status, filledAt);
     }
 
+    updateOrderFee(orderId: string, feeUsdc: number): Promise<void> {
+        return this.orderRepo.updateFee(orderId, feeUsdc.toString());
+    }
+
     updateOrderExchangeId(
         orderId: string,
         exchangeOrderId: string,

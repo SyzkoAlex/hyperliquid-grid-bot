@@ -35,7 +35,7 @@ function makeGrid(): GridDto {
 function makeSnapshot(): GridSnapshot {
     return {
         grid: makeGrid(),
-        pnl: { gridProfit: 10, unrealizedPnl: -2 },
+        pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
         currentPrice: 95000,
         orderStats: {
             activeBuys: 3,

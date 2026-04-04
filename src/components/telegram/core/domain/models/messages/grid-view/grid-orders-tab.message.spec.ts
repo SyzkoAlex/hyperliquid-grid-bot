@@ -46,7 +46,7 @@ function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, levelInd
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0 };
+const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
 const DEFAULT_ORDER_STATS: OrderStats = {
     activeBuys: 4,
     activeSells: 5,

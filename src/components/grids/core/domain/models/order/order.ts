@@ -22,6 +22,8 @@ export interface OrderParams {
     gridId: GridId;
     levelIndex: number;
 
+    feeUsdc?: Decimal;
+
     createdAt?: Timestamp;
     placedAt?: Timestamp;
     filledAt?: Timestamp;
@@ -46,6 +48,8 @@ export class Order {
     private readonly _gridId: GridId;
     private readonly _levelIndex: number;
 
+    private readonly _feeUsdc: Decimal | null;
+
     private readonly _createdAt: Timestamp;
     private _placedAt: Timestamp | null;
     private _filledAt: Timestamp | null;
@@ -62,6 +66,7 @@ export class Order {
         this._status = params.status;
         this._gridId = params.gridId;
         this._levelIndex = params.levelIndex;
+        this._feeUsdc = params.feeUsdc ?? null;
         this._createdAt = params.createdAt ?? Timestamp.now();
         this._placedAt = params.placedAt ?? null;
         this._filledAt = params.filledAt ?? null;
@@ -118,6 +123,10 @@ export class Order {
 
     get price(): Price | null {
         return this._price;
+    }
+
+    get feeUsdc(): Decimal | null {
+        return this._feeUsdc;
     }
 
     get amount(): Decimal {
