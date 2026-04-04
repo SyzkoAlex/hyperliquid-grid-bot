@@ -11,10 +11,10 @@ import { GridLevel } from './grid-level';
  * ## How we calculate:
  *
  * ### 1. Grid Levels Distribution
- * Grid is divided into equal price levels between lower and upper bounds:
+ * Grid is divided into N equal gaps between lower and upper bounds, producing N+1 price points:
  * ```
- * priceStep = (upperPrice - lowerPrice) / (levels - 1)
- * levelPrice[i] = lowerPrice + (priceStep * i)
+ * priceStep = (upperPrice - lowerPrice) / levels
+ * levelPrice[i] = lowerPrice + (priceStep * i),  i = 0 .. levels
  * ```
  *
  * ### 2. Order Side Determination
@@ -95,7 +95,7 @@ export class GridLevelsCalculatorService {
         levels: number,
         levelIndex: number,
     ): Price {
-        const priceStep = (upperPrice - lowerPrice) / (levels - 1);
+        const priceStep = (upperPrice - lowerPrice) / levels;
         return Price.from(lowerPrice + priceStep * levelIndex);
     }
 
@@ -107,7 +107,7 @@ export class GridLevelsCalculatorService {
     ): GridLevel[] {
         const result: GridLevel[] = [];
 
-        for (let i = 0; i < levels; i++) {
+        for (let i = 0; i <= levels; i++) {
             const levelPrice = this.getLevelPrice(lowerPrice, upperPrice, levels, i);
             const isBelowCurrentPrice = levelPrice.lt(currentPrice);
 
