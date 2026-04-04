@@ -10,6 +10,7 @@ import { CapitalCalculatorService } from '@components/trading/core/domain/servic
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
 import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
+import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
@@ -50,6 +51,7 @@ import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
         },
         UserBalanceExtractorService,
         OrderStatusSyncService,
+        OrderFeeSyncService,
         RefillOrderPlacementService,
         TradeEventPublisher,
         OrderRefillService,

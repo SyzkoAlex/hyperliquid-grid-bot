@@ -71,7 +71,7 @@ describe('GetGridsWithPnlUseCase', () => {
             pairExists: vi.fn(),
         };
         const pnlCalculator = {
-            calculate: vi.fn().mockReturnValue({ gridProfit: 0, unrealizedPnl: 0 }),
+            calculate: vi.fn().mockReturnValue({ gridProfit: 0, unrealizedPnl: 0, totalFees: 0 }),
         };
         snapshotFactory = new GridSnapshotFactory(pnlCalculator as any);
 

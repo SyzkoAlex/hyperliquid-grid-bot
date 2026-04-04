@@ -25,7 +25,7 @@ describe('OrderRefillService', () => {
         publishFillEvent: ReturnType<typeof vi.fn>;
     };
 
-    // Grid: 11 levels, spacing = (55000-45000)/(11-1) = 1000
+    // Grid: 11 gaps → 12 price points (indices 0..11), spacing = (55000-45000)/11 ≈ 909
     const testGrid: GridDto = {
         id: GRID_ID,
         symbol: 'BTC',
@@ -137,7 +137,7 @@ describe('OrderRefillService', () => {
         it('should return failure without calling placement when BUY at top level fills', async () => {
             const topLevelBuy: OrderDto = {
                 ...testBuyOrder,
-                levelIndex: 10,
+                levelIndex: 11,
                 price: 55000,
             };
 

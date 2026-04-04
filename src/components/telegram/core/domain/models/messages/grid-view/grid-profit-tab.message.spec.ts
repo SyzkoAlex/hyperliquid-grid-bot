@@ -26,7 +26,7 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0 };
+const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
 const DEFAULT_ORDER_STATS: OrderStats = {
     activeBuys: 4,
     activeSells: 5,
@@ -47,7 +47,7 @@ function makeData(
 
 describe('GridProfitTabMessage', () => {
     it('shows Total PnL, Grid Profit, Unrealized sections', () => {
-        const pnl: GridPnl = { gridProfit: 4.5, unrealizedPnl: -2.1 };
+        const pnl: GridPnl = { gridProfit: 4.5, unrealizedPnl: -2.1, totalFees: 0 };
         const result = GridProfitTabMessage.create(makeData(makeGrid(), pnl)).text;
         expect(result).toContain('Total PnL:');
         expect(result).toContain('Grid Profit:');
@@ -71,7 +71,7 @@ describe('GridProfitTabMessage', () => {
         // APR = (36.5 / 595 / 3) * 365 * 100 ≈ 746.6%
         const startedAt = Date.now() - 72 * 60 * 60 * 1000;
         const grid = makeGrid(GridStatus.Running, startedAt);
-        const pnl: GridPnl = { gridProfit: 36.5, unrealizedPnl: 0 };
+        const pnl: GridPnl = { gridProfit: 36.5, unrealizedPnl: 0, totalFees: 0 };
         const result = GridProfitTabMessage.create(makeData(grid, pnl)).text;
         expect(result).toContain('Grid APR:');
         expect(result).toMatch(/Grid APR:.*\+7[0-9]{2}\./); // 7xx.x%

@@ -21,6 +21,9 @@ describe('OrderStatusSyncService', () => {
     let mockOrderRepository: {
         updateOrderStatus: ReturnType<typeof vi.fn>;
     };
+    let mockFeeSyncService: {
+        syncFee: ReturnType<typeof vi.fn>;
+    };
 
     beforeEach(() => {
         mockOrderClient = {
@@ -42,10 +45,15 @@ describe('OrderStatusSyncService', () => {
             updateOrderStatus: vi.fn(),
         };
 
+        mockFeeSyncService = {
+            syncFee: vi.fn().mockResolvedValue(undefined),
+        };
+
         service = new OrderStatusSyncService(
             mockOrderClient as any,
             mockConfigService as any,
             mockOrderRepository as any,
+            mockFeeSyncService as any,
         );
     });
 
@@ -127,6 +135,40 @@ describe('OrderStatusSyncService', () => {
             expect(result.processed).toBe(2);
             expect(result.filled).toBe(2);
             expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledTimes(2);
+        });
+
+        it('should call syncFee when a fill is detected', async () => {
+            const fillTimestamp = Date.now();
+            const order = createDbOrder('order-1');
+            const dbOrders = [order];
+
+            mockOrderStatus(
+                new Map([
+                    [
+                        'order-1',
+                        { status: ExchangeOrderStatus.FILLED, statusTimestamp: fillTimestamp },
+                    ],
+                ]),
+            );
+
+            await service.process(dbOrders, []);
+
+            expect(mockFeeSyncService.syncFee).toHaveBeenCalledWith(
+                order.id,
+                order.exchangeOrderId,
+                fillTimestamp,
+            );
+        });
+
+        it('should not call syncFee for cancelled orders', async () => {
+            const order = createDbOrder('order-1');
+            const dbOrders = [order];
+
+            mockOrderStatus(new Map([['order-1', { status: ExchangeOrderStatus.CANCELED }]]));
+
+            await service.process(dbOrders, []);
+
+            expect(mockFeeSyncService.syncFee).not.toHaveBeenCalled();
         });
 
         it('should handle cancelled orders but not return them', async () => {

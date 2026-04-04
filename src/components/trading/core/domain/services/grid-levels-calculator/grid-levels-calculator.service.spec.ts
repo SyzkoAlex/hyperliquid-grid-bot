@@ -38,14 +38,14 @@ describe('GridLevelsCalculatorService', () => {
             const currentPrice = Price.from(50000);
             const result = calc({}, currentPrice);
 
-            expect(result).toHaveLength(10);
+            expect(result).toHaveLength(11);
 
             const buyLevels = result.filter((l) => l.side === OrderSide.Buy);
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
 
             expect(buyLevels.length).toBeGreaterThan(0);
             expect(sellLevels.length).toBeGreaterThan(0);
-            expect(buyLevels.length + sellLevels.length).toBe(10);
+            expect(buyLevels.length + sellLevels.length).toBe(11);
 
             result.forEach((level) => {
                 expect(level.price).toBeDefined();
@@ -108,7 +108,7 @@ describe('GridLevelsCalculatorService', () => {
             );
 
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
-            expect(sellLevels).toHaveLength(10);
+            expect(sellLevels).toHaveLength(11);
         });
 
         it('should calculate correct amounts for buy orders', () => {

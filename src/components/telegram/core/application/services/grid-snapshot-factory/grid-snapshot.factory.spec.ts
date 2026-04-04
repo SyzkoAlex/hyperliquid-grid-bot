@@ -55,7 +55,7 @@ describe('GridSnapshotFactory', () => {
 
     beforeEach(() => {
         pnlCalculator = {
-            calculate: vi.fn().mockReturnValue({ gridProfit: 0, unrealizedPnl: 0 }),
+            calculate: vi.fn().mockReturnValue({ gridProfit: 0, unrealizedPnl: 0, totalFees: 0 }),
         };
         factory = new GridSnapshotFactory(pnlCalculator as any);
     });
@@ -103,13 +103,31 @@ describe('GridSnapshotFactory', () => {
         factory.create(makeGrid(), [filled], 98000);
 
         expect(pnlCalculator.calculate).toHaveBeenCalledWith(
-            [{ side: OrderSide.Sell, price: 95000, amount: 0.5 }],
+            [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: undefined }],
+            98000,
+        );
+    });
+
+    it('passes feeUsdc from order to pnl calculator', () => {
+        const filled: OrderDto = {
+            ...makeOrder(OrderSide.Sell, OrderStatus.Filled, 95000, 0.5),
+            feeUsdc: 0.038,
+        };
+
+        factory.create(makeGrid(), [filled], 98000);
+
+        expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+            [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: 0.038 }],
             98000,
         );
     });
 
     it('returns pnl from calculator', () => {
-        pnlCalculator.calculate.mockReturnValue({ gridProfit: 42, unrealizedPnl: -5 });
+        pnlCalculator.calculate.mockReturnValue({
+            gridProfit: 42,
+            unrealizedPnl: -5,
+            totalFees: 0,
+        });
 
         const snapshot = factory.create(makeGrid(), [], 95000);
 

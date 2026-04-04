@@ -36,7 +36,7 @@ function makeGrid(id: string, status = GridStatus.Running): GridDto {
 function makeSnapshot(id: string, status = GridStatus.Running): GridSnapshot {
     return {
         grid: makeGrid(id, status),
-        pnl: { gridProfit: 10, unrealizedPnl: -2 },
+        pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
         currentPrice: 95000,
         orderStats: {
             activeBuys: 3,

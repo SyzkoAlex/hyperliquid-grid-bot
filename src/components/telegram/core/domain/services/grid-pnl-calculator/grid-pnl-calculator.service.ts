@@ -15,13 +15,14 @@ import { GridPnl } from '../../models/grid-pnl';
 @Injectable()
 export class GridPnlCalculatorService {
     calculate(
-        filledOrders: { side: OrderSide; price: number; amount: number }[],
+        filledOrders: { side: OrderSide; price: number; amount: number; feeUsdc?: number }[],
         currentPrice: number,
     ): GridPnl {
         let sellVolume = 0;
         let buyVolume = 0;
         let totalBuyQty = 0;
         let totalSellQty = 0;
+        let totalFees = 0;
 
         for (const order of filledOrders) {
             const value = order.price * order.amount;
@@ -33,6 +34,10 @@ export class GridPnlCalculatorService {
                 buyVolume += value;
                 totalBuyQty += order.amount;
             }
+
+            if (order.feeUsdc) {
+                totalFees += order.feeUsdc;
+            }
         }
 
         const avgBuyPrice = totalBuyQty > 0 ? buyVolume / totalBuyQty : 0;
@@ -40,6 +45,6 @@ export class GridPnlCalculatorService {
         const gridProfit = sellVolume - totalSellQty * avgBuyPrice;
         const unrealizedPnl = qtyHeld * (currentPrice - avgBuyPrice);
 
-        return { gridProfit, unrealizedPnl };
+        return { gridProfit, unrealizedPnl, totalFees };
     }
 }

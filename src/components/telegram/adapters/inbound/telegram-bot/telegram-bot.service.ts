@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Scenes, Telegraf } from 'telegraf';
 import { Config } from '@/config/config.schema';
@@ -12,6 +12,8 @@ import { createErrorHandlerMiddleware } from './middleware/error-handler.middlew
 import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
 import { createSessionMiddleware } from './middleware/session.middleware';
 import { createAuthMiddleware } from './middleware/auth.middleware';
+import { createTimingMiddleware } from './middleware/timing.middleware';
+import { METRICS_PORT, MetricsPort } from '@/core/application/ports/outbound/metrics.port';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy, TelegramNotificationPort {
@@ -25,6 +27,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     constructor(
         configService: ConfigService<Config, true>,
         private readonly sessionStore: CacheSessionStore,
+        @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
     ) {
         const telegramConfig = configService.get('telegram', { infer: true });
         this.enabled = telegramConfig.enabled;
@@ -49,11 +52,13 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         // Middleware chain (order matters):
         //   session     — hydrate/persist session data
         //   auth        — reject unauthorized early, before any business logic
+        //   timing      — measure handler execution duration (includes error handling time)
         //   error-handler — safety net for handler errors; wraps everything below
         //   dedup       — block duplicate button presses while a handler is running
         //   stage       — scenes and registered command/action handlers
         this._bot.use(createSessionMiddleware(this.sessionStore));
         this._bot.use(createAuthMiddleware(this.allowedManagerChatId));
+        this._bot.use(createTimingMiddleware(this.metrics));
         this._bot.use(createErrorHandlerMiddleware());
         this._bot.use(createCallbackDedupMiddleware());
         this._bot.use(this.stage.middleware());

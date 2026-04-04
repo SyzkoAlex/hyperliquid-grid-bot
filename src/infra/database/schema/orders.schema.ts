@@ -24,6 +24,7 @@ export const orders = pgTable(
         side: varchar('side', { length: 10 }).notNull(), // buy, sell
         price: decimal('price', { precision: 20, scale: 8 }),
         amount: decimal('amount', { precision: 20, scale: 8 }).notNull(),
+        feeUsdc: decimal('fee_usdc', { precision: 20, scale: 8 }),
         status: varchar('status', { length: 20 }).notNull(),
 
         // Grid fields (required - only grid orders are stored)

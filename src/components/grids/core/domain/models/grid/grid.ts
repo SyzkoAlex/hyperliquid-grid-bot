@@ -147,14 +147,14 @@ export class Grid {
      */
     getGridSpacing(): Price {
         const range = this._upperPrice.sub(this._lowerPrice);
-        return range.div(this._levels - 1);
+        return range.div(this._levels);
     }
 
     /**
      * Calculate price for a specific level (0-indexed)
      */
     getLevelPrice(levelIndex: number): Price {
-        if (levelIndex < 0 || levelIndex >= this._levels) {
+        if (levelIndex < 0 || levelIndex > this._levels) {
             throw new Error(`Invalid level index: ${levelIndex}`);
         }
         const spacing = this.getGridSpacing();

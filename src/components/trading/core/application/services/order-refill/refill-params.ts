@@ -33,12 +33,12 @@ export class RefillParams {
      */
     static calc(filledOrder: OrderDto, grid: GridDto): RefillParams | null {
         const currentLevel = filledOrder.levelIndex;
-        const priceStep = (grid.upperPrice - grid.lowerPrice) / (grid.levels - 1);
+        const priceStep = (grid.upperPrice - grid.lowerPrice) / grid.levels;
         const getLevelPrice = (i: number): Price => Price.from(grid.lowerPrice + priceStep * i);
 
         if (filledOrder.side === OrderSide.Buy) {
             const refillLevel = currentLevel + 1;
-            if (refillLevel >= grid.levels) return null;
+            if (refillLevel > grid.levels) return null;
             return new RefillParams(
                 OrderSide.Sell,
                 refillLevel,

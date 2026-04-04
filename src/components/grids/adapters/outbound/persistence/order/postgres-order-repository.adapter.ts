@@ -107,6 +107,19 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
         }
     }
 
+    async updateFee(orderId: string, feeUsdc: string): Promise<void> {
+        try {
+            await this.db
+                .update(orders)
+                .set({ feeUsdc, updatedAt: new Date() })
+                .where(eq(orders.id, orderId));
+            this.logger.debug({ orderId, feeUsdc }, 'Order fee updated');
+        } catch (error) {
+            this.logger.error({ error, orderId }, 'Failed to update order fee');
+            throw error;
+        }
+    }
+
     async updateExchangeOrderId(
         orderId: string,
         exchangeOrderId: string,

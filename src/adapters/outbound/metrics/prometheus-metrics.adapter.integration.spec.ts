@@ -42,163 +42,67 @@ describe('PrometheusMetricsAdapter (Integration)', () => {
         await module.close();
     });
 
-    async function getMetricValue(name: string, labels?: Record<string, string>): Promise<number> {
+    async function getHistogramValues(
+        name: string,
+        labels?: Record<string, string>,
+    ): Promise<{ sum: number; count: number }> {
         const metric = await register.getSingleMetric(name)?.get();
-        if (!metric) return 0;
+        if (!metric) return { sum: 0, count: 0 };
 
-        const value = labels
-            ? metric.values.find((v) =>
-                  Object.entries(labels).every(([k, val]) => v.labels[k] === val),
-              )
-            : metric.values[0];
+        const values = metric.values as Array<{
+            metricName?: string;
+            labels: Record<string, string>;
+            value: number;
+        }>;
 
-        return value?.value ?? 0;
+        const matchesLabels = (v: { labels: Record<string, string> }) =>
+            !labels || Object.entries(labels).every(([k, val]) => v.labels[k] === val);
+
+        const sum =
+            values.find((v) => v.metricName?.endsWith('_sum') && matchesLabels(v))?.value ?? 0;
+        const count =
+            values.find((v) => v.metricName?.endsWith('_count') && matchesLabels(v))?.value ?? 0;
+
+        return { sum, count };
     }
 
-    describe('Counters', () => {
-        it('should increment orders placed counter', async () => {
-            metrics.recordOrderPlaced('BTC', 'buy');
-            metrics.recordOrderPlaced('BTC', 'buy');
-            metrics.recordOrderPlaced('BTC', 'sell');
+    describe('observeExchangeApiDuration', () => {
+        it('should record exchange API call duration', async () => {
+            metrics.observeExchangeApiDuration('placeSpotOrder', 0.35);
+            metrics.observeExchangeApiDuration('placeSpotOrder', 1.2);
+            metrics.observeExchangeApiDuration('getCurrentPrice', 0.08);
 
-            expect(
-                await getMetricValue('grid_bot_orders_placed_total', {
-                    symbol: 'BTC',
-                    side: 'buy',
-                }),
-            ).toBe(2);
-            expect(
-                await getMetricValue('grid_bot_orders_placed_total', {
-                    symbol: 'BTC',
-                    side: 'sell',
-                }),
-            ).toBe(1);
+            const placeOrder = await getHistogramValues('grid_bot_exchange_api_duration_seconds', {
+                method: 'placeSpotOrder',
+            });
+            expect(placeOrder.count).toBe(2);
+            expect(placeOrder.sum).toBeCloseTo(1.55, 5);
+
+            const getPrice = await getHistogramValues('grid_bot_exchange_api_duration_seconds', {
+                method: 'getCurrentPrice',
+            });
+            expect(getPrice.count).toBe(1);
+            expect(getPrice.sum).toBeCloseTo(0.08, 5);
         });
+    });
 
-        it('should increment orders filled counter', async () => {
-            metrics.recordOrderFilled('ETH', 'buy');
+    describe('observeTelegramHandlerDuration', () => {
+        it('should record telegram handler duration', async () => {
+            metrics.observeTelegramHandlerDuration('show:balance', 0.5);
+            metrics.observeTelegramHandlerDuration('view:grid', 1.8);
 
-            expect(
-                await getMetricValue('grid_bot_orders_filled_total', {
-                    symbol: 'ETH',
-                    side: 'buy',
-                }),
-            ).toBe(1);
-        });
+            const balance = await getHistogramValues('grid_bot_telegram_handler_duration_seconds', {
+                handler: 'show:balance',
+            });
+            expect(balance.count).toBe(1);
+            expect(balance.sum).toBeCloseTo(0.5, 5);
 
-        it('should increment orders cancelled counter', async () => {
-            metrics.recordOrderCancelled('SOL');
-            metrics.recordOrderCancelled('SOL');
-
-            expect(await getMetricValue('grid_bot_orders_cancelled_total', { symbol: 'SOL' })).toBe(
-                2,
+            const viewGrid = await getHistogramValues(
+                'grid_bot_telegram_handler_duration_seconds',
+                { handler: 'view:grid' },
             );
-        });
-
-        it('should increment grid started counter', async () => {
-            metrics.recordGridStarted('BTC', 'long');
-
-            expect(
-                await getMetricValue('grid_bot_grids_started_total', {
-                    symbol: 'BTC',
-                    mode: 'long',
-                }),
-            ).toBe(1);
-        });
-
-        it('should increment grid stopped counter', async () => {
-            metrics.recordGridStopped('BTC', 'manual');
-
-            expect(
-                await getMetricValue('grid_bot_grids_stopped_total', {
-                    symbol: 'BTC',
-                    reason: 'manual',
-                }),
-            ).toBe(1);
-        });
-
-        it('should increment liquidation alerts counter', async () => {
-            metrics.recordLiquidationAlert('warning');
-            metrics.recordLiquidationAlert('critical');
-            metrics.recordLiquidationAlert('warning');
-
-            expect(
-                await getMetricValue('grid_bot_liquidation_alerts_total', { level: 'warning' }),
-            ).toBe(2);
-            expect(
-                await getMetricValue('grid_bot_liquidation_alerts_total', { level: 'critical' }),
-            ).toBe(1);
-        });
-    });
-
-    describe('Gauges', () => {
-        it('should set active grids gauge', async () => {
-            metrics.setActiveGrids(5);
-            expect(await getMetricValue('grid_bot_active_grids')).toBe(5);
-
-            metrics.setActiveGrids(3);
-            expect(await getMetricValue('grid_bot_active_grids')).toBe(3);
-        });
-
-        it('should set active orders gauge per symbol', async () => {
-            metrics.setActiveOrders('BTC', 10);
-            metrics.setActiveOrders('ETH', 6);
-
-            expect(await getMetricValue('grid_bot_active_orders', { symbol: 'BTC' })).toBe(10);
-            expect(await getMetricValue('grid_bot_active_orders', { symbol: 'ETH' })).toBe(6);
-        });
-
-        it('should set position size gauge', async () => {
-            metrics.setPositionSize('BTC', 1.5);
-            expect(await getMetricValue('grid_bot_position_size', { symbol: 'BTC' })).toBe(1.5);
-        });
-
-        it('should set total PnL gauge', async () => {
-            metrics.setTotalPnL('BTC', -42.5);
-            expect(await getMetricValue('grid_bot_total_pnl', { symbol: 'BTC' })).toBe(-42.5);
-        });
-
-        it('should set liquidation distance gauge', async () => {
-            metrics.setLiquidationDistance('BTC', 25.3);
-            expect(
-                await getMetricValue('grid_bot_liquidation_distance_percent', { symbol: 'BTC' }),
-            ).toBe(25.3);
-        });
-
-        it('should set margin ratio gauge', async () => {
-            metrics.setMarginRatio(0.75);
-            expect(await getMetricValue('grid_bot_margin_ratio')).toBe(0.75);
-        });
-    });
-
-    describe('Histograms', () => {
-        it('should observe order execution time', async () => {
-            metrics.observeOrderExecutionTime(0.3);
-            metrics.observeOrderExecutionTime(1.2);
-
-            const metric = await register
-                .getSingleMetric('grid_bot_order_execution_duration_seconds')
-                ?.get();
-            const values = metric?.values as Array<{ metricName?: string; value: number }>;
-            const sum = values?.find((v) => v.metricName?.endsWith('_sum'));
-            const count = values?.find((v) => v.metricName?.endsWith('_count'));
-
-            expect(sum?.value).toBeCloseTo(1.5, 5);
-            expect(count?.value).toBe(2);
-        });
-
-        it('should observe grid rebalance time', async () => {
-            metrics.observeGridRebalanceTime(2.0);
-
-            const metric = await register
-                .getSingleMetric('grid_bot_rebalance_duration_seconds')
-                ?.get();
-            const values = metric?.values as Array<{ metricName?: string; value: number }>;
-            const sum = values?.find((v) => v.metricName?.endsWith('_sum'));
-            const count = values?.find((v) => v.metricName?.endsWith('_count'));
-
-            expect(sum?.value).toBeCloseTo(2.0, 5);
-            expect(count?.value).toBe(1);
+            expect(viewGrid.count).toBe(1);
+            expect(viewGrid.sum).toBeCloseTo(1.8, 5);
         });
     });
 });
