@@ -18,6 +18,7 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
         levels: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
+        creationPrice: 95000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,

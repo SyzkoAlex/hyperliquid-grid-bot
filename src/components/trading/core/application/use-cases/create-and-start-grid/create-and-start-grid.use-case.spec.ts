@@ -25,6 +25,7 @@ describe('CreateAndStartGridUseCase', () => {
         levels: 10,
         investmentUSDC: 5000,
         investmentBase: 0.1,
+        creationPrice: 50000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
@@ -150,6 +151,9 @@ describe('CreateAndStartGridUseCase', () => {
             });
 
             expect(grids.createGrid).toHaveBeenCalledTimes(1);
+            expect(grids.createGrid).toHaveBeenCalledWith(
+                expect.objectContaining({ creationPrice: currentPrice.toNumber() }),
+            );
             expect(grids.updateGridStatus).toHaveBeenCalledWith(gridDto.id, GridStatus.Running);
 
             expect(exchange.getCurrentPrice).toHaveBeenCalledWith(

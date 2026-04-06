@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, decimal, integer, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { boolean, decimal, integer, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 /**
  * Grids table for SPOT grid trading
@@ -13,6 +13,7 @@ export const grids = pgTable('grids', {
     levels: integer('levels').notNull(),
     investmentUSDC: decimal('investment_quote', { precision: 20, scale: 8 }).notNull(), // USD for buys
     investmentBase: decimal('investment_base', { precision: 20, scale: 8 }).notNull(), // Tokens for sells
+    creationPrice: decimal('creation_price', { precision: 20, scale: 8 }),
     trailingEnabled: boolean('trailing_enabled').notNull().default(false),
     trailingTriggerPercent: decimal('trailing_trigger_percent', { precision: 5, scale: 2 }).default(
         '5',

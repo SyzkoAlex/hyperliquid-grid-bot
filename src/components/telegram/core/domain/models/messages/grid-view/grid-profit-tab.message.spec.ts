@@ -18,6 +18,7 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
         levels: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
+        creationPrice: 95000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
@@ -91,5 +92,30 @@ describe('GridProfitTabMessage', () => {
         expect(GridProfitTabMessage.create(makeData(makeGrid())).text).toContain(
             'Profitable Trades:</b> 5',
         );
+    });
+
+    it('uses creationPrice for investment when creationPrice differs from currentPrice', () => {
+        const grid: GridDto = {
+            ...makeGrid(),
+            investmentUSDC: 500,
+            investmentBase: 0.001,
+            creationPrice: 90000,
+        };
+        // investment = 500 + 0.001 * 90000 = 590, not 595
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('$590');
+        expect(result).not.toContain('$595');
+    });
+
+    it('falls back to currentPrice when creationPrice is undefined', () => {
+        const grid: GridDto = {
+            ...makeGrid(),
+            investmentUSDC: 500,
+            investmentBase: 0.001,
+            creationPrice: undefined,
+        };
+        // investment = 500 + 0.001 * 95000 (currentPrice) = 595
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('$595');
     });
 });

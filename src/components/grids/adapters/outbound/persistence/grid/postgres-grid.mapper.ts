@@ -26,6 +26,7 @@ export class PostgresGridMapper {
             levels: grid.levels,
             investmentUSDC: grid.investmentUSDC.toString(),
             investmentBase: grid.investmentBase.toString(),
+            creationPrice: grid.creationPrice?.toNumber().toString() ?? null,
             trailingEnabled: grid.trailingEnabled,
             trailingTriggerPercent: grid.trailingTriggerPercent.toString(),
             trailingStepPercent: grid.trailingStepPercent.toString(),
@@ -53,6 +54,9 @@ export class PostgresGridMapper {
                 levels: row.levels,
                 investmentUSDC: Decimal.from(row.investmentUSDC),
                 investmentBase: Decimal.from(row.investmentBase),
+                creationPrice: row.creationPrice
+                    ? Price.from(parseFloat(row.creationPrice))
+                    : undefined,
                 trailingEnabled: row.trailingEnabled,
                 trailingTriggerPercent: parseFloat(row.trailingTriggerPercent),
                 trailingStepPercent: parseFloat(row.trailingStepPercent),

@@ -42,6 +42,8 @@ export class GridsApiAdapter implements GridsApiPort {
             levels: dto.levels,
             investmentUSDC: Decimal.from(dto.investmentUSDC),
             investmentBase: Decimal.from(dto.investmentBase),
+            creationPrice:
+                dto.creationPrice !== undefined ? Price.from(dto.creationPrice) : undefined,
             trailingEnabled: dto.trailingEnabled,
             trailingTriggerPercent: dto.trailingTriggerPercent,
             trailingStepPercent: dto.trailingStepPercent,

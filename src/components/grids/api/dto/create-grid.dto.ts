@@ -9,6 +9,7 @@ export interface CreateGridDto {
     levels: number;
     investmentUSDC: number;
     investmentBase: number;
+    creationPrice?: number;
     trailingEnabled: boolean;
     trailingTriggerPercent?: number;
     trailingStepPercent?: number;

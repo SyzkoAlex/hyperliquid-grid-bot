@@ -43,7 +43,12 @@ export class CreateAndStartGridUseCase {
             currentPrice,
         );
 
-        const grid = await this.createAndSaveGrid(params, investmentUSDC, investmentBase);
+        const grid = await this.createAndSaveGrid(
+            params,
+            investmentUSDC,
+            investmentBase,
+            currentPrice,
+        );
 
         await this.startGridWithOrders(grid, currentPrice);
 
@@ -101,6 +106,7 @@ export class CreateAndStartGridUseCase {
         params: CreateAndStartGridParams,
         investmentUSDC: Decimal,
         investmentBase: Decimal,
+        currentPrice: Price,
     ): Promise<GridDto> {
         const grid = await this.grids.createGrid({
             id: uuidv4(),
@@ -111,6 +117,7 @@ export class CreateAndStartGridUseCase {
             levels: params.levels,
             investmentUSDC: investmentUSDC.toNumber(),
             investmentBase: investmentBase.toNumber(),
+            creationPrice: currentPrice.toNumber(),
             trailingEnabled: params.trailingEnabled,
             trailingTriggerPercent: params.trailingTriggerPercent,
             trailingStepPercent: params.trailingStepPercent,

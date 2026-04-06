@@ -27,7 +27,8 @@ export class GridListMessage {
     private static compactLine(index: number, { grid, pnl, currentPrice }: GridSnapshot): string {
         const shortId = grid.id.slice(0, 8);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
-        const totalInvestment = grid.investmentUSDC + grid.investmentBase * currentPrice;
+        const totalInvestment =
+            grid.investmentUSDC + grid.investmentBase * (grid.creationPrice ?? currentPrice);
         const pnlStr = formatPnl(totalPnl);
         const pnlPct = formatPnlPercent(totalPnl, totalInvestment);
         const lower = PriceFormatter.format(grid.lowerPrice);

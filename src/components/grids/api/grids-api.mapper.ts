@@ -15,6 +15,7 @@ export class GridsApiMapper {
             levels: grid.levels,
             investmentUSDC: grid.investmentUSDC.toNumber(),
             investmentBase: grid.investmentBase.toNumber(),
+            creationPrice: grid.creationPrice?.toNumber(),
             trailingEnabled: grid.trailingEnabled,
             trailingTriggerPercent: grid.trailingTriggerPercent,
             trailingStepPercent: grid.trailingStepPercent,

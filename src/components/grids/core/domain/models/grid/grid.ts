@@ -30,6 +30,7 @@ export class Grid {
     private readonly _levels: number;
     private readonly _investmentUSDC: Decimal;
     private readonly _investmentBase: Decimal;
+    private readonly _creationPrice: Price | null;
     private readonly _trailingEnabled: boolean;
     private readonly _trailingTriggerPercent: number;
     private readonly _trailingStepPercent: number;
@@ -50,6 +51,7 @@ export class Grid {
         this._levels = params.levels;
         this._investmentUSDC = params.investmentUSDC;
         this._investmentBase = params.investmentBase;
+        this._creationPrice = params.creationPrice ?? null;
         this._trailingEnabled = params.trailingEnabled ?? false;
         this._trailingTriggerPercent = params.trailingTriggerPercent ?? 5;
         this._trailingStepPercent = params.trailingStepPercent ?? 10;
@@ -229,6 +231,10 @@ export class Grid {
 
     get investmentBase(): Decimal {
         return this._investmentBase;
+    }
+
+    get creationPrice(): Price | null {
+        return this._creationPrice;
     }
 
     get trailingEnabled(): boolean {
