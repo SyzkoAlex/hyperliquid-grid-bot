@@ -6,7 +6,6 @@ import { OrderStatusUpdate } from './order-status-update';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 describe('ProcessOrderStatusUseCase', () => {
@@ -74,7 +73,6 @@ describe('ProcessOrderStatusUseCase', () => {
     const createGrid = (status: GridStatus = GridStatus.Running): GridDto => ({
         id: gridId,
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status,
         lowerPrice: 45000,
         upperPrice: 55000,

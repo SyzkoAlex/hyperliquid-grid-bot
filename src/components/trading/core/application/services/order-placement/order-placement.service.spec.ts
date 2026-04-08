@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderPlacementService } from './order-placement.service';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -33,11 +32,9 @@ const makeGrid = (
     lowerPrice: number,
     upperPrice: number,
     levels: number,
-    mode: GridMode = GridMode.Neutral,
 ): GridDto => ({
     id: MOCK_GRID_ID,
     symbol,
-    mode,
     status: GridStatus.Running,
     lowerPrice,
     upperPrice,
@@ -160,7 +157,7 @@ describe('OrderPlacementService', () => {
         });
 
         it('should handle partial failures and return only successful count', async () => {
-            const mockGrid = makeGrid('ETH', 2500, 3500, 5, GridMode.Long);
+            const mockGrid = makeGrid('ETH', 2500, 3500, 5);
 
             const levels: GridLevel[] = [
                 {

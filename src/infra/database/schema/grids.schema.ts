@@ -6,7 +6,6 @@ import { boolean, decimal, integer, pgTable, timestamp, uuid, varchar } from 'dr
 export const grids = pgTable('grids', {
     id: uuid('id').primaryKey().defaultRandom(),
     symbol: varchar('symbol', { length: 50 }).notNull(),
-    mode: varchar('mode', { length: 20 }).notNull(), // neutral, long (no short on spot!)
     status: varchar('status', { length: 20 }).notNull(), // idle, running, stopped, error
     lowerPrice: decimal('lower_price', { precision: 20, scale: 8 }).notNull(),
     upperPrice: decimal('upper_price', { precision: 20, scale: 8 }).notNull(),

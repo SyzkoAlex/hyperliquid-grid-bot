@@ -42,7 +42,6 @@ export class ConfirmStep {
         void this.createGridUseCase
             .execute({
                 symbol: state!.symbol!,
-                mode: state!.gridMode!,
                 lowerPrice: state!.lowerPrice!,
                 upperPrice: state!.upperPrice!,
                 levels: state!.levels!,
@@ -56,7 +55,6 @@ export class ConfirmStep {
     private validateState(state: CreateGridWizardState | undefined): boolean {
         return !!(
             state?.symbol &&
-            state?.gridMode &&
             state?.upperPrice &&
             state?.lowerPrice &&
             state?.levels &&

@@ -3,7 +3,6 @@ import { GridHistoryTabMessage } from './grid-history-tab.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
@@ -15,7 +14,6 @@ function makeGrid(status: GridStatus = GridStatus.Running): GridDto {
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status,
         lowerPrice: 90000,
         upperPrice: 100000,

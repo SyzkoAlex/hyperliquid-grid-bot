@@ -3,7 +3,6 @@ import { PriceFormatter } from '../../formatters/price.formatter';
 
 interface AdvancedPreviewParams {
     symbol: string;
-    mode: string;
     lowerPrice: number;
     upperPrice: number;
     currentPrice: number | null;
@@ -16,16 +15,8 @@ export class AdvancedPreviewMessage {
     readonly text: string;
 
     private constructor(params: AdvancedPreviewParams) {
-        const {
-            symbol,
-            mode,
-            lowerPrice,
-            upperPrice,
-            currentPrice,
-            levels,
-            totalInvestment,
-            orderSize,
-        } = params;
+        const { symbol, lowerPrice, upperPrice, currentPrice, levels, totalInvestment, orderSize } =
+            params;
         const currentPriceText = currentPrice
             ? `${EMOJI.DIAMOND} Current Price: ${PriceFormatter.format(currentPrice)}\n`
             : '';
@@ -33,7 +24,6 @@ export class AdvancedPreviewMessage {
         this.text =
             `<b>${EMOJI.CLIPBOARD} Grid Configuration Preview</b>\n\n` +
             `${EMOJI.DIAMOND} Symbol: ${symbol}\n` +
-            `${EMOJI.DIAMOND} Mode: ${mode}\n` +
             `${EMOJI.DIAMOND} Price Range: ${PriceFormatter.format(lowerPrice)} - ${PriceFormatter.format(upperPrice)}\n` +
             currentPriceText +
             `${EMOJI.DIAMOND} Levels: ${levels}\n` +

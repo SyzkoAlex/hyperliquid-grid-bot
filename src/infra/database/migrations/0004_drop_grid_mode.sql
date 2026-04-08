@@ -1,0 +1,1 @@
+ALTER TABLE "grids" DROP COLUMN IF EXISTS "mode";

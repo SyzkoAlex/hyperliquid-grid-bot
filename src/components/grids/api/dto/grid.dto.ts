@@ -1,10 +1,8 @@
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 
 export interface GridDto {
     id: string;
     symbol: string;
-    mode: GridMode;
     status: GridStatus;
     lowerPrice: number;
     upperPrice: number;

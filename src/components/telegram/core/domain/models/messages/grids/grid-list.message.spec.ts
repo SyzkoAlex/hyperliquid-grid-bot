@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GridListMessage } from './grid-list.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridPnl } from '../../grid-pnl';
 import { OrderStats } from '../../order-stats';
@@ -11,7 +10,6 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,

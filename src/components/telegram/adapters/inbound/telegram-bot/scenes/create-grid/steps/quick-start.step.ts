@@ -1,11 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
-import { Inject } from '@nestjs/common';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { WizardStep } from '../wizard/wizard-step';
@@ -15,8 +13,8 @@ import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import {
-    QuickStartPromptMessage,
     QuickStartConfirmationMessage,
+    QuickStartPromptMessage,
 } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { fetchBalanceInfo } from '../helpers/balance-info';
@@ -50,10 +48,17 @@ export class QuickStartStep implements WizardStep {
 
         if (symbol) {
             try {
+                const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+                const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
+                const upperPrice = currentPrice + priceOffset;
+                const lowerPrice = currentPrice - priceOffset;
                 const balanceInfo = await fetchBalanceInfo(
                     this.tradingApi,
                     this.accountAddress,
                     symbol,
+                    WIZARD_CONFIG.DEFAULT_LEVELS,
+                    lowerPrice,
+                    upperPrice,
                 );
 
                 if (balanceInfo.baseBalance.isZero()) {
@@ -69,6 +74,21 @@ export class QuickStartStep implements WizardStep {
                     await this.messageManager.sendEnterMessage(
                         ctx,
                         ValidationTexts.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
+                        keyboard,
+                    );
+                    return;
+                }
+
+                const minRequired =
+                    (WIZARD_CONFIG.DEFAULT_LEVELS + 1) * WIZARD_CONFIG.MIN_INVESTMENT;
+                if (balanceInfo.suggestedMaxRounded < minRequired) {
+                    await this.messageManager.sendEnterMessage(
+                        ctx,
+                        ValidationTexts.insufficientBalanceForGrid(
+                            WIZARD_CONFIG.DEFAULT_LEVELS,
+                            minRequired,
+                            balanceInfo.suggestedMaxRounded,
+                        ),
                         keyboard,
                     );
                     return;
@@ -140,7 +160,6 @@ export class QuickStartStep implements WizardStep {
             session.createGrid.upperPrice = upperPrice;
             session.createGrid.lowerPrice = lowerPrice;
             session.createGrid.levels = WIZARD_CONFIG.DEFAULT_LEVELS;
-            session.createGrid.gridMode = GridMode.Neutral;
 
             return {
                 nextStep: SceneStep.Preview,

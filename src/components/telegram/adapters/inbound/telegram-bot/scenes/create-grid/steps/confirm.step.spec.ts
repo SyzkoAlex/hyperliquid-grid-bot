@@ -4,7 +4,6 @@ import { CreateGridUseCase } from '@components/telegram/core/application/use-cas
 import { PendingCreationMessageStore } from '../../../pending-creation-message.store';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
-import { GridMode } from '@domain/models/grid/grid-mode';
 
 describe('ConfirmStep', () => {
     let step: ConfirmStep;
@@ -31,14 +30,12 @@ describe('ConfirmStep', () => {
                 levels: 10,
                 totalInvestmentUSDC: 1000,
                 mode: CreateGridMode.Advanced,
-                gridMode: GridMode.Neutral,
             };
 
             await step.execute(ctx);
 
             expect(mockCreateGridUseCase.execute).toHaveBeenCalledWith({
                 symbol: 'BTC',
-                mode: GridMode.Neutral,
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 10,
@@ -56,7 +53,6 @@ describe('ConfirmStep', () => {
                 levels: 10,
                 totalInvestmentUSDC: 1000,
                 mode: CreateGridMode.Advanced,
-                gridMode: GridMode.Neutral,
             };
 
             await step.execute(ctx);

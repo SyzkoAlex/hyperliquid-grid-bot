@@ -5,7 +5,6 @@ export class GridCreatedSuccessEvent extends SerializableEvent {
     constructor(
         public readonly gridId: string,
         public readonly symbol: string,
-        public readonly mode: string,
         public readonly lowerPrice: number,
         public readonly upperPrice: number,
         public readonly levels: number,
@@ -21,7 +20,6 @@ export class GridCreatedSuccessEvent extends SerializableEvent {
         return {
             gridId: this.gridId,
             symbol: this.symbol,
-            mode: this.mode,
             lowerPrice: this.lowerPrice,
             upperPrice: this.upperPrice,
             levels: this.levels,
@@ -36,7 +34,6 @@ export class GridCreatedSuccessEvent extends SerializableEvent {
         return new GridCreatedSuccessEvent(
             data.gridId,
             data.symbol,
-            data.mode,
             data.lowerPrice,
             data.upperPrice,
             data.levels,

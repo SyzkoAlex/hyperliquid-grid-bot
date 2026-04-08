@@ -78,7 +78,7 @@ export class CreateAndStartGridUseCase {
         }
 
         const distribution = this.capitalCalculator.calculateDistribution({
-            mode: params.mode,
+            levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance,
             baseBalance,
@@ -111,7 +111,6 @@ export class CreateAndStartGridUseCase {
         const grid = await this.grids.createGrid({
             id: uuidv4(),
             symbol: params.symbol,
-            mode: params.mode,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
             levels: params.levels,

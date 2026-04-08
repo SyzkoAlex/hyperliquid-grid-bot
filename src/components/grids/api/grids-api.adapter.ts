@@ -36,7 +36,6 @@ export class GridsApiAdapter implements GridsApiPort {
         const grid = Grid.create({
             id: GridId.from(dto.id),
             symbol: TradingSymbol.create(dto.symbol),
-            mode: dto.mode,
             lowerPrice: Price.from(dto.lowerPrice),
             upperPrice: Price.from(dto.upperPrice),
             levels: dto.levels,

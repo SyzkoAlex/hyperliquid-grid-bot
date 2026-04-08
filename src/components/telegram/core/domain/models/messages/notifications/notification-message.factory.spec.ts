@@ -27,7 +27,6 @@ describe('NotificationMessageFactory', () => {
         const event = new GridCreatedSuccessEvent(
             'grid-1',
             'ETH',
-            'neutral',
             3000,
             4000,
             10,

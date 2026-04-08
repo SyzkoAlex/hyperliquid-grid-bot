@@ -8,7 +8,6 @@ export class GridsApiMapper {
         return {
             id: grid.id.toString(),
             symbol: grid.symbol.toString(),
-            mode: grid.mode,
             status: grid.status,
             lowerPrice: grid.lowerPrice.toNumber(),
             upperPrice: grid.upperPrice.toNumber(),

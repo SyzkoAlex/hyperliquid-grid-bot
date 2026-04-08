@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GridProfitTabMessage } from './grid-profit-tab.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridPnl } from '../../../../../core/domain/models/grid-pnl';
 import { OrderStats } from '../../../../../core/domain/models/order-stats';
@@ -11,7 +10,6 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status,
         lowerPrice: 90000,
         upperPrice: 100000,

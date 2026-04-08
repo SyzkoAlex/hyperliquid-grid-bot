@@ -29,6 +29,13 @@
       "when": 1775384661100,
       "tag": "0003_daffy_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775670606756,
+      "tag": "0004_drop_grid_mode",
+      "breakpoints": true
     }
   ]
 }

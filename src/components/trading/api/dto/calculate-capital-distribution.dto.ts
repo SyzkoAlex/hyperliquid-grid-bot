@@ -1,7 +1,5 @@
-import { GridMode } from '@domain/models/grid/grid-mode';
-
 export interface CalculateCapitalDistributionDto {
-    mode: GridMode;
+    levels: number;
     totalInvestmentUSDC?: number;
     usdcBalance: number;
     baseBalance: number;

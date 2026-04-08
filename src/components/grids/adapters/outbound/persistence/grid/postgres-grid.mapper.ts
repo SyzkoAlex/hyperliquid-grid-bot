@@ -1,7 +1,6 @@
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -19,7 +18,6 @@ export class PostgresGridMapper {
         return {
             id: grid.id.toString(),
             symbol: grid.symbol.toString(),
-            mode: grid.mode,
             status: grid.status,
             lowerPrice: grid.lowerPrice.toNumber().toString(),
             upperPrice: grid.upperPrice.toNumber().toString(),
@@ -47,7 +45,6 @@ export class PostgresGridMapper {
             const params = {
                 id: GridId.from(row.id),
                 symbol: TradingSymbol.create(row.symbol),
-                mode: row.mode as GridMode,
                 status: row.status as GridStatus,
                 lowerPrice: Price.from(parseFloat(row.lowerPrice)),
                 upperPrice: Price.from(parseFloat(row.upperPrice)),

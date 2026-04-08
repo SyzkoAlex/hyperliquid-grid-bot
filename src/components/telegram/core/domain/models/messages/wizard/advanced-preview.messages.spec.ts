@@ -1,10 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { AdvancedPreviewMessage } from './advanced-preview.messages';
 
 describe('AdvancedPreviewMessage', () => {
     const defaultParams = {
         symbol: 'BTC',
-        mode: 'Neutral',
         lowerPrice: 90000,
         upperPrice: 100000,
         currentPrice: 95000 as number | null,
@@ -16,7 +15,6 @@ describe('AdvancedPreviewMessage', () => {
     it('contains all key grid fields', () => {
         const result = AdvancedPreviewMessage.create(defaultParams);
         expect(result.text).toContain('BTC');
-        expect(result.text).toContain('Neutral');
         expect(result.text).toContain('90000');
         expect(result.text).toContain('100000');
         expect(result.text).toContain('10');
