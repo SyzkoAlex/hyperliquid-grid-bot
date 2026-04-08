@@ -46,7 +46,10 @@ import { GridLevel } from './grid-level';
  * ```
  */
 export class GridLevelsCalculatorService {
-    constructor(private readonly minOrderNotional: number) {}
+    constructor(
+        private readonly minOrderNotional: number,
+        private readonly sellSizeBuffer: number,
+    ) {}
 
     calculateLevelsWithSizes(
         lowerPrice: number,
@@ -130,7 +133,11 @@ export class GridLevelsCalculatorService {
         const sellLevels = levels.filter((l) => l.side === OrderSide.Sell);
 
         const quotePerBuyLevel = Decimal.from(investmentUSDC).div(Decimal.from(buyLevels.length));
-        const basePerSellLevel = Decimal.from(investmentBase).div(Decimal.from(sellLevels.length));
+        // Buffer ensures sell order notional stays above exchange minimum
+        // despite ceil-rounding in the exchange adapter and small price fluctuations during placement
+        const basePerSellLevel = Decimal.from(investmentBase)
+            .div(Decimal.from(sellLevels.length))
+            .mul(Decimal.from(1 + this.sellSizeBuffer));
 
         return levels.map((level) => {
             if (level.side === OrderSide.Buy) {

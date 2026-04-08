@@ -27,6 +27,7 @@ hyperliquid:
     maxRetries: 3
     retryDelay: 1000
     minOrderNotional: ${HYPERLIQUID_MIN_ORDER_NOTIONAL:10}
+    sellSizeBuffer: ${HYPERLIQUID_SELL_SIZE_BUFFER:0.005}
     websocket:
         maxReconnectAttempts: ${HYPERLIQUID_WS_MAX_RECONNECT_ATTEMPTS:10}
         baseReconnectDelay: ${HYPERLIQUID_WS_BASE_RECONNECT_DELAY:5000}

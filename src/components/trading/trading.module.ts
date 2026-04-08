@@ -44,8 +44,10 @@ import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
         {
             provide: GridLevelsCalculatorService,
             useFactory: (configService: ConfigService<Config, true>) => {
-                const { minOrderNotional } = configService.get('hyperliquid', { infer: true });
-                return new GridLevelsCalculatorService(minOrderNotional);
+                const { minOrderNotional, sellSizeBuffer } = configService.get('hyperliquid', {
+                    infer: true,
+                });
+                return new GridLevelsCalculatorService(minOrderNotional, sellSizeBuffer);
             },
             inject: [ConfigService],
         },
