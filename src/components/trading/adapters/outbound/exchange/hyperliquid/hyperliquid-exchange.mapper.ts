@@ -44,12 +44,17 @@ export class HyperliquidExchangeMapper {
         const symbol = params.symbol.toString();
         const coin = HyperliquidSymbol.toSpotFormat(symbol);
         const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
-        const sz = floorToDecimals(params.amount.toNumber(), szDecimals);
+        // Sell orders: ceil to avoid floor-rounding dropping notional below exchange minimum
+        // Buy orders: floor to avoid spending more USDC than available
+        const sz =
+            params.side === OrderSide.Sell
+                ? ceilToDecimals(params.amount.toNumber(), szDecimals)
+                : floorToDecimals(params.amount.toNumber(), szDecimals);
         const limitPx = roundToDecimals(params.price.toNumber(), szDecimals);
 
         return {
             coin,
-            is_buy: params.side === 'buy',
+            is_buy: params.side === OrderSide.Buy,
             sz,
             limit_px: limitPx,
             order_type: { limit: { tif: 'Gtc' as const } },
@@ -189,4 +194,10 @@ function roundToDecimals(value: number, decimals: number): number {
 function floorToDecimals(value: number, decimals: number): number {
     const multiplier = Math.pow(10, decimals);
     return Math.floor(value * multiplier) / multiplier;
+}
+
+/** Round up to ensure sell order notional stays at or above exchange minimum after rounding */
+function ceilToDecimals(value: number, decimals: number): number {
+    const multiplier = Math.pow(10, decimals);
+    return Math.ceil(value * multiplier) / multiplier;
 }

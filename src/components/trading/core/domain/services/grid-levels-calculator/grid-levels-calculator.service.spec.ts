@@ -6,8 +6,10 @@ import { OrderSide } from '@domain/models/order/order-side';
 describe('GridLevelsCalculatorService', () => {
     let service: GridLevelsCalculatorService;
 
+    const sellSizeBuffer = 0.005;
+
     beforeEach(() => {
-        service = new GridLevelsCalculatorService(10);
+        service = new GridLevelsCalculatorService(10, sellSizeBuffer);
     });
 
     const defaults = {
@@ -81,7 +83,7 @@ describe('GridLevelsCalculatorService', () => {
             );
 
             const sellLevels = result.filter((l) => l.side === OrderSide.Sell);
-            const expectedBasePerLevel = 0.1 / sellLevels.length;
+            const expectedBasePerLevel = (0.1 / sellLevels.length) * (1 + sellSizeBuffer);
 
             sellLevels.forEach((level) => {
                 expect(level.amountBase).toBeCloseTo(expectedBasePerLevel, 5);
