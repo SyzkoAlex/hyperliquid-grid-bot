@@ -156,4 +156,39 @@ describe('validateInvestment', () => {
 
         expect(result.valid).toBe(true);
     });
+
+    it('accepts investment when minNotional is just below minimum due to floating-point', async () => {
+        // Capital distribution returns 9.9999 — rounds to 10.00 cents, should pass.
+        // Before the roundToCents fix this would be incorrectly rejected.
+        // levels=1 → countBuySellLevels gives buyCount=1, sellCount=1.
+        vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+        vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+            investmentUSDC: 9.9999,
+            investmentBase: 100,
+        });
+
+        const result = await validateInvestment(
+            { ...defaultParams, levels: 1, lowerPrice: 9, upperPrice: 11 },
+            mockTradingApi,
+        );
+
+        expect(result.valid).toBe(true);
+    });
+
+    it('rejects investment when minNotional is genuinely below minimum after rounding', async () => {
+        // 9.944 rounds to 9.94 which is still < 10 — must reject.
+        vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+        vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+            investmentUSDC: 9.944,
+            investmentBase: 100,
+        });
+
+        const result = await validateInvestment(
+            { ...defaultParams, levels: 1, lowerPrice: 9, upperPrice: 11 },
+            mockTradingApi,
+        );
+
+        expect(result.valid).toBe(false);
+        expect(result.showBackButton).toBe(true);
+    });
 });

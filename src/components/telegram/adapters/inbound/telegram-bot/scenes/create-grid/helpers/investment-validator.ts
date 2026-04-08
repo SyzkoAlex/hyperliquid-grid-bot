@@ -3,6 +3,7 @@ import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
+import { roundToCents } from './round-to-cents';
 
 interface CapitalDistribution {
     investmentUSDC: Decimal;
@@ -85,7 +86,7 @@ export async function validateInvestment(
             .mul(Decimal.from(currentPriceNum))
             .div(Decimal.from(sellCount))
             .toNumber();
-        const minNotional = Math.min(minBuyNotional, minSellNotional);
+        const minNotional = roundToCents(Math.min(minBuyNotional, minSellNotional));
 
         if (minNotional < WIZARD_CONFIG.MIN_INVESTMENT) {
             const minRequired = Math.ceil(
