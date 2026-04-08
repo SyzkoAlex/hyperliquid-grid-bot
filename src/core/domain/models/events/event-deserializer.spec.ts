@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { EventDeserializer } from './event-deserializer';
 import { EventType } from './event-type';
 import { SerializableEvent } from './trading/trading-event';
@@ -23,17 +23,7 @@ function createEventByType(type: EventType): SerializableEvent {
         [EventType.OrderClosed]: () =>
             new OrderClosedEvent('grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100, 2, 10),
         [EventType.GridCreatedSuccess]: () =>
-            new GridCreatedSuccessEvent(
-                'grid-1',
-                'BTC',
-                'neutral',
-                50000,
-                60000,
-                10,
-                5000,
-                0.5,
-                false,
-            ),
+            new GridCreatedSuccessEvent('grid-1', 'BTC', 50000, 60000, 10, 5000, 0.5, false),
         [EventType.GridCreatedError]: () => new GridCreatedErrorEvent('Something went wrong'),
     };
     return factories[type]();

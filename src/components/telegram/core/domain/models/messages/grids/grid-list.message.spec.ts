@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GridListMessage } from './grid-list.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridPnl } from '../../grid-pnl';
 import { OrderStats } from '../../order-stats';
@@ -11,13 +10,13 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,
         levels: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
+        creationPrice: 95000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
@@ -81,5 +80,28 @@ describe('GridListMessage', () => {
         expect(msg.text).toContain('$90000');
         expect(msg.text).toContain('$100000');
         expect(msg.text).toContain('$95000');
+    });
+
+    it('uses creationPrice for investment when it differs from currentPrice', () => {
+        // creationPrice=90000, currentPrice=95000 → investment = 500 + 0.001*90000 = 590
+        const snapshot = makeSnapshot({
+            grid: makeGrid({ creationPrice: 90000 }),
+            currentPrice: 95000,
+        });
+        const msg = GridListMessage.create(header, [snapshot], 0);
+
+        expect(msg.text).toContain('$590');
+        expect(msg.text).not.toContain('$595');
+    });
+
+    it('falls back to currentPrice for investment when creationPrice is undefined', () => {
+        // creationPrice=undefined, currentPrice=95000 → investment = 500 + 0.001*95000 = 595
+        const snapshot = makeSnapshot({
+            grid: makeGrid({ creationPrice: undefined }),
+            currentPrice: 95000,
+        });
+        const msg = GridListMessage.create(header, [snapshot], 0);
+
+        expect(msg.text).toContain('$595');
     });
 });

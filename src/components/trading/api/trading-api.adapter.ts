@@ -57,7 +57,7 @@ export class TradingApiAdapter implements TradingApiPort {
 
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {
         const distribution = this.capitalCalculator.calculateDistribution({
-            mode: params.mode,
+            levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance: Decimal.from(params.usdcBalance),
             baseBalance: Decimal.from(params.baseBalance),

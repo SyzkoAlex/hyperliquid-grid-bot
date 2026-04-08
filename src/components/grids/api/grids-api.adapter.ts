@@ -36,12 +36,13 @@ export class GridsApiAdapter implements GridsApiPort {
         const grid = Grid.create({
             id: GridId.from(dto.id),
             symbol: TradingSymbol.create(dto.symbol),
-            mode: dto.mode,
             lowerPrice: Price.from(dto.lowerPrice),
             upperPrice: Price.from(dto.upperPrice),
             levels: dto.levels,
             investmentUSDC: Decimal.from(dto.investmentUSDC),
             investmentBase: Decimal.from(dto.investmentBase),
+            creationPrice:
+                dto.creationPrice !== undefined ? Price.from(dto.creationPrice) : undefined,
             trailingEnabled: dto.trailingEnabled,
             trailingTriggerPercent: dto.trailingTriggerPercent,
             trailingStepPercent: dto.trailingStepPercent,

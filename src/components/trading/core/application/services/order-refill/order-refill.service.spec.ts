@@ -3,7 +3,6 @@ import { OrderRefillService } from './order-refill.service';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
@@ -29,7 +28,6 @@ describe('OrderRefillService', () => {
     const testGrid: GridDto = {
         id: GRID_ID,
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 45000,
         upperPrice: 55000,

@@ -1,6 +1,5 @@
 import { GridId } from './grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridCreateParams } from './grid-create-params';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
@@ -13,7 +12,6 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
  * SPOT Grid Trading:
  * - Physical tokens (no leverage, no liquidation risk)
  * - Buy low, sell high strategy
- * - Neutral or Long mode (Short not available on spot)
  * - Trailing-Up support for bull markets
  *
  * Capital Distribution:
@@ -23,13 +21,13 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
 export class Grid {
     private readonly _id: GridId;
     private readonly _symbol: TradingSymbol;
-    private readonly _mode: GridMode;
     private _status: GridStatus;
     private _lowerPrice: Price;
     private _upperPrice: Price;
     private readonly _levels: number;
     private readonly _investmentUSDC: Decimal;
     private readonly _investmentBase: Decimal;
+    private readonly _creationPrice: Price | null;
     private readonly _trailingEnabled: boolean;
     private readonly _trailingTriggerPercent: number;
     private readonly _trailingStepPercent: number;
@@ -43,13 +41,13 @@ export class Grid {
     private constructor(params: GridCreateParams) {
         this._id = params.id ?? GridId.create();
         this._symbol = params.symbol;
-        this._mode = params.mode;
         this._status = params.status ?? GridStatus.Idle;
         this._lowerPrice = params.lowerPrice;
         this._upperPrice = params.upperPrice;
         this._levels = params.levels;
         this._investmentUSDC = params.investmentUSDC;
         this._investmentBase = params.investmentBase;
+        this._creationPrice = params.creationPrice ?? null;
         this._trailingEnabled = params.trailingEnabled ?? false;
         this._trailingTriggerPercent = params.trailingTriggerPercent ?? 5;
         this._trailingStepPercent = params.trailingStepPercent ?? 10;
@@ -79,10 +77,6 @@ export class Grid {
         }
         if (this._investmentBase.lt(Decimal.zero())) {
             throw new Error('Investment base cannot be negative');
-        }
-        // Neutral mode requires both quote and base
-        if (this._mode === GridMode.Neutral && this._investmentBase.isZero()) {
-            throw new Error('Neutral mode requires both quote and base investment');
         }
         // Validate trailing percentages
         if (this._trailingTriggerPercent < 0 || this._trailingTriggerPercent > 50) {
@@ -203,10 +197,6 @@ export class Grid {
         return this._symbol;
     }
 
-    get mode(): GridMode {
-        return this._mode;
-    }
-
     get status(): GridStatus {
         return this._status;
     }
@@ -229,6 +219,10 @@ export class Grid {
 
     get investmentBase(): Decimal {
         return this._investmentBase;
+    }
+
+    get creationPrice(): Price | null {
+        return this._creationPrice;
     }
 
     get trailingEnabled(): boolean {

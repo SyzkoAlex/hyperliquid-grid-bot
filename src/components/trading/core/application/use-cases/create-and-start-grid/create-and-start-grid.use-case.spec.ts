@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateAndStartGridUseCase } from './create-and-start-grid.use-case';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -18,13 +17,13 @@ describe('CreateAndStartGridUseCase', () => {
     const makeGridDto = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Idle,
         lowerPrice: 45000,
         upperPrice: 55000,
         levels: 10,
         investmentUSDC: 5000,
         investmentBase: 0.1,
+        creationPrice: 50000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
@@ -75,7 +74,6 @@ describe('CreateAndStartGridUseCase', () => {
                 chatId: 123456,
                 address: '0x123',
                 symbol: 'BTC',
-                mode: GridMode.Neutral,
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 10,
@@ -131,7 +129,6 @@ describe('CreateAndStartGridUseCase', () => {
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('BTC');
-            expect(result.grid.mode).toBe(GridMode.Neutral);
             expect(result.grid.levels).toBe(10);
             expect(result.investmentUSDC).toEqual(distribution.investmentUSDC);
             expect(result.investmentBase).toEqual(distribution.investmentBase);
@@ -140,7 +137,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
 
             expect(capitalCalculator.calculateDistribution).toHaveBeenCalledWith({
-                mode: GridMode.Neutral,
+                levels: 10,
                 totalInvestmentUSDC: 10000,
                 usdcBalance: balances.usdcBalance,
                 baseBalance: balances.baseBalance,
@@ -150,6 +147,9 @@ describe('CreateAndStartGridUseCase', () => {
             });
 
             expect(grids.createGrid).toHaveBeenCalledTimes(1);
+            expect(grids.createGrid).toHaveBeenCalledWith(
+                expect.objectContaining({ creationPrice: currentPrice.toNumber() }),
+            );
             expect(grids.updateGridStatus).toHaveBeenCalledWith(gridDto.id, GridStatus.Running);
 
             expect(exchange.getCurrentPrice).toHaveBeenCalledWith(
@@ -173,7 +173,6 @@ describe('CreateAndStartGridUseCase', () => {
                 chatId: 123456,
                 address: '0x123',
                 symbol: 'ETH',
-                mode: GridMode.Long,
                 lowerPrice: 2500,
                 upperPrice: 3500,
                 levels: 5,
@@ -210,7 +209,7 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            const gridDto = makeGridDto({ symbol: 'ETH', mode: GridMode.Long, levels: 5 });
+            const gridDto = makeGridDto({ symbol: 'ETH', levels: 5 });
 
             exchange.getUserSpotState.mockResolvedValue(userState);
             exchange.getCurrentPrice.mockResolvedValue(currentPrice);
@@ -224,7 +223,6 @@ describe('CreateAndStartGridUseCase', () => {
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('ETH');
-            expect(result.grid.mode).toBe(GridMode.Long);
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
 
@@ -233,7 +231,6 @@ describe('CreateAndStartGridUseCase', () => {
                 chatId: 123456,
                 address: '0x123',
                 symbol: 'BTC',
-                mode: GridMode.Neutral,
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 10,
@@ -259,7 +256,6 @@ describe('CreateAndStartGridUseCase', () => {
                 chatId: 123456,
                 address: '0x123',
                 symbol: 'BTC',
-                mode: GridMode.Neutral,
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 10,
@@ -285,7 +281,6 @@ describe('CreateAndStartGridUseCase', () => {
                 chatId: 123456,
                 address: '0x123',
                 symbol: 'SOL',
-                mode: GridMode.Neutral,
                 lowerPrice: 100,
                 upperPrice: 150,
                 levels: 5,
@@ -329,7 +324,6 @@ describe('CreateAndStartGridUseCase', () => {
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('SOL');
-            expect(result.grid.mode).toBe(GridMode.Neutral);
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
         });
     });

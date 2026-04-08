@@ -15,13 +15,12 @@ describe('GridCreatedSuccessMessage', () => {
         trailingEnabled: false,
     };
 
-    it('contains symbol, range, levels, mode, and capital', () => {
+    it('contains symbol, range, levels, and capital', () => {
         const msg = GridCreatedSuccessMessage.create(baseProps);
         expect(msg.text).toContain('BTC');
         expect(msg.text).toContain('$90,000');
         expect(msg.text).toContain('$100,000');
         expect(msg.text).toContain('10');
-        expect(msg.text).toContain('neutral');
         expect(msg.text).toContain('$500');
         expect(msg.text).toContain('0.0050');
     });
@@ -46,7 +45,6 @@ describe('GridCreatedSuccessMessage', () => {
         const event = new GridCreatedSuccessEvent(
             'abcdef01-2345-6789-abcd-ef0123456789',
             'ETH',
-            'long',
             3000,
             4000,
             20,
@@ -59,7 +57,6 @@ describe('GridCreatedSuccessMessage', () => {
         expect(msg.text).toContain('$3,000');
         expect(msg.text).toContain('$4,000');
         expect(msg.text).toContain('20');
-        expect(msg.text).toContain('long');
         expect(msg.text).toContain('Trailing');
     });
 });

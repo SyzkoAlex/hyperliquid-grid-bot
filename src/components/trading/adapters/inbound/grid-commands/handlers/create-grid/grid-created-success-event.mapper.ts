@@ -6,7 +6,6 @@ export class GridCreatedSuccessEventMapper {
         return new GridCreatedSuccessEvent(
             result.grid.id,
             result.grid.symbol,
-            result.grid.mode,
             result.grid.lowerPrice,
             result.grid.upperPrice,
             result.grid.levels,

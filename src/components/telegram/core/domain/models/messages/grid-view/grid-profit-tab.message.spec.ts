@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { GridProfitTabMessage } from './grid-profit-tab.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridPnl } from '../../../../../core/domain/models/grid-pnl';
 import { OrderStats } from '../../../../../core/domain/models/order-stats';
@@ -11,13 +10,13 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status,
         lowerPrice: 90000,
         upperPrice: 100000,
         levels: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
+        creationPrice: 95000,
         trailingEnabled: false,
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
@@ -91,5 +90,30 @@ describe('GridProfitTabMessage', () => {
         expect(GridProfitTabMessage.create(makeData(makeGrid())).text).toContain(
             'Profitable Trades:</b> 5',
         );
+    });
+
+    it('uses creationPrice for investment when creationPrice differs from currentPrice', () => {
+        const grid: GridDto = {
+            ...makeGrid(),
+            investmentUSDC: 500,
+            investmentBase: 0.001,
+            creationPrice: 90000,
+        };
+        // investment = 500 + 0.001 * 90000 = 590, not 595
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('$590');
+        expect(result).not.toContain('$595');
+    });
+
+    it('falls back to currentPrice when creationPrice is undefined', () => {
+        const grid: GridDto = {
+            ...makeGrid(),
+            investmentUSDC: 500,
+            investmentBase: 0.001,
+            creationPrice: undefined,
+        };
+        // investment = 500 + 0.001 * 95000 (currentPrice) = 595
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('$595');
     });
 });

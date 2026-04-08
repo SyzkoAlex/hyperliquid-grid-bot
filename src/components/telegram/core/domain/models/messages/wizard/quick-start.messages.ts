@@ -39,7 +39,7 @@ export class QuickStartPromptMessage {
             `Total balance: ${formatFiat(totalBalance.toNumber())} USDC\n\n` +
             `How much USDC do you want to invest?\n\n` +
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
-            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels, neutral mode)\n` +
+            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels)\n` +
             `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})`;
     }
 

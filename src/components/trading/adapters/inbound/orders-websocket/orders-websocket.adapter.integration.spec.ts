@@ -15,7 +15,6 @@ import {
 } from '@components/trading/core/application/ports/exchange.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -58,7 +57,6 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
             symbol,
-            mode: GridMode.Neutral,
             lowerPrice: 2500,
             upperPrice: 3500,
             levels: 10,
@@ -114,7 +112,7 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
 
     describe('Order Status Event Processing', () => {
         it('should handle filled status event and trigger refill', async () => {
-            const grid = await createGrid('ETH', { mode: GridMode.Long });
+            const grid = await createGrid('ETH');
 
             const order = await createOrder(grid, {
                 side: OrderSide.Sell,

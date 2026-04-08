@@ -4,7 +4,6 @@ import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -15,7 +14,6 @@ function createGrid(
     overrides: Partial<{
         id: GridId;
         symbol: string;
-        mode: GridMode;
         status: GridStatus;
         lowerPrice: number;
         upperPrice: number;
@@ -27,19 +25,15 @@ function createGrid(
         stoppedAt: Timestamp;
     }> = {},
 ): Grid {
-    const mode = overrides.mode ?? GridMode.Neutral;
     return Grid.create({
         id: overrides.id ?? GridId.create(),
         symbol: TradingSymbol.create(overrides.symbol ?? 'HYPE'),
-        mode,
         status: overrides.status,
         lowerPrice: Price.from(overrides.lowerPrice ?? 100),
         upperPrice: Price.from(overrides.upperPrice ?? 200),
         levels: overrides.levels ?? 10,
         investmentUSDC: Decimal.from(overrides.investmentUSDC ?? 1000),
-        investmentBase: Decimal.from(
-            overrides.investmentBase ?? (mode === GridMode.Neutral ? 5 : 0),
-        ),
+        investmentBase: Decimal.from(overrides.investmentBase ?? 5),
         trailingEnabled: overrides.trailingEnabled ?? false,
         startedAt: overrides.startedAt,
         stoppedAt: overrides.stoppedAt,
@@ -73,7 +67,6 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             expect(found).not.toBeNull();
             expect(found!.id.toString()).toBe(grid.id.toString());
             expect(found!.symbol.toString()).toBe('HYPE');
-            expect(found!.mode).toBe(GridMode.Neutral);
             expect(found!.status).toBe(GridStatus.Idle);
             expect(found!.levels).toBe(10);
         });

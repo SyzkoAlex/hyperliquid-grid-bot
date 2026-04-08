@@ -116,7 +116,7 @@ export class DatabaseTestHelper {
     /**
      * Get database instance
      */
-    static getDb(): ReturnType<typeof drizzle> {
+    static getDb(): DrizzleDb {
         if (!this.db) {
             throw new Error('Database not initialized. Call initialize() first.');
         }

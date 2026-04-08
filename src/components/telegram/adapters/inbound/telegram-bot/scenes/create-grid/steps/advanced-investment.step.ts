@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
@@ -7,16 +7,14 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-import { Inject } from '@nestjs/common';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import {
-    AdvancedInvestmentPromptMessage,
     AdvancedInvestmentConfirmationMessage,
+    AdvancedInvestmentPromptMessage,
 } from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { fetchBalanceInfo } from '../helpers/balance-info';
@@ -51,11 +49,19 @@ export class AdvancedInvestmentStep implements WizardStep {
 
         if (symbol) {
             try {
-                const balanceInfo = await fetchBalanceInfo(
-                    this.tradingApi,
-                    this.accountAddress,
-                    symbol,
-                );
+                const upperPrice = session.createGrid?.upperPrice;
+                const lowerPrice = session.createGrid?.lowerPrice;
+                const balanceInfo =
+                    upperPrice && lowerPrice
+                        ? await fetchBalanceInfo(
+                              this.tradingApi,
+                              this.accountAddress,
+                              symbol,
+                              levels,
+                              lowerPrice,
+                              upperPrice,
+                          )
+                        : await this.fetchBalanceInfoFromCurrentPrice(symbol, levels);
 
                 if (balanceInfo.baseBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
@@ -70,6 +76,20 @@ export class AdvancedInvestmentStep implements WizardStep {
                     await this.messageManager.sendEnterMessage(
                         ctx,
                         ValidationTexts.zeroUsdcBalance(symbol, balanceInfo.baseBalance),
+                        keyboard,
+                    );
+                    return;
+                }
+
+                const minRequired = (levels + 1) * WIZARD_CONFIG.MIN_INVESTMENT;
+                if (balanceInfo.suggestedMaxRounded < minRequired) {
+                    await this.messageManager.sendEnterMessage(
+                        ctx,
+                        ValidationTexts.insufficientBalanceForGrid(
+                            levels,
+                            minRequired,
+                            balanceInfo.suggestedMaxRounded,
+                        ),
                         keyboard,
                     );
                     return;
@@ -139,7 +159,6 @@ export class AdvancedInvestmentStep implements WizardStep {
             }
 
             session.createGrid.totalInvestmentUSDC = investment;
-            session.createGrid.gridMode = GridMode.Neutral;
             return {
                 nextStep: SceneStep.Preview,
                 confirmations: [AdvancedInvestmentConfirmationMessage.create(investment).text],
@@ -152,6 +171,22 @@ export class AdvancedInvestmentStep implements WizardStep {
             );
             return null;
         }
+    }
+
+    private async fetchBalanceInfoFromCurrentPrice(
+        symbol: string,
+        levels: number,
+    ): Promise<ReturnType<typeof fetchBalanceInfo>> {
+        const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+        const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
+        return fetchBalanceInfo(
+            this.tradingApi,
+            this.accountAddress,
+            symbol,
+            levels,
+            currentPrice - priceOffset,
+            currentPrice + priceOffset,
+        );
     }
 
     rollbackState(ctx: BotContext): void {

@@ -7,7 +7,6 @@ import { GridAction } from '@components/telegram/core/domain/models/grid-action'
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -16,7 +15,6 @@ function makeGrid(): GridDto {
     return {
         id: GRID_ID,
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,

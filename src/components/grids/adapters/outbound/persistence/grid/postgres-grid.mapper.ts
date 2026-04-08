@@ -1,7 +1,6 @@
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -19,13 +18,13 @@ export class PostgresGridMapper {
         return {
             id: grid.id.toString(),
             symbol: grid.symbol.toString(),
-            mode: grid.mode,
             status: grid.status,
             lowerPrice: grid.lowerPrice.toNumber().toString(),
             upperPrice: grid.upperPrice.toNumber().toString(),
             levels: grid.levels,
             investmentUSDC: grid.investmentUSDC.toString(),
             investmentBase: grid.investmentBase.toString(),
+            creationPrice: grid.creationPrice?.toNumber().toString() ?? null,
             trailingEnabled: grid.trailingEnabled,
             trailingTriggerPercent: grid.trailingTriggerPercent.toString(),
             trailingStepPercent: grid.trailingStepPercent.toString(),
@@ -46,13 +45,15 @@ export class PostgresGridMapper {
             const params = {
                 id: GridId.from(row.id),
                 symbol: TradingSymbol.create(row.symbol),
-                mode: row.mode as GridMode,
                 status: row.status as GridStatus,
                 lowerPrice: Price.from(parseFloat(row.lowerPrice)),
                 upperPrice: Price.from(parseFloat(row.upperPrice)),
                 levels: row.levels,
                 investmentUSDC: Decimal.from(row.investmentUSDC),
                 investmentBase: Decimal.from(row.investmentBase),
+                creationPrice: row.creationPrice
+                    ? Price.from(parseFloat(row.creationPrice))
+                    : undefined,
                 trailingEnabled: row.trailingEnabled,
                 trailingTriggerPercent: parseFloat(row.trailingTriggerPercent),
                 trailingStepPercent: parseFloat(row.trailingStepPercent),

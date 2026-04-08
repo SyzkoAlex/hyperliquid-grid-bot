@@ -12,14 +12,12 @@ import { GridFilter } from '@components/telegram/core/application/use-cases/get-
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 function makeGrid(id: string, status = GridStatus.Running): GridDto {
     return {
         id,
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status,
         lowerPrice: 90000,
         upperPrice: 100000,

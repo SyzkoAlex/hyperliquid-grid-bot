@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateInvestment, InvestmentValidationParams } from './investment-validator';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { InvestmentValidationParams, validateInvestment } from './investment-validator';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 
@@ -138,6 +138,7 @@ describe('validateInvestment', () => {
         expect(mockTradingApi.calculateCapitalDistribution).toHaveBeenCalledWith(
             expect.objectContaining({
                 totalInvestmentUSDC: 1000,
+                levels: 10,
                 currentPrice: 10,
                 lowerPrice: 9,
                 upperPrice: 11,
@@ -145,9 +146,11 @@ describe('validateInvestment', () => {
         );
     });
 
-    it('accepts exact minimum investment', async () => {
+    it('accepts investment where per-order amount meets the minimum', async () => {
+        // investment / (levels + 1) >= MIN_INVESTMENT
+        // 20 / (1 + 1) = 10 >= 10 -- passes
         const result = await validateInvestment(
-            { ...defaultParams, investment: WIZARD_CONFIG.MIN_INVESTMENT, levels: 1 },
+            { ...defaultParams, investment: WIZARD_CONFIG.MIN_INVESTMENT * 2, levels: 1 },
             mockTradingApi,
         );
 

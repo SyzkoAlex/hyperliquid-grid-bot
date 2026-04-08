@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncOrdersUseCase } from './sync-orders.use-case';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
@@ -24,7 +23,6 @@ describe('SyncOrdersUseCase', () => {
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 45000,
         upperPrice: 55000,

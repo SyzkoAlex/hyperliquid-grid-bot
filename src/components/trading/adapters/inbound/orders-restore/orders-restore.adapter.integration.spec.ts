@@ -16,7 +16,6 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
@@ -86,7 +85,6 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
             symbol,
-            mode: GridMode.Neutral,
             lowerPrice: 45000,
             upperPrice: 55000,
             levels: 11,

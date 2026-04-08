@@ -6,7 +6,6 @@ export class CreateGridCommandEvent extends SerializableEvent {
         public readonly symbol: string,
         public readonly lowerPrice: number,
         public readonly upperPrice: number,
-        public readonly mode: string,
         public readonly levels: number,
         public readonly totalInvestmentUSDC: number | undefined,
         public readonly trailing: boolean,
@@ -19,7 +18,6 @@ export class CreateGridCommandEvent extends SerializableEvent {
         symbol: string;
         lowerPrice: number;
         upperPrice: number;
-        mode?: string;
         levels?: number;
         totalInvestmentUSDC?: number;
         trailing?: boolean;
@@ -28,7 +26,6 @@ export class CreateGridCommandEvent extends SerializableEvent {
             params.symbol,
             params.lowerPrice,
             params.upperPrice,
-            params.mode || 'neutral',
             params.levels || 20,
             params.totalInvestmentUSDC,
             params.trailing ?? false,
@@ -40,7 +37,6 @@ export class CreateGridCommandEvent extends SerializableEvent {
             symbol: this.symbol,
             lowerPrice: this.lowerPrice,
             upperPrice: this.upperPrice,
-            mode: this.mode,
             levels: this.levels,
             totalInvestmentUSDC: this.totalInvestmentUSDC,
             trailing: this.trailing,
@@ -53,7 +49,6 @@ export class CreateGridCommandEvent extends SerializableEvent {
             data.symbol,
             data.lowerPrice,
             data.upperPrice,
-            data.mode,
             data.levels,
             data.totalInvestmentUSDC,
             data.trailing,

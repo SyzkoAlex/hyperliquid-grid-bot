@@ -4,7 +4,6 @@ import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
-import { GridMode } from '@domain/models/grid/grid-mode';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
@@ -31,7 +30,6 @@ describe('AdvancedPreviewStep', () => {
             ctx.session.createGrid = {
                 symbol: 'BTC',
                 mode: CreateGridMode.Advanced,
-                gridMode: GridMode.Neutral,
                 upperPrice: 55000,
                 lowerPrice: 45000,
                 levels: 10,
@@ -48,7 +46,6 @@ describe('AdvancedPreviewStep', () => {
             ctx.session.createGrid = {
                 symbol: 'ETH',
                 mode: CreateGridMode.Quick,
-                gridMode: GridMode.Neutral,
                 upperPrice: 3500,
                 lowerPrice: 2500,
                 levels: 5,
@@ -79,7 +76,6 @@ describe('AdvancedPreviewStep', () => {
             ctx.session.createGrid = {
                 symbol: 'BTC',
                 mode: CreateGridMode.Advanced,
-                gridMode: GridMode.Neutral,
                 upperPrice: 55000,
                 lowerPrice: 45000,
                 levels: 10,

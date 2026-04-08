@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
@@ -6,7 +6,6 @@ import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { CreateGridMode } from '../create-grid-mode';
-import { Inject } from '@nestjs/common';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { AdvancedPreviewMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
@@ -54,7 +53,6 @@ export class AdvancedPreviewStep implements WizardStep {
 
         const message = AdvancedPreviewMessage.create({
             symbol: state.symbol!,
-            mode: state.gridMode!,
             lowerPrice: state.lowerPrice!,
             upperPrice: state.upperPrice!,
             currentPrice,
@@ -72,7 +70,6 @@ export class AdvancedPreviewStep implements WizardStep {
         return !!(
             state?.symbol &&
             state?.mode &&
-            state?.gridMode &&
             state?.upperPrice &&
             state?.lowerPrice &&
             state?.levels &&

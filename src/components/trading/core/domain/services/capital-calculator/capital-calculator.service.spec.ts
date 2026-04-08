@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { CapitalCalculatorService } from './capital-calculator.service';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { Price } from '@domain/models/primitives/price';
 
 describe('CapitalCalculatorService', () => {
@@ -12,9 +11,12 @@ describe('CapitalCalculatorService', () => {
     });
 
     describe('calculateDistribution', () => {
-        it('should calculate neutral mode with 50/50 split', () => {
+        it('should calculate geometry-based distribution for symmetric range', () => {
+            // priceStep = 1000, levelPrices: 45k,46k,47k,48k,49k,50k,51k,52k,53k,54k,55k (11 total)
+            // buyCount = 5 (45k,46k,47k,48k,49k < 50000)
+            // sellCount = 6 (50k,51k,52k,53k,54k,55k >= 50000)
             const result = service.calculateDistribution({
-                mode: GridMode.Neutral,
+                levels: 10,
                 totalInvestmentUSDC: 10000,
                 usdcBalance: Decimal.from(10000),
                 baseBalance: Decimal.from(1),
@@ -23,34 +25,42 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 55000,
             });
 
-            // 50% of $10,000 = $5,000 for buys
-            expect(result.investmentUSDC.toNumber()).toBe(5000);
+            // investmentUSDC = 10000 * 5/11 ~= 4545.45
+            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
 
-            // 50% of $10,000 = $5,000 / $50,000 (current price) = 0.1 BTC
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.1, 5);
+            // investmentBase = 10000 * 6/11 / 50000 ~= 0.10909
+            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
-        it('should calculate long mode with 30/70 split', () => {
-            const result = service.calculateDistribution({
-                mode: GridMode.Long,
+        it('should produce consistent results for the same parameters', () => {
+            const params = {
+                levels: 10,
                 totalInvestmentUSDC: 10000,
                 usdcBalance: Decimal.from(10000),
                 baseBalance: Decimal.from(1),
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
-            });
+            };
 
-            // 30% of $10,000 = $3,000 for buys
-            expect(result.investmentUSDC.toNumber()).toBe(3000);
+            const result1 = service.calculateDistribution(params);
+            const result2 = service.calculateDistribution(params);
 
-            // 70% of $10,000 = $7,000 / $50,000 (current price) = 0.14 BTC
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.14, 5);
+            expect(result1.investmentUSDC.toNumber()).toBeCloseTo(
+                result2.investmentUSDC.toNumber(),
+                10,
+            );
+            expect(result1.investmentBase.toNumber()).toBeCloseTo(
+                result2.investmentBase.toNumber(),
+                10,
+            );
         });
 
         it('should auto-calculate capital from balance when not provided', () => {
+            // Total value: 5,000 USDC + (0.1 BTC * 50,000) = 10,000 USDC
+            // priceStep = 1000, buyCount = 5, sellCount = 6 for range 45k-55k at 50k price
             const result = service.calculateDistribution({
-                mode: GridMode.Neutral,
+                levels: 10,
                 usdcBalance: Decimal.from(5000),
                 baseBalance: Decimal.from(0.1), // 0.1 BTC at $50,000 = $5,000
                 currentPrice: Price.from(50000),
@@ -58,15 +68,14 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 55000,
             });
 
-            // Total value: $5,000 + ($5,000 from 0.1 BTC) = $10,000
-            // 50% of $10,000 = $5,000
-            expect(result.investmentUSDC.toNumber()).toBe(5000);
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.1, 5);
+            // Total portfolio = 10000, investmentUSDC = 10000 * 5/11 ~= 4545.45
+            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
+            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
         it('should calculate distribution even with insufficient balance', () => {
             const result = service.calculateDistribution({
-                mode: GridMode.Neutral,
+                levels: 10,
                 totalInvestmentUSDC: 10000,
                 usdcBalance: Decimal.from(3000),
                 baseBalance: Decimal.from(0.05),
@@ -75,22 +84,42 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 55000,
             });
 
-            expect(result.investmentUSDC.toNumber()).toBe(5000);
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.1, 5);
+            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
+            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
-        it('should throw error for invalid mode', () => {
-            expect(() => {
-                service.calculateDistribution({
-                    mode: 'invalid' as GridMode,
-                    totalInvestmentUSDC: 10000,
-                    usdcBalance: Decimal.from(10000),
-                    baseBalance: Decimal.from(1),
-                    currentPrice: Price.from(50000),
-                    lowerPrice: 45000,
-                    upperPrice: 55000,
-                });
-            }).toThrow('Invalid mode: invalid');
+        it('should produce equal per-order USDC notional -- research example (USOL)', () => {
+            // USOL, price $84.57, range $75-$100, 10 levels
+            // priceStep = 2.5, levelPrices: 75,77.5,80,82.5,85,87.5,90,92.5,95,97.5,100
+            // buyCount = 4 (75,77.5,80,82.5 < 84.57), sellCount = 7 (85,...,100 >= 84.57)
+            // totalLevels = 11, perOrder = 103/11 ~= 9.36
+            const investment = 103;
+            const currentPrice = 84.57;
+
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: investment,
+                usdcBalance: Decimal.from(500),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(currentPrice),
+                lowerPrice: 75,
+                upperPrice: 100,
+            });
+
+            // investmentUSDC = 103 * 4/11 ~= 37.45
+            const expectedUSDC = investment * (4 / 11);
+            expect(result.investmentUSDC.toNumber()).toBeCloseTo(expectedUSDC, 4);
+
+            // investmentBase = 103 * 7/11 / 84.57
+            const expectedBase = (investment * (7 / 11)) / currentPrice;
+            expect(result.investmentBase.toNumber()).toBeCloseTo(expectedBase, 6);
+
+            // Verify equal per-order notional: both buy and sell notional per order ~= 103/11
+            const perOrder = investment / 11;
+            const buyNotionalPerOrder = result.investmentUSDC.toNumber() / 4;
+            const sellNotionalPerOrder = (result.investmentBase.toNumber() * currentPrice) / 7;
+            expect(buyNotionalPerOrder).toBeCloseTo(perOrder, 4);
+            expect(sellNotionalPerOrder).toBeCloseTo(perOrder, 4);
         });
     });
 });

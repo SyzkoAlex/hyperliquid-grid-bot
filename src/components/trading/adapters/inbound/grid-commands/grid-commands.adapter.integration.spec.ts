@@ -34,7 +34,6 @@ import { AssetPosition } from '@components/trading/core/domain/models/user-state
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 /**
@@ -128,7 +127,6 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                mode: 'neutral',
                 levels: 10,
                 totalInvestmentUSDC: 10000,
                 trailing: false,
@@ -147,7 +145,6 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             const grid = foundGrids[0];
             expect(grid.symbol).toBe('BTC');
-            expect(grid.mode).toBe(GridMode.Neutral);
             expect(grid.lowerPrice).toBe(45000);
             expect(grid.upperPrice).toBe(55000);
             expect(grid.levels).toBe(10);
@@ -158,7 +155,6 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Verify success event data
             expect(successEvent.symbol).toBe('BTC');
-            expect(successEvent.mode).toBe('neutral');
             expect(successEvent.lowerPrice).toBe(45000);
             expect(successEvent.upperPrice).toBe(55000);
             expect(successEvent.levels).toBe(10);
@@ -223,7 +219,6 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(grids.length).toBe(1);
 
             const grid = grids[0];
-            expect(grid.mode).toBe('neutral'); // default
             expect(grid.levels).toBe(20); // default
             expect(grid.trailingEnabled).toBe(false); // default
         });

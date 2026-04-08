@@ -43,7 +43,12 @@ export class CreateAndStartGridUseCase {
             currentPrice,
         );
 
-        const grid = await this.createAndSaveGrid(params, investmentUSDC, investmentBase);
+        const grid = await this.createAndSaveGrid(
+            params,
+            investmentUSDC,
+            investmentBase,
+            currentPrice,
+        );
 
         await this.startGridWithOrders(grid, currentPrice);
 
@@ -73,7 +78,7 @@ export class CreateAndStartGridUseCase {
         }
 
         const distribution = this.capitalCalculator.calculateDistribution({
-            mode: params.mode,
+            levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance,
             baseBalance,
@@ -101,16 +106,17 @@ export class CreateAndStartGridUseCase {
         params: CreateAndStartGridParams,
         investmentUSDC: Decimal,
         investmentBase: Decimal,
+        currentPrice: Price,
     ): Promise<GridDto> {
         const grid = await this.grids.createGrid({
             id: uuidv4(),
             symbol: params.symbol,
-            mode: params.mode,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
             levels: params.levels,
             investmentUSDC: investmentUSDC.toNumber(),
             investmentBase: investmentBase.toNumber(),
+            creationPrice: currentPrice.toNumber(),
             trailingEnabled: params.trailingEnabled,
             trailingTriggerPercent: params.trailingTriggerPercent,
             trailingStepPercent: params.trailingStepPercent,

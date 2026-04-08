@@ -1,4 +1,5 @@
 import { EMOJI } from '../../constants/emoji';
+import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { PriceFormatter } from '../../formatters/price.formatter';
 import { formatFiat } from '../../formatters/format-fiat';
@@ -28,8 +29,12 @@ export class ValidationTexts {
         levels: number,
         perOrderAmount: number,
         minInvestment: number,
+        minRequiredTotal?: number,
     ): string {
-        const minTotal = formatFiat(minInvestment * levels);
+        const minTotal =
+            minRequiredTotal !== undefined
+                ? formatFiat(minRequiredTotal)
+                : formatFiat(minInvestment * levels);
         return (
             `${EMOJI.ERROR} Order size too small!\n\n` +
             `With ${levels} levels, each order would be ${formatFiat(perOrderAmount)} USDC.\n` +
@@ -90,6 +95,19 @@ export class ValidationTexts {
 
     static invalidGridConfig(): string {
         return `${EMOJI.ERROR} Invalid grid configuration. Please start over.`;
+    }
+
+    static insufficientBalanceForGrid(
+        levels: number,
+        minRequired: number,
+        suggestedMax: number,
+    ): string {
+        return (
+            `${EMOJI.WARNING} Insufficient balance for grid creation!\n\n` +
+            `With ${levels} levels, minimum investment is ${minRequired} USDC (${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order).\n` +
+            `Based on your current balance distribution, you can invest at most ~${suggestedMax} USDC.\n\n` +
+            `Please add more funds or choose fewer levels.`
+        );
     }
 
     static zeroBaseBalance(symbol: string, usdcBalance: Decimal): string {

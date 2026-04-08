@@ -4,7 +4,6 @@ import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { Order } from '../../../../core/domain/models/order/order';
 import { OrderId } from '../../../../core/domain/models/order/order-id';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -21,7 +20,6 @@ function createGrid(id?: GridId): Grid {
     const grid = Grid.create({
         id: id ?? GridId.create(),
         symbol: TradingSymbol.create('HYPE'),
-        mode: GridMode.Neutral,
         lowerPrice: Price.from(100),
         upperPrice: Price.from(200),
         levels: 10,

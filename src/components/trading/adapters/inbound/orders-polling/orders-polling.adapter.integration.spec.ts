@@ -14,7 +14,6 @@ import {
 } from '@components/trading/core/application/ports/exchange.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -66,7 +65,6 @@ describe('OrdersPollingAdapter (Integration)', () => {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
             symbol,
-            mode: GridMode.Neutral,
             lowerPrice: 45000,
             upperPrice: 55000,
             levels: 10,

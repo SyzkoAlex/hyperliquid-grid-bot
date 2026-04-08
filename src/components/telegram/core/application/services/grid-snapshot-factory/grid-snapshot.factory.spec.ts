@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GridSnapshotFactory } from './grid-snapshot.factory';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-import { GridMode } from '@domain/models/grid/grid-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
@@ -12,7 +11,6 @@ function makeGrid(): GridDto {
     return {
         id: 'grid-1',
         symbol: 'BTC',
-        mode: GridMode.Neutral,
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,
