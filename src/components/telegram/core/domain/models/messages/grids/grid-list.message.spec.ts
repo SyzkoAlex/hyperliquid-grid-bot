@@ -81,4 +81,27 @@ describe('GridListMessage', () => {
         expect(msg.text).toContain('$100000');
         expect(msg.text).toContain('$95000');
     });
+
+    it('uses creationPrice for investment when it differs from currentPrice', () => {
+        // creationPrice=90000, currentPrice=95000 → investment = 500 + 0.001*90000 = 590
+        const snapshot = makeSnapshot({
+            grid: makeGrid({ creationPrice: 90000 }),
+            currentPrice: 95000,
+        });
+        const msg = GridListMessage.create(header, [snapshot], 0);
+
+        expect(msg.text).toContain('$590');
+        expect(msg.text).not.toContain('$595');
+    });
+
+    it('falls back to currentPrice for investment when creationPrice is undefined', () => {
+        // creationPrice=undefined, currentPrice=95000 → investment = 500 + 0.001*95000 = 595
+        const snapshot = makeSnapshot({
+            grid: makeGrid({ creationPrice: undefined }),
+            currentPrice: 95000,
+        });
+        const msg = GridListMessage.create(header, [snapshot], 0);
+
+        expect(msg.text).toContain('$595');
+    });
 });

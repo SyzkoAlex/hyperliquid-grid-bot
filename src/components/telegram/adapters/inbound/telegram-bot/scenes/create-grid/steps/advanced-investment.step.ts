@@ -61,19 +61,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                               lowerPrice,
                               upperPrice,
                           )
-                        : await (async () => {
-                              const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
-                              const priceOffset =
-                                  currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
-                              return fetchBalanceInfo(
-                                  this.tradingApi,
-                                  this.accountAddress,
-                                  symbol,
-                                  levels,
-                                  currentPrice - priceOffset,
-                                  currentPrice + priceOffset,
-                              );
-                          })();
+                        : await this.fetchBalanceInfoFromCurrentPrice(symbol, levels);
 
                 if (balanceInfo.baseBalance.isZero()) {
                     await this.messageManager.sendEnterMessage(
@@ -183,6 +171,22 @@ export class AdvancedInvestmentStep implements WizardStep {
             );
             return null;
         }
+    }
+
+    private async fetchBalanceInfoFromCurrentPrice(
+        symbol: string,
+        levels: number,
+    ): Promise<ReturnType<typeof fetchBalanceInfo>> {
+        const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+        const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
+        return fetchBalanceInfo(
+            this.tradingApi,
+            this.accountAddress,
+            symbol,
+            levels,
+            currentPrice - priceOffset,
+            currentPrice + priceOffset,
+        );
     }
 
     rollbackState(ctx: BotContext): void {

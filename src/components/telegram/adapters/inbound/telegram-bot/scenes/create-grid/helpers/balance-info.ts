@@ -1,5 +1,6 @@
 import { Decimal } from '@domain/models/primitives/decimal';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
 
 export interface BalanceInfo {
     usdcBalance: Decimal;
@@ -29,14 +30,12 @@ export async function fetchBalanceInfo(
     const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice));
     const totalBalance = usdcBalance.add(baseInUsdc);
 
-    const priceStep = (upperPrice - lowerPrice) / levels;
-    let buyCount = 0;
-    let sellCount = 0;
-    for (let i = 0; i <= levels; i++) {
-        const levelPrice = lowerPrice + priceStep * i;
-        if (levelPrice < currentPrice) buyCount++;
-        else sellCount++;
-    }
+    const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
+        levels,
+        lowerPrice,
+        upperPrice,
+        currentPrice,
+    );
     const totalLevels = levels + 1;
     const buyRatio = buyCount / totalLevels;
     const sellRatio = sellCount / totalLevels;

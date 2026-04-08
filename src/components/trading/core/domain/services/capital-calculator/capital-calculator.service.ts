@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { CapitalDistribution } from '../../models/capital-distribution';
 import { Price } from '@domain/models/primitives/price';
+import { countBuySellLevels } from '../../utils/count-buy-sell-levels';
 
 /**
  * Capital Calculator Service
@@ -73,17 +74,12 @@ export class CapitalCalculatorService {
                   params.currentPrice,
               );
 
-        const priceStep = (params.upperPrice - params.lowerPrice) / params.levels;
-        let buyCount = 0;
-        let sellCount = 0;
-        for (let i = 0; i <= params.levels; i++) {
-            const levelPrice = params.lowerPrice + priceStep * i;
-            if (levelPrice < params.currentPrice.toNumber()) {
-                buyCount++;
-            } else {
-                sellCount++;
-            }
-        }
+        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
+            params.levels,
+            params.lowerPrice,
+            params.upperPrice,
+            params.currentPrice.toNumber(),
+        );
 
         const totalLevels = params.levels + 1;
         const buyRatio = buyCount / totalLevels;

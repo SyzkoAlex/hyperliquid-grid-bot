@@ -2,6 +2,7 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
 
 interface CapitalDistribution {
     investmentUSDC: Decimal;
@@ -71,14 +72,12 @@ export async function validateInvestment(
     const investmentUSDC = Decimal.from(distributionDto.investmentUSDC);
     const investmentBase = Decimal.from(distributionDto.investmentBase);
 
-    const priceStep = (upperPrice - lowerPrice) / levels;
-    let buyCount = 0;
-    let sellCount = 0;
-    for (let i = 0; i <= levels; i++) {
-        const levelPrice = lowerPrice + priceStep * i;
-        if (levelPrice < currentPriceNum) buyCount++;
-        else sellCount++;
-    }
+    const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
+        levels,
+        lowerPrice,
+        upperPrice,
+        currentPriceNum,
+    );
 
     if (buyCount > 0 && sellCount > 0) {
         const minBuyNotional = investmentUSDC.div(Decimal.from(buyCount)).toNumber();
