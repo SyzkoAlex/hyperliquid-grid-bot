@@ -5,6 +5,10 @@ export interface WebSocketConfig {
     url: string;
     maxReconnectAttempts: number;
     baseReconnectDelay: number;
+    keepAlive?: {
+        intervalMs: number;
+        message: unknown;
+    };
 }
 
 type MessageHandler = (message: any) => void;
@@ -13,6 +17,7 @@ export class WebSocketClient {
     private ws: WebSocket | null = null;
     private readonly logger = logger.child({ context: WebSocketClient.name });
     private reconnectTimeout: NodeJS.Timeout | null = null;
+    private keepAliveInterval: NodeJS.Timeout | null = null;
     private reconnectAttempts = 0;
     private isIntentionallyClosed = false;
     private messageHandlers: Set<MessageHandler> = new Set();
@@ -32,6 +37,7 @@ export class WebSocketClient {
         this.ws.on('open', () => {
             this.logger.info('WebSocket connected');
             this.reconnectAttempts = 0;
+            this.startKeepAlive();
             this.onOpenCallback?.();
         });
 
@@ -54,9 +60,10 @@ export class WebSocketClient {
             this.logger.error({ error }, 'WebSocket error');
         });
 
-        this.ws.on('close', () => {
-            this.logger.warn('WebSocket closed');
+        this.ws.on('close', (code, reason) => {
+            this.logger.warn({ code, reason: reason.toString() }, 'WebSocket closed');
             this.ws = null;
+            this.stopKeepAlive();
 
             if (!this.isIntentionallyClosed) {
                 this.scheduleReconnect();
@@ -66,6 +73,7 @@ export class WebSocketClient {
 
     disconnect(): void {
         this.isIntentionallyClosed = true;
+        this.stopKeepAlive();
 
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
@@ -98,6 +106,24 @@ export class WebSocketClient {
 
     isConnected(): boolean {
         return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+    }
+
+    private startKeepAlive(): void {
+        const { keepAlive } = this.config;
+        if (!keepAlive) return;
+
+        this.stopKeepAlive();
+        this.keepAliveInterval = setInterval(() => {
+            this.logger.trace('Sending keepalive ping');
+            this.send(keepAlive.message);
+        }, keepAlive.intervalMs);
+    }
+
+    private stopKeepAlive(): void {
+        if (this.keepAliveInterval) {
+            clearInterval(this.keepAliveInterval);
+            this.keepAliveInterval = null;
+        }
     }
 
     private scheduleReconnect(): void {

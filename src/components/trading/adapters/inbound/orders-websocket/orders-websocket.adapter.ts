@@ -41,6 +41,10 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
             url: hyperliquidConfig.websocketUrl,
             maxReconnectAttempts: hyperliquidConfig.websocket.maxReconnectAttempts,
             baseReconnectDelay: hyperliquidConfig.websocket.baseReconnectDelay,
+            keepAlive: {
+                intervalMs: hyperliquidConfig.websocket.keepAliveIntervalMs,
+                message: { method: 'ping' },
+            },
         });
 
         this.wsClient.onOpen(() => this.subscribeToOrderUpdates());
@@ -70,6 +74,11 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
 
     private handleMessage(message: any): void {
         this.logger.debug({ message }, 'WebSocket message received');
+
+        if (message.method === 'pong') {
+            this.logger.trace('Received pong');
+            return;
+        }
 
         if (message.channel === 'orderUpdates') {
             this.handleOrderUpdates(message as HyperliquidWsEvent);

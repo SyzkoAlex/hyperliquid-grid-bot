@@ -14,6 +14,7 @@ export const hyperliquidSchema = z.object({
     websocket: z.object({
         maxReconnectAttempts: z.coerce.number().int().positive(),
         baseReconnectDelay: z.coerce.number().int().positive(),
+        keepAliveIntervalMs: z.coerce.number().int().positive(),
     }),
 });
 
