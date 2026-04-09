@@ -19,7 +19,6 @@ redis:
 
 hyperliquid:
     apiUrl: ${HYPERLIQUID_API_URL:https://api.hyperliquid-testnet.xyz}
-    websocketUrl: ${HYPERLIQUID_WEBSOCKET_URL:wss://api.hyperliquid-testnet.xyz/ws}
     privateKey: ${HYPERLIQUID_PRIVATE_KEY:0000000000000000000000000000000000000000000000000000000000000000}
     accountAddress: ${HYPERLIQUID_ACCOUNT_ADDRESS:0x0000000000000000000000000000000000000000}
     testnet: ${HYPERLIQUID_TESTNET:false}

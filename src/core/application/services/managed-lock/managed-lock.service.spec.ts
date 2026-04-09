@@ -74,6 +74,25 @@ describe('ManagedLockService', () => {
             expect(onAcquired).not.toHaveBeenCalled();
         });
 
+        it('should not crash when tryAcquire throws and should retry', async () => {
+            vi.mocked(mockLock.tryAcquire).mockRejectedValueOnce(new Error('Redis down'));
+            const retryIntervalMs = 500;
+
+            service.hold({
+                lockName: LOCK_NAME,
+                ttlMs: TTL_MS,
+                retryIntervalMs,
+                onAcquired: vi.fn(),
+            });
+            await flushAsync();
+
+            expect(mockLock.tryAcquire).toHaveBeenCalledTimes(1);
+
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(null);
+            await vi.advanceTimersByTimeAsync(retryIntervalMs);
+            expect(mockLock.tryAcquire).toHaveBeenCalledTimes(2);
+        });
+
         it('should retry acquisition after retryIntervalMs when lock is not acquired', async () => {
             vi.mocked(mockLock.tryAcquire).mockResolvedValue(null);
             const retryIntervalMs = 500;

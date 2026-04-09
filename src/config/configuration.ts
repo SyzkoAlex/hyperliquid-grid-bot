@@ -56,6 +56,14 @@ function expandObject(obj: unknown): unknown {
     return expandEnv(obj);
 }
 
+function deriveWebsocketUrl(config: Record<string, unknown>): void {
+    const hl = config.hyperliquid as Record<string, unknown> | undefined;
+    if (hl && typeof hl.apiUrl === 'string' && !hl.websocketUrl) {
+        hl.websocketUrl =
+            hl.apiUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://') + '/ws';
+    }
+}
+
 // Singleton cache
 let cachedConfig: Config | null = null;
 
@@ -83,7 +91,8 @@ export function loadConfiguration(): Config {
     const fileContents = fs.readFileSync(configPath, 'utf8');
     const rawConfig = yaml.load(fileContents);
 
-    const expandedConfig = expandObject(rawConfig);
+    const expandedConfig = expandObject(rawConfig) as Record<string, unknown>;
+    deriveWebsocketUrl(expandedConfig);
 
     const result = configSchema.safeParse(expandedConfig);
 

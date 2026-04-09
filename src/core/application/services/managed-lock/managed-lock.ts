@@ -51,14 +51,25 @@ export class ManagedLock implements ManagedLockHandle {
         this.isAcquiring = true;
 
         try {
-            const acquired = await this.distributedLockPort.tryAcquire(
-                this.options.lockName,
-                this.options.ttlMs,
-            );
-            if (!acquired) return;
+            let acquired: LockHandle | null;
+            try {
+                acquired = await this.distributedLockPort.tryAcquire(
+                    this.options.lockName,
+                    this.options.ttlMs,
+                );
+            } catch (err) {
+                this.logger.error({ err }, 'Lock acquisition threw');
+                return;
+            }
+
+            if (!acquired) {
+                this.logger.debug('Lock not acquired, will retry');
+                return;
+            }
 
             this.handle = acquired;
             this.clearAcquireInterval();
+            this.logger.info('Lock acquired');
 
             try {
                 await this.options.onAcquired();
