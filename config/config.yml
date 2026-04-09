@@ -85,5 +85,5 @@ logging:
     pretty: ${LOG_PRETTY:true}
 
 metrics:
-    enabled: ${METRICS_ENABLED:true}
+    enabled: ${METRICS_ENABLED:false}
     path: /metrics
