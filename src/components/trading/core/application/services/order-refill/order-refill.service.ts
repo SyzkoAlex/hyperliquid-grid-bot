@@ -34,6 +34,8 @@ export class OrderRefillService {
     async processOne(filledOrder: OrderDto, grid: GridDto): Promise<OrderRefillResult> {
         this.logOrderProcessing(filledOrder, grid);
 
+        const profit = await this.publishFillEventSafe(filledOrder, grid);
+
         try {
             const refillParams = RefillParams.calc(filledOrder, grid);
             if (!refillParams) {
@@ -59,12 +61,25 @@ export class OrderRefillService {
                 return OrderRefillResult.failure(placeResult.error!);
             }
 
-            const profit = await this.tradeEventPublisher.publishFillEvent(filledOrder, grid);
-
             this.logSuccess(grid, filledOrder, placeResult.order!, refillParams, profit);
             return OrderRefillResult.success(placeResult.order!, profit?.toNumber());
         } catch (error) {
             return this.handleError(error, filledOrder);
+        }
+    }
+
+    private async publishFillEventSafe(
+        filledOrder: OrderDto,
+        grid: GridDto,
+    ): Promise<Decimal | null> {
+        try {
+            return await this.tradeEventPublisher.publishFillEvent(filledOrder, grid);
+        } catch (err) {
+            this.logger.error(
+                { err, orderId: filledOrder.id, gridId: grid.id },
+                'Failed to publish fill event',
+            );
+            return null;
         }
     }
 

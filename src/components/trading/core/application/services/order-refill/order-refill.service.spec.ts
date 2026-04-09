@@ -144,6 +144,10 @@ describe('OrderRefillService', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('Edge level');
             expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+            expect(mockTradeEventPublisher.publishFillEvent).toHaveBeenCalledWith(
+                topLevelBuy,
+                testGrid,
+            );
         });
 
         it('should return failure without calling placement when SELL at bottom level fills', async () => {
@@ -158,9 +162,13 @@ describe('OrderRefillService', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('Edge level');
             expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+            expect(mockTradeEventPublisher.publishFillEvent).toHaveBeenCalledWith(
+                bottomLevelSell,
+                testGrid,
+            );
         });
 
-        it('should return failure and not publish event when placement fails', async () => {
+        it('should return failure when placement fails', async () => {
             mockRefillPlacement.placeRefillOrder.mockResolvedValue(
                 PlaceRefillOrderResult.failure('Insufficient balance'),
             );
@@ -169,7 +177,10 @@ describe('OrderRefillService', () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Insufficient balance');
-            expect(mockTradeEventPublisher.publishFillEvent).not.toHaveBeenCalled();
+            expect(mockTradeEventPublisher.publishFillEvent).toHaveBeenCalledWith(
+                testBuyOrder,
+                testGrid,
+            );
         });
 
         it('should skip refill when active order already exists at target level', async () => {
@@ -186,6 +197,19 @@ describe('OrderRefillService', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('Active order already exists');
             expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+            expect(mockTradeEventPublisher.publishFillEvent).toHaveBeenCalledWith(
+                testBuyOrder,
+                testGrid,
+            );
+        });
+
+        it('should still attempt refill when publishFillEvent throws', async () => {
+            mockTradeEventPublisher.publishFillEvent.mockRejectedValue(new Error('Event bus down'));
+
+            const result = await service.processOne(testBuyOrder, testGrid);
+
+            expect(result.success).toBe(true);
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(1);
         });
 
         it('should handle unexpected errors from placement service', async () => {
