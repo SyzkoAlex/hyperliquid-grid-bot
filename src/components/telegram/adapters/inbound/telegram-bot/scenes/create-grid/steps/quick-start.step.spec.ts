@@ -22,6 +22,7 @@ describe('QuickStartStep', () => {
                 investmentUSDC: 500,
                 investmentBase: 0.01,
             }),
+            calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
 
         mockConfigService = {

@@ -10,6 +10,115 @@ describe('CapitalCalculatorService', () => {
         service = new CapitalCalculatorService();
     });
 
+    describe('calculateMaxInvestment', () => {
+        it('is constrained by USDC balance when USDC is the bottleneck', () => {
+            // USDC=800, base=10 SOL @ $100, range $80-$120, 10 levels
+            // buyCount=5, sellCount=6, totalLevels=11
+            // maxFromUsdc = 800 / (5/11) = 1760
+            // maxFromBase = 1000 / (6/11 * 1.005) = 1824.5
+            // → floored min = 1760
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(800),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(100),
+                lowerPrice: 80,
+                upperPrice: 120,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            expect(result).toBe(1760);
+        });
+
+        it('is constrained by base balance when base is the bottleneck', () => {
+            // USDC=5000, base=100 HYPE @ $10, range $8-$12, 10 levels
+            // buyCount=5, sellCount=6, totalLevels=11
+            // maxFromUsdc = 5000 / (5/11) = 11000
+            // maxFromBase = 1000 / (6/11 * 1.005) = floor(1824.5) = 1824
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(5000),
+                baseBalance: Decimal.from(100),
+                currentPrice: Price.from(10),
+                lowerPrice: 8,
+                upperPrice: 12,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            expect(result).toBe(1824);
+        });
+
+        it('floors the result to a whole number', () => {
+            // ETH=1 @ $3000, USDC=333.7, range $2700-$3300, 10 levels
+            // buyCount=5, sellCount=6, totalLevels=11
+            // maxFromUsdc = 333.7 / (5/11) = 734.14 → floor = 734
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(333.7),
+                baseBalance: Decimal.from(1),
+                currentPrice: Price.from(3000),
+                lowerPrice: 2700,
+                upperPrice: 3300,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            expect(result).toBe(734);
+        });
+
+        it('reduces maxFromBase proportionally to sellSizeBuffer', () => {
+            // With no buffer the max is 1833 (original logic), with 0.5% buffer it shrinks
+            const withBuffer = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(5000),
+                baseBalance: Decimal.from(100),
+                currentPrice: Price.from(10),
+                lowerPrice: 8,
+                upperPrice: 12,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            const withoutBuffer = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(5000),
+                baseBalance: Decimal.from(100),
+                currentPrice: Price.from(10),
+                lowerPrice: 8,
+                upperPrice: 12,
+                levels: 10,
+                sellSizeBuffer: 0,
+            });
+            expect(withBuffer).toBeLessThan(withoutBuffer);
+            expect(withoutBuffer).toBe(1833);
+        });
+
+        it('returns Infinity-bounded result when grid is entirely below current price (sellRatio = 0)', () => {
+            // All levels are buy orders → no sell orders needed → base balance is not a constraint
+            // lowerPrice=80, upperPrice=90, currentPrice=100: all 11 level prices < 100 → sellCount=0
+            // maxFromBase = Infinity, maxFromUsdc = 800 / (11/11) = 800
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(800),
+                baseBalance: Decimal.from(0),
+                currentPrice: Price.from(100),
+                lowerPrice: 80,
+                upperPrice: 90,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            expect(result).toBe(800);
+        });
+
+        it('returns Infinity-bounded result when grid is entirely above current price (buyRatio = 0)', () => {
+            // All levels are sell orders → no buy orders needed → USDC balance is not a constraint
+            // lowerPrice=110, upperPrice=120, currentPrice=100: all 11 level prices >= 100 → buyCount=0
+            // maxFromUsdc = Infinity, maxFromBase = (50 * 100) / (11/11 * 1.005) = 5000 / 1.005 ≈ 4975.1 → floor = 4975
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(0),
+                baseBalance: Decimal.from(50),
+                currentPrice: Price.from(100),
+                lowerPrice: 110,
+                upperPrice: 120,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+            });
+            expect(result).toBe(4975);
+        });
+    });
+
     describe('calculateDistribution', () => {
         it('should calculate geometry-based distribution for symmetric range', () => {
             // priceStep = 1000, levelPrices: 45k,46k,47k,48k,49k,50k,51k,52k,53k,54k,55k (11 total)

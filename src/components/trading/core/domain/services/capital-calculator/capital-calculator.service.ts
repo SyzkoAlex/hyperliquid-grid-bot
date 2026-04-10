@@ -94,6 +94,49 @@ export class CapitalCalculatorService {
     }
 
     /**
+     * Calculate the maximum total investment given available balances.
+     * Accounts for sellSizeBuffer applied during order placement to prevent overshoot.
+     *
+     * @param params.levels - Number of grid levels; the grid creates levels+1 price points
+     * @param params.usdcBalance - User's available USDC balance
+     * @param params.baseBalance - User's available base token balance
+     * @param params.currentPrice - Current market price
+     * @param params.lowerPrice - Grid lower price bound
+     * @param params.upperPrice - Grid upper price bound
+     * @param params.sellSizeBuffer - Buffer fraction added to each sell order (e.g. 0.005 = 0.5%)
+     * @returns Maximum safe investment in USDC, floored to whole dollars
+     */
+    calculateMaxInvestment(params: {
+        usdcBalance: Decimal;
+        baseBalance: Decimal;
+        currentPrice: Price;
+        lowerPrice: number;
+        upperPrice: number;
+        levels: number;
+        sellSizeBuffer: number;
+    }): number {
+        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
+            params.levels,
+            params.lowerPrice,
+            params.upperPrice,
+            params.currentPrice.toNumber(),
+        );
+        const totalLevels = params.levels + 1;
+        const buyRatio = buyCount / totalLevels;
+        const sellRatio = sellCount / totalLevels;
+        const baseInUsdc = params.baseBalance.mul(Decimal.from(params.currentPrice.toNumber()));
+
+        const maxFromUsdc =
+            buyRatio > 0 ? params.usdcBalance.div(Decimal.from(buyRatio)).toNumber() : Infinity;
+        const maxFromBase =
+            sellRatio > 0
+                ? baseInUsdc.div(Decimal.from(sellRatio * (1 + params.sellSizeBuffer))).toNumber()
+                : Infinity;
+
+        return Math.floor(Math.min(maxFromUsdc, maxFromBase));
+    }
+
+    /**
      * Convert user's portfolio (USDC + base tokens) to total USDC value
      *
      * Used to auto-calculate investment amount when user doesn't specify it.

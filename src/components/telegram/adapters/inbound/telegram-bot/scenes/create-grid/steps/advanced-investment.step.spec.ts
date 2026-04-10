@@ -29,6 +29,7 @@ describe('AdvancedInvestmentStep', () => {
                 investmentUSDC: 500,
                 investmentBase: 50,
             }),
+            calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
 
         mockConfigService = {

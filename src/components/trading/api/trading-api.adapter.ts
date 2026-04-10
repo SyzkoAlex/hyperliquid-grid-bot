@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
     EXCHANGE_PORT,
     ExchangePort,
@@ -8,16 +9,23 @@ import { TradingApiPort } from './trading-api.port';
 import { UserStateDto } from './dto/user-state.dto';
 import { CapitalDistributionDto } from './dto/capital-distribution.dto';
 import { CalculateCapitalDistributionDto } from './dto/calculate-capital-distribution.dto';
+import { CalculateMaxInvestmentDto } from './dto/calculate-max-investment.dto';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Price } from '@domain/models/primitives/price';
+import { Config } from '@/config/config.schema';
 
 @Injectable()
 export class TradingApiAdapter implements TradingApiPort {
+    private readonly sellSizeBuffer: number;
+
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly capitalCalculator: CapitalCalculatorService,
-    ) {}
+        configService: ConfigService<Config, true>,
+    ) {
+        this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
+    }
 
     async getCurrentPrice(symbol: string): Promise<number> {
         const price = await this.exchange.getCurrentPrice(TradingSymbol.fromString(symbol));
@@ -69,5 +77,17 @@ export class TradingApiAdapter implements TradingApiPort {
             investmentUSDC: distribution.investmentUSDC.toNumber(),
             investmentBase: distribution.investmentBase.toNumber(),
         };
+    }
+
+    calculateMaxInvestment(params: CalculateMaxInvestmentDto): number {
+        return this.capitalCalculator.calculateMaxInvestment({
+            usdcBalance: Decimal.from(params.usdcBalance),
+            baseBalance: Decimal.from(params.baseBalance),
+            currentPrice: Price.from(params.currentPrice),
+            lowerPrice: params.lowerPrice,
+            upperPrice: params.upperPrice,
+            levels: params.levels,
+            sellSizeBuffer: this.sellSizeBuffer,
+        });
     }
 }
