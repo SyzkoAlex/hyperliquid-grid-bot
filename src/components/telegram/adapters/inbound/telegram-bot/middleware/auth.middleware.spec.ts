@@ -10,7 +10,7 @@ vi.mock('@/infra/logger/logger', () => ({
 }));
 
 function makeNext() {
-    return vi.fn<[], Promise<void>>();
+    return vi.fn<() => Promise<void>>();
 }
 
 function asNext(fn: ReturnType<typeof makeNext>): () => Promise<void> {

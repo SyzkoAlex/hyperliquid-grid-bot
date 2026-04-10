@@ -24,12 +24,14 @@ describe('createTimingMiddleware', () => {
             observeExchangeApiDuration: vi.fn(),
             observeTelegramHandlerDuration: vi.fn(),
         };
-        next = vi.fn<[], Promise<void>>().mockResolvedValue(undefined);
+        next = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     });
 
     it('should call next and record duration', async () => {
         const middleware = createTimingMiddleware(metrics as MetricsPort);
-        const ctx = makeCtx();
+        const ctx = makeCtx({
+            scene: { current: { id: 'create-grid' } } as BotContext['scene'],
+        });
 
         await middleware(ctx, next);
 
@@ -45,10 +47,15 @@ describe('createTimingMiddleware', () => {
     it('should record duration even when next() throws', async () => {
         (next as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('handler error'));
         const middleware = createTimingMiddleware(metrics as MetricsPort);
-        const ctx = makeCtx();
+        const ctx = makeCtx({
+            scene: { current: { id: 'create-grid' } } as BotContext['scene'],
+        });
 
         await expect(middleware(ctx, next)).rejects.toThrow('handler error');
-        expect(metrics.observeTelegramHandlerDuration).toHaveBeenCalledOnce();
+        expect(metrics.observeTelegramHandlerDuration).toHaveBeenCalledWith(
+            'create-grid',
+            expect.any(Number),
+        );
     });
 
     describe('handler name extraction', () => {
@@ -156,7 +163,7 @@ describe('createTimingMiddleware', () => {
             );
         });
 
-        it('should use unknown for non-command text message', async () => {
+        it('should not record duration for non-command text message', async () => {
             const middleware = createTimingMiddleware(metrics as MetricsPort);
             const ctx = makeCtx({
                 message: { text: 'hello world' } as BotContext['message'],
@@ -164,22 +171,27 @@ describe('createTimingMiddleware', () => {
 
             await middleware(ctx, next);
 
-            expect(metrics.observeTelegramHandlerDuration).toHaveBeenCalledWith(
-                'unknown',
-                expect.any(Number),
-            );
+            expect(metrics.observeTelegramHandlerDuration).not.toHaveBeenCalled();
         });
 
-        it('should return unknown when no callback, message, or scene', async () => {
+        it('should not record duration when callback data normalizes to empty string', async () => {
+            const middleware = createTimingMiddleware(metrics as MetricsPort);
+            const ctx = makeCtx({
+                callbackQuery: { data: 'p' } as BotContext['callbackQuery'],
+            });
+
+            await middleware(ctx, next);
+
+            expect(metrics.observeTelegramHandlerDuration).not.toHaveBeenCalled();
+        });
+
+        it('should not record duration when no callback, message, or scene', async () => {
             const middleware = createTimingMiddleware(metrics as MetricsPort);
             const ctx = makeCtx();
 
             await middleware(ctx, next);
 
-            expect(metrics.observeTelegramHandlerDuration).toHaveBeenCalledWith(
-                'unknown',
-                expect.any(Number),
-            );
+            expect(metrics.observeTelegramHandlerDuration).not.toHaveBeenCalled();
         });
 
         it('should use scene current id when no callback or command', async () => {

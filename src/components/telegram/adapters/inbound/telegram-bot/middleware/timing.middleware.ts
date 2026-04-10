@@ -10,14 +10,16 @@ export function createTimingMiddleware(metrics: MetricsPort): MiddlewareFn<BotCo
             await next();
         } finally {
             const handler = extractHandlerName(ctx);
-            metrics.observeTelegramHandlerDuration(handler, stop());
+            if (handler !== null) {
+                metrics.observeTelegramHandlerDuration(handler, stop());
+            }
         }
     };
 }
 
-function extractHandlerName(ctx: BotContext): string {
+function extractHandlerName(ctx: BotContext): string | null {
     if (ctx.callbackQuery && 'data' in ctx.callbackQuery) {
-        return normalizeCallbackData(ctx.callbackQuery.data);
+        return normalizeCallbackData(ctx.callbackQuery.data) || null;
     }
 
     if (ctx.message && 'text' in ctx.message) {
@@ -31,7 +33,7 @@ function extractHandlerName(ctx: BotContext): string {
         return ctx.scene.current.id;
     }
 
-    return 'unknown';
+    return null;
 }
 
 function normalizeCallbackData(data: string): string {
