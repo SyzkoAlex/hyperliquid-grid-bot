@@ -22,6 +22,8 @@ export class PrometheusMetricsAdapter implements MetricsPort, OnModuleInit {
             return;
         }
 
+        const { env } = this.configService.get('app', { infer: true });
+        register.setDefaultLabels({ env });
         collectDefaultMetrics({ register });
         this.initMetrics();
 
@@ -32,14 +34,14 @@ export class PrometheusMetricsAdapter implements MetricsPort, OnModuleInit {
         this.exchangeApiDuration = new Histogram({
             name: 'grid_bot_exchange_api_duration_seconds',
             help: 'Hyperliquid exchange API call duration in seconds',
-            labelNames: ['method'],
+            labelNames: ['method', 'env'],
             buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
         });
 
         this.telegramHandlerDuration = new Histogram({
             name: 'grid_bot_telegram_handler_duration_seconds',
             help: 'Telegram handler execution duration in seconds',
-            labelNames: ['handler'],
+            labelNames: ['handler', 'env'],
             buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10],
         });
     }

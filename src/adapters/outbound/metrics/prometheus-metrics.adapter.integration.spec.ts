@@ -21,7 +21,10 @@ describe('PrometheusMetricsAdapter (Integration)', () => {
                     useValue: {
                         get: (key: string) => {
                             if (key === 'metrics') {
-                                return { enabled: false, port: 9090, path: '/metrics' };
+                                return { enabled: true, path: '/metrics' };
+                            }
+                            if (key === 'app') {
+                                return { env: 'test' };
                             }
                         },
                     },
@@ -74,12 +77,14 @@ describe('PrometheusMetricsAdapter (Integration)', () => {
 
             const placeOrder = await getHistogramValues('grid_bot_exchange_api_duration_seconds', {
                 method: 'placeSpotOrder',
+                env: 'test',
             });
             expect(placeOrder.count).toBe(2);
             expect(placeOrder.sum).toBeCloseTo(1.55, 5);
 
             const getPrice = await getHistogramValues('grid_bot_exchange_api_duration_seconds', {
                 method: 'getCurrentPrice',
+                env: 'test',
             });
             expect(getPrice.count).toBe(1);
             expect(getPrice.sum).toBeCloseTo(0.08, 5);
@@ -93,13 +98,14 @@ describe('PrometheusMetricsAdapter (Integration)', () => {
 
             const balance = await getHistogramValues('grid_bot_telegram_handler_duration_seconds', {
                 handler: 'show:balance',
+                env: 'test',
             });
             expect(balance.count).toBe(1);
             expect(balance.sum).toBeCloseTo(0.5, 5);
 
             const viewGrid = await getHistogramValues(
                 'grid_bot_telegram_handler_duration_seconds',
-                { handler: 'view:grid' },
+                { handler: 'view:grid', env: 'test' },
             );
             expect(viewGrid.count).toBe(1);
             expect(viewGrid.sum).toBeCloseTo(1.8, 5);

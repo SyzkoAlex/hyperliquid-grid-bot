@@ -1,5 +1,6 @@
 app:
     name: hyperliquid-grid-bot
+    env: ${APP_ENV:development}
     port: ${APP_PORT:3000}
     host: ${APP_HOST:0.0.0.0}
 
