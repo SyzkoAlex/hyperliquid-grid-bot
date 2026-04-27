@@ -8,8 +8,8 @@ import { ceilToDecimals, floorToDecimals, roundToDecimals } from './hyperliquid-
 import { OrderWire } from './wire/order-wire';
 import { OrderAction } from './wire/order-action';
 import { CancelAction } from './wire/cancel-action';
-import { PlaceSpotOrderInput } from '../types/place-spot-order-input';
-import { CancelSpotOrderInput } from '../types/cancel-spot-order-input';
+import { PlaceSpotOrderInput } from '../types/hyperliquid-place-spot-order-input';
+import { CancelSpotOrderInput } from '../types/hyperliquid-cancel-spot-order-input';
 import { HyperliquidSdkPlaceOrderResponse } from '../types/hyperliquid-sdk-place-order-response';
 
 @Injectable()

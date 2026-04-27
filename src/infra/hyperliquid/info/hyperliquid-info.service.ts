@@ -5,7 +5,7 @@ import { isHttpError } from '../http/hyperliquid-http-error';
 import { HyperliquidOpenOrder } from '../types/hyperliquid-open-order';
 import { HyperliquidOrderStatusResponse } from '../types/hyperliquid-order-status-response';
 import { HyperliquidUserStateResponse } from '../types/hyperliquid-user-state-response';
-import { UserFills } from '../types/user-fills';
+import { UserFills } from '../types/hyperliquid-user-fills';
 
 @Injectable()
 export class HyperliquidInfoService {

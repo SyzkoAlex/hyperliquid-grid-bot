@@ -1,12 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { HyperliquidHttpClient } from '../http/hyperliquid-http.client';
-import { SpotMeta } from '../types/spot-meta';
+import { SpotMeta } from '../types/hyperliquid-spot-meta';
 import { HyperliquidSymbol } from '../symbol/hyperliquid-symbol';
 
 /**
  * Manages spot metadata cache (token list, asset map).
- * Replaces the metadata portion of the removed HyperliquidSdkService.
  */
 @Injectable()
 export class HyperliquidMetaService implements OnModuleInit {

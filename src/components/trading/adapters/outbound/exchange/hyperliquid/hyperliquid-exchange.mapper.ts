@@ -17,7 +17,7 @@ import { HyperliquidOpenOrder } from '@/infra/hyperliquid/types/hyperliquid-open
 import { HyperliquidOrderStatusFound } from '@/infra/hyperliquid/types/hyperliquid-order-status-response';
 import { HyperliquidSdkPlaceOrderResponse } from '@/infra/hyperliquid/types/hyperliquid-sdk-place-order-response';
 import { HyperliquidUserStateResponse } from '@/infra/hyperliquid/types/hyperliquid-user-state-response';
-import { UserFills } from '@/infra/hyperliquid/types/user-fills';
+import { UserFills } from '@/infra/hyperliquid/types/hyperliquid-user-fills';
 
 type SymbolResolver = (coin: string) => string;
 

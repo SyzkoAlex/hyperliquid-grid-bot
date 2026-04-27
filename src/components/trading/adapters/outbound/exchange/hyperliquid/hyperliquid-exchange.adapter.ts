@@ -19,7 +19,7 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { OrderSide } from '@domain/models/order/order-side';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
-import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/place-spot-order-input';
+import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/hyperliquid-place-spot-order-input';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
 @Injectable()
