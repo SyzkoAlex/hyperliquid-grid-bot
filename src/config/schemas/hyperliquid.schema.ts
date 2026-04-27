@@ -4,7 +4,6 @@ export const hyperliquidSchema = z.object({
     apiUrl: z.string().url(),
     testnet: z.coerce.boolean().default(false),
     websocketUrl: z.string().url(),
-    accountAddress: z.string().optional(),
     agentKeyEncryptionKey: z
         .string()
         .length(64, 'Must be 64 hex chars (32 bytes)')

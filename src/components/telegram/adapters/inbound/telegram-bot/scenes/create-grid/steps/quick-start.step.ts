@@ -1,10 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
@@ -23,19 +21,16 @@ import { validateInvestment } from '../helpers/investment-validator';
 @Injectable()
 export class QuickStartStep implements WizardStep {
     readonly id = SceneStep.Quick;
-    private readonly accountAddress: string;
 
     constructor(
         @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
         private readonly messageManager: WizardMessageManager,
-        configService: ConfigService<Config, true>,
-    ) {
-        this.accountAddress = configService.get('hyperliquid.accountAddress', { infer: true });
-    }
+    ) {}
 
     async enter(ctx: BotContext): Promise<void> {
         const session = ctx.session;
         const symbol = session.createGrid?.symbol;
+        const accountAddress = ctx.user?.accountAddress;
 
         const keyboard: InlineButton[][] = [
             [
@@ -46,7 +41,7 @@ export class QuickStartStep implements WizardStep {
 
         let message = QuickStartPromptMessage.create().text;
 
-        if (symbol) {
+        if (symbol && accountAddress) {
             try {
                 const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
                 const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
@@ -54,7 +49,7 @@ export class QuickStartStep implements WizardStep {
                 const lowerPrice = currentPrice - priceOffset;
                 const balanceInfo = await fetchBalanceInfo(
                     this.tradingApi,
-                    this.accountAddress,
+                    accountAddress,
                     symbol,
                     WIZARD_CONFIG.DEFAULT_LEVELS,
                     lowerPrice,
@@ -113,7 +108,8 @@ export class QuickStartStep implements WizardStep {
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
         const session = ctx.session;
-        if (!session.createGrid?.symbol) {
+        const accountAddress = ctx.user?.accountAddress;
+        if (!session.createGrid?.symbol || !accountAddress) {
             return null;
         }
 
@@ -139,7 +135,7 @@ export class QuickStartStep implements WizardStep {
                     symbol: session.createGrid.symbol,
                     upperPrice,
                     lowerPrice,
-                    accountAddress: this.accountAddress,
+                    accountAddress,
                 },
                 this.tradingApi,
             );

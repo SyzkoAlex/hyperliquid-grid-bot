@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'path';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
@@ -8,7 +8,9 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
+import {
+    ExchangePlaceOrderParams
+} from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import type { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { METRICS_PORT } from '@/core/application/ports/outbound/metrics.port';
@@ -16,7 +18,6 @@ import { HyperliquidModule } from '@/infra/hyperliquid/hyperliquid.module';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
 import { loadConfiguration } from '@/config/configuration';
-import type { Config } from '@/config/config.schema';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
@@ -48,8 +49,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
 
         adapter = testingModule.get<ExchangePort>(EXCHANGE_PORT);
 
-        const configService = testingModule.get<ConfigService<Config, true>>(ConfigService);
-        testWalletAddress = configService.get('hyperliquid', { infer: true }).accountAddress ?? '';
+        testWalletAddress = process.env.HYPERLIQUID_ACCOUNT_ADDRESS ?? '';
     });
 
     describe('getUserSpotState', () => {

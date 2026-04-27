@@ -7,8 +7,8 @@ import { ProcessOrderStatusUseCase } from '@components/trading/core/application/
 import { Config } from '@/config/config.schema';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import {
-    HyperliquidWsOrderStatus,
     HyperliquidWsEvent,
+    HyperliquidWsOrderStatus,
 } from '@/infra/hyperliquid/types/hyperliquid-ws-event';
 
 @Injectable()
@@ -49,10 +49,6 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
         }
         if (activeUsers.length > 0) {
             this.accountAddress = activeUsers[0].accountAddress;
-        } else {
-            // Fall back to config if set (backward compatibility)
-            this.accountAddress =
-                this.configService.get('hyperliquid', { infer: true }).accountAddress ?? null;
         }
 
         this.wsClient.connect();

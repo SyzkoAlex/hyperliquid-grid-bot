@@ -21,7 +21,6 @@ redis:
 hyperliquid:
     apiUrl: ${HYPERLIQUID_API_URL:https://api.hyperliquid-testnet.xyz}
     testnet: ${HYPERLIQUID_TESTNET:true}
-    accountAddress: ${HYPERLIQUID_ACCOUNT_ADDRESS:0x0000000000000000000000000000000000000000}
     # agentKeyEncryptionKey is required for agent wallet functionality; set via HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY env var
     agentKeyEncryptionKey: ${HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY:}
     requestTimeout: ${HYPERLIQUID_REQUEST_TIMEOUT:30000}
