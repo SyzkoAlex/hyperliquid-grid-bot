@@ -4,4 +4,5 @@ export interface CreateGridParams {
     upperPrice: number;
     levels: number;
     totalInvestmentUSDC?: number;
+    accountAddress: string;
 }

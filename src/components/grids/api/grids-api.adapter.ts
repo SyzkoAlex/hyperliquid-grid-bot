@@ -35,6 +35,7 @@ export class GridsApiAdapter implements GridsApiPort {
     async createGrid(dto: CreateGridDto): Promise<GridDto> {
         const grid = Grid.create({
             id: GridId.from(dto.id),
+            userId: dto.userId,
             symbol: TradingSymbol.create(dto.symbol),
             lowerPrice: Price.from(dto.lowerPrice),
             upperPrice: Price.from(dto.upperPrice),
@@ -68,6 +69,11 @@ export class GridsApiAdapter implements GridsApiPort {
 
     async findActiveGrids(): Promise<GridDto[]> {
         const grids = await this.gridRepo.findManyActive();
+        return grids.map((g) => GridsApiMapper.toGridDto(g));
+    }
+
+    async findActiveGridsByUserId(userId: string): Promise<GridDto[]> {
+        const grids = await this.gridRepo.findManyActiveByUserId(userId);
         return grids.map((g) => GridsApiMapper.toGridDto(g));
     }
 

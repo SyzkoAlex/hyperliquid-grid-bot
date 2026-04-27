@@ -5,4 +5,5 @@ export class CommonTexts {
     static readonly UNHANDLED_ERROR = `${EMOJI.ERROR} Something went wrong. Please try again later.`;
     static readonly CREATE_GRID_ERROR = `${EMOJI.ERROR} Failed to create grid. Please try again.`;
     static readonly GRID_CREATION_CANCELLED = `${EMOJI.ERROR} Grid creation cancelled`;
+    static readonly ACCOUNT_NOT_CONNECTED = 'Error: Account not connected.';
 }

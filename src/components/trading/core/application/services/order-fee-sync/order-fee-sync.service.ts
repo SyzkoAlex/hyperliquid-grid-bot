@@ -1,33 +1,37 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { logger } from '@/infra/logger/logger';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
-import { Config } from '@/config/config.schema';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+
+const FILLS_LOOKUP_BUFFER_MS = 5_000;
+const FILLS_LOOKUP_WINDOW_MS = 60_000;
 
 @Injectable()
 export class OrderFeeSyncService {
     private readonly logger = logger.child({ context: OrderFeeSyncService.name });
-    private readonly accountAddress: string;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
-        private readonly configService: ConfigService<Config, true>,
-    ) {
-        this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
-    }
+    ) {}
 
-    async syncFee(orderId: string, exchangeOrderId: string, fillTimestamp: number): Promise<void> {
+    async syncFee(
+        orderId: string,
+        exchangeOrderId: string,
+        fillTimestamp: number,
+        accountAddress: string,
+    ): Promise<void> {
         try {
             const oid = Number(exchangeOrderId);
+            const startTime = fillTimestamp - FILLS_LOOKUP_BUFFER_MS;
             const fills = await this.exchange.getOrderFills(
-                this.accountAddress,
+                accountAddress,
                 oid,
-                fillTimestamp - 5_000,
+                startTime,
+                startTime + FILLS_LOOKUP_WINDOW_MS,
             );
 
             if (fills.length === 0) {

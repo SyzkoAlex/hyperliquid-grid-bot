@@ -8,6 +8,7 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
 
 describe('OrdersPollingAdapter (Unit)', () => {
     let module: TestingModule;
@@ -35,6 +36,12 @@ describe('OrdersPollingAdapter (Unit)', () => {
                     provide: ConfigService,
                     useValue: {
                         get: () => ({ pollIntervalMs: 60000, syncLockTtlMs: 30000 }),
+                    },
+                },
+                {
+                    provide: USERS_API_PORT,
+                    useValue: {
+                        findActiveUsers: vi.fn().mockResolvedValue([{ accountAddress: '0xtest' }]),
                     },
                 },
             ],

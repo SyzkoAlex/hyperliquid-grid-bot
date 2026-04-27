@@ -40,6 +40,7 @@ describe('ConfirmStep', () => {
                 upperPrice: 55000,
                 levels: 10,
                 totalInvestmentUSDC: 1000,
+                accountAddress: '0xtest',
             });
             expect(ctx.reply).toHaveBeenCalled();
         });
@@ -83,6 +84,7 @@ describe('ConfirmStep', () => {
             reply: vi.fn().mockResolvedValue({ chat: { id: 123 }, message_id: 456 }),
             session,
             scene: { leave: vi.fn() },
+            user: { accountAddress: '0xtest' },
         } as unknown as BotContext;
     }
 });

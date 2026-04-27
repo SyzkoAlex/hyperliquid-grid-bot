@@ -6,6 +6,7 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
@@ -25,6 +26,7 @@ export class CreateAndStartGridUseCase {
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
         private readonly capitalCalculator: CapitalCalculatorService,
         private readonly gridLevelsCalculator: GridLevelsCalculatorService,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
@@ -50,7 +52,7 @@ export class CreateAndStartGridUseCase {
             currentPrice,
         );
 
-        await this.startGridWithOrders(grid, currentPrice);
+        await this.startGridWithOrders(grid, currentPrice, params.address);
 
         return new CreateAndStartGridResult(grid, investmentUSDC, investmentBase);
     }
@@ -108,8 +110,14 @@ export class CreateAndStartGridUseCase {
         investmentBase: Decimal,
         currentPrice: Price,
     ): Promise<GridDto> {
+        const user = await this.usersApi.findUserByAccountAddress(params.address);
+        if (!user) {
+            throw new Error(`User not found for account address: ${params.address}`);
+        }
+
         const grid = await this.grids.createGrid({
             id: uuidv4(),
+            userId: user.id,
             symbol: params.symbol,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
@@ -128,7 +136,11 @@ export class CreateAndStartGridUseCase {
         return grid;
     }
 
-    private async startGridWithOrders(grid: GridDto, currentPrice: Price): Promise<void> {
+    private async startGridWithOrders(
+        grid: GridDto,
+        currentPrice: Price,
+        accountAddress: string,
+    ): Promise<void> {
         this.logger.info(
             {
                 symbol: grid.symbol,
@@ -150,7 +162,11 @@ export class CreateAndStartGridUseCase {
 
         await this.grids.updateGridStatus(grid.id, GridStatus.Running);
 
-        const placedCount = await this.orderPlacement.placeGridOrders(grid, levelsWithSizes);
+        const placedCount = await this.orderPlacement.placeGridOrders(
+            grid,
+            levelsWithSizes,
+            accountAddress,
+        );
 
         this.logger.info({ gridId: grid.id, placedCount }, 'Grid started successfully');
     }

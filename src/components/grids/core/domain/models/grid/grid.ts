@@ -20,6 +20,7 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
  */
 export class Grid {
     private readonly _id: GridId;
+    private readonly _userId: string;
     private readonly _symbol: TradingSymbol;
     private _status: GridStatus;
     private _lowerPrice: Price;
@@ -40,6 +41,7 @@ export class Grid {
 
     private constructor(params: GridCreateParams) {
         this._id = params.id ?? GridId.create();
+        this._userId = params.userId;
         this._symbol = params.symbol;
         this._status = params.status ?? GridStatus.Idle;
         this._lowerPrice = params.lowerPrice;
@@ -263,6 +265,10 @@ export class Grid {
 
     get id(): GridId {
         return this._id;
+    }
+
+    get userId(): string {
+        return this._userId;
     }
 
     equals(other: Grid): boolean {

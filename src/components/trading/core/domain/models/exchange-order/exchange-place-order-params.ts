@@ -23,4 +23,7 @@ export interface ExchangePlaceOrderParams {
 
     /** Order ID - used for tracking orders via cloid */
     orderId: string;
+
+    /** Account address for the user who owns this order */
+    accountAddress: string;
 }

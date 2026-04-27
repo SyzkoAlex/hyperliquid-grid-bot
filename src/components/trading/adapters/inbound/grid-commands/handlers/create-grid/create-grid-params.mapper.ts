@@ -2,9 +2,9 @@ import { CreateGridCommandEvent } from '@domain/models/events/commands/create-gr
 import { CreateAndStartGridParams } from '@components/trading/core/application/use-cases/create-and-start-grid/create-and-start-grid-params';
 
 export class CreateGridParamsMapper {
-    static fromCommand(command: CreateGridCommandEvent, address: string): CreateAndStartGridParams {
+    static fromCommand(command: CreateGridCommandEvent): CreateAndStartGridParams {
         return {
-            address,
+            address: command.accountAddress,
             symbol: command.symbol,
             lowerPrice: command.lowerPrice,
             upperPrice: command.upperPrice,

@@ -15,6 +15,7 @@ export interface GridsApiPort {
     // ── Grids — read ───────────────────────────────────────────────
     findGridById(id: string): Promise<GridDto | null>;
     findActiveGrids(): Promise<GridDto[]>;
+    findActiveGridsByUserId(userId: string): Promise<GridDto[]>;
     findGridsPaged(filter: {
         status?: GridStatus;
         page: number;

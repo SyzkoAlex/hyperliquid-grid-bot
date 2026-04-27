@@ -1,4 +1,5 @@
 import { boolean, decimal, integer, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { users } from './users.schema';
 
 /**
  * Grids table for SPOT grid trading
@@ -26,6 +27,9 @@ export const grids = pgTable('grids', {
     lastTrailingAt: timestamp('last_trailing_at'),
     startedAt: timestamp('started_at'),
     stoppedAt: timestamp('stopped_at'),
+    userId: uuid('user_id')
+        .notNull()
+        .references(() => users.id),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

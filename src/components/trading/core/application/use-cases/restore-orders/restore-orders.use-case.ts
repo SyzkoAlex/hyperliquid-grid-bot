@@ -1,12 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
 import { logger } from '@/infra/logger/logger';
-import { Config } from '@/config/config.schema';
 import { RestoreResult } from './restore-result';
 
 /**
@@ -24,24 +22,20 @@ import { RestoreResult } from './restore-result';
 @Injectable()
 export class RestoreOrdersUseCase {
     private readonly logger = logger.child({ context: RestoreOrdersUseCase.name });
-    private readonly accountAddress: string;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly orderRestoreService: OrderRestoreService,
-        private readonly configService: ConfigService<Config, true>,
-    ) {
-        this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
-    }
+    ) {}
 
-    async execute(): Promise<RestoreResult> {
+    async execute(accountAddress: string): Promise<RestoreResult> {
         const result = new RestoreResult();
 
         try {
             this.logger.debug('Starting order restore');
 
             // Fetch all open orders from exchange
-            const allOpenOrders = await this.exchange.getOpenSpotOrders(this.accountAddress);
+            const allOpenOrders = await this.exchange.getOpenSpotOrders(accountAddress);
 
             // Restore orders
             const restoredCount = await this.orderRestoreService.restoreOrders(allOpenOrders);

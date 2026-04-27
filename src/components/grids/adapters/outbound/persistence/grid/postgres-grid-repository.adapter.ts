@@ -5,7 +5,7 @@ import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { grids } from '@/infra/database/schema';
-import { asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { logger } from '@/infra/logger/logger';
 import { GridRepositoryPort } from '../../../../core/application/ports/grid-repository.port';
 import { PostgresGridMapper } from './postgres-grid.mapper';
@@ -54,6 +54,19 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error({ error }, 'Failed to find active grids');
+            return [];
+        }
+    }
+
+    async findManyActiveByUserId(userId: string): Promise<Grid[]> {
+        try {
+            const result = await this.db
+                .select()
+                .from(grids)
+                .where(and(eq(grids.status, GridStatus.Running), eq(grids.userId, userId)));
+            return result.map((row) => PostgresGridMapper.toDomain(row));
+        } catch (error) {
+            this.logger.error({ error, userId }, 'Failed to find active grids by userId');
             return [];
         }
     }

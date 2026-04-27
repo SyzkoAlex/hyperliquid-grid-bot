@@ -12,4 +12,5 @@ export interface TradingApiPort {
     pairExists(symbol: string): Promise<boolean>;
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto;
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number;
+    probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
 }

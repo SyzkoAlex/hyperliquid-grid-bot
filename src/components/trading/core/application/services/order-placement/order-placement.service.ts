@@ -23,12 +23,16 @@ export class OrderPlacementService {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
     ) {}
 
-    async placeGridOrders(grid: GridDto, levels: GridLevel[]): Promise<number> {
+    async placeGridOrders(
+        grid: GridDto,
+        levels: GridLevel[],
+        accountAddress: string,
+    ): Promise<number> {
         let placedCount = 0;
 
         for (const level of levels) {
             try {
-                const placed = await this.placeOrderForLevel(grid, level);
+                const placed = await this.placeOrderForLevel(grid, level, accountAddress);
                 if (placed) {
                     placedCount++;
                 }
@@ -40,7 +44,11 @@ export class OrderPlacementService {
         return placedCount;
     }
 
-    private async placeOrderForLevel(grid: GridDto, level: GridLevel): Promise<boolean> {
+    private async placeOrderForLevel(
+        grid: GridDto,
+        level: GridLevel,
+        accountAddress: string,
+    ): Promise<boolean> {
         const order = await this.createAndSavePendingOrder(grid, level);
         const result = await this.exchange.placeSpotOrder({
             symbol: TradingSymbol.create(grid.symbol),
@@ -48,6 +56,7 @@ export class OrderPlacementService {
             price: level.price,
             amount: Decimal.from(level.amountBase!),
             orderId: order.id,
+            accountAddress,
         });
 
         return await this.updateOrderStatus(order, level, result);

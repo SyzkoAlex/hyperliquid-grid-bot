@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
@@ -8,11 +8,13 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
 /**
  * Orders Monitor
  *
  * Adapter that monitors orders using REST API polling.
+ * Iterates all active users and syncs orders for each.
  */
 @Injectable()
 export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
@@ -25,6 +27,7 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly syncOrders: SyncOrdersUseCase,
         private readonly schedulerRegistry: SchedulerRegistry,
         @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {}
 
     onModuleInit(): void {
@@ -44,7 +47,6 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
     }
 
     private async checkOrders(): Promise<void> {
-        // Prevent concurrent execution
         if (this.isProcessing) {
             this.logger.debug('Previous check still running, skipping');
             return;
@@ -55,7 +57,7 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         try {
             const { syncLockTtlMs } = this.configService.get('orders', { infer: true });
             const result = await this.lock.withLock('orders-sync', syncLockTtlMs, () =>
-                this.syncOrders.execute(),
+                this.syncAllUsers(),
             );
             if (result === null) {
                 this.logger.debug('Orders sync skipped: another instance holds the lock');
@@ -64,6 +66,26 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
             this.logger.error({ error }, 'Error in orders sync check');
         } finally {
             this.isProcessing = false;
+        }
+    }
+
+    private async syncAllUsers(): Promise<void> {
+        const activeUsers = await this.usersApi.findActiveUsers();
+
+        if (activeUsers.length === 0) {
+            this.logger.debug('No active users, skipping sync');
+            return;
+        }
+
+        for (const user of activeUsers) {
+            try {
+                await this.syncOrders.execute(user.accountAddress, user.id);
+            } catch (error) {
+                this.logger.error(
+                    { error, userId: user.id, accountAddress: user.accountAddress },
+                    'Error syncing orders for user',
+                );
+            }
         }
     }
 }

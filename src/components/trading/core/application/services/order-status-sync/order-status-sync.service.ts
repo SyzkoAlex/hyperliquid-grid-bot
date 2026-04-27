@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
@@ -8,7 +7,6 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
-import { Config } from '@/config/config.schema';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
 import { OrderStatusSyncResult } from './order-status-sync-result';
@@ -18,16 +16,12 @@ import { OrderFeeSyncService } from '@components/trading/core/application/servic
 @Injectable()
 export class OrderStatusSyncService {
     private readonly logger = logger.child({ context: OrderStatusSyncService.name });
-    private readonly accountAddress: string;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
-        private readonly configService: ConfigService<Config, true>,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly feeSyncService: OrderFeeSyncService,
-    ) {
-        this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
-    }
+    ) {}
 
     /**
      * Detect closed orders and update their statuses in DB.
@@ -35,6 +29,7 @@ export class OrderStatusSyncService {
     async process(
         activeDbOrders: OrderDto[],
         exchangeOpenOrders: ExchangeOpenOrder[],
+        accountAddress: string,
     ): Promise<OrderStatusSyncResult> {
         const result = OrderStatusSyncResult.empty();
 
@@ -49,7 +44,10 @@ export class OrderStatusSyncService {
             'Detected closed orders, fetching statuses',
         );
 
-        const { statusMap, fetchErrorIds } = await this.fetchExchangeOrderStatuses(closedOrders);
+        const { statusMap, fetchErrorIds } = await this.fetchExchangeOrderStatuses(
+            closedOrders,
+            accountAddress,
+        );
 
         for (const order of closedOrders) {
             if (fetchErrorIds.has(order.exchangeOrderId!)) {
@@ -63,7 +61,12 @@ export class OrderStatusSyncService {
             const exchangeOrderInfo = statusMap.get(order.exchangeOrderId!);
             const newStatus = this.resolveOrderStatus(order, exchangeOrderInfo);
 
-            await this.updateOrderStatus(order, newStatus, exchangeOrderInfo?.statusTimestamp);
+            await this.updateOrderStatus(
+                order,
+                newStatus,
+                accountAddress,
+                exchangeOrderInfo?.statusTimestamp,
+            );
 
             this.updateProcessResult(result, newStatus, order);
         }
@@ -81,6 +84,7 @@ export class OrderStatusSyncService {
 
     private async fetchExchangeOrderStatuses(
         closedOrders: OrderDto[],
+        accountAddress: string,
     ): Promise<{ statusMap: Map<string, ExchangeOrderInfo>; fetchErrorIds: Set<string> }> {
         const statusMap = new Map<string, ExchangeOrderInfo>();
         const fetchErrorIds = new Set<string>();
@@ -90,7 +94,7 @@ export class OrderStatusSyncService {
 
             try {
                 const exchangeOrderStatus = await this.exchange.getOrderStatus(
-                    this.accountAddress,
+                    accountAddress,
                     order.exchangeOrderId,
                 );
 
@@ -134,6 +138,7 @@ export class OrderStatusSyncService {
     private async updateOrderStatus(
         order: OrderDto,
         newStatus: OrderStatus,
+        accountAddress: string,
         statusTimestamp?: number,
     ): Promise<void> {
         const filledTimestamp = statusTimestamp ? new Date(statusTimestamp) : new Date();
@@ -146,7 +151,9 @@ export class OrderStatusSyncService {
 
         if (newStatus === OrderStatus.Filled && order.exchangeOrderId) {
             const fillTime = statusTimestamp ?? Date.now();
-            this.feeSyncService.syncFee(order.id, order.exchangeOrderId, fillTime).catch(() => {});
+            this.feeSyncService
+                .syncFee(order.id, order.exchangeOrderId, fillTime, accountAddress)
+                .catch(() => {});
         }
     }
 

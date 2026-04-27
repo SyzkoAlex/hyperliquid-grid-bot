@@ -26,8 +26,10 @@ import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-crea
 import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
 import { EventType } from '@domain/models/events/event-type';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
+import { UserStatus } from '@domain/models/user/user-status';
 
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { AssetPosition } from '@components/trading/core/domain/models/user-state/asset-position';
@@ -60,9 +62,9 @@ describe('GridCommandsAdapter (Integration)', () => {
         subscriber = env.subscriber;
     });
 
-    beforeEach(() => {
-        // Clear mocks before each test to ensure clean state
+    beforeEach(async () => {
         vi.clearAllMocks();
+        await DatabaseTestHelper.seedTestUser({ accountAddress: '0xtest' });
     });
 
     afterEach(async () => {
@@ -130,6 +132,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 levels: 10,
                 totalInvestmentUSDC: 10000,
                 trailing: false,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -206,6 +209,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -269,6 +273,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 upperPrice: 150,
                 levels: 10,
                 trailing: true,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -299,6 +304,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -339,6 +345,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 totalInvestmentUSDC: 10000, // More than available balance
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -394,6 +401,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command);
@@ -473,6 +481,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 levels: 5,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command1);
@@ -483,6 +492,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 3000,
                 upperPrice: 4000,
                 levels: 5,
+                accountAddress: '0xtest',
             });
 
             await publisher.publish(command2);
@@ -539,9 +549,43 @@ async function setupTestEnvironment() {
         ],
     });
 
+    const mockUsersApi = {
+        findUserByChatId: vi.fn(),
+        findUserByAccountAddress: vi.fn().mockResolvedValue({
+            id: TEST_USER_ID,
+            telegramChatId: 100000001,
+            accountAddress: '0xtest',
+            agentAddress: '0x0000000000000000000000000000000000000002',
+            status: UserStatus.Active,
+        }),
+        findActiveUsers: vi.fn().mockResolvedValue([
+            {
+                id: TEST_USER_ID,
+                telegramChatId: 100000001,
+                accountAddress: '0xtest',
+                agentAddress: '0x0000000000000000000000000000000000000002',
+                status: UserStatus.Active,
+            },
+        ]),
+        getAgentPrivateKey: vi
+            .fn()
+            .mockResolvedValue(
+                '0x0000000000000000000000000000000000000000000000000000000000000001',
+            ),
+        getAgentPrivateKeyByAccountAddress: vi
+            .fn()
+            .mockResolvedValue(
+                '0x0000000000000000000000000000000000000000000000000000000000000001',
+            ),
+        createPendingUser: vi.fn(),
+        activateUser: vi.fn(),
+        disconnectUser: vi.fn(),
+    };
+
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
     moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockExchange);
     moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
+    moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
     // Compile module
     const module = await moduleBuilder.compile();

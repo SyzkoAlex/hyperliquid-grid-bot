@@ -1,6 +1,6 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -13,6 +13,7 @@ import { PostgresGridRepositoryAdapter } from './postgres-grid-repository.adapte
 function createGrid(
     overrides: Partial<{
         id: GridId;
+        userId: string;
         symbol: string;
         status: GridStatus;
         lowerPrice: number;
@@ -27,6 +28,7 @@ function createGrid(
 ): Grid {
     return Grid.create({
         id: overrides.id ?? GridId.create(),
+        userId: overrides.userId ?? TEST_USER_ID,
         symbol: TradingSymbol.create(overrides.symbol ?? 'HYPE'),
         status: overrides.status,
         lowerPrice: Price.from(overrides.lowerPrice ?? 100),
@@ -48,6 +50,10 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
         db = await DatabaseTestHelper.initialize();
         repository = new PostgresGridRepositoryAdapter(db);
     }, 120_000);
+
+    beforeEach(async () => {
+        await DatabaseTestHelper.seedTestUser();
+    });
 
     afterEach(async () => {
         await DatabaseTestHelper.cleanup();

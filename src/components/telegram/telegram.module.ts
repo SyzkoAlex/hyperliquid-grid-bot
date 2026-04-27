@@ -8,6 +8,7 @@ import { HelpHandler } from './adapters/inbound/telegram-bot/handlers/help/help.
 import { NotificationMessageFactory } from './core/domain/models/messages/notifications/notification-message.factory';
 import { NotifyUserUseCase } from './core/application/use-cases/notify-user/notify-user.use-case';
 import { CreateGridSceneHandler } from './adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
+import { ConnectAccountSceneHandler } from './adapters/inbound/telegram-bot/scenes/connect-account/connect-account.scene';
 import { SelectPairStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-pair.step';
 import { SelectModeStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-mode.step';
 import { QuickStartStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/quick-start.step';
@@ -17,6 +18,9 @@ import { AdvancedLevelsStep } from './adapters/inbound/telegram-bot/scenes/creat
 import { AdvancedInvestmentStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-investment.step';
 import { AdvancedPreviewStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-preview.step';
 import { ConfirmStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/confirm.step';
+import { EnterAddressStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/enter-address.step';
+import { ApproveAgentStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/approve-agent.step';
+import { VerifyApprovalStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/verify-approval.step';
 import { WizardNavigator } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { WizardMessageManager } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
 import { GridsHandler } from './adapters/inbound/telegram-bot/handlers/grids/grids.handler';
@@ -30,6 +34,8 @@ import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-wit
 import { GetUserBalanceUseCase } from './core/application/use-cases/get-user-balance/get-user-balance.use-case';
 import { CreateGridUseCase } from './core/application/use-cases/create-grid/create-grid.use-case';
 import { StopGridUseCase } from './core/application/use-cases/stop-grid/stop-grid.use-case';
+import { ConnectAccountUseCase } from './core/application/use-cases/connect-account/connect-account.use-case';
+import { VerifyAgentUseCase } from './core/application/use-cases/verify-agent/verify-agent.use-case';
 import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 import { GridSnapshotFactory } from './core/application/services/grid-snapshot-factory/grid-snapshot.factory';
@@ -37,12 +43,13 @@ import { PendingCreationMessageStore } from './adapters/inbound/telegram-bot/pen
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { GridsModule } from '@components/grids/grids.module';
 import { TradingModule } from '@components/trading/trading.module';
+import { UsersModule } from '@components/users/users.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 
 @Module({
-    imports: [GridsModule, TradingModule, EventPublisherModule, EventSubscriberModule],
+    imports: [GridsModule, TradingModule, UsersModule, EventPublisherModule, EventSubscriberModule],
     providers: [
         TelegramBotService,
         ManagedLockService,
@@ -59,10 +66,13 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         WizardNavigator,
         WizardMessageManager,
         CreateGridSceneHandler,
+        ConnectAccountSceneHandler,
         GetGridsWithPnlUseCase,
         GetGridWithPnlUseCase,
         CreateGridUseCase,
         StopGridUseCase,
+        ConnectAccountUseCase,
+        VerifyAgentUseCase,
         GridPnlCalculatorService,
         GridSnapshotFactory,
         GridsHandler,
@@ -81,6 +91,9 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         AdvancedInvestmentStep,
         AdvancedPreviewStep,
         ConfirmStep,
+        EnterAddressStep,
+        ApproveAgentStep,
+        VerifyApprovalStep,
     ],
 })
 export class TelegramModule {}

@@ -31,6 +31,7 @@ export class PostgresGridMapper {
             trailingPartialClosePercent: grid.trailingPartialClosePercent.toString(),
             trailingCount: grid.trailingCount,
             lastTrailingAt: grid.lastTrailingAt?.toDate() ?? null,
+            userId: grid.userId,
             createdAt: grid.createdAt.toDate(),
             startedAt: grid.startedAt?.toDate() ?? null,
             stoppedAt: grid.stoppedAt?.toDate() ?? null,
@@ -40,10 +41,11 @@ export class PostgresGridMapper {
     /**
      * Convert database row to Grid domain entity
      */
-    static toDomain(row: any): Grid {
+    static toDomain(row: GridDbRecord): Grid {
         try {
             const params = {
                 id: GridId.from(row.id),
+                userId: row.userId,
                 symbol: TradingSymbol.create(row.symbol),
                 status: row.status as GridStatus,
                 lowerPrice: Price.from(parseFloat(row.lowerPrice)),
@@ -55,9 +57,18 @@ export class PostgresGridMapper {
                     ? Price.from(parseFloat(row.creationPrice))
                     : undefined,
                 trailingEnabled: row.trailingEnabled,
-                trailingTriggerPercent: parseFloat(row.trailingTriggerPercent),
-                trailingStepPercent: parseFloat(row.trailingStepPercent),
-                trailingPartialClosePercent: parseFloat(row.trailingPartialClosePercent),
+                trailingTriggerPercent:
+                    row.trailingTriggerPercent != null
+                        ? parseFloat(row.trailingTriggerPercent)
+                        : undefined,
+                trailingStepPercent:
+                    row.trailingStepPercent != null
+                        ? parseFloat(row.trailingStepPercent)
+                        : undefined,
+                trailingPartialClosePercent:
+                    row.trailingPartialClosePercent != null
+                        ? parseFloat(row.trailingPartialClosePercent)
+                        : undefined,
                 trailingCount: row.trailingCount,
                 createdAt: row.createdAt ? Timestamp.from(row.createdAt) : undefined,
                 startedAt: row.startedAt ? Timestamp.from(row.startedAt) : undefined,

@@ -14,6 +14,7 @@ import { createSessionMiddleware } from './middleware/session.middleware';
 import { createAuthMiddleware } from './middleware/auth.middleware';
 import { createTimingMiddleware } from './middleware/timing.middleware';
 import { METRICS_PORT, MetricsPort } from '@/core/application/ports/outbound/metrics.port';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy, TelegramNotificationPort {
@@ -22,17 +23,18 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     private readonly logger = logger.child({ context: TelegramBotService.name });
     private readonly enabled: boolean;
     private readonly botToken: string;
-    private readonly allowedManagerChatId: number;
+    private readonly allowedUserId: number | undefined;
 
     constructor(
         configService: ConfigService<Config, true>,
         private readonly sessionStore: CacheSessionStore,
         @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {
         const telegramConfig = configService.get('telegram', { infer: true });
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
-        this.allowedManagerChatId = telegramConfig.allowedManagerChatId;
+        this.allowedUserId = telegramConfig.allowedUserId;
     }
 
     async onModuleInit() {
@@ -57,7 +59,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         //   dedup       — block duplicate button presses while a handler is running
         //   stage       — scenes and registered command/action handlers
         this._bot.use(createSessionMiddleware(this.sessionStore));
-        this._bot.use(createAuthMiddleware(this.allowedManagerChatId));
+        this._bot.use(createAuthMiddleware(this.allowedUserId, this.usersApi));
         this._bot.use(createTimingMiddleware(this.metrics));
         this._bot.use(createErrorHandlerMiddleware());
         this._bot.use(createCallbackDedupMiddleware());

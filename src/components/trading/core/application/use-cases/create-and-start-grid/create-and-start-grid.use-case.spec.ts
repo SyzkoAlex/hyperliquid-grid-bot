@@ -9,6 +9,7 @@ describe('CreateAndStartGridUseCase', () => {
     let useCase: CreateAndStartGridUseCase;
     let exchange: any;
     let grids: any;
+    let usersApi: any;
     let capitalCalculator: any;
     let gridLevelsCalculator: any;
     let userBalanceExtractor: any;
@@ -42,6 +43,21 @@ describe('CreateAndStartGridUseCase', () => {
             updateGridStatus: vi.fn(),
         };
 
+        usersApi = {
+            findUserByAccountAddress: vi.fn().mockResolvedValue({
+                id: 'test-user-uuid-1',
+                telegramChatId: 100000001,
+                accountAddress: '0x123',
+                agentAddress: '0x456',
+                status: 'active',
+            }),
+            getAgentPrivateKeyByAccountAddress: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+        };
+
         capitalCalculator = {
             calculateDistribution: vi.fn(),
         };
@@ -61,6 +77,7 @@ describe('CreateAndStartGridUseCase', () => {
         useCase = new CreateAndStartGridUseCase(
             exchange,
             grids,
+            usersApi,
             capitalCalculator,
             gridLevelsCalculator,
             userBalanceExtractor,
@@ -165,7 +182,11 @@ describe('CreateAndStartGridUseCase', () => {
                 currentPrice,
             );
 
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
+                gridDto,
+                levelsWithSizes,
+                '0x123',
+            );
         });
 
         it('should handle order placement failures gracefully', async () => {
@@ -223,7 +244,11 @@ describe('CreateAndStartGridUseCase', () => {
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('ETH');
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
+                gridDto,
+                levelsWithSizes,
+                '0x123',
+            );
         });
 
         it('should throw when base token balance is zero', async () => {
@@ -324,7 +349,11 @@ describe('CreateAndStartGridUseCase', () => {
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('SOL');
-            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(gridDto, levelsWithSizes);
+            expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
+                gridDto,
+                levelsWithSizes,
+                '0x123',
+            );
         });
     });
 });

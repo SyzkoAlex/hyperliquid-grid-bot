@@ -1,5 +1,6 @@
 export interface CreateGridDto {
     id: string;
+    userId: string;
     symbol: string;
     lowerPrice: number;
     upperPrice: number;

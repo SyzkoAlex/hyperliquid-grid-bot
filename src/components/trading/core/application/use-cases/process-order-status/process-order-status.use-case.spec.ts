@@ -25,6 +25,9 @@ describe('ProcessOrderStatusUseCase', () => {
     let mockFeeSyncService: {
         syncFee: ReturnType<typeof vi.fn>;
     };
+    let mockUsersApi: {
+        findActiveUsers: ReturnType<typeof vi.fn>;
+    };
 
     const gridId = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -48,11 +51,16 @@ describe('ProcessOrderStatusUseCase', () => {
             syncFee: vi.fn().mockResolvedValue(undefined),
         };
 
+        mockUsersApi = {
+            findActiveUsers: vi.fn().mockResolvedValue([{ accountAddress: '0xabc' }]),
+        };
+
         useCase = new ProcessOrderStatusUseCase(
             mockGrids as any,
             mockOrderRefillService as any,
             mockRefillPlacement as any,
             mockFeeSyncService as any,
+            mockUsersApi as any,
         );
     });
 
@@ -130,11 +138,16 @@ describe('ProcessOrderStatusUseCase', () => {
                 OrderStatus.Filled,
                 expect.any(Date),
             );
-            expect(mockOrderRefillService.processOne).toHaveBeenCalledWith(filledOrder, grid);
+            expect(mockOrderRefillService.processOne).toHaveBeenCalledWith(
+                filledOrder,
+                grid,
+                '0xabc',
+            );
             expect(mockFeeSyncService.syncFee).toHaveBeenCalledWith(
                 order.id,
                 '123',
                 expect.any(Number),
+                '0xabc',
             );
         });
 
@@ -281,6 +294,7 @@ describe('ProcessOrderStatusUseCase', () => {
                     side: order.side,
                     levelIndex: order.levelIndex,
                 }),
+                '0xabc',
             );
         });
 

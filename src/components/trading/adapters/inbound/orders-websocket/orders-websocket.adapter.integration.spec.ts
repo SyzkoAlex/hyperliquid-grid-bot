@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
@@ -19,8 +19,10 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
+import { UserStatus } from '@domain/models/user/user-status';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import type { OrderStatusUpdate } from '@components/trading/core/application/use-cases/process-order-status/order-status-update';
 
@@ -33,6 +35,10 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
 
     beforeAll(async () => {
         await initializeTestModule();
+    });
+
+    beforeEach(async () => {
+        await DatabaseTestHelper.seedTestUser();
     });
 
     afterEach(async () => {
@@ -56,6 +62,7 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
     ): Promise<GridDto> {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
+            userId: TEST_USER_ID,
             symbol,
             lowerPrice: 2500,
             upperPrice: 3500,
@@ -215,9 +222,43 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
             ],
         });
 
+        const mockUsersApi = {
+            findUserByChatId: vi.fn(),
+            findUserByAccountAddress: vi.fn().mockResolvedValue({
+                id: TEST_USER_ID,
+                telegramChatId: 100000001,
+                accountAddress: '0x0000000000000000000000000000000000000001',
+                agentAddress: '0x0000000000000000000000000000000000000002',
+                status: UserStatus.Active,
+            }),
+            findActiveUsers: vi.fn().mockResolvedValue([
+                {
+                    id: TEST_USER_ID,
+                    telegramChatId: 100000001,
+                    accountAddress: '0x0000000000000000000000000000000000000001',
+                    agentAddress: '0x0000000000000000000000000000000000000002',
+                    status: UserStatus.Active,
+                },
+            ]),
+            getAgentPrivateKey: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            getAgentPrivateKeyByAccountAddress: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            createPendingUser: vi.fn(),
+            activateUser: vi.fn(),
+            disconnectUser: vi.fn(),
+        };
+
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockExchange);
         moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
+        moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
         module = await moduleBuilder.compile();
 

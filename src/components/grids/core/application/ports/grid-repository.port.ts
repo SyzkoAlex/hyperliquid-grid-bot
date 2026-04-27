@@ -8,6 +8,7 @@ export interface GridRepositoryPort {
     save(grid: Grid): Promise<void>;
     findOneById(id: GridId): Promise<Grid | null>;
     findManyActive(): Promise<Grid[]>;
+    findManyActiveByUserId(userId: string): Promise<Grid[]>;
     findManyByStatusPaged(
         status: GridStatus | undefined,
         offset: number,

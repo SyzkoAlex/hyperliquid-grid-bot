@@ -11,4 +11,7 @@ export interface ExchangeCancelOrderParams {
 
     /** Exchange order ID to cancel */
     exchangeOrderId: string;
+
+    /** Account address for the user who owns this order */
+    accountAddress: string;
 }

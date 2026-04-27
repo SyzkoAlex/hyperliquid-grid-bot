@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { logger } from '@/infra/logger/logger';
+import { Config } from '@/config/config.schema';
 
 @Injectable()
 export class HttpService {
     private readonly client: AxiosInstance;
     private readonly logger = logger.child({ context: HttpService.name });
 
-    constructor() {
+    constructor(configService: ConfigService<Config, true>) {
+        const { requestTimeout } = configService.get('hyperliquid', { infer: true });
+
         this.client = axios.create({
-            timeout: 30000,
+            timeout: requestTimeout,
             headers: {
                 'Content-Type': 'application/json',
             },

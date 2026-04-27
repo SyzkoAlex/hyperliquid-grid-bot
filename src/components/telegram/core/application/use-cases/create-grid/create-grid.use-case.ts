@@ -17,6 +17,7 @@ export class CreateGridUseCase {
             upperPrice: params.upperPrice,
             levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
+            accountAddress: params.accountAddress,
         });
 
         await this.publisher.publish(event);

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { DuplicateActiveOrderError } from '../../../../core/domain/errors/duplicate-active-order.error';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { Order } from '../../../../core/domain/models/order/order';
@@ -17,8 +17,9 @@ import { PostgresGridRepositoryAdapter } from '../grid/postgres-grid-repository.
 import { PostgresOrderRepositoryAdapter } from './postgres-order-repository.adapter';
 
 function createGrid(id?: GridId): Grid {
-    const grid = Grid.create({
+    return Grid.create({
         id: id ?? GridId.create(),
+        userId: TEST_USER_ID,
         symbol: TradingSymbol.create('HYPE'),
         lowerPrice: Price.from(100),
         upperPrice: Price.from(200),
@@ -26,7 +27,6 @@ function createGrid(id?: GridId): Grid {
         investmentUSDC: Decimal.from(1000),
         investmentBase: Decimal.from(5),
     });
-    return grid;
 }
 
 function createOrder(
@@ -73,6 +73,7 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
     }, 120_000);
 
     beforeEach(async () => {
+        await DatabaseTestHelper.seedTestUser();
         grid = createGrid();
         await gridRepo.save(grid);
     });

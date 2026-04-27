@@ -125,6 +125,7 @@ describe('BalanceHandler', () => {
             reply: vi.fn(),
             answerCbQuery: vi.fn(),
             editMessageText: vi.fn(),
+            user: { accountAddress: '0xtest' },
         } as unknown as BotContext;
     }
 });

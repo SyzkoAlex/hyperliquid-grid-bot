@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
     EVENT_PUBLISHER_PORT,
     EventPublisherPort,
@@ -10,26 +9,21 @@ import { CreateAndStartGridUseCase } from '@components/trading/core/application/
 import { CreateGridParamsMapper } from './create-grid-params.mapper';
 import { GridCreatedSuccessEventMapper } from './grid-created-success-event.mapper';
 import { logger } from '@/infra/logger/logger';
-import { Config } from '@/config/config.schema';
 
 @Injectable()
 export class CreateGridHandler {
     private readonly logger = logger.child({ context: CreateGridHandler.name });
-    private readonly accountAddress: string;
 
     constructor(
         @Inject(EVENT_PUBLISHER_PORT) private readonly publisher: EventPublisherPort,
         private readonly createAndStartGrid: CreateAndStartGridUseCase,
-        configService: ConfigService<Config, true>,
-    ) {
-        this.accountAddress = configService.get('hyperliquid.accountAddress', { infer: true });
-    }
+    ) {}
 
     async handle(command: CreateGridCommandEvent): Promise<void> {
         try {
             this.logger.info({ command }, 'Received CreateGrid command');
 
-            const params = CreateGridParamsMapper.fromCommand(command, this.accountAddress);
+            const params = CreateGridParamsMapper.fromCommand(command);
             const result = await this.createAndStartGrid.execute(params);
 
             this.logger.info({ command }, 'Grid creation completed successfully');

@@ -15,6 +15,7 @@ import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
 } from '@components/telegram/adapters/inbound/telegram-bot/scenes/create-grid/create-grid.scene';
+import { ConnectAccountSceneHandler } from '@components/telegram/adapters/inbound/telegram-bot/scenes/connect-account/connect-account.scene';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
@@ -42,6 +43,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly stopGridHandler: StopGridHandler,
         private readonly balanceHandler: BalanceHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
+        private readonly connectAccountSceneHandler: ConnectAccountSceneHandler,
         private readonly managedLock: ManagedLockService,
         private readonly configService: ConfigService<Config, true>,
     ) {}
@@ -77,6 +79,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
 
     private registerScenes() {
         this.telegramBotService.registerScene(this.createGridSceneHandler);
+        this.telegramBotService.registerScene(this.connectAccountSceneHandler);
     }
 
     private registerHandlers() {

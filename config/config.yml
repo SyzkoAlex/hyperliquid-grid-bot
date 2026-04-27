@@ -20,12 +20,11 @@ redis:
 
 hyperliquid:
     apiUrl: ${HYPERLIQUID_API_URL:https://api.hyperliquid-testnet.xyz}
-    privateKey: ${HYPERLIQUID_PRIVATE_KEY:0000000000000000000000000000000000000000000000000000000000000000}
+    testnet: ${HYPERLIQUID_TESTNET:true}
     accountAddress: ${HYPERLIQUID_ACCOUNT_ADDRESS:0x0000000000000000000000000000000000000000}
-    testnet: ${HYPERLIQUID_TESTNET:false}
-    requestTimeout: 30000
-    maxRetries: 3
-    retryDelay: 1000
+    # agentKeyEncryptionKey is required for agent wallet functionality; set via HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY env var
+    agentKeyEncryptionKey: ${HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY:}
+    requestTimeout: ${HYPERLIQUID_REQUEST_TIMEOUT:30000}
     minOrderNotional: ${HYPERLIQUID_MIN_ORDER_NOTIONAL:10}
     sellSizeBuffer: ${HYPERLIQUID_SELL_SIZE_BUFFER:0.005}
     websocket:
@@ -36,24 +35,8 @@ hyperliquid:
 telegram:
     enabled: ${TELEGRAM_ENABLED:true}
     botToken: ${TELEGRAM_BOT_TOKEN:0000000000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}
-    allowedManagerChatId: ${TELEGRAM_ALLOWED_MANAGER_CHAT_ID:0}  # this is user id, not chat id
+    allowedUserId: ${TELEGRAM_ALLOWED_USER_ID:}  # restrict bot to a single Telegram user ID
     notificationChatId: ${TELEGRAM_NOTIFICATION_CHAT_ID:0}
-    mode: ${TELEGRAM_MODE:polling}
-    webhook:
-        url: ${TELEGRAM_WEBHOOK_URL:}
-        path: /telegram/webhook
-    notifications: # TODO sync with NotifyUserUseCase
-        tradeOpened: true
-        tradeClosed: true
-        stopLoss: true
-        gridStarted: true
-        gridStopped: true
-        errors: true
-    formatting:
-        parseMode: HTML
-        disableWebPagePreview: true
-    rateLimit:
-        maxMessagesPerMinute: 20
     session:
         ttlSeconds: 86400
         keyPrefix: "tg:session:"
@@ -61,19 +44,6 @@ telegram:
         activePageSize: 5
         stoppedPageSize: 5
     botLockTtlMs: ${TELEGRAM_BOT_LOCK_TTL_MS:60000} # 60 seconds
-
-grid:
-    defaultLevels: ${GRID_DEFAULT_LEVELS:20}
-    minLevels: 5
-    maxLevels: 100
-    defaultMode: neutral
-    monitoringInterval: 60000 # Check every minute
-    trailing:
-        defaultEnabled: false
-        triggerPercent: 5 # Activate at +5% above upper
-        stepPercent: 10 # Shift grid up by 10%
-        partialClosePercent: 50 # Close 50% of position
-        cooldownMinutes: 30 # Min 30 min between trailing
 
 orders:
     pollIntervalMs: ${ORDERS_POLL_INTERVAL_MS:10000}

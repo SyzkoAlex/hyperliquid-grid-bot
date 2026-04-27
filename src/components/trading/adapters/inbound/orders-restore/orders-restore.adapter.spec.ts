@@ -8,6 +8,7 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
 
 describe('OrdersRestoreAdapter (Unit)', () => {
     let module: TestingModule;
@@ -37,6 +38,12 @@ describe('OrdersRestoreAdapter (Unit)', () => {
                     provide: ConfigService,
                     useValue: {
                         get: () => ({ recoveryIntervalMs: 60000, restoreLockTtlMs: 60000 }),
+                    },
+                },
+                {
+                    provide: USERS_API_PORT,
+                    useValue: {
+                        findActiveUsers: vi.fn().mockResolvedValue([{ accountAddress: '0xtest' }]),
                     },
                 },
             ],

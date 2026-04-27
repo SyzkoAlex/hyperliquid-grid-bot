@@ -16,8 +16,9 @@ function createEventByType(type: EventType): SerializableEvent {
                 symbol: 'BTC',
                 lowerPrice: 50000,
                 upperPrice: 60000,
+                accountAddress: '0xabc',
             }),
-        [EventType.StopGridCommand]: () => StopGridCommandEvent.create('grid-1'),
+        [EventType.StopGridCommand]: () => StopGridCommandEvent.create('grid-1', '0xabc'),
         [EventType.OrderOpened]: () =>
             new OrderOpenedEvent('grid-1', 'BTC', 'buy', 50000, 0.1, 5000, 1, 10),
         [EventType.OrderClosed]: () =>

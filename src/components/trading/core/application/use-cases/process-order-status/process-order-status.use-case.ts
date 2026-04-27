@@ -4,6 +4,7 @@ import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.po
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { RefillOrderPlacementService } from '@components/trading/core/application/services/refill-order-placement/refill-order-placement.service';
 import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { RefillParams } from '@components/trading/core/application/services/order-refill/refill-params';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderStatusUpdate } from './order-status-update';
@@ -38,6 +39,7 @@ export class ProcessOrderStatusUseCase {
         private readonly orderRefillService: OrderRefillService,
         private readonly refillPlacement: RefillOrderPlacementService,
         private readonly feeSyncService: OrderFeeSyncService,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {}
 
     async execute(params: ProcessOrderStatusParams): Promise<ProcessOrderStatusResult> {
@@ -186,11 +188,13 @@ export class ProcessOrderStatusUseCase {
         const fillTime = new Date(orderStatus.statusTimestamp);
         await this.grids.updateOrderStatus(gridOrder.id, OrderStatus.Filled, fillTime);
 
+        const accountAddress = await this.getFirstActiveAccountAddress();
         this.feeSyncService
             .syncFee(
                 gridOrder.id,
                 orderStatus.exchangeOrderId.toString(),
                 orderStatus.statusTimestamp,
+                accountAddress ?? '',
             )
             .catch(() => {});
 
@@ -217,7 +221,11 @@ export class ProcessOrderStatusUseCase {
             };
         }
 
-        const result = await this.orderRefillService.processOne(filledOrder, grid);
+        const result = await this.orderRefillService.processOne(
+            filledOrder,
+            grid,
+            accountAddress ?? '',
+        );
 
         if (!result.success) {
             this.logger.error(
@@ -291,7 +299,12 @@ export class ProcessOrderStatusUseCase {
             Decimal.from(gridOrder.amount),
         );
 
-        const result = await this.refillPlacement.placeRefillOrder(grid, params);
+        const stpAccountAddress = await this.getFirstActiveAccountAddress();
+        const result = await this.refillPlacement.placeRefillOrder(
+            grid,
+            params,
+            stpAccountAddress ?? '',
+        );
 
         if (result.success) {
             this.logger.info(
@@ -371,5 +384,10 @@ export class ProcessOrderStatusUseCase {
             orderId: orderStatus.exchangeOrderId,
             status: 'failed',
         };
+    }
+
+    private async getFirstActiveAccountAddress(): Promise<string | null> {
+        const activeUsers = await this.usersApi.findActiveUsers();
+        return activeUsers.length > 0 ? activeUsers[0].accountAddress : null;
     }
 }

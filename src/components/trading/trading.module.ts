@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HyperliquidModule } from './adapters/outbound/exchange/hyperliquid/hyperliquid.module';
+import { HyperliquidModule } from '@/infra/hyperliquid/hyperliquid.module';
+import { HyperliquidExchangeMapper } from './adapters/outbound/exchange/hyperliquid/hyperliquid-exchange.mapper';
+import { HyperliquidExchangeAdapter } from './adapters/outbound/exchange/hyperliquid/hyperliquid-exchange.adapter';
+import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { Config } from '@/config/config.schema';
 import { CreateAndStartGridUseCase } from '@components/trading/core/application/use-cases/create-and-start-grid/create-and-start-grid.use-case';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
@@ -30,11 +33,20 @@ import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { TradingApiAdapter } from '@components/trading/api/trading-api.adapter';
 import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
+import { UsersModule } from '@components/users/users.module';
 
 @Module({
-    imports: [HyperliquidModule, GridsModule, EventPublisherModule, EventSubscriberModule],
+    imports: [
+        HyperliquidModule,
+        GridsModule,
+        EventPublisherModule,
+        EventSubscriberModule,
+        UsersModule,
+    ],
     providers: [
         { provide: TRADING_API_PORT, useClass: TradingApiAdapter },
+        HyperliquidExchangeMapper,
+        { provide: EXCHANGE_PORT, useClass: HyperliquidExchangeAdapter },
         EventDeserializer,
         CreateAndStartGridUseCase,
         SyncOrdersUseCase,
