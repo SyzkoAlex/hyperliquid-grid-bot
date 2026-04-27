@@ -8,9 +8,7 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
-import {
-    ExchangePlaceOrderParams
-} from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
+import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import type { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { METRICS_PORT } from '@/core/application/ports/outbound/metrics.port';
