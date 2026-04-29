@@ -14,6 +14,7 @@ import { CapitalCalculatorService } from '@components/trading/core/domain/servic
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Price } from '@domain/models/primitives/price';
 import { Config } from '@/config/config.schema';
+import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 
 @Injectable()
 export class TradingApiAdapter implements TradingApiPort {
@@ -23,6 +24,7 @@ export class TradingApiAdapter implements TradingApiPort {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly capitalCalculator: CapitalCalculatorService,
         configService: ConfigService<Config, true>,
+        private readonly ordersWebsocket: OrdersWebsocketAdapter,
     ) {
         this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
     }
@@ -65,6 +67,10 @@ export class TradingApiAdapter implements TradingApiPort {
 
     async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {
         return this.exchange.probeAgentApproval(accountAddress);
+    }
+
+    notifyAgentActivated(accountAddress: string): void {
+        this.ordersWebsocket.setAccountAddress(accountAddress);
     }
 
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {

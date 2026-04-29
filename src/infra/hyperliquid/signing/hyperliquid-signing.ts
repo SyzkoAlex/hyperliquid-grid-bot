@@ -112,8 +112,9 @@ export async function signL1Action(
     action: unknown,
     nonce: number,
     isMainnet: boolean,
+    vaultAddress: string | null = null,
 ): Promise<HlSignature> {
-    const hash = actionHash(action, null, nonce);
+    const hash = actionHash(action, vaultAddress, nonce);
     const phantomAgent = { source: isMainnet ? 'a' : 'b', connectionId: hash };
     const signature = await account.signTypedData({
         domain: phantomDomain,

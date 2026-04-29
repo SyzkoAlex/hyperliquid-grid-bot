@@ -33,6 +33,7 @@ export class VerifyAgentUseCase {
         }
 
         await this.usersApi.activateUser(userId);
+        this.tradingApi.notifyAgentActivated(user.accountAddress);
         this.logger.info(
             { userId, accountAddress: user.accountAddress },
             'User agent verified and activated',

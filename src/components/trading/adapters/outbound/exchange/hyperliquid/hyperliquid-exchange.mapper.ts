@@ -30,7 +30,16 @@ export class HyperliquidExchangeMapper {
     toExchangePlaceOrderResult(
         response: HyperliquidSdkPlaceOrderResponse,
     ): ExchangePlaceOrderResult {
-        const firstStatus = response?.response?.data?.statuses?.[0];
+        if (response?.status === 'err') {
+            return {
+                exchangeOrderId: '',
+                status: OrderStatus.Failed,
+                error: typeof response.response === 'string' ? response.response : 'Order failed',
+            };
+        }
+
+        const responseData = typeof response?.response === 'object' ? response.response : undefined;
+        const firstStatus = responseData?.data?.statuses?.[0];
 
         if (firstStatus?.error) {
             return {

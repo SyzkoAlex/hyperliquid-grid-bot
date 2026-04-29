@@ -63,6 +63,13 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
         return this.wsClient.isConnected();
     }
 
+    setAccountAddress(address: string): void {
+        this.accountAddress = address;
+        if (this.wsClient.isConnected()) {
+            this.subscribeToOrderUpdates();
+        }
+    }
+
     private subscribeToOrderUpdates(): void {
         if (!this.accountAddress) {
             this.logger.warn('No account address for WebSocket subscription');

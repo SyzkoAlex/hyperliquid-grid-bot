@@ -8,4 +8,6 @@ export interface PlaceSpotOrderInput {
     /** Optional pre-computed hex CLOID "0x..." */
     cloid?: string;
     agentPrivateKey: string;
+    /** Master account address — required when signing with an agent wallet */
+    accountAddress: string;
 }

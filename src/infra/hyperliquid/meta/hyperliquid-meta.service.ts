@@ -71,11 +71,11 @@ export class HyperliquidMetaService implements OnModuleInit {
 
     /**
      * Resolves a plain symbol (e.g. "HYPE") to its numeric spot asset index
-     * used in Hyperliquid wire payloads (the `a` field). Hides the `@N` key
-     * encoding used internally by the /info endpoint.
+     * used in Hyperliquid wire payloads (the `a` field). Spot assets are
+     * encoded as 10000 + spotUniverseIndex per the Hyperliquid wire spec.
      */
     getSpotAssetIndex(symbol: string): number {
-        return parseInt(this.lookupSpotKey(symbol).slice(1), 10);
+        return 10000 + parseInt(this.lookupSpotKey(symbol).slice(1), 10);
     }
 
     private async loadSpotMeta(): Promise<void> {

@@ -5,6 +5,7 @@ import { Grouping } from './wire/grouping';
 
 // Deterministic test private key (not a real key used anywhere)
 const TEST_AGENT_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+const TEST_ACCOUNT_ADDRESS = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
 function makeMockHttp() {
     return {
@@ -46,6 +47,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.999,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -65,6 +67,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.001,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -84,6 +87,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.0,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             expect(http.postExchange).toHaveBeenCalledOnce();
@@ -102,6 +106,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.0,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as { action: { orders: object[] } };
@@ -118,6 +123,7 @@ describe('HyperliquidOrdersService', () => {
                 price: 10.0,
                 cloid: '0xdeadbeef',
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as { action: { orders: object[] } };
@@ -133,6 +139,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.0,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -151,6 +158,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.0,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -172,6 +180,7 @@ describe('HyperliquidOrdersService', () => {
                 amount: 1.0,
                 price: 10.0,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -190,6 +199,7 @@ describe('HyperliquidOrdersService', () => {
                 symbol: 'HYPE',
                 exchangeOrderId: 123456,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             expect(http.postExchange).toHaveBeenCalledOnce();
@@ -207,6 +217,7 @@ describe('HyperliquidOrdersService', () => {
                 symbol: 'HYPE',
                 exchangeOrderId: 999,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
             const call = http.postExchange.mock.calls[0][0] as {
@@ -219,17 +230,18 @@ describe('HyperliquidOrdersService', () => {
             });
         });
 
-        it('should pass vaultAddress as null', async () => {
+        it('should pass accountAddress as vaultAddress', async () => {
             http.postExchange.mockResolvedValue({ status: 'ok' });
 
             await sut.cancelSpotOrder({
                 symbol: 'HYPE',
                 exchangeOrderId: 1,
                 agentPrivateKey: TEST_AGENT_PRIVATE_KEY,
+                accountAddress: TEST_ACCOUNT_ADDRESS,
             });
 
-            const call = http.postExchange.mock.calls[0][0] as { vaultAddress: null };
-            expect(call.vaultAddress).toBeNull();
+            const call = http.postExchange.mock.calls[0][0] as { vaultAddress: string };
+            expect(call.vaultAddress).toBe(TEST_ACCOUNT_ADDRESS);
         });
     });
 });

@@ -6,9 +6,11 @@ export interface HyperliquidSdkPlaceOrderStatus {
 
 export interface HyperliquidSdkPlaceOrderResponse {
     status?: string;
-    response?: {
-        data?: {
-            statuses?: HyperliquidSdkPlaceOrderStatus[];
-        };
-    };
+    response?:
+        | string
+        | {
+              data?: {
+                  statuses?: HyperliquidSdkPlaceOrderStatus[];
+              };
+          };
 }
