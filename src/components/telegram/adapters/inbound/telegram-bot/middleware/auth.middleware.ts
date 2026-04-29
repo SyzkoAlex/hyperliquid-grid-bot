@@ -47,8 +47,10 @@ export function createAuthMiddleware(
             return next();
         }
 
-        // Allow users already in the connect-account scene
-        if (ctx.scene?.current?.id === CONNECT_ACCOUNT_SCENE_ID) {
+        // Allow users already in the connect-account scene.
+        // ctx.scene is populated by the stage middleware which runs after auth,
+        // so we read the current scene directly from the session instead.
+        if (ctx.session?.__scenes?.current === CONNECT_ACCOUNT_SCENE_ID) {
             return next();
         }
 

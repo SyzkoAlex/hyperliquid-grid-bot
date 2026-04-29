@@ -3,6 +3,7 @@ import { createAuthMiddleware } from './auth.middleware';
 import { BotContext } from '../types/bot-context';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { UserStatus } from '@domain/models/user/user-status';
+import { CONNECT_ACCOUNT_SCENE_ID } from '../scenes/connect-account/connect-account.scene';
 
 const mockLog = vi.hoisted(() => {
     const log = {
@@ -119,5 +120,17 @@ describe('createAuthMiddleware', () => {
         await middlewareNoRestriction(ctx, asNext(next));
 
         expect(mockLog.warn).toHaveBeenCalled();
+    });
+
+    it('allows unregistered user who is already in connect-account scene', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999, '0xabc');
+        (ctx as any).session = { __scenes: { current: CONNECT_ACCOUNT_SCENE_ID } };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
     });
 });
