@@ -39,21 +39,14 @@ export class HyperliquidOrdersService {
         });
         const action = OrderAction.create([wire]);
         const nonce = Date.now();
-        const account = privateKeyToAccount(input.agentPrivateKey as `0x${string}`);
-        const signature = await signL1Action(
-            account,
-            action,
-            nonce,
-            this.isMainnet,
-            input.accountAddress,
-        );
+        const agentAccount = privateKeyToAccount(input.agentPrivateKey as `0x${string}`);
+        const signature = await signL1Action(agentAccount, action, nonce, this.isMainnet);
 
         this.logger.debug({ symbol: input.symbol, size, limitPx }, 'Placing spot order');
         return this.http.postExchange<HyperliquidSdkPlaceOrderResponse>({
             action,
             nonce,
             signature,
-            vaultAddress: input.accountAddress,
         });
     }
 
@@ -61,14 +54,8 @@ export class HyperliquidOrdersService {
         const assetIndex = this.meta.getSpotAssetIndex(input.symbol);
         const action = CancelAction.create([{ a: assetIndex, o: input.exchangeOrderId }]);
         const nonce = Date.now();
-        const account = privateKeyToAccount(input.agentPrivateKey as `0x${string}`);
-        const signature = await signL1Action(
-            account,
-            action,
-            nonce,
-            this.isMainnet,
-            input.accountAddress,
-        );
+        const agentAccount = privateKeyToAccount(input.agentPrivateKey as `0x${string}`);
+        const signature = await signL1Action(agentAccount, action, nonce, this.isMainnet);
 
         this.logger.debug(
             { symbol: input.symbol, oid: input.exchangeOrderId },
@@ -78,7 +65,6 @@ export class HyperliquidOrdersService {
             action,
             nonce,
             signature,
-            vaultAddress: input.accountAddress,
         });
     }
 }

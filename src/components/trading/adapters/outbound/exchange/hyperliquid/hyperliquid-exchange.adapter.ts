@@ -46,7 +46,6 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
                 price: params.price.toNumber(),
                 cloid: ExchangeCloid.create(params.orderId).toString(),
                 agentPrivateKey,
-                accountAddress: params.accountAddress,
             };
 
             const response = await this.orders.placeSpotOrder(orderData);
@@ -68,7 +67,6 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
                 symbol: params.symbol.toString(),
                 exchangeOrderId: Number(params.exchangeOrderId),
                 agentPrivateKey,
-                accountAddress: params.accountAddress,
             });
             this.logger.info({ params, response }, 'Order cancelled');
             return {
@@ -187,7 +185,6 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
                 symbol: 'USDC',
                 exchangeOrderId: 0,
                 agentPrivateKey,
-                accountAddress,
             });
             // Should never succeed for a non-existent order
             return { approved: true };

@@ -10,9 +10,10 @@ import {
     HyperliquidWsEvent,
     HyperliquidWsOrderStatus,
 } from '@/infra/hyperliquid/types/hyperliquid-ws-event';
+import { OrderStreamPort } from '@components/trading/core/application/ports/order-stream.port';
 
 @Injectable()
-export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
+export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy, OrderStreamPort {
     private readonly logger = logger.child({ context: OrdersWebsocketAdapter.name });
     private readonly wsClient: WebSocketClient;
     private accountAddress: string | null = null;
@@ -63,7 +64,13 @@ export class OrdersWebsocketAdapter implements OnModuleInit, OnModuleDestroy {
         return this.wsClient.isConnected();
     }
 
-    setAccountAddress(address: string): void {
+    subscribeOrderStreamForAccount(address: string): void {
+        if (this.accountAddress && this.wsClient.isConnected()) {
+            this.wsClient.send({
+                method: 'unsubscribe',
+                subscription: { type: 'orderUpdates', user: this.accountAddress },
+            });
+        }
         this.accountAddress = address;
         if (this.wsClient.isConnected()) {
             this.subscribeToOrderUpdates();

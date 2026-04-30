@@ -4,6 +4,9 @@ import { HyperliquidHttpClient } from '../http/hyperliquid-http.client';
 import { SpotMeta } from '../types/hyperliquid-spot-meta';
 import { HyperliquidSymbol } from '../symbol/hyperliquid-symbol';
 
+// Hyperliquid wire spec: spot asset index = 10000 + spotUniverseIndex
+const SPOT_ASSET_INDEX_OFFSET = 10000;
+
 /**
  * Manages spot metadata cache (token list, asset map).
  */
@@ -75,7 +78,7 @@ export class HyperliquidMetaService implements OnModuleInit {
      * encoded as 10000 + spotUniverseIndex per the Hyperliquid wire spec.
      */
     getSpotAssetIndex(symbol: string): number {
-        return 10000 + parseInt(this.lookupSpotKey(symbol).slice(1), 10);
+        return SPOT_ASSET_INDEX_OFFSET + parseInt(this.lookupSpotKey(symbol).slice(1), 10);
     }
 
     private async loadSpotMeta(): Promise<void> {

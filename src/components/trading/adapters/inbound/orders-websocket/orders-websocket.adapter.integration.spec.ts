@@ -209,7 +209,7 @@ describe('OrdersWebsocketAdapter (Integration)', () => {
             onModuleInit: vi.fn(),
             onModuleDestroy: vi.fn(),
             isConnected: vi.fn().mockReturnValue(false),
-            setAccountAddress: vi.fn(),
+            subscribeOrderStreamForAccount: vi.fn(),
         };
 
         const moduleBuilder = Test.createTestingModule({

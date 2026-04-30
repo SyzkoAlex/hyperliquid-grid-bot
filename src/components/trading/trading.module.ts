@@ -33,6 +33,7 @@ import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { TradingApiAdapter } from '@components/trading/api/trading-api.adapter';
 import { TRADING_API_PORT } from '@components/trading/api/trading-api.port';
+import { ORDER_STREAM_PORT } from '@components/trading/core/application/ports/order-stream.port';
 import { UsersModule } from '@components/users/users.module';
 
 @Module({
@@ -45,6 +46,7 @@ import { UsersModule } from '@components/users/users.module';
     ],
     providers: [
         { provide: TRADING_API_PORT, useClass: TradingApiAdapter },
+        { provide: ORDER_STREAM_PORT, useExisting: OrdersWebsocketAdapter },
         HyperliquidExchangeMapper,
         { provide: EXCHANGE_PORT, useClass: HyperliquidExchangeAdapter },
         EventDeserializer,

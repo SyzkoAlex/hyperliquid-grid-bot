@@ -24,7 +24,7 @@ describe('VerifyAgentUseCase', () => {
 
     let mockTradingApi: {
         probeAgentApproval: ReturnType<typeof vi.fn>;
-        notifyAgentActivated: ReturnType<typeof vi.fn>;
+        subscribeOrderStreamForAccount: ReturnType<typeof vi.fn>;
     };
 
     beforeEach(() => {
@@ -35,7 +35,7 @@ describe('VerifyAgentUseCase', () => {
 
         mockTradingApi = {
             probeAgentApproval: vi.fn().mockResolvedValue({ approved: true }),
-            notifyAgentActivated: vi.fn(),
+            subscribeOrderStreamForAccount: vi.fn(),
         };
 
         sut = new VerifyAgentUseCase(mockUsersApi as any, mockTradingApi as any);
@@ -50,7 +50,9 @@ describe('VerifyAgentUseCase', () => {
             expect(result).toEqual({ success: true });
             expect(mockTradingApi.probeAgentApproval).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
             expect(mockUsersApi.activateUser).toHaveBeenCalledWith(MOCK_USER_ID);
-            expect(mockTradingApi.notifyAgentActivated).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
+            expect(mockTradingApi.subscribeOrderStreamForAccount).toHaveBeenCalledWith(
+                MOCK_ACCOUNT_ADDRESS,
+            );
         });
 
         it('should NOT activate user and return failure when probeAgentApproval returns approved: false', async () => {
@@ -60,7 +62,7 @@ describe('VerifyAgentUseCase', () => {
 
             expect(result).toEqual({ success: false });
             expect(mockUsersApi.activateUser).not.toHaveBeenCalled();
-            expect(mockTradingApi.notifyAgentActivated).not.toHaveBeenCalled();
+            expect(mockTradingApi.subscribeOrderStreamForAccount).not.toHaveBeenCalled();
         });
 
         it('should return failure when user is not found', async () => {

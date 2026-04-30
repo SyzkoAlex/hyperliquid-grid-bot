@@ -4,6 +4,10 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
+import {
+    ORDER_STREAM_PORT,
+    OrderStreamPort,
+} from '@components/trading/core/application/ports/order-stream.port';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { TradingApiPort } from './trading-api.port';
 import { UserStateDto } from './dto/user-state.dto';
@@ -14,7 +18,6 @@ import { CapitalCalculatorService } from '@components/trading/core/domain/servic
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Price } from '@domain/models/primitives/price';
 import { Config } from '@/config/config.schema';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 
 @Injectable()
 export class TradingApiAdapter implements TradingApiPort {
@@ -24,7 +27,7 @@ export class TradingApiAdapter implements TradingApiPort {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly capitalCalculator: CapitalCalculatorService,
         configService: ConfigService<Config, true>,
-        private readonly ordersWebsocket: OrdersWebsocketAdapter,
+        @Inject(ORDER_STREAM_PORT) private readonly orderStream: OrderStreamPort,
     ) {
         this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
     }
@@ -69,8 +72,8 @@ export class TradingApiAdapter implements TradingApiPort {
         return this.exchange.probeAgentApproval(accountAddress);
     }
 
-    notifyAgentActivated(accountAddress: string): void {
-        this.ordersWebsocket.setAccountAddress(accountAddress);
+    subscribeOrderStreamForAccount(accountAddress: string): void {
+        this.orderStream.subscribeOrderStreamForAccount(accountAddress);
     }
 
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {

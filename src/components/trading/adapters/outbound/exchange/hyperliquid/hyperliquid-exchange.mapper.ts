@@ -38,7 +38,10 @@ export class HyperliquidExchangeMapper {
             };
         }
 
-        const responseData = typeof response?.response === 'object' ? response.response : undefined;
+        const responseData =
+            response?.response !== null && typeof response?.response === 'object'
+                ? response.response
+                : undefined;
         const firstStatus = responseData?.data?.statuses?.[0];
 
         if (firstStatus?.error) {
