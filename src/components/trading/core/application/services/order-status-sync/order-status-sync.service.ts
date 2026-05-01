@@ -12,6 +12,7 @@ import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchan
 import { OrderStatusSyncResult } from './order-status-sync-result';
 import { ExchangeStatusMapper } from '@components/trading/core/domain/models/exchange-order/exchange-status.mapper';
 import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
+import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 
 @Injectable()
 export class OrderStatusSyncService {
@@ -68,7 +69,7 @@ export class OrderStatusSyncService {
                 exchangeOrderInfo?.statusTimestamp,
             );
 
-            this.updateProcessResult(result, newStatus, order);
+            this.updateProcessResult(result, newStatus, order, exchangeOrderInfo);
         }
 
         return result;
@@ -161,6 +162,7 @@ export class OrderStatusSyncService {
         result: OrderStatusSyncResult,
         status: OrderStatus,
         order: OrderDto,
+        exchangeOrderInfo?: ExchangeOrderInfo,
     ): void {
         result.incrementProcessed();
 
@@ -171,6 +173,9 @@ export class OrderStatusSyncService {
                 break;
             case OrderStatus.Cancelled:
                 result.incrementCancelled();
+                if (exchangeOrderInfo?.status === ExchangeOrderStatus.SELF_TRADE_CANCELED) {
+                    result.addStpCancelledOrder(order);
+                }
                 break;
             case OrderStatus.Missing:
                 result.incrementMissing();

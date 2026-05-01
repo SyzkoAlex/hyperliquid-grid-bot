@@ -15,7 +15,7 @@ import { logger } from '@/infra/logger/logger';
  * expandEnv('${APP_PORT:3000}') // returns process.env.APP_PORT or '3000'
  * expandEnv('${DATABASE_URL}')   // returns process.env.DATABASE_URL or throws
  */
-function expandEnv(value: unknown): unknown {
+export function expandEnv(value: unknown): unknown {
     if (typeof value !== 'string') return value;
 
     // Match ${ENV_VAR} or ${ENV_VAR:default}
@@ -56,14 +56,6 @@ function expandObject(obj: unknown): unknown {
     return expandEnv(obj);
 }
 
-function deriveWebsocketUrl(config: Record<string, unknown>): void {
-    const hl = config.hyperliquid as Record<string, unknown> | undefined;
-    if (hl && typeof hl.apiUrl === 'string' && !hl.websocketUrl) {
-        hl.websocketUrl =
-            hl.apiUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://') + '/ws';
-    }
-}
-
 // Singleton cache
 let cachedConfig: Config | null = null;
 
@@ -92,7 +84,6 @@ export function loadConfiguration(): Config {
     const rawConfig = yaml.load(fileContents);
 
     const expandedConfig = expandObject(rawConfig) as Record<string, unknown>;
-    deriveWebsocketUrl(expandedConfig);
 
     const result = configSchema.safeParse(expandedConfig);
 

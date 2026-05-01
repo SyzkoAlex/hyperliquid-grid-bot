@@ -309,6 +309,27 @@ describe('OrderStatusSyncService', () => {
             expect(mockOrderClient.getOrderStatus).not.toHaveBeenCalled();
         });
 
+        it('should add order to stpCancelledOrders when selfTradeCanceled and still mark as Cancelled in DB', async () => {
+            const order1 = createDbOrder('order-1');
+            const dbOrders = [order1];
+
+            mockOrderStatus(
+                new Map([['order-1', { status: ExchangeOrderStatus.SELF_TRADE_CANCELED }]]),
+            );
+
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
+
+            expect(result.stpCancelledOrders).toHaveLength(1);
+            expect(result.stpCancelledOrders).toContainEqual(order1);
+            expect(result.cancelled).toBe(1);
+            expect(result.filledOrders).toHaveLength(0);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                order1.id,
+                OrderStatus.Cancelled,
+                undefined,
+            );
+        });
+
         it('should detect filled order when not in exchange orders', async () => {
             const order1 = createDbOrder('order-1');
             const dbOrders = [order1];

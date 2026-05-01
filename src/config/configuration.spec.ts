@@ -1,72 +1,49 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { expandEnv } from './configuration';
 
-vi.mock('node:fs');
-vi.mock('js-yaml');
-
-describe('deriveWebsocketUrl (via loadConfiguration)', () => {
+describe('expandEnv', () => {
     beforeEach(() => {
-        vi.resetModules();
-        vi.resetAllMocks();
+        process.env['TEST_EXPAND_VAR'] = 'hello';
     });
 
-    it('derives wss:// from https:// apiUrl', async () => {
-        const { deriveWebsocketUrl } = await importHelper();
-        const config: Record<string, unknown> = {
-            hyperliquid: { apiUrl: 'https://api.hyperliquid.xyz' },
-        };
-        deriveWebsocketUrl(config);
-        expect((config.hyperliquid as Record<string, unknown>).websocketUrl).toBe(
-            'wss://api.hyperliquid.xyz/ws',
-        );
+    afterEach(() => {
+        delete process.env['TEST_EXPAND_VAR'];
+        delete process.env['TEST_EXPAND_EMPTY'];
     });
 
-    it('derives ws:// from http:// apiUrl', async () => {
-        const { deriveWebsocketUrl } = await importHelper();
-        const config: Record<string, unknown> = {
-            hyperliquid: { apiUrl: 'http://localhost:3001' },
-        };
-        deriveWebsocketUrl(config);
-        expect((config.hyperliquid as Record<string, unknown>).websocketUrl).toBe(
-            'ws://localhost:3001/ws',
-        );
+    it('should return the env variable value when ${VAR} is set', () => {
+        const result = expandEnv('${TEST_EXPAND_VAR}');
+        expect(result).toBe('hello');
     });
 
-    it('does not overwrite an explicitly set websocketUrl', async () => {
-        const { deriveWebsocketUrl } = await importHelper();
-        const config: Record<string, unknown> = {
-            hyperliquid: {
-                apiUrl: 'https://api.hyperliquid.xyz',
-                websocketUrl: 'wss://custom.example.com/ws',
-            },
-        };
-        deriveWebsocketUrl(config);
-        expect((config.hyperliquid as Record<string, unknown>).websocketUrl).toBe(
-            'wss://custom.example.com/ws',
-        );
+    it('should return the default value when env var is not set and default is provided', () => {
+        const result = expandEnv('${TEST_EXPAND_MISSING:fallback}');
+        expect(result).toBe('fallback');
     });
 
-    it('does nothing when hyperliquid key is absent', async () => {
-        const { deriveWebsocketUrl } = await importHelper();
-        const config = {};
-        expect(() => deriveWebsocketUrl(config)).not.toThrow();
+    it('should return undefined when env var is not set and no default is provided', () => {
+        const result = expandEnv('${TEST_EXPAND_MISSING}');
+        expect(result).toBeUndefined();
+    });
+
+    it('should return the original string when it is not a ${VAR} placeholder', () => {
+        const result = expandEnv('plain-string');
+        expect(result).toBe('plain-string');
+    });
+
+    it('should return non-string values unchanged', () => {
+        expect(expandEnv(42)).toBe(42);
+        expect(expandEnv(true)).toBe(true);
+        expect(expandEnv(null)).toBe(null);
+    });
+
+    it('should prefer actual env var over default when both exist', () => {
+        const result = expandEnv('${TEST_EXPAND_VAR:default}');
+        expect(result).toBe('hello');
+    });
+
+    it('should return empty string default when specified', () => {
+        const result = expandEnv('${TEST_EXPAND_MISSING:}');
+        expect(result).toBe('');
     });
 });
-
-// Re-export the private function for testing via module boundary
-async function importHelper(): Promise<{
-    deriveWebsocketUrl: (config: Record<string, unknown>) => void;
-}> {
-    // We test the function behaviour directly by calling loadConfiguration with
-    // controlled inputs via a thin re-export shim. Since the function is not
-    // exported, we replicate its logic here to keep tests in sync.
-    return {
-        deriveWebsocketUrl(config: Record<string, unknown>): void {
-            const hl = config.hyperliquid as Record<string, unknown> | undefined;
-            if (hl && typeof hl.apiUrl === 'string' && !hl.websocketUrl) {
-                hl.websocketUrl =
-                    hl.apiUrl.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://') +
-                    '/ws';
-            }
-        },
-    };
-}

@@ -5,7 +5,6 @@ import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
 import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersRestoreAdapter } from './orders-restore.adapter';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { USERS_API_PORT } from '@components/users/api/users-api.port';
@@ -292,12 +291,6 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             cancelSpotOrder: vi.fn(),
         };
 
-        const mockWsAdapter = {
-            onModuleInit: vi.fn(),
-            onModuleDestroy: vi.fn(),
-            isConnected: vi.fn().mockReturnValue(false),
-        };
-
         const moduleBuilder = Test.createTestingModule({
             imports: [
                 MockDistributedLockModule,
@@ -344,7 +337,6 @@ describe('OrdersRestoreAdapter (Integration)', () => {
 
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
         moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
         module = await moduleBuilder.compile();

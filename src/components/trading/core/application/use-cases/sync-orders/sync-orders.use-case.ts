@@ -6,6 +6,7 @@ import {
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
+import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { GridWithOrders } from './grid-with-orders';
@@ -19,6 +20,7 @@ export class SyncOrdersUseCase {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
+        private readonly stpRecoveryService: StpRecoveryService,
     ) {}
 
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
@@ -75,7 +77,13 @@ export class SyncOrdersUseCase {
                 accountAddress,
             );
 
-            result.update({ fills: statusSyncResult.filled, refills: refillsPlaced });
+            const stpRecovered = await this.stpRecoveryService.recoverMany(
+                statusSyncResult.stpCancelledOrders,
+                gridWithOrders.grid,
+                accountAddress,
+            );
+
+            result.update({ fills: statusSyncResult.filled, refills: refillsPlaced, stpRecovered });
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             result.errors.push(`Grid ${gridWithOrders.grid.id}: ${errorMsg}`);
@@ -84,12 +92,13 @@ export class SyncOrdersUseCase {
     }
 
     private logResultIfNeeded(result: SyncOrdersResult): void {
-        if (result.fillsDetected) {
+        if (result.fillsDetected > 0 || result.stpRecovered > 0) {
             this.logger.info(
                 {
                     gridsProcessed: result.gridsProcessed,
                     fillsDetected: result.fillsDetected,
                     refillsPlaced: result.refillsPlaced,
+                    stpRecovered: result.stpRecovered,
                 },
                 'Orders sync completed',
             );

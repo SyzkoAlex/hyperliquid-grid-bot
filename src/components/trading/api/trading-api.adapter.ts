@@ -4,10 +4,6 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
-import {
-    ORDER_STREAM_PORT,
-    OrderStreamPort,
-} from '@components/trading/core/application/ports/order-stream.port';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { TradingApiPort } from './trading-api.port';
 import { UserStateDto } from './dto/user-state.dto';
@@ -27,7 +23,6 @@ export class TradingApiAdapter implements TradingApiPort {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly capitalCalculator: CapitalCalculatorService,
         configService: ConfigService<Config, true>,
-        @Inject(ORDER_STREAM_PORT) private readonly orderStream: OrderStreamPort,
     ) {
         this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
     }
@@ -70,10 +65,6 @@ export class TradingApiAdapter implements TradingApiPort {
 
     async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {
         return this.exchange.probeAgentApproval(accountAddress);
-    }
-
-    subscribeOrderStreamForAccount(accountAddress: string): void {
-        this.orderStream.subscribeOrderStreamForAccount(accountAddress);
     }
 
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {

@@ -5,7 +5,6 @@ import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
 import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersPollingAdapter } from './orders-polling.adapter';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -183,6 +182,41 @@ describe('OrdersPollingAdapter (Integration)', () => {
             expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
         });
 
+        it('should mark order Cancelled and re-place on the same level/side when selfTradeCanceled', async () => {
+            const grid = await createGrid('BTC');
+            const order = await createOrder(grid, {
+                side: OrderSide.Buy,
+                price: 50000,
+                levelIndex: 5,
+                exchangeOrderId: '55555',
+            });
+
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([]);
+
+            vi.mocked(hyperliquidOrderClient.getOrderStatus).mockResolvedValue({
+                exchangeOrderId: '55555',
+                status: ExchangeOrderStatus.SELF_TRADE_CANCELED,
+                statusTimestamp: Date.now(),
+            });
+
+            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockResolvedValue({
+                exchangeOrderId: '55556',
+                status: OrderStatus.Placed,
+            });
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (monitor as any).checkOrders();
+
+            const cancelledOrder = await gridsApi.findOrderByExchangeId('55555');
+            expect(cancelledOrder?.status).toBe(OrderStatus.Cancelled);
+
+            const allOrders = await gridsApi.findActiveOrdersByGridId(grid.id);
+            const recovered = allOrders.filter(
+                (o) => o.id !== order.id && o.levelIndex === 5 && o.side === OrderSide.Buy,
+            );
+            expect(recovered.length).toBeGreaterThan(0);
+        });
+
         it('should handle orders still open on exchange', async () => {
             const grid = await createGrid('SOL', {
                 lowerPrice: 100,
@@ -269,12 +303,6 @@ describe('OrdersPollingAdapter (Integration)', () => {
             cancelSpotOrder: vi.fn(),
         };
 
-        const mockWsAdapter = {
-            onModuleInit: vi.fn(),
-            onModuleDestroy: vi.fn(),
-            isConnected: vi.fn().mockReturnValue(false),
-        };
-
         const moduleBuilder = Test.createTestingModule({
             imports: [
                 MockDistributedLockModule,
@@ -321,7 +349,6 @@ describe('OrdersPollingAdapter (Integration)', () => {
 
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
         moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
         module = await moduleBuilder.compile();

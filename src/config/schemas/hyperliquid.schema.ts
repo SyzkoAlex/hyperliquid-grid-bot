@@ -3,7 +3,6 @@ import { z } from 'zod';
 export const hyperliquidSchema = z.object({
     apiUrl: z.string().url(),
     testnet: z.coerce.boolean().default(false),
-    websocketUrl: z.string().url(),
     agentKeyEncryptionKey: z
         .string()
         .length(64, 'Must be 64 hex chars (32 bytes)')
@@ -15,11 +14,6 @@ export const hyperliquidSchema = z.object({
     requestTimeout: z.coerce.number().int().positive(),
     minOrderNotional: z.coerce.number().positive(),
     sellSizeBuffer: z.coerce.number().min(0).max(0.1),
-    websocket: z.object({
-        maxReconnectAttempts: z.coerce.number().int().positive(),
-        baseReconnectDelay: z.coerce.number().int().positive(),
-        keepAliveIntervalMs: z.coerce.number().int().positive(),
-    }),
 });
 
 export type HyperliquidConfig = z.infer<typeof hyperliquidSchema>;

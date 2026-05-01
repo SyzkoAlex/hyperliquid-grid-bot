@@ -6,7 +6,6 @@ import { HttpModule } from '@/infra/http/http.module';
 import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { GridCommandsAdapter } from './grid-commands.adapter';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -532,12 +531,6 @@ async function setupTestEnvironment() {
         pairExists: vi.fn(),
     };
 
-    const mockWsAdapter = {
-        onModuleInit: vi.fn(),
-        onModuleDestroy: vi.fn(),
-        isConnected: vi.fn().mockReturnValue(false),
-    };
-
     const moduleBuilder = Test.createTestingModule({
         imports: [
             MockDistributedLockModule,
@@ -584,7 +577,6 @@ async function setupTestEnvironment() {
 
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
     moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockExchange);
-    moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
     moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
     // Compile module

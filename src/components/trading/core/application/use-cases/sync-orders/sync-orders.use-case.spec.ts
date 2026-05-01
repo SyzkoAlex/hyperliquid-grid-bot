@@ -18,6 +18,7 @@ describe('SyncOrdersUseCase', () => {
     let mockGrids: any;
     let mockOrderStatusSyncService: any;
     let mockOrderRefillService: any;
+    let mockStpRecoveryService: any;
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
         symbol: 'BTC',
@@ -61,11 +62,17 @@ describe('SyncOrdersUseCase', () => {
         };
 
         mockOrderStatusSyncService = {
-            process: vi.fn().mockResolvedValue({ filled: 0, filledOrders: [] }),
+            process: vi
+                .fn()
+                .mockResolvedValue({ filled: 0, filledOrders: [], stpCancelledOrders: [] }),
         };
 
         mockOrderRefillService = {
             processMany: vi.fn().mockResolvedValue(0),
+        };
+
+        mockStpRecoveryService = {
+            recoverMany: vi.fn().mockResolvedValue(0),
         };
 
         useCase = new SyncOrdersUseCase(
@@ -73,6 +80,7 @@ describe('SyncOrdersUseCase', () => {
             mockGrids,
             mockOrderStatusSyncService,
             mockOrderRefillService,
+            mockStpRecoveryService,
         );
     });
 
@@ -115,6 +123,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 1,
                 filledOrders: [order],
+                stpCancelledOrders: [],
             });
             mockOrderRefillService.processMany.mockResolvedValue(1);
 
@@ -158,6 +167,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 0,
                 filledOrders: [],
+                stpCancelledOrders: [],
             });
 
             const result = await useCase.execute('0x123', 'user-uuid-1');
@@ -214,7 +224,7 @@ describe('SyncOrdersUseCase', () => {
             mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order1, order2]);
             mockOrderStatusSyncService.process
                 .mockRejectedValueOnce(new Error('DB error'))
-                .mockResolvedValueOnce({ filled: 0, filledOrders: [] });
+                .mockResolvedValueOnce({ filled: 0, filledOrders: [], stpCancelledOrders: [] });
 
             const result = await useCase.execute('0x123', 'user-uuid-1');
 
@@ -235,6 +245,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 2,
                 filledOrders: [buyOrder1, buyOrder2],
+                stpCancelledOrders: [],
             });
             mockOrderRefillService.processMany.mockResolvedValue(1);
 
@@ -278,6 +289,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService.process.mockResolvedValue({
                 filled: 2,
                 filledOrders: [order, order2],
+                stpCancelledOrders: [],
             });
             mockOrderRefillService.processMany.mockResolvedValue(1);
 
@@ -285,6 +297,26 @@ describe('SyncOrdersUseCase', () => {
 
             expect(result.fillsDetected).toBe(2);
             expect(result.refillsPlaced).toBe(1);
+        });
+
+        it('should reflect stpRecovered from stpRecoveryService.recoverMany', async () => {
+            const grid = createTestGrid();
+            const orderId = crypto.randomUUID();
+            const order = createTestOrder(grid.id, { id: orderId });
+
+            mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
+            mockGrids.findActiveGridsByUserId.mockResolvedValue([grid]);
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 0,
+                filledOrders: [],
+                stpCancelledOrders: [order],
+            });
+            mockStpRecoveryService.recoverMany.mockResolvedValue(2);
+
+            const result = await useCase.execute('0x123', 'user-uuid-1');
+
+            expect(result.stpRecovered).toBe(2);
         });
     });
 });

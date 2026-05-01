@@ -74,7 +74,6 @@ Required changes:
 ### Risk Management
 
 - [ ] Order placement retry logic (3 attempts with backoff)
-- [ ] WebSocket reconnection logic
 - [ ] Rate limiting for exchange API
 
 ### Remove Hyperliquid SDK Dependency

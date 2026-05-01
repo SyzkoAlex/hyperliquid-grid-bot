@@ -13,5 +13,4 @@ export interface TradingApiPort {
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto;
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number;
     probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
-    subscribeOrderStreamForAccount(accountAddress: string): void;
 }

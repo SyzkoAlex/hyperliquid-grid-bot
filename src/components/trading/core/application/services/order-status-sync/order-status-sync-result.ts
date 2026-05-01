@@ -7,6 +7,7 @@ export class OrderStatusSyncResult {
     public missing: number;
     public failed: number;
     public filledOrders: OrderDto[];
+    public stpCancelledOrders: OrderDto[];
 
     constructor(
         processed: number = 0,
@@ -15,6 +16,7 @@ export class OrderStatusSyncResult {
         missing: number = 0,
         failed: number = 0,
         filledOrders: OrderDto[] = [],
+        stpCancelledOrders: OrderDto[] = [],
     ) {
         this.processed = processed;
         this.filled = filled;
@@ -22,6 +24,7 @@ export class OrderStatusSyncResult {
         this.missing = missing;
         this.failed = failed;
         this.filledOrders = filledOrders;
+        this.stpCancelledOrders = stpCancelledOrders;
     }
 
     static empty(): OrderStatusSyncResult {
@@ -50,5 +53,9 @@ export class OrderStatusSyncResult {
 
     addFilledOrder(order: OrderDto): void {
         this.filledOrders.push(order);
+    }
+
+    addStpCancelledOrder(order: OrderDto): void {
+        this.stpCancelledOrders.push(order);
     }
 }
