@@ -4,10 +4,13 @@ import { DRIZZLE_DB } from '@/infra/database/database.module';
 import { Grid } from '../../../../core/domain/models/grid/grid';
 import { GridId } from '../../../../core/domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { grids } from '@/infra/database/schema';
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { grids, users } from '@/infra/database/schema';
+import { and, asc, count, desc, eq, gt } from 'drizzle-orm';
 import { logger } from '@/infra/logger/logger';
-import { GridRepositoryPort } from '../../../../core/application/ports/grid-repository.port';
+import {
+    GridRepositoryPort,
+    GridWithAccount,
+} from '../../../../core/application/ports/grid-repository.port';
 import { PostgresGridMapper } from './postgres-grid.mapper';
 
 @Injectable()
@@ -106,6 +109,36 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
         } catch (error) {
             this.logger.error({ error, status }, 'Failed to count grids by status');
             return 0;
+        }
+    }
+
+    async findManyActiveByCursor(
+        afterId: string | null,
+        limit: number,
+    ): Promise<GridWithAccount[]> {
+        try {
+            const whereClause = afterId
+                ? and(eq(grids.status, GridStatus.Running), gt(grids.id, afterId))
+                : eq(grids.status, GridStatus.Running);
+
+            const result = await this.db
+                .select({
+                    grid: grids,
+                    accountAddress: users.accountAddress,
+                })
+                .from(grids)
+                .innerJoin(users, eq(grids.userId, users.id))
+                .where(whereClause)
+                .orderBy(asc(grids.id))
+                .limit(limit);
+
+            return result.map(({ grid, accountAddress }) => ({
+                grid: PostgresGridMapper.toDomain(grid),
+                accountAddress,
+            }));
+        } catch (error) {
+            this.logger.error({ error, afterId, limit }, 'Failed to find active grids by cursor');
+            return [];
         }
     }
 }

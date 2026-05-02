@@ -1,6 +1,9 @@
 import { Grid } from '../../domain/models/grid/grid';
 import { GridId } from '../../domain/models/grid/grid-id';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { GridWithAccount } from './grid-with-account';
+
+export { GridWithAccount };
 
 export const GRID_REPOSITORY_PORT = Symbol('GRID_REPOSITORY_PORT');
 
@@ -15,4 +18,5 @@ export interface GridRepositoryPort {
         limit: number,
     ): Promise<Grid[]>;
     countByStatus(status: GridStatus | undefined): Promise<number>;
+    findManyActiveByCursor(afterId: string | null, limit: number): Promise<GridWithAccount[]>;
 }

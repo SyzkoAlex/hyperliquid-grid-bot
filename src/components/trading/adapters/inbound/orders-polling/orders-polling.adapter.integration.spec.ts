@@ -29,6 +29,11 @@ import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { AppConfigModule } from '@/config/app-config.module';
 
+type PollingAdapterPrivate = {
+    checkOrders(): Promise<void>;
+    isProcessing: boolean;
+};
+
 describe('OrdersPollingAdapter (Integration)', () => {
     let module: TestingModule;
     let monitor: OrdersPollingAdapter;
@@ -142,8 +147,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 status: OrderStatus.Placed,
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('12345');
             expect(updatedOrder?.status).toBe(OrderStatus.Filled);
@@ -175,8 +179,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 statusTimestamp: Date.now(),
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('99999');
             expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
@@ -204,8 +207,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 status: OrderStatus.Placed,
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const cancelledOrder = await gridsApi.findOrderByExchangeId('55555');
             expect(cancelledOrder?.status).toBe(OrderStatus.Cancelled);
@@ -247,8 +249,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 },
             ]);
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('11111');
             expect(updatedOrder?.status).toBe(OrderStatus.Placed);
@@ -269,25 +270,23 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 new Error('Network timeout'),
             );
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await expect((monitor as any).checkOrders()).resolves.toBeUndefined();
+            await expect(
+                (monitor as unknown as PollingAdapterPrivate).checkOrders(),
+            ).resolves.toBeUndefined();
         });
     });
 
     describe('Concurrent Execution Prevention', () => {
         it('should prevent concurrent sync execution', async () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (monitor as any).isProcessing = true;
+            (monitor as unknown as PollingAdapterPrivate).isProcessing = true;
 
             const spy = vi.spyOn(hyperliquidOrderClient, 'getOpenSpotOrders');
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             expect(spy).not.toHaveBeenCalled();
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (monitor as any).isProcessing = false;
+            (monitor as unknown as PollingAdapterPrivate).isProcessing = false;
         });
     });
 
@@ -314,6 +313,8 @@ describe('OrdersPollingAdapter (Integration)', () => {
             ],
         });
 
+        // UsersApiPort is still required by other providers in TradingModule
+        // (CreateAndStartGridUseCase, HyperliquidExchangeAdapter, OrdersRestoreAdapter)
         const mockUsersApi = {
             findUserByChatId: vi.fn(),
             findUserByAccountAddress: vi.fn().mockResolvedValue({

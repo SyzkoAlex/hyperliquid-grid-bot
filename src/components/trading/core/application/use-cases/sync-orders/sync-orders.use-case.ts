@@ -4,6 +4,8 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
@@ -24,21 +26,23 @@ export class SyncOrdersUseCase {
     ) {}
 
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
-        const result = SyncOrdersResult.empty();
-
         const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(accountAddress);
-
         const activeGrids = await this.grids.findActiveGridsByUserId(userId);
-        if (activeGrids.length === 0) {
-            return result;
-        }
+        if (activeGrids.length === 0) return SyncOrdersResult.empty();
+        return this.executeForGrids(accountAddress, activeGrids, exchangeOpenOrders);
+    }
 
-        // Fetch all placed orders for active grids
-        const gridIds = activeGrids.map((grid) => grid.id);
+    async executeForGrids(
+        accountAddress: string,
+        activeGrids: GridDto[],
+        exchangeOpenOrders: ExchangeOpenOrder[],
+    ): Promise<SyncOrdersResult> {
+        const result = SyncOrdersResult.empty();
+        if (activeGrids.length === 0) return result;
+
+        const gridIds = activeGrids.map((g) => g.id);
         const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
-        if (allActiveDbOrders.length === 0) {
-            return result;
-        }
+        if (allActiveDbOrders.length === 0) return result;
 
         const gridsWithOrders = GridWithOrders.buildMany(
             activeGrids,

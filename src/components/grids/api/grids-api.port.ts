@@ -4,6 +4,9 @@ import { CreateGridDto } from './dto/create-grid.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
+import { GridWithAccountDto } from './dto/grid-with-account.dto';
+
+export { GridWithAccountDto };
 
 export const GRIDS_API_PORT = Symbol('GRIDS_API_PORT');
 
@@ -40,4 +43,7 @@ export interface GridsApiPort {
     findOrdersByStatus(status: OrderStatus): Promise<OrderDto[]>;
     findOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]>;
     findPlacedOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]>;
+
+    // ── Cursor-based read ──────────────────────────────────────────
+    findActiveGridsByCursor(afterId: string | null, limit: number): Promise<GridWithAccountDto[]>;
 }

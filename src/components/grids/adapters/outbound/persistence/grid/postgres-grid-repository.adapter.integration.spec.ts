@@ -10,6 +10,8 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { Timestamp } from '@domain/models/primitives/timestamp';
 import { PostgresGridRepositoryAdapter } from './postgres-grid-repository.adapter';
 
+const TEST_ACCOUNT_ADDRESS = '0x0000000000000000000000000000000000000001';
+
 function createGrid(
     overrides: Partial<{
         id: GridId;
@@ -196,6 +198,123 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             expect(await repository.countByStatus(GridStatus.Idle)).toBe(2);
             expect(await repository.countByStatus(GridStatus.Running)).toBe(1);
             expect(await repository.countByStatus(GridStatus.Stopped)).toBe(0);
+        });
+    });
+
+    describe('findManyActiveByCursor', () => {
+        it('should return empty array when no running grids', async () => {
+            const result = await repository.findManyActiveByCursor(null, 10);
+            expect(result).toEqual([]);
+        });
+
+        it('should return running grids joined with accountAddress', async () => {
+            const running = createGrid();
+            running.start();
+            const idle = createGrid();
+
+            await repository.save(running);
+            await repository.save(idle);
+
+            const result = await repository.findManyActiveByCursor(null, 10);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].grid.id.toString()).toBe(running.id.toString());
+            expect(result[0].accountAddress).toBe(TEST_ACCOUNT_ADDRESS);
+        });
+
+        it('should respect cursor and return only grids after it', async () => {
+            const g1 = createGrid();
+            g1.start();
+            const g2 = createGrid();
+            g2.start();
+            const g3 = createGrid();
+            g3.start();
+
+            await repository.save(g1);
+            await repository.save(g2);
+            await repository.save(g3);
+
+            // Get all to determine order
+            const all = await repository.findManyActiveByCursor(null, 10);
+            expect(all).toHaveLength(3);
+
+            // Use first grid's id as cursor
+            const afterFirst = await repository.findManyActiveByCursor(
+                all[0].grid.id.toString(),
+                10,
+            );
+            expect(afterFirst).toHaveLength(2);
+            expect(afterFirst[0].grid.id.toString()).toBe(all[1].grid.id.toString());
+            expect(afterFirst[1].grid.id.toString()).toBe(all[2].grid.id.toString());
+        });
+
+        it('should respect limit', async () => {
+            for (let i = 0; i < 5; i++) {
+                const g = createGrid();
+                g.start();
+                await repository.save(g);
+            }
+
+            const result = await repository.findManyActiveByCursor(null, 2);
+            expect(result).toHaveLength(2);
+        });
+
+        it('should return results ordered by id ascending', async () => {
+            const g1 = createGrid();
+            g1.start();
+            const g2 = createGrid();
+            g2.start();
+
+            await repository.save(g1);
+            await repository.save(g2);
+
+            const result = await repository.findManyActiveByCursor(null, 10);
+            expect(result.length).toBeGreaterThanOrEqual(2);
+
+            // Verify ascending order
+            const ids = result.map((r) => r.grid.id.toString());
+            const sorted = [...ids].sort();
+            expect(ids).toEqual(sorted);
+        });
+
+        it('should not return stopped grids', async () => {
+            const running = createGrid();
+            running.start();
+            const stopped = createGrid();
+            stopped.start();
+            stopped.stop();
+
+            await repository.save(running);
+            await repository.save(stopped);
+
+            const result = await repository.findManyActiveByCursor(null, 10);
+            expect(result).toHaveLength(1);
+            expect(result[0].grid.id.toString()).toBe(running.id.toString());
+        });
+
+        it('should support multiple users via JOIN', async () => {
+            const secondUserId = '00000000-0000-0000-0000-000000000002';
+            const secondAccountAddress = '0x0000000000000000000000000000000000000099';
+            await DatabaseTestHelper.seedTestUser({
+                id: secondUserId,
+                accountAddress: secondAccountAddress,
+                chatId: 100000002,
+            });
+
+            const g1 = createGrid({ userId: TEST_USER_ID });
+            g1.start();
+            const g2 = createGrid({ userId: secondUserId });
+            g2.start();
+
+            await repository.save(g1);
+            await repository.save(g2);
+
+            const result = await repository.findManyActiveByCursor(null, 10);
+            expect(result).toHaveLength(2);
+
+            const addresses = result.map((r) => r.accountAddress);
+            expect(addresses).toContain(TEST_ACCOUNT_ADDRESS);
+            expect(addresses).toContain(secondAccountAddress);
         });
     });
 });

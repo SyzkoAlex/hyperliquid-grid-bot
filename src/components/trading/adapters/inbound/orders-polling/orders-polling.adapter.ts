@@ -8,18 +8,21 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
-import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridWithAccountDto } from '@components/grids/api/dto/grid-with-account.dto';
+import {
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 
-/**
- * Orders Monitor
- *
- * Adapter that monitors orders using REST API polling.
- * Iterates all active users and syncs orders for each.
- */
 @Injectable()
 export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
+    private static readonly BATCH_SIZE = 100;
+
     private readonly logger = logger.child({ context: OrdersPollingAdapter.name });
     private readonly intervalName = 'orders-polling';
+    private readonly syncLockTtlMs: number;
     private isProcessing = false;
 
     constructor(
@@ -27,8 +30,12 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly syncOrders: SyncOrdersUseCase,
         private readonly schedulerRegistry: SchedulerRegistry,
         @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
-        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
-    ) {}
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
+    ) {
+        const ordersConfig = this.configService.get('orders', { infer: true });
+        this.syncLockTtlMs = ordersConfig.syncLockTtlMs;
+    }
 
     onModuleInit(): void {
         const ordersConfig = this.configService.get('orders', { infer: true });
@@ -55,9 +62,8 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         this.isProcessing = true;
 
         try {
-            const { syncLockTtlMs } = this.configService.get('orders', { infer: true });
-            const result = await this.lock.withLock('orders-sync', syncLockTtlMs, () =>
-                this.syncAllUsers(),
+            const result = await this.lock.withLock('orders-sync', this.syncLockTtlMs, () =>
+                this.syncAllActiveGrids(),
             );
             if (result === null) {
                 this.logger.debug('Orders sync skipped: another instance holds the lock');
@@ -69,23 +75,44 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         }
     }
 
-    private async syncAllUsers(): Promise<void> {
-        const activeUsers = await this.usersApi.findActiveUsers();
+    private async syncAllActiveGrids(): Promise<void> {
+        let cursor: string | null = null;
 
-        if (activeUsers.length === 0) {
-            this.logger.debug('No active users, skipping sync');
-            return;
+        while (true) {
+            const batch = await this.grids.findActiveGridsByCursor(
+                cursor,
+                OrdersPollingAdapter.BATCH_SIZE,
+            );
+            if (batch.length === 0) break;
+
+            await this.processBatch(batch);
+
+            cursor = batch[batch.length - 1].grid.id;
+            if (batch.length < OrdersPollingAdapter.BATCH_SIZE) break;
+        }
+    }
+
+    private async processBatch(batch: GridWithAccountDto[]): Promise<void> {
+        const byAccount = new Map<string, GridDto[]>();
+        for (const { grid, accountAddress } of batch) {
+            const existing = byAccount.get(accountAddress) ?? [];
+            existing.push(grid);
+            byAccount.set(accountAddress, existing);
         }
 
-        for (const user of activeUsers) {
-            try {
-                await this.syncOrders.execute(user.accountAddress, user.id);
-            } catch (error) {
-                this.logger.error(
-                    { error, userId: user.id, accountAddress: user.accountAddress },
-                    'Error syncing orders for user',
-                );
-            }
-        }
+        await Promise.all(
+            [...byAccount.entries()].map(async ([accountAddress, userGrids]) => {
+                try {
+                    const exchangeOrders = await this.exchange.getOpenSpotOrders(accountAddress);
+                    await this.syncOrders.executeForGrids(
+                        accountAddress,
+                        userGrids,
+                        exchangeOrders,
+                    );
+                } catch (error) {
+                    this.logger.error({ error, accountAddress }, 'Error syncing grids for account');
+                }
+            }),
+        );
     }
 }

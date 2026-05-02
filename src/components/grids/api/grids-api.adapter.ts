@@ -17,6 +17,7 @@ import {
     OrderRepositoryPort,
 } from '../core/application/ports/order-repository.port';
 import { GridsApiPort } from './grids-api.port';
+import { GridWithAccountDto } from './dto/grid-with-account.dto';
 import { GridsApiMapper } from './grids-api.mapper';
 import { GridDto } from './dto/grid.dto';
 import { OrderDto } from './dto/order.dto';
@@ -156,5 +157,16 @@ export class GridsApiAdapter implements GridsApiPort {
     async findPlacedOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]> {
         const orders = await this.orderRepo.findManyPlacedByGridIds(gridIds);
         return orders.map((o) => GridsApiMapper.toOrderDto(o));
+    }
+
+    async findActiveGridsByCursor(
+        afterId: string | null,
+        limit: number,
+    ): Promise<GridWithAccountDto[]> {
+        const items = await this.gridRepo.findManyActiveByCursor(afterId, limit);
+        return items.map(({ grid, accountAddress }) => ({
+            grid: GridsApiMapper.toGridDto(grid),
+            accountAddress,
+        }));
     }
 }
