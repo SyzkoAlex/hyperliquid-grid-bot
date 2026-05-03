@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { UserStatus } from '@domain/models/user/user-status';
-import { User } from '../core/domain/models/user';
+import { User } from '../core/domain/models/user/user';
 import {
     USER_REPOSITORY_PORT,
     UserRepositoryPort,

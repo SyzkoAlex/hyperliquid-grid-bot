@@ -1,22 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UsersApiAdapter } from './users-api.adapter';
 import { UserStatus } from '@domain/models/user/user-status';
-import { User } from '../core/domain/models/user';
+import { User } from '../core/domain/models/user/user';
 
 const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001';
 const MOCK_CHAT_ID = 123456789;
 const MOCK_ACCOUNT_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_AGENT_ADDRESS = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
 
-function makeUserFull(status: UserStatus = UserStatus.PendingApproval): User {
-    return new User(
-        MOCK_USER_ID,
-        MOCK_CHAT_ID,
-        MOCK_ACCOUNT_ADDRESS,
-        MOCK_AGENT_ADDRESS,
+function makeUser(status: UserStatus = UserStatus.PendingApproval): User {
+    return User.create({
+        id: MOCK_USER_ID,
+        telegramChatId: MOCK_CHAT_ID,
+        accountAddress: MOCK_ACCOUNT_ADDRESS,
+        agentAddress: MOCK_AGENT_ADDRESS,
         status,
-        new Date('2024-01-01'),
-    );
+        createdAt: new Date('2024-01-01'),
+    });
 }
 
 describe('UsersApiAdapter', () => {
@@ -69,7 +69,7 @@ describe('UsersApiAdapter', () => {
         });
 
         it('should return dto when user found', async () => {
-            mockRepo.findOneById.mockResolvedValue(makeUserFull());
+            mockRepo.findOneById.mockResolvedValue(makeUser());
             const result = await sut.findUserById(MOCK_USER_ID);
             expect(result).not.toBeNull();
             expect(result!.id).toBe(MOCK_USER_ID);
@@ -85,7 +85,7 @@ describe('UsersApiAdapter', () => {
         });
 
         it('should return dto when user found', async () => {
-            mockRepo.findOneByChatId.mockResolvedValue(makeUserFull());
+            mockRepo.findOneByChatId.mockResolvedValue(makeUser());
             const result = await sut.findUserByChatId(MOCK_CHAT_ID);
             expect(result).not.toBeNull();
             expect(result!.telegramChatId).toBe(MOCK_CHAT_ID);
@@ -94,7 +94,7 @@ describe('UsersApiAdapter', () => {
 
     describe('createPendingUser', () => {
         it('should generate key pair, encrypt, save, and return user + agentAddress', async () => {
-            const savedUser = makeUserFull();
+            const savedUser = makeUser();
             mockRepo.save.mockResolvedValue(savedUser);
 
             const { user, agentAddress } = await sut.createPendingUser(

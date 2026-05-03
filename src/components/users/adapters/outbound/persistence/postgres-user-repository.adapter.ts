@@ -5,8 +5,11 @@ import { DRIZZLE_DB } from '@/infra/database/database.module';
 import { users } from '@/infra/database/schema';
 import { logger } from '@/infra/logger/logger';
 import { UserStatus } from '@domain/models/user/user-status';
-import { User } from '../../../core/domain/models/user';
-import { UserRepositoryPort } from '../../../core/application/ports/user-repository.port';
+import { User } from '../../../core/domain/models/user/user';
+import {
+    UserRepositoryPort,
+    SaveUserData,
+} from '../../../core/application/ports/user-repository.port';
 
 @Injectable()
 export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
@@ -14,13 +17,7 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
 
     constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb) {}
 
-    async save(user: {
-        telegramChatId: number;
-        accountAddress: string;
-        agentAddress: string;
-        agentPrivateKeyEncrypted: string;
-        status: UserStatus;
-    }): Promise<User> {
+    async save(user: SaveUserData): Promise<User> {
         try {
             const result = await this.db
                 .insert(users)
@@ -89,13 +86,13 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     private toDomain(record: typeof users.$inferSelect): User {
-        return new User(
-            record.id,
-            Number(record.telegramChatId),
-            record.accountAddress,
-            record.agentAddress,
-            record.status as UserStatus,
-            record.createdAt,
-        );
+        return User.create({
+            id: record.id,
+            telegramChatId: Number(record.telegramChatId),
+            accountAddress: record.accountAddress,
+            agentAddress: record.agentAddress,
+            status: record.status as UserStatus,
+            createdAt: record.createdAt,
+        });
     }
 }
