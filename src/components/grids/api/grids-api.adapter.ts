@@ -54,10 +54,11 @@ export class GridsApiAdapter implements GridsApiPort {
         return GridsApiMapper.toGridDto(grid);
     }
 
-    async updateGridStatus(id: string, status: GridStatus, _timestamp?: number): Promise<void> {
+    async updateGridStatus(id: string, status: GridStatus): Promise<void> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
         if (!grid) throw new Error(`Grid not found: ${id}`);
-        grid.transitionTo(status);
+        if (status === GridStatus.Running) grid.start();
+        else if (status === GridStatus.Stopped) grid.stop();
         await this.gridRepo.save(grid);
     }
 
