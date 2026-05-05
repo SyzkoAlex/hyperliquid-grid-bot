@@ -1,49 +1,48 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
+import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
-import { Config } from '@/config/config.schema';
 import { GridWithOrders } from './grid-with-orders';
 
 @Injectable()
 export class SyncOrdersUseCase {
     private readonly logger = logger.child({ context: SyncOrdersUseCase.name });
-    private readonly accountAddress: string;
 
     constructor(
-        private readonly configService: ConfigService<Config, true>,
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
-    ) {
-        this.accountAddress = this.configService.get('hyperliquid', { infer: true }).accountAddress;
+        private readonly stpRecoveryService: StpRecoveryService,
+    ) {}
+
+    async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
+        const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(accountAddress);
+        const activeGrids = await this.grids.findActiveGridsByUserId(userId);
+        if (activeGrids.length === 0) return SyncOrdersResult.empty();
+        return this.executeForGrids(accountAddress, activeGrids, exchangeOpenOrders);
     }
 
-    async execute(): Promise<SyncOrdersResult> {
+    async executeForGrids(
+        accountAddress: string,
+        activeGrids: GridDto[],
+        exchangeOpenOrders: ExchangeOpenOrder[],
+    ): Promise<SyncOrdersResult> {
         const result = SyncOrdersResult.empty();
+        if (activeGrids.length === 0) return result;
 
-        const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(this.accountAddress);
-
-        // Fetch all active grids
-        const activeGrids = await this.grids.findActiveGrids();
-        if (activeGrids.length === 0) {
-            return result;
-        }
-
-        // Fetch all placed orders for active grids
-        const gridIds = activeGrids.map((grid) => grid.id);
+        const gridIds = activeGrids.map((g) => g.id);
         const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
-        if (allActiveDbOrders.length === 0) {
-            return result;
-        }
+        if (allActiveDbOrders.length === 0) return result;
 
         const gridsWithOrders = GridWithOrders.buildMany(
             activeGrids,
@@ -57,7 +56,7 @@ export class SyncOrdersUseCase {
         );
 
         for (const gridWithOrders of gridsWithOrders) {
-            await this.processGrid(gridWithOrders, result);
+            await this.processGrid(gridWithOrders, accountAddress, result);
         }
 
         this.logResultIfNeeded(result);
@@ -66,20 +65,29 @@ export class SyncOrdersUseCase {
 
     private async processGrid(
         gridWithOrders: GridWithOrders,
+        accountAddress: string,
         result: SyncOrdersResult,
     ): Promise<void> {
         try {
             const statusSyncResult = await this.orderStatusSyncService.process(
                 gridWithOrders.dbOrders,
                 gridWithOrders.exchangeOrders,
+                accountAddress,
             );
 
             const refillsPlaced = await this.orderRefillService.processMany(
                 statusSyncResult.filledOrders,
                 gridWithOrders.grid,
+                accountAddress,
             );
 
-            result.update({ fills: statusSyncResult.filled, refills: refillsPlaced });
+            const stpRecovered = await this.stpRecoveryService.recoverMany(
+                statusSyncResult.stpCancelledOrders,
+                gridWithOrders.grid,
+                accountAddress,
+            );
+
+            result.update({ fills: statusSyncResult.filled, refills: refillsPlaced, stpRecovered });
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             result.errors.push(`Grid ${gridWithOrders.grid.id}: ${errorMsg}`);
@@ -88,12 +96,13 @@ export class SyncOrdersUseCase {
     }
 
     private logResultIfNeeded(result: SyncOrdersResult): void {
-        if (result.fillsDetected) {
+        if (result.fillsDetected > 0 || result.stpRecovered > 0) {
             this.logger.info(
                 {
                     gridsProcessed: result.gridsProcessed,
                     fillsDetected: result.fillsDetected,
                     refillsPlaced: result.refillsPlaced,
+                    stpRecovered: result.stpRecovered,
                 },
                 'Orders sync completed',
             );

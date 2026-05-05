@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
@@ -8,16 +8,21 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
+import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { GridWithAccountDto } from '@components/grids/api/dto/grid-with-account.dto';
+import {
+    EXCHANGE_PORT,
+    ExchangePort,
+} from '@components/trading/core/application/ports/exchange.port';
+import { GridDto } from '@components/grids/api/dto/grid.dto';
 
-/**
- * Orders Monitor
- *
- * Adapter that monitors orders using REST API polling.
- */
 @Injectable()
 export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
+    private static readonly BATCH_SIZE = 100;
+
     private readonly logger = logger.child({ context: OrdersPollingAdapter.name });
     private readonly intervalName = 'orders-polling';
+    private readonly syncLockTtlMs: number;
     private isProcessing = false;
 
     constructor(
@@ -25,7 +30,12 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly syncOrders: SyncOrdersUseCase,
         private readonly schedulerRegistry: SchedulerRegistry,
         @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
-    ) {}
+        @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
+    ) {
+        const ordersConfig = this.configService.get('orders', { infer: true });
+        this.syncLockTtlMs = ordersConfig.syncLockTtlMs;
+    }
 
     onModuleInit(): void {
         const ordersConfig = this.configService.get('orders', { infer: true });
@@ -44,7 +54,6 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
     }
 
     private async checkOrders(): Promise<void> {
-        // Prevent concurrent execution
         if (this.isProcessing) {
             this.logger.debug('Previous check still running, skipping');
             return;
@@ -53,9 +62,8 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         this.isProcessing = true;
 
         try {
-            const { syncLockTtlMs } = this.configService.get('orders', { infer: true });
-            const result = await this.lock.withLock('orders-sync', syncLockTtlMs, () =>
-                this.syncOrders.execute(),
+            const result = await this.lock.withLock('orders-sync', this.syncLockTtlMs, () =>
+                this.syncAllActiveGrids(),
             );
             if (result === null) {
                 this.logger.debug('Orders sync skipped: another instance holds the lock');
@@ -65,5 +73,46 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         } finally {
             this.isProcessing = false;
         }
+    }
+
+    private async syncAllActiveGrids(): Promise<void> {
+        let cursor: string | null = null;
+
+        while (true) {
+            const batch = await this.grids.findActiveGridsByCursor(
+                cursor,
+                OrdersPollingAdapter.BATCH_SIZE,
+            );
+            if (batch.length === 0) break;
+
+            await this.processBatch(batch);
+
+            cursor = batch[batch.length - 1].grid.id;
+            if (batch.length < OrdersPollingAdapter.BATCH_SIZE) break;
+        }
+    }
+
+    private async processBatch(batch: GridWithAccountDto[]): Promise<void> {
+        const byAccount = new Map<string, GridDto[]>();
+        for (const { grid, accountAddress } of batch) {
+            const existing = byAccount.get(accountAddress) ?? [];
+            existing.push(grid);
+            byAccount.set(accountAddress, existing);
+        }
+
+        await Promise.all(
+            [...byAccount.entries()].map(async ([accountAddress, userGrids]) => {
+                try {
+                    const exchangeOrders = await this.exchange.getOpenSpotOrders(accountAddress);
+                    await this.syncOrders.executeForGrids(
+                        accountAddress,
+                        userGrids,
+                        exchangeOrders,
+                    );
+                } catch (error) {
+                    this.logger.error({ error, accountAddress }, 'Error syncing grids for account');
+                }
+            }),
+        );
     }
 }

@@ -25,12 +25,21 @@ export class RefillOrderPlacementService {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
     ) {}
 
-    async placeRefillOrder(grid: GridDto, params: RefillParams): Promise<PlaceRefillOrderResult> {
+    async placeRefillOrder(
+        grid: GridDto,
+        params: RefillParams,
+        accountAddress: string,
+    ): Promise<PlaceRefillOrderResult> {
         let order: OrderDto | null = null;
 
         try {
             order = await this.createAndSavePendingOrder(grid, params);
-            const placeResult = await this.placeOrderOnExchange(order, grid, params);
+            const placeResult = await this.placeOrderOnExchange(
+                order,
+                grid,
+                params,
+                accountAddress,
+            );
 
             if (!this.isPlacementSuccessful(placeResult)) {
                 return await this.handlePlacementFailure(order, placeResult);
@@ -79,6 +88,7 @@ export class RefillOrderPlacementService {
         order: OrderDto,
         grid: GridDto,
         params: RefillParams,
+        accountAddress: string,
     ): Promise<ExchangePlaceOrderResult> {
         return this.exchange.placeSpotOrder({
             symbol: TradingSymbol.create(grid.symbol),
@@ -86,6 +96,7 @@ export class RefillOrderPlacementService {
             price: params.price,
             amount: params.amount,
             orderId: order.id,
+            accountAddress,
         });
     }
 

@@ -63,6 +63,10 @@ export class TradingApiAdapter implements TradingApiPort {
         return this.exchange.pairExists(TradingSymbol.fromString(symbol));
     }
 
+    async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {
+        return this.exchange.probeAgentApproval(accountAddress);
+    }
+
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {
         const distribution = this.capitalCalculator.calculateDistribution({
             levels: params.levels,

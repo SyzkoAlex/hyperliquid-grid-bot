@@ -6,3 +6,4 @@
 
 export { grids, GridDbRecord } from './grids.schema';
 export { orders, OrderDbRecord } from './orders.schema';
+export { users, UserDbRecord } from './users.schema';

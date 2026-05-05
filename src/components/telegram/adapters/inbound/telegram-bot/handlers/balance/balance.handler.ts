@@ -10,6 +10,7 @@ import { Handler } from '../handler';
 import { toInlineKeyboard } from '../inline-keyboard';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 @Injectable()
 export class BalanceHandler implements Handler {
@@ -27,7 +28,7 @@ export class BalanceHandler implements Handler {
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        const view = await this.buildView();
+        const view = await this.buildView(ctx);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -36,15 +37,21 @@ export class BalanceHandler implements Handler {
 
     private async handleAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        const view = await this.buildView();
+        const view = await this.buildView(ctx);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
-    private async buildView(): Promise<{ text: string; keyboard: InlineButton[][] }> {
-        const balance = await this.getBalanceUseCase.execute();
+    private async buildView(
+        ctx: BotContext,
+    ): Promise<{ text: string; keyboard: InlineButton[][] }> {
+        const accountAddress = ctx.user?.accountAddress;
+        if (!accountAddress) {
+            return { text: CommonTexts.ACCOUNT_NOT_CONNECTED, keyboard: [] };
+        }
+        const balance = await this.getBalanceUseCase.execute(accountAddress);
         const text = BalanceMessage.create(balance).text;
         const keyboard: InlineButton[][] = [
             [{ text: BUTTON_LABELS.REFRESH, action: TelegramAction.ShowBalance }],

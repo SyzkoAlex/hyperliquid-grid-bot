@@ -73,7 +73,7 @@ describe('RefillOrderPlacementService', () => {
     });
 
     it('should create pending order, place on exchange, and update with exchangeOrderId', async () => {
-        const result = await service.placeRefillOrder(testGrid, testParams);
+        const result = await service.placeRefillOrder(testGrid, testParams, '0xabc');
 
         expect(result.success).toBe(true);
         expect(result.order).toBeDefined();
@@ -90,7 +90,7 @@ describe('RefillOrderPlacementService', () => {
 
         expect(mockExchange.placeSpotOrder).toHaveBeenCalledTimes(1);
         expect(mockExchange.placeSpotOrder).toHaveBeenCalledWith(
-            expect.objectContaining({ side: OrderSide.Sell }),
+            expect.objectContaining({ side: OrderSide.Sell, accountAddress: '0xabc' }),
         );
 
         expect(mockGrids.updateOrderExchangeId).toHaveBeenCalledWith(
@@ -108,7 +108,7 @@ describe('RefillOrderPlacementService', () => {
             error: 'Insufficient balance',
         });
 
-        const result = await service.placeRefillOrder(testGrid, testParams);
+        const result = await service.placeRefillOrder(testGrid, testParams, '0xabc');
 
         expect(result.success).toBe(false);
         expect(result.error).toBe('Insufficient balance');
@@ -123,7 +123,7 @@ describe('RefillOrderPlacementService', () => {
     it('should cleanup pending order and rethrow when exchange throws', async () => {
         mockExchange.placeSpotOrder.mockRejectedValue(new Error('Network timeout'));
 
-        await expect(service.placeRefillOrder(testGrid, testParams)).rejects.toThrow(
+        await expect(service.placeRefillOrder(testGrid, testParams, '0xabc')).rejects.toThrow(
             'Network timeout',
         );
 
@@ -136,7 +136,7 @@ describe('RefillOrderPlacementService', () => {
     it('should return failure without rethrowing when DuplicateActiveOrderError is thrown', async () => {
         mockGrids.createOrder.mockRejectedValue(new DuplicateActiveOrderError(GRID_ID, 6, 'sell'));
 
-        const result = await service.placeRefillOrder(testGrid, testParams);
+        const result = await service.placeRefillOrder(testGrid, testParams, '0xabc');
 
         expect(result.success).toBe(false);
         expect(result.error).toContain('Duplicate');

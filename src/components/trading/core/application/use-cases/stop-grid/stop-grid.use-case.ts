@@ -19,7 +19,7 @@ export class StopGridUseCase {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
     ) {}
 
-    async execute(gridId: string): Promise<void> {
+    async execute(gridId: string, accountAddress: string): Promise<void> {
         const grid = await this.grids.findGridById(gridId);
 
         if (!grid) {
@@ -31,7 +31,7 @@ export class StopGridUseCase {
 
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
         for (const order of activeOrders) {
-            await this.cancelOrder(order);
+            await this.cancelOrder(order, accountAddress);
         }
 
         await this.grids.updateGridStatus(gridId, GridStatus.Stopped);
@@ -42,7 +42,7 @@ export class StopGridUseCase {
         );
     }
 
-    private async cancelOrder(order: OrderDto): Promise<void> {
+    private async cancelOrder(order: OrderDto, accountAddress: string): Promise<void> {
         if (!order.exchangeOrderId) {
             await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
             return;
@@ -52,6 +52,7 @@ export class StopGridUseCase {
             const result = await this.exchange.cancelSpotOrder({
                 symbol: TradingSymbol.create(order.symbol),
                 exchangeOrderId: order.exchangeOrderId,
+                accountAddress,
             });
 
             if (!result.success) {

@@ -20,18 +20,26 @@ export class OrderRefillService {
         private readonly tradeEventPublisher: TradeEventPublisher,
     ) {}
 
-    async processMany(filledOrders: OrderDto[], grid: GridDto): Promise<number> {
+    async processMany(
+        filledOrders: OrderDto[],
+        grid: GridDto,
+        accountAddress: string,
+    ): Promise<number> {
         const deduped = this.deduplicateOrders(filledOrders, grid);
 
         let placed = 0;
         for (const order of deduped) {
-            const result = await this.processOne(order, grid);
+            const result = await this.processOne(order, grid, accountAddress);
             if (result.success) placed++;
         }
         return placed;
     }
 
-    async processOne(filledOrder: OrderDto, grid: GridDto): Promise<OrderRefillResult> {
+    async processOne(
+        filledOrder: OrderDto,
+        grid: GridDto,
+        accountAddress: string,
+    ): Promise<OrderRefillResult> {
         this.logOrderProcessing(filledOrder, grid);
 
         const profit = await this.publishFillEventSafe(filledOrder, grid);
@@ -56,7 +64,11 @@ export class OrderRefillService {
                 );
             }
 
-            const placeResult = await this.refillPlacement.placeRefillOrder(grid, refillParams);
+            const placeResult = await this.refillPlacement.placeRefillOrder(
+                grid,
+                refillParams,
+                accountAddress,
+            );
             if (!placeResult.success) {
                 return OrderRefillResult.failure(placeResult.error!);
             }

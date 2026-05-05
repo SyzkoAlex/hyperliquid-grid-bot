@@ -1,17 +1,18 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
 import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersPollingAdapter } from './orders-polling.adapter';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
+import { UserStatus } from '@domain/models/user/user-status';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -23,10 +24,15 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { AppConfigModule } from '@/config/app-config.module';
+
+type PollingAdapterPrivate = {
+    checkOrders(): Promise<void>;
+    isProcessing: boolean;
+};
 
 describe('OrdersPollingAdapter (Integration)', () => {
     let module: TestingModule;
@@ -37,6 +43,10 @@ describe('OrdersPollingAdapter (Integration)', () => {
 
     beforeAll(async () => {
         await initializeTestModule();
+    });
+
+    beforeEach(async () => {
+        await DatabaseTestHelper.seedTestUser();
     });
 
     afterEach(async () => {
@@ -64,6 +74,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
     ): Promise<GridDto> {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
+            userId: TEST_USER_ID,
             symbol,
             lowerPrice: 45000,
             upperPrice: 55000,
@@ -136,8 +147,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 status: OrderStatus.Placed,
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('12345');
             expect(updatedOrder?.status).toBe(OrderStatus.Filled);
@@ -169,11 +179,44 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 statusTimestamp: Date.now(),
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('99999');
             expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
+        });
+
+        it('should mark order Cancelled and re-place on the same level/side when selfTradeCanceled', async () => {
+            const grid = await createGrid('BTC');
+            const order = await createOrder(grid, {
+                side: OrderSide.Buy,
+                price: 50000,
+                levelIndex: 5,
+                exchangeOrderId: '55555',
+            });
+
+            vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([]);
+
+            vi.mocked(hyperliquidOrderClient.getOrderStatus).mockResolvedValue({
+                exchangeOrderId: '55555',
+                status: ExchangeOrderStatus.SELF_TRADE_CANCELED,
+                statusTimestamp: Date.now(),
+            });
+
+            vi.mocked(hyperliquidOrderClient.placeSpotOrder).mockResolvedValue({
+                exchangeOrderId: '55556',
+                status: OrderStatus.Placed,
+            });
+
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
+
+            const cancelledOrder = await gridsApi.findOrderByExchangeId('55555');
+            expect(cancelledOrder?.status).toBe(OrderStatus.Cancelled);
+
+            const allOrders = await gridsApi.findActiveOrdersByGridId(grid.id);
+            const recovered = allOrders.filter(
+                (o) => o.id !== order.id && o.levelIndex === 5 && o.side === OrderSide.Buy,
+            );
+            expect(recovered.length).toBeGreaterThan(0);
         });
 
         it('should handle orders still open on exchange', async () => {
@@ -206,8 +249,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 },
             ]);
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             const updatedOrder = await gridsApi.findOrderByExchangeId('11111');
             expect(updatedOrder?.status).toBe(OrderStatus.Placed);
@@ -228,25 +270,23 @@ describe('OrdersPollingAdapter (Integration)', () => {
                 new Error('Network timeout'),
             );
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await expect((monitor as any).checkOrders()).resolves.toBeUndefined();
+            await expect(
+                (monitor as unknown as PollingAdapterPrivate).checkOrders(),
+            ).resolves.toBeUndefined();
         });
     });
 
     describe('Concurrent Execution Prevention', () => {
         it('should prevent concurrent sync execution', async () => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (monitor as any).isProcessing = true;
+            (monitor as unknown as PollingAdapterPrivate).isProcessing = true;
 
             const spy = vi.spyOn(hyperliquidOrderClient, 'getOpenSpotOrders');
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (monitor as any).checkOrders();
+            await (monitor as unknown as PollingAdapterPrivate).checkOrders();
 
             expect(spy).not.toHaveBeenCalled();
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (monitor as any).isProcessing = false;
+            (monitor as unknown as PollingAdapterPrivate).isProcessing = false;
         });
     });
 
@@ -262,12 +302,6 @@ describe('OrdersPollingAdapter (Integration)', () => {
             cancelSpotOrder: vi.fn(),
         };
 
-        const mockWsAdapter = {
-            onModuleInit: vi.fn(),
-            onModuleDestroy: vi.fn(),
-            isConnected: vi.fn().mockReturnValue(false),
-        };
-
         const moduleBuilder = Test.createTestingModule({
             imports: [
                 MockDistributedLockModule,
@@ -279,9 +313,44 @@ describe('OrdersPollingAdapter (Integration)', () => {
             ],
         });
 
+        // UsersApiPort is still required by other providers in TradingModule
+        // (CreateAndStartGridUseCase, HyperliquidExchangeAdapter, OrdersRestoreAdapter)
+        const mockUsersApi = {
+            findUserByChatId: vi.fn(),
+            findUserByAccountAddress: vi.fn().mockResolvedValue({
+                id: TEST_USER_ID,
+                telegramChatId: 100000001,
+                accountAddress: '0x0000000000000000000000000000000000000001',
+                agentAddress: '0x0000000000000000000000000000000000000002',
+                status: UserStatus.Active,
+            }),
+            findActiveUsers: vi.fn().mockResolvedValue([
+                {
+                    id: TEST_USER_ID,
+                    telegramChatId: 100000001,
+                    accountAddress: '0x0000000000000000000000000000000000000001',
+                    agentAddress: '0x0000000000000000000000000000000000000002',
+                    status: UserStatus.Active,
+                },
+            ]),
+            getAgentPrivateKey: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            getAgentPrivateKeyByAccountAddress: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            createPendingUser: vi.fn(),
+            activateUser: vi.fn(),
+            disconnectUser: vi.fn(),
+        };
+
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
+        moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
         module = await moduleBuilder.compile();
 

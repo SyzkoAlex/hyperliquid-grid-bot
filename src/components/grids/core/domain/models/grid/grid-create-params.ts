@@ -7,6 +7,7 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
 
 export interface GridCreateParams {
     id?: GridId;
+    userId: string;
     symbol: TradingSymbol;
     status?: GridStatus;
     lowerPrice: Price;

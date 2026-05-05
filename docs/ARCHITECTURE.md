@@ -46,7 +46,7 @@ never through direct imports.
                    │                                │
           ┌────────▼────────┐             ┌─────────▼──────────┐
           │   PostgreSQL    │             │   Hyperliquid DEX  │
-          │  grids, orders  │             │  REST + WebSocket  │
+          │  grids, orders  │             │   REST API only    │
           └─────────────────┘             └────────────────────┘
                    │
           ┌────────▼────────┐
@@ -70,8 +70,7 @@ read and write grid/order state. Neither Trading nor Telegram accesses the DB di
 |---------|---------|---------|
 | PostgreSQL | Grids component | Persistent state — grids and orders |
 | Redis | Telegram component | Telegram bot session storage (wizard state) |
-| Hyperliquid REST API | Trading component | Place and cancel orders |
-| Hyperliquid WebSocket | Trading component | Real-time order status events |
+| Hyperliquid REST API | Trading component | Place, cancel, and poll order status |
 
 ### Deployment
 
@@ -117,41 +116,30 @@ Telegram: trading-events controller → NotifyUserUseCase → send notification
 
 ---
 
-### Phase 2: Fill Detection (Continuous)
-
-**Two parallel mechanisms detect order fills:**
-
-#### Mechanism 1: Polling (Reliability)
+### Phase 2: Fill Detection (Polling)
 
 ```
-Every 10 seconds (configurable):
+Every 2 seconds (configurable via ORDERS_POLL_INTERVAL_MS):
   1. Fetch all open orders from exchange
   2. Compare with database state
   3. Missing orders = potentially filled/cancelled
   4. Query historical API for exact status
-  5. Process status change (filled → trigger refill, cancelled → update status)
+  5. Process status change:
+       - filled         → trigger refill
+       - cancelled      → update status
+       - selfTradeCanceled → re-place order at same level/side (STP recovery)
 ```
 
-**Advantage**: Guarantees no missed fills, survives WebSocket downtime.
-
-#### Mechanism 2: WebSocket (Speed)
-
-```
-Real-time (100-200ms):
-  1. Subscribe to Hyperliquid userEvents channel
-  2. Receive order fill/cancel/reject event immediately
-  3. Process status change (filled → trigger refill)
-```
-
-**Advantage**: 50x faster response, better capital efficiency.
-
-**Why both?** Reliability (polling) + Speed (WebSocket). DB constraints prevent duplicate processing.
+Polling is the single fill-detection mechanism. It is reliable (no missed fills
+even under network partitions) and scales linearly — one REST call per active user
+per interval. A `DistributedLock` prevents concurrent runs in multi-instance
+deployments.
 
 ---
 
 ### Phase 3: Order Refill (Profit Cycle)
 
-**Trigger**: Order fill detected by polling or WebSocket
+**Trigger**: Order fill detected by polling
 
 **Flow**:
 
@@ -237,7 +225,7 @@ without touching business logic. See [HEXAGONAL_ARCHITECTURE.md](./HEXAGONAL_ARC
 
 ## 🎭 Background Workers
 
-The system runs four independent workers in the Trading component:
+The system runs three independent workers in the Trading component:
 
 ### 1. Grid Commands Controller
 
@@ -248,18 +236,11 @@ The system runs four independent workers in the Trading component:
 ### 2. Orders Polling Controller
 
 - **Type**: Scheduled (interval)
-- **Trigger**: Every 10 seconds (configurable via `ORDERS_POLL_INTERVAL_MS`)
-- **Action**: Fetches open orders, compares with DB, detects fills/cancels, triggers refills
-- **Purpose**: Reliable fill detection
+- **Trigger**: Every 2 seconds (configurable via `ORDERS_POLL_INTERVAL_MS`)
+- **Action**: Fetches open orders, compares with DB, detects fills/cancels/STP, triggers refills
+- **Purpose**: Reliable fill detection for all active users
 
-### 3. Orders WebSocket Controller
-
-- **Type**: Real-time WebSocket
-- **Trigger**: Hyperliquid `userEvents` WebSocket channel
-- **Action**: Processes order status events (filled, cancelled, rejected), triggers refills
-- **Purpose**: Fast fill detection (100–200ms)
-
-### 4. Orders Restore Controller
+### 3. Orders Restore Controller
 
 - **Type**: Scheduled + startup
 - **Trigger**: On startup + every 10 minutes (configurable via `ORDERS_RECOVERY_INTERVAL_MS`)
@@ -285,15 +266,28 @@ All workers are independent and idempotent — safe to run concurrently.
 
 Once a grid is created, the system operates fully autonomously:
 
-✅ **Detects fills** — hybrid polling + WebSocket
+✅ **Detects fills** — polling every 2 seconds
 ✅ **Places refills** — opposite orders one level away
 ✅ **Recovers from crashes** — orphaned order monitor
-✅ **Survives network issues** — reconnection logic
+✅ **Survives network issues** — stateless polling (no persistent connection)
 ✅ **Notifies user** — Telegram events
 
 ❌ **Trailing** — not implemented (planned)
 
 ### Not High-Frequency Trading
 
-System operates on 100ms–10s timescale, not microseconds. Designed for medium-term grid trading,
+System operates on 2s–10s timescale, not microseconds. Designed for medium-term grid trading,
 not arbitrage or market making.
+
+---
+
+## ❓ Why no WebSocket for order updates?
+
+Hyperliquid imposes a **10 unique users per IP** limit on user-specific WebSocket subscriptions
+(`userEvents` channel). A multi-tenant deployment (multiple traders on one server) hits this
+ceiling immediately, making WebSocket unsuitable as the primary mechanism for this use case.
+
+REST polling scales linearly — one call per active user per interval. At a 2-second interval
+and 10 active users the load is 5 requests/second, well within REST rate limits. A
+`DistributedLock` prevents concurrent polling runs in multi-instance deployments.
+

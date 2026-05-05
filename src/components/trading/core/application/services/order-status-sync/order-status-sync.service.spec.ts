@@ -10,13 +10,12 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 
+const ACCOUNT_ADDRESS = '0x1234567890123456789012345678901234567890';
+
 describe('OrderStatusSyncService', () => {
     let service: OrderStatusSyncService;
     let mockOrderClient: {
         getOrderStatus: ReturnType<typeof vi.fn>;
-    };
-    let mockConfigService: {
-        get: ReturnType<typeof vi.fn>;
     };
     let mockOrderRepository: {
         updateOrderStatus: ReturnType<typeof vi.fn>;
@@ -30,17 +29,6 @@ describe('OrderStatusSyncService', () => {
             getOrderStatus: vi.fn(),
         };
 
-        mockConfigService = {
-            get: vi.fn((key: string) => {
-                if (key === 'hyperliquid') {
-                    return {
-                        accountAddress: '0x1234567890123456789012345678901234567890',
-                    };
-                }
-                return undefined;
-            }),
-        };
-
         mockOrderRepository = {
             updateOrderStatus: vi.fn(),
         };
@@ -51,7 +39,6 @@ describe('OrderStatusSyncService', () => {
 
         service = new OrderStatusSyncService(
             mockOrderClient as any,
-            mockConfigService as any,
             mockOrderRepository as any,
             mockFeeSyncService as any,
         );
@@ -127,7 +114,7 @@ describe('OrderStatusSyncService', () => {
                 ]),
             );
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(2);
             expect(result.filledOrders).toContainEqual(order1);
@@ -151,12 +138,13 @@ describe('OrderStatusSyncService', () => {
                 ]),
             );
 
-            await service.process(dbOrders, []);
+            await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(mockFeeSyncService.syncFee).toHaveBeenCalledWith(
                 order.id,
                 order.exchangeOrderId,
                 fillTimestamp,
+                ACCOUNT_ADDRESS,
             );
         });
 
@@ -166,7 +154,7 @@ describe('OrderStatusSyncService', () => {
 
             mockOrderStatus(new Map([['order-1', { status: ExchangeOrderStatus.CANCELED }]]));
 
-            await service.process(dbOrders, []);
+            await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(mockFeeSyncService.syncFee).not.toHaveBeenCalled();
         });
@@ -177,7 +165,7 @@ describe('OrderStatusSyncService', () => {
 
             mockOrderStatus(new Map([['order-1', { status: ExchangeOrderStatus.CANCELED }]]));
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(1);
@@ -203,7 +191,7 @@ describe('OrderStatusSyncService', () => {
                 ]),
             );
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(2);
             expect(result.filledOrders).toContainEqual(order1);
@@ -220,7 +208,7 @@ describe('OrderStatusSyncService', () => {
 
             mockOrderStatus(new Map());
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(1);
@@ -239,7 +227,7 @@ describe('OrderStatusSyncService', () => {
 
             mockOrderClient.getOrderStatus.mockRejectedValue(new Error('API Error'));
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(0);
@@ -261,7 +249,7 @@ describe('OrderStatusSyncService', () => {
                 },
             );
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(1);
             expect(result.filledOrders).toContainEqual(order1);
@@ -282,7 +270,7 @@ describe('OrderStatusSyncService', () => {
 
             const exchangeOrders = [createExchangeOrder('order-1')];
 
-            const result = await service.process(dbOrders, exchangeOrders);
+            const result = await service.process(dbOrders, exchangeOrders, ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(0);
@@ -306,7 +294,7 @@ describe('OrderStatusSyncService', () => {
 
             const dbOrders = [orderWithoutId];
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(0);
@@ -314,11 +302,32 @@ describe('OrderStatusSyncService', () => {
         });
 
         it('should return empty for empty input', async () => {
-            const result = await service.process([], []);
+            const result = await service.process([], [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(0);
             expect(result.processed).toBe(0);
             expect(mockOrderClient.getOrderStatus).not.toHaveBeenCalled();
+        });
+
+        it('should add order to stpCancelledOrders when selfTradeCanceled and still mark as Cancelled in DB', async () => {
+            const order1 = createDbOrder('order-1');
+            const dbOrders = [order1];
+
+            mockOrderStatus(
+                new Map([['order-1', { status: ExchangeOrderStatus.SELF_TRADE_CANCELED }]]),
+            );
+
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
+
+            expect(result.stpCancelledOrders).toHaveLength(1);
+            expect(result.stpCancelledOrders).toContainEqual(order1);
+            expect(result.cancelled).toBe(1);
+            expect(result.filledOrders).toHaveLength(0);
+            expect(mockOrderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                order1.id,
+                OrderStatus.Cancelled,
+                undefined,
+            );
         });
 
         it('should detect filled order when not in exchange orders', async () => {
@@ -327,7 +336,7 @@ describe('OrderStatusSyncService', () => {
 
             mockOrderStatus(new Map([['order-1', { status: ExchangeOrderStatus.FILLED }]]));
 
-            const result = await service.process(dbOrders, []);
+            const result = await service.process(dbOrders, [], ACCOUNT_ADDRESS);
 
             expect(result.filledOrders).toHaveLength(1);
             expect(result.filledOrders).toContainEqual(order1);

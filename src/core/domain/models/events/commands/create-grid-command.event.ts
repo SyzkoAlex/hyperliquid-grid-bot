@@ -9,6 +9,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
         public readonly levels: number,
         public readonly totalInvestmentUSDC: number | undefined,
         public readonly trailing: boolean,
+        public readonly accountAddress: string,
         timestamp?: number,
     ) {
         super(EventType.CreateGridCommand, timestamp);
@@ -21,6 +22,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
         levels?: number;
         totalInvestmentUSDC?: number;
         trailing?: boolean;
+        accountAddress: string;
     }): CreateGridCommandEvent {
         return new CreateGridCommandEvent(
             params.symbol,
@@ -29,10 +31,11 @@ export class CreateGridCommandEvent extends SerializableEvent {
             params.levels || 20,
             params.totalInvestmentUSDC,
             params.trailing ?? false,
+            params.accountAddress,
         );
     }
 
-    protected toJSON(): Record<string, any> {
+    protected toJSON(): Record<string, unknown> {
         return {
             symbol: this.symbol,
             lowerPrice: this.lowerPrice,
@@ -40,6 +43,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
             levels: this.levels,
             totalInvestmentUSDC: this.totalInvestmentUSDC,
             trailing: this.trailing,
+            accountAddress: this.accountAddress,
         };
     }
 
@@ -52,6 +56,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
             data.levels,
             data.totalInvestmentUSDC,
             data.trailing,
+            data.accountAddress,
             data.timestamp,
         );
     }

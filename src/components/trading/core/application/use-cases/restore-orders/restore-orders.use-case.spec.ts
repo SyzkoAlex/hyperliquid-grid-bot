@@ -5,8 +5,6 @@ describe('RestoreOrdersUseCase', () => {
     let useCase: RestoreOrdersUseCase;
     let mockOrderClient: any;
     let mockOrderRestoreService: any;
-    let mockConfigService: any;
-
     beforeEach(() => {
         mockOrderClient = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
@@ -16,15 +14,7 @@ describe('RestoreOrdersUseCase', () => {
             restoreOrders: vi.fn().mockResolvedValue(0),
         };
 
-        mockConfigService = {
-            get: vi.fn().mockReturnValue({ accountAddress: '0x123' }),
-        };
-
-        useCase = new RestoreOrdersUseCase(
-            mockOrderClient,
-            mockOrderRestoreService,
-            mockConfigService,
-        );
+        useCase = new RestoreOrdersUseCase(mockOrderClient, mockOrderRestoreService);
     });
 
     describe('execute', () => {
@@ -34,7 +24,7 @@ describe('RestoreOrdersUseCase', () => {
             ]);
             mockOrderRestoreService.restoreOrders.mockResolvedValue(1);
 
-            const result = await useCase.execute();
+            const result = await useCase.execute('0x123');
 
             expect(result.restored).toBe(1);
             expect(result.hasErrors).toBe(false);
@@ -46,7 +36,7 @@ describe('RestoreOrdersUseCase', () => {
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
             mockOrderRestoreService.restoreOrders.mockResolvedValue(0);
 
-            const result = await useCase.execute();
+            const result = await useCase.execute('0x123');
 
             expect(result.restored).toBe(0);
             expect(result.hasErrors).toBe(false);
@@ -55,7 +45,7 @@ describe('RestoreOrdersUseCase', () => {
         it('should handle errors gracefully', async () => {
             mockOrderClient.getOpenSpotOrders.mockRejectedValue(new Error('Network error'));
 
-            const result = await useCase.execute();
+            const result = await useCase.execute('0x123');
 
             expect(result.restored).toBe(0);
             expect(result.hasErrors).toBe(true);

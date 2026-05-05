@@ -6,24 +6,13 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Timestamp } from '@domain/models/primitives/timestamp';
 
-/**
- * Grid Entity for SPOT Trading
- *
- * SPOT Grid Trading:
- * - Physical tokens (no leverage, no liquidation risk)
- * - Buy low, sell high strategy
- * - Trailing-Up support for bull markets
- *
- * Capital Distribution:
- * - investmentUSDC: USD for buy orders below current price
- * - investmentBase: Base tokens for sell orders above current price
- */
 export class Grid {
     private readonly _id: GridId;
+    private readonly _userId: string;
     private readonly _symbol: TradingSymbol;
     private _status: GridStatus;
-    private _lowerPrice: Price;
-    private _upperPrice: Price;
+    private readonly _lowerPrice: Price;
+    private readonly _upperPrice: Price;
     private readonly _levels: number;
     private readonly _investmentUSDC: Decimal;
     private readonly _investmentBase: Decimal;
@@ -40,6 +29,7 @@ export class Grid {
 
     private constructor(params: GridCreateParams) {
         this._id = params.id ?? GridId.create();
+        this._userId = params.userId;
         this._symbol = params.symbol;
         this._status = params.status ?? GridStatus.Idle;
         this._lowerPrice = params.lowerPrice;
@@ -78,7 +68,6 @@ export class Grid {
         if (this._investmentBase.lt(Decimal.zero())) {
             throw new Error('Investment base cannot be negative');
         }
-        // Validate trailing percentages
         if (this._trailingTriggerPercent < 0 || this._trailingTriggerPercent > 50) {
             throw new Error('Trailing trigger must be between 0 and 50%');
         }
@@ -104,93 +93,6 @@ export class Grid {
         }
         this._status = GridStatus.Stopped;
         this._stoppedAt = Timestamp.now();
-    }
-
-    pause() {
-        if (this._status !== GridStatus.Running) {
-            throw new Error('Grid must be running to pause');
-        }
-        this._status = GridStatus.Paused;
-    }
-
-    resume() {
-        if (this._status !== GridStatus.Paused) {
-            throw new Error('Grid must be paused to resume');
-        }
-        this._status = GridStatus.Running;
-    }
-
-    setError() {
-        this._status = GridStatus.Error;
-    }
-
-    transitionTo(status: GridStatus): void {
-        if (status === GridStatus.Running) {
-            this._status === GridStatus.Paused ? this.resume() : this.start();
-        } else if (status === GridStatus.Stopped) {
-            this.stop();
-        } else if (status === GridStatus.Paused) {
-            this.pause();
-        } else if (status === GridStatus.Error) {
-            this.setError();
-        }
-    }
-
-    /**
-     * Calculate grid spacing (price difference between levels)
-     */
-    getGridSpacing(): Price {
-        const range = this._upperPrice.sub(this._lowerPrice);
-        return range.div(this._levels);
-    }
-
-    /**
-     * Calculate price for a specific level (0-indexed)
-     */
-    getLevelPrice(levelIndex: number): Price {
-        if (levelIndex < 0 || levelIndex > this._levels) {
-            throw new Error(`Invalid level index: ${levelIndex}`);
-        }
-        const spacing = this.getGridSpacing();
-        return this._lowerPrice.add(spacing.mul(levelIndex));
-    }
-
-    /**
-     * Check if trailing should be activated
-     */
-    shouldActivateTrailing(currentPrice: Price): boolean {
-        if (!this._trailingEnabled) return false;
-        if (this._status !== GridStatus.Running) return false;
-
-        const triggerPrice = this._upperPrice.mul(1 + this._trailingTriggerPercent / 100);
-        return currentPrice.gt(triggerPrice);
-    }
-
-    /**
-     * Execute trailing-up (shift grid higher)
-     */
-    executeTrailing() {
-        if (!this._trailingEnabled) {
-            throw new Error('Trailing is not enabled');
-        }
-
-        const multiplier = 1 + this._trailingStepPercent / 100;
-        this._lowerPrice = this._lowerPrice.mul(multiplier);
-        this._upperPrice = this._upperPrice.mul(multiplier);
-        this._lastTrailingAt = Timestamp.now();
-        this._trailingCount++;
-    }
-
-    /**
-     * Check if enough time passed since last trailing (cooldown)
-     */
-    canTrailNow(cooldownMinutes: number): boolean {
-        if (!this._lastTrailingAt) return true;
-
-        const now = Timestamp.now();
-        const minutesSinceLastTrailing = now.differenceInMinutes(this._lastTrailingAt);
-
-        return minutesSinceLastTrailing >= cooldownMinutes;
     }
 
     get symbol(): TradingSymbol {
@@ -263,6 +165,10 @@ export class Grid {
 
     get id(): GridId {
         return this._id;
+    }
+
+    get userId(): string {
+        return this._userId;
     }
 
     equals(other: Grid): boolean {

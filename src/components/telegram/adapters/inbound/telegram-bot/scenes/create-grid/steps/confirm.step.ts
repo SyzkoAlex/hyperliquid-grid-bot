@@ -7,6 +7,7 @@ import { GridCreatingMessage } from '@components/telegram/core/domain/models/mes
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { logger } from '@/infra/logger/logger';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 @Injectable()
 export class ConfirmStep {
@@ -39,6 +40,12 @@ export class ConfirmStep {
 
         this.pendingCreationMessageStore.save(sentMessage.chat.id, sentMessage.message_id);
 
+        const accountAddress = ctx.user?.accountAddress;
+        if (!accountAddress) {
+            await ctx.reply(CommonTexts.ACCOUNT_NOT_CONNECTED);
+            return;
+        }
+
         void this.createGridUseCase
             .execute({
                 symbol: state!.symbol!,
@@ -46,6 +53,7 @@ export class ConfirmStep {
                 upperPrice: state!.upperPrice!,
                 levels: state!.levels!,
                 totalInvestmentUSDC: state!.totalInvestmentUSDC,
+                accountAddress,
             })
             .catch((error) => {
                 this.logger.error({ error }, 'Grid creation failed unexpectedly');

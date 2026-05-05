@@ -2,10 +2,13 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { grids, orders } from '@/infra/database/schema';
+import { grids, orders, users } from '@/infra/database/schema';
 import { sql } from 'drizzle-orm';
 import path from 'path';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
+import { UserStatus } from '@domain/models/user/user-status';
+
+export const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 /**
  * Database Test Helper with Testcontainers
@@ -77,7 +80,7 @@ export class DatabaseTestHelper {
     }
 
     /**
-     * Clean up all test data
+     * Clean up all test data (orders → grids → users to satisfy FK constraints)
      */
     static async cleanup(): Promise<void> {
         if (!this.db) {
@@ -85,14 +88,40 @@ export class DatabaseTestHelper {
         }
 
         try {
-            // Delete in correct order (orders before grids due to potential FK)
             await this.db.delete(orders);
             await this.db.delete(grids);
+            await this.db.delete(users);
 
             console.log('🗑️  Test data cleaned up');
         } catch (error) {
             console.error('❌ Failed to cleanup test data:', error);
         }
+    }
+
+    /**
+     * Insert a deterministic test user row required as FK parent for grids.
+     * Uses TEST_USER_ID as the primary key so it's reproducible across tests.
+     */
+    static async seedTestUser(
+        overrides: Partial<{
+            id: string;
+            accountAddress: string;
+            chatId: number;
+        }> = {},
+    ): Promise<void> {
+        const target = this.getDb();
+        await target
+            .insert(users)
+            .values({
+                id: overrides.id ?? TEST_USER_ID,
+                telegramChatId: overrides.chatId ?? 100000001,
+                accountAddress:
+                    overrides.accountAddress ?? '0x0000000000000000000000000000000000000001',
+                agentAddress: '0x0000000000000000000000000000000000000002',
+                agentPrivateKeyEncrypted: 'test-encrypted-key',
+                status: UserStatus.Active,
+            })
+            .onConflictDoNothing();
     }
 
     /**

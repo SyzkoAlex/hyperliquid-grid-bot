@@ -12,7 +12,7 @@ export class StopGridHandler {
     async handle(command: StopGridCommandEvent): Promise<void> {
         try {
             this.logger.info({ command }, 'Received StopGrid command');
-            await this.stopGridUseCase.execute(command.gridId);
+            await this.stopGridUseCase.execute(command.gridId, command.accountAddress);
             this.logger.info({ gridId: command.gridId }, 'StopGrid command handled successfully');
         } catch (error) {
             this.logger.error({ error, command }, 'Failed to handle StopGrid command');

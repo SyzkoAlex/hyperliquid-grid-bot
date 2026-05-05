@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { UserFills } from 'hyperliquid';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { OrderStatus } from '@domain/models/order/order-status';
-import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchange-order/exchange-order-info';
@@ -15,11 +13,11 @@ import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exch
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { AssetPosition } from '@components/trading/core/domain/models/user-state/asset-position';
-import { HyperliquidOpenOrder } from './types/hyperliquid-open-order';
-import { HyperliquidOrderStatusFound } from './types/hyperliquid-order-status-response';
-import { HyperliquidSymbol } from './types/hyperliquid-symbol';
-import { HyperliquidSdkPlaceOrderResponse } from './types/hyperliquid-sdk-place-order-response';
-import { HyperliquidUserStateResponse } from './types/hyperliquid-user-state-response';
+import { HyperliquidOpenOrder } from '@/infra/hyperliquid/types/hyperliquid-open-order';
+import { HyperliquidOrderStatusFound } from '@/infra/hyperliquid/types/hyperliquid-order-status-response';
+import { HyperliquidSdkPlaceOrderResponse } from '@/infra/hyperliquid/types/hyperliquid-sdk-place-order-response';
+import { HyperliquidUserStateResponse } from '@/infra/hyperliquid/types/hyperliquid-user-state-response';
+import { UserFills } from '@/infra/hyperliquid/types/hyperliquid-user-fills';
 
 type SymbolResolver = (coin: string) => string;
 
@@ -29,44 +27,22 @@ type SymbolResolver = (coin: string) => string;
  */
 @Injectable()
 export class HyperliquidExchangeMapper {
-    toSdkPlaceOrderRequest(
-        params: ExchangePlaceOrderParams,
-        szDecimals: number,
-    ): {
-        coin: string;
-        is_buy: boolean;
-        sz: number;
-        limit_px: number;
-        order_type: { limit: { tif: 'Gtc' } };
-        reduce_only: boolean;
-        cloid?: string;
-    } {
-        const symbol = params.symbol.toString();
-        const coin = HyperliquidSymbol.toSpotFormat(symbol);
-        const cloid = params.orderId ? ExchangeCloid.create(params.orderId).toString() : undefined;
-        // Sell orders: ceil to avoid floor-rounding dropping notional below exchange minimum
-        // Buy orders: floor to avoid spending more USDC than available
-        const sz =
-            params.side === OrderSide.Sell
-                ? ceilToDecimals(params.amount.toNumber(), szDecimals)
-                : floorToDecimals(params.amount.toNumber(), szDecimals);
-        const limitPx = roundToDecimals(params.price.toNumber(), szDecimals);
-
-        return {
-            coin,
-            is_buy: params.side === OrderSide.Buy,
-            sz,
-            limit_px: limitPx,
-            order_type: { limit: { tif: 'Gtc' as const } },
-            reduce_only: false,
-            ...(cloid && { cloid }),
-        };
-    }
-
     toExchangePlaceOrderResult(
         response: HyperliquidSdkPlaceOrderResponse,
     ): ExchangePlaceOrderResult {
-        const firstStatus = response?.response?.data?.statuses?.[0];
+        if (response?.status === 'err') {
+            return {
+                exchangeOrderId: '',
+                status: OrderStatus.Failed,
+                error: typeof response.response === 'string' ? response.response : 'Order failed',
+            };
+        }
+
+        const responseData =
+            response?.response !== null && typeof response?.response === 'object'
+                ? response.response
+                : undefined;
+        const firstStatus = responseData?.data?.statuses?.[0];
 
         if (firstStatus?.error) {
             return {
@@ -183,21 +159,4 @@ export class HyperliquidExchangeMapper {
 
         return AssetPosition.create({ symbol, size: available, total, hold });
     }
-}
-
-function roundToDecimals(value: number, decimals: number): number {
-    const multiplier = Math.pow(10, decimals);
-    return Math.round(value * multiplier) / multiplier;
-}
-
-/** Truncate to avoid exceeding available balance when rounding order sizes */
-function floorToDecimals(value: number, decimals: number): number {
-    const multiplier = Math.pow(10, decimals);
-    return Math.floor(value * multiplier) / multiplier;
-}
-
-/** Round up to ensure sell order notional stays at or above exchange minimum after rounding */
-function ceilToDecimals(value: number, decimals: number): number {
-    const multiplier = Math.pow(10, decimals);
-    return Math.ceil(value * multiplier) / multiplier;
 }

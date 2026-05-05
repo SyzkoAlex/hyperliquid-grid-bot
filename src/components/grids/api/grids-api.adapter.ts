@@ -17,6 +17,7 @@ import {
     OrderRepositoryPort,
 } from '../core/application/ports/order-repository.port';
 import { GridsApiPort } from './grids-api.port';
+import { GridWithAccountDto } from './dto/grid-with-account.dto';
 import { GridsApiMapper } from './grids-api.mapper';
 import { GridDto } from './dto/grid.dto';
 import { OrderDto } from './dto/order.dto';
@@ -35,6 +36,7 @@ export class GridsApiAdapter implements GridsApiPort {
     async createGrid(dto: CreateGridDto): Promise<GridDto> {
         const grid = Grid.create({
             id: GridId.from(dto.id),
+            userId: dto.userId,
             symbol: TradingSymbol.create(dto.symbol),
             lowerPrice: Price.from(dto.lowerPrice),
             upperPrice: Price.from(dto.upperPrice),
@@ -52,10 +54,11 @@ export class GridsApiAdapter implements GridsApiPort {
         return GridsApiMapper.toGridDto(grid);
     }
 
-    async updateGridStatus(id: string, status: GridStatus, _timestamp?: number): Promise<void> {
+    async updateGridStatus(id: string, status: GridStatus): Promise<void> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
         if (!grid) throw new Error(`Grid not found: ${id}`);
-        grid.transitionTo(status);
+        if (status === GridStatus.Running) grid.start();
+        else if (status === GridStatus.Stopped) grid.stop();
         await this.gridRepo.save(grid);
     }
 
@@ -68,6 +71,11 @@ export class GridsApiAdapter implements GridsApiPort {
 
     async findActiveGrids(): Promise<GridDto[]> {
         const grids = await this.gridRepo.findManyActive();
+        return grids.map((g) => GridsApiMapper.toGridDto(g));
+    }
+
+    async findActiveGridsByUserId(userId: string): Promise<GridDto[]> {
+        const grids = await this.gridRepo.findManyActiveByUserId(userId);
         return grids.map((g) => GridsApiMapper.toGridDto(g));
     }
 
@@ -150,5 +158,16 @@ export class GridsApiAdapter implements GridsApiPort {
     async findPlacedOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]> {
         const orders = await this.orderRepo.findManyPlacedByGridIds(gridIds);
         return orders.map((o) => GridsApiMapper.toOrderDto(o));
+    }
+
+    async findActiveGridsByCursor(
+        afterId: string | null,
+        limit: number,
+    ): Promise<GridWithAccountDto[]> {
+        const items = await this.gridRepo.findManyActiveByCursor(afterId, limit);
+        return items.map(({ grid, accountAddress }) => ({
+            grid: GridsApiMapper.toGridDto(grid),
+            accountAddress,
+        }));
     }
 }

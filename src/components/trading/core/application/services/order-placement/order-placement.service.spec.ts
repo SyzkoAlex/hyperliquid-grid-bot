@@ -93,12 +93,15 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels);
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(2);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
             expect(orderClient.placeSpotOrder).toHaveBeenCalledTimes(2);
             expect(orderRepository.updateOrderExchangeId).toHaveBeenCalledTimes(2);
+            expect(orderClient.placeSpotOrder).toHaveBeenCalledWith(
+                expect.objectContaining({ accountAddress: '0xabc' }),
+            );
         });
 
         it('should handle buy order with correct amount', async () => {
@@ -120,7 +123,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels);
+            await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             const call = orderClient.placeSpotOrder.mock.calls[0][0];
             expect(call.side).toBe(OrderSide.Buy);
@@ -149,7 +152,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels);
+            await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             const call = orderClient.placeSpotOrder.mock.calls[0][0];
             expect(call.side).toBe(OrderSide.Sell);
@@ -190,7 +193,7 @@ describe('OrderPlacementService', () => {
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
             orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels);
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(1);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
@@ -222,7 +225,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels);
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(0);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(1);
@@ -260,7 +263,7 @@ describe('OrderPlacementService', () => {
                 });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels);
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(1);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
@@ -287,7 +290,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels);
+            await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(orderRepository.createOrder).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -302,7 +305,7 @@ describe('OrderPlacementService', () => {
 
             const levels: GridLevel[] = [];
 
-            const count = await service.placeGridOrders(mockGrid, levels);
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(0);
             expect(orderRepository.createOrder).not.toHaveBeenCalled();

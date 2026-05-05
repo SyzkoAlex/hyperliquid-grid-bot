@@ -10,6 +10,7 @@ import { toInlineKeyboard } from '../inline-keyboard';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { GridViewBaseHandler } from './grid-view-base.handler';
 import { CancelStopButton, ConfirmStopButton } from './grid-view.buttons';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 @Injectable()
 export class StopGridHandler extends GridViewBaseHandler {
@@ -81,7 +82,12 @@ export class StopGridHandler extends GridViewBaseHandler {
         await ctx.editMessageText(GridViewTexts.STOPPING, { parse_mode: TelegramParseMode.HTML });
 
         try {
-            await this.stopGridUseCase.execute(gridId);
+            const accountAddress = ctx.user?.accountAddress;
+            if (!accountAddress) {
+                await ctx.editMessageText(CommonTexts.ACCOUNT_NOT_CONNECTED);
+                return;
+            }
+            await this.stopGridUseCase.execute(gridId, accountAddress);
             await ctx.editMessageText(GridViewTexts.STOPPED_SUCCESS, {
                 parse_mode: TelegramParseMode.HTML,
             });

@@ -5,9 +5,10 @@ import { DatabaseModule, DRIZZLE_DB } from '@/infra/database/database.module';
 import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersRestoreAdapter } from './orders-restore.adapter';
-import { OrdersWebsocketAdapter } from '@components/trading/adapters/inbound/orders-websocket/orders-websocket.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
+import { UserStatus } from '@domain/models/user/user-status';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderType } from '@domain/models/order/order-type';
@@ -23,7 +24,7 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
-import { DatabaseTestHelper } from '@/infra/tests/database-test-helper';
+import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
 import { CacheTestHelper } from '@/infra/tests/cache-test-helper';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { AppConfigModule } from '@/config/app-config.module';
@@ -42,6 +43,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
     });
 
     beforeEach(async () => {
+        await DatabaseTestHelper.seedTestUser();
         testGrid1 = await createGridHelper('BTC', {
             lowerPrice: 45000,
             upperPrice: 55000,
@@ -84,6 +86,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
     ): Promise<GridDto> {
         const grid = await gridsApi.createGrid({
             id: crypto.randomUUID(),
+            userId: TEST_USER_ID,
             symbol,
             lowerPrice: 45000,
             upperPrice: 55000,
@@ -288,12 +291,6 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             cancelSpotOrder: vi.fn(),
         };
 
-        const mockWsAdapter = {
-            onModuleInit: vi.fn(),
-            onModuleDestroy: vi.fn(),
-            isConnected: vi.fn().mockReturnValue(false),
-        };
-
         const moduleBuilder = Test.createTestingModule({
             imports: [
                 MockDistributedLockModule,
@@ -305,9 +302,42 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             ],
         });
 
+        const mockUsersApi = {
+            findUserByChatId: vi.fn(),
+            findUserByAccountAddress: vi.fn().mockResolvedValue({
+                id: TEST_USER_ID,
+                telegramChatId: 100000001,
+                accountAddress: '0x0000000000000000000000000000000000000001',
+                agentAddress: '0x0000000000000000000000000000000000000002',
+                status: UserStatus.Active,
+            }),
+            findActiveUsers: vi.fn().mockResolvedValue([
+                {
+                    id: TEST_USER_ID,
+                    telegramChatId: 100000001,
+                    accountAddress: '0x0000000000000000000000000000000000000001',
+                    agentAddress: '0x0000000000000000000000000000000000000002',
+                    status: UserStatus.Active,
+                },
+            ]),
+            getAgentPrivateKey: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            getAgentPrivateKeyByAccountAddress: vi
+                .fn()
+                .mockResolvedValue(
+                    '0x0000000000000000000000000000000000000000000000000000000000000001',
+                ),
+            createPendingUser: vi.fn(),
+            activateUser: vi.fn(),
+            disconnectUser: vi.fn(),
+        };
+
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);
         moduleBuilder.overrideProvider(EXCHANGE_PORT).useValue(mockHyperliquidOrderClient);
-        moduleBuilder.overrideProvider(OrdersWebsocketAdapter).useValue(mockWsAdapter);
+        moduleBuilder.overrideProvider(USERS_API_PORT).useValue(mockUsersApi);
 
         module = await moduleBuilder.compile();
 

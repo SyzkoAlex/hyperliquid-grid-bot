@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'path';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
@@ -11,16 +11,16 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import type { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
-import { HyperliquidSdkService } from './hyperliquid-sdk.service';
-import { HyperliquidModule } from './hyperliquid.module';
+import { METRICS_PORT } from '@/core/application/ports/outbound/metrics.port';
+import { HyperliquidModule } from '@/infra/hyperliquid/hyperliquid.module';
+import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
+import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
 import { loadConfiguration } from '@/config/configuration';
-import type { Config } from '@/config/config.schema';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
 describe('HyperliquidExchangeAdapter (Integration)', () => {
     let adapter: ExchangePort;
-    let sdkService: HyperliquidSdkService;
     let testWalletAddress: string;
     let testingModule: TestingModule;
 
@@ -33,15 +33,21 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 }),
                 HyperliquidModule,
             ],
+            providers: [
+                HyperliquidExchangeMapper,
+                { provide: EXCHANGE_PORT, useClass: HyperliquidExchangeAdapter },
+                {
+                    provide: METRICS_PORT,
+                    useValue: { observeExchangeApiDuration: () => {} },
+                },
+            ],
         }).compile();
 
         await testingModule.init();
 
         adapter = testingModule.get<ExchangePort>(EXCHANGE_PORT);
-        sdkService = testingModule.get<HyperliquidSdkService>(HyperliquidSdkService);
 
-        const configService = testingModule.get<ConfigService<Config, true>>(ConfigService);
-        testWalletAddress = configService.get('hyperliquid', { infer: true }).accountAddress;
+        testWalletAddress = process.env.HYPERLIQUID_ACCOUNT_ADDRESS ?? '';
     });
 
     describe('getUserSpotState', () => {
@@ -81,8 +87,8 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
         });
 
         it('should retrieve open orders with proper mapping', async () => {
-            const midPrices = await sdkService.getSdk().info.getAllMids();
-            const hypeMid = parseFloat(midPrices['HYPE-SPOT'] || '25');
+            const mids = await adapter.getCurrentPrice(TradingSymbol.create('HYPE'));
+            const hypeMid = mids.toNumber();
             const testPrice = Math.round(hypeMid * 0.8 * 100) / 100;
             const testAmount = 1;
 
@@ -92,6 +98,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 price: Price.from(testPrice),
                 amount: Decimal.from(testAmount),
                 orderId: crypto.randomUUID(),
+                accountAddress: testWalletAddress,
             };
 
             const placeResult = await adapter.placeSpotOrder(orderParams);
@@ -116,15 +123,15 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
             await adapter.cancelSpotOrder({
                 symbol: orderParams.symbol,
                 exchangeOrderId: placeResult.exchangeOrderId,
+                accountAddress: testWalletAddress,
             });
         });
     });
 
     describe.skip('placeOrder', () => {
         it('should place a limit order on testnet', async () => {
-            const midPrices = await sdkService.getSdk().info.getAllMids();
-            const hypeMid = parseFloat(midPrices['HYPE-SPOT'] || '25');
-            const testPrice = Math.round(hypeMid * 0.8 * 100) / 100;
+            const currentPrice = await adapter.getCurrentPrice(TradingSymbol.create('HYPE'));
+            const testPrice = Math.round(currentPrice.toNumber() * 0.8 * 100) / 100;
 
             const orderParams: ExchangePlaceOrderParams = {
                 symbol: TradingSymbol.create('HYPE'),
@@ -132,6 +139,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 price: Price.from(testPrice),
                 amount: Decimal.from(1),
                 orderId: crypto.randomUUID(),
+                accountAddress: testWalletAddress,
             };
 
             const result = await adapter.placeSpotOrder(orderParams);
@@ -145,6 +153,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 await adapter.cancelSpotOrder({
                     symbol: orderParams.symbol,
                     exchangeOrderId: result.exchangeOrderId,
+                    accountAddress: testWalletAddress,
                 });
             }
         });
@@ -152,9 +161,8 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
 
     describe.skip('cancelOrder', () => {
         it('should cancel a specific order', async () => {
-            const midPrices = await sdkService.getSdk().info.getAllMids();
-            const hypeMid = parseFloat(midPrices['HYPE-SPOT'] || '25');
-            const testPrice = Math.round(hypeMid * 0.8 * 100) / 100;
+            const currentPrice = await adapter.getCurrentPrice(TradingSymbol.create('HYPE'));
+            const testPrice = Math.round(currentPrice.toNumber() * 0.8 * 100) / 100;
 
             const orderParams: ExchangePlaceOrderParams = {
                 symbol: TradingSymbol.create('HYPE'),
@@ -162,6 +170,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 price: Price.from(testPrice),
                 amount: Decimal.from(1),
                 orderId: crypto.randomUUID(),
+                accountAddress: testWalletAddress,
             };
 
             const placeResult = await adapter.placeSpotOrder(orderParams);
@@ -170,6 +179,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
             const cancelResult = await adapter.cancelSpotOrder({
                 symbol: orderParams.symbol,
                 exchangeOrderId: placeResult.exchangeOrderId,
+                accountAddress: testWalletAddress,
             });
 
             expect(cancelResult.success).toBe(true);

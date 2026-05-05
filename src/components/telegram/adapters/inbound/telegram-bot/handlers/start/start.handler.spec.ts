@@ -3,12 +3,12 @@ import { StartHandler } from './start.handler';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
-import { WelcomeMessage } from '@components/telegram/core/domain/models/messages/welcome-message';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { UserStatus } from '@domain/models/user/user-status';
 
 describe('StartHandler', () => {
     let handler: StartHandler;
     let botService: TelegramBotService;
+    let mockUsersApi: { findUserByChatId: ReturnType<typeof vi.fn> };
     let registeredCallbacks: Map<string, (ctx: BotContext) => Promise<void>>;
 
     beforeEach(() => {
@@ -20,7 +20,11 @@ describe('StartHandler', () => {
             }),
         } as unknown as TelegramBotService;
 
-        handler = new StartHandler(botService);
+        mockUsersApi = {
+            findUserByChatId: vi.fn().mockResolvedValue(null),
+        };
+
+        handler = new StartHandler(botService, mockUsersApi as any);
     });
 
     describe('register', () => {
@@ -35,22 +39,39 @@ describe('StartHandler', () => {
     });
 
     describe('handle', () => {
-        it('should reply with welcome message and menu keyboard', async () => {
+        it('should enter connect-account scene for new user', async () => {
             handler.register();
             const ctx = createMockContext();
+            mockUsersApi.findUserByChatId.mockResolvedValue(null);
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(ctx.reply).toHaveBeenCalledWith(
-                WelcomeMessage.create().text,
-                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
-            );
+            expect(ctx.scene.enter).toHaveBeenCalledWith('connect_account');
+        });
+
+        it('should show welcome message for active user', async () => {
+            handler.register();
+            const ctx = createMockContext();
+            mockUsersApi.findUserByChatId.mockResolvedValue({
+                status: UserStatus.Active,
+                accountAddress: '0xabc',
+            });
+
+            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
+
+            expect(ctx.reply).toHaveBeenCalled();
+            expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
     });
 
     function createMockContext(): BotContext {
         return {
-            reply: vi.fn(),
+            chat: { id: 12345 },
+            reply: vi.fn().mockResolvedValue(undefined),
+            session: {},
+            scene: {
+                enter: vi.fn().mockResolvedValue(undefined),
+            },
         } as unknown as BotContext;
     }
 });

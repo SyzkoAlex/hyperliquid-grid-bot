@@ -2,6 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { METRICS_PORT, MetricsPort } from '@/core/application/ports/outbound/metrics.port';
 import { startTimer } from '@/infra/metrics/timer';
+import { HyperliquidOrdersService } from '@/infra/hyperliquid/orders/hyperliquid-orders.service';
+import { HyperliquidInfoService } from '@/infra/hyperliquid/info/hyperliquid-info.service';
+import { HyperliquidMetaService } from '@/infra/hyperliquid/meta/hyperliquid-meta.service';
 import { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-params';
 import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
@@ -13,34 +16,40 @@ import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchan
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { HyperliquidSdkService } from './hyperliquid-sdk.service';
+import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
+import { OrderSide } from '@domain/models/order/order-side';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
-import { HyperliquidSymbol } from './types/hyperliquid-symbol';
-import { HyperliquidOpenOrder } from './types/hyperliquid-open-order';
-import { HyperliquidOrderStatusResponse } from './types/hyperliquid-order-status-response';
-import { HyperliquidUserStateResponse } from './types/hyperliquid-user-state-response';
+import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/hyperliquid-place-spot-order-input';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
 @Injectable()
 export class HyperliquidExchangeAdapter implements ExchangePort {
     private readonly logger = logger.child({ context: HyperliquidExchangeAdapter.name });
 
     constructor(
-        private readonly sdkService: HyperliquidSdkService,
+        private readonly orders: HyperliquidOrdersService,
+        private readonly info: HyperliquidInfoService,
+        private readonly meta: HyperliquidMetaService,
         private readonly mapper: HyperliquidExchangeMapper,
         @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {}
 
     async placeSpotOrder(params: ExchangePlaceOrderParams): Promise<ExchangePlaceOrderResult> {
         const stop = startTimer();
         try {
-            const szDecimals = this.sdkService.getSzDecimals(params.symbol.toString());
-            const orderRequest = this.mapper.toSdkPlaceOrderRequest(params, szDecimals);
-            const sdk = this.sdkService.getSdk();
+            const agentPrivateKey = await this.resolveAgentKey(params.accountAddress);
+            const orderData: PlaceSpotOrderInput = {
+                symbol: params.symbol.toString(),
+                isBuy: params.side === OrderSide.Buy,
+                amount: params.amount.toNumber(),
+                price: params.price.toNumber(),
+                cloid: ExchangeCloid.create(params.orderId).toString(),
+                agentPrivateKey,
+            };
 
-            this.logger.debug(orderRequest, 'Placing order via SDK');
-            const response = await sdk.exchange.placeOrder(orderRequest);
-            this.logger.info({ orderRequest, response }, 'Order placed');
-
+            const response = await this.orders.placeSpotOrder(orderData);
+            this.logger.info({ params, response }, 'Order placed');
             return this.mapper.toExchangePlaceOrderResult(response);
         } catch (error) {
             this.logger.error({ err: error, params }, 'Failed to place order');
@@ -53,16 +62,13 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async cancelSpotOrder(params: ExchangeCancelOrderParams): Promise<ExchangeCancelOrderResult> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
-            const cancelRequest = {
-                coin: HyperliquidSymbol.toSpotFormat(params.symbol.toString()),
-                o: Number(params.exchangeOrderId),
-            };
-
-            this.logger.debug(cancelRequest, 'Cancelling order via SDK');
-            const response = await sdk.exchange.cancelOrder(cancelRequest);
+            const agentPrivateKey = await this.resolveAgentKey(params.accountAddress);
+            const response = await this.orders.cancelSpotOrder({
+                symbol: params.symbol.toString(),
+                exchangeOrderId: Number(params.exchangeOrderId),
+                agentPrivateKey,
+            });
             this.logger.info({ params, response }, 'Order cancelled');
-
             return {
                 exchangeOrderId: params.exchangeOrderId,
                 success: response?.status === 'ok',
@@ -82,15 +88,12 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async getCurrentPrice(symbol: TradingSymbol): Promise<Price> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
-            const spotKey = this.sdkService.lookupSpotKey(symbol.toString());
-            const mids = (await sdk.info.getAllMids(true)) as Record<string, string>;
+            const spotKey = this.meta.lookupSpotKey(symbol.toString());
+            const mids = await this.info.getAllMids();
             const priceStr = mids[spotKey];
-
             if (!priceStr) {
                 throw new Error(`Price not available for ${symbol.toString()}`);
             }
-
             return Price.from(parseFloat(priceStr));
         } finally {
             this.metrics.observeExchangeApiDuration('getCurrentPrice', stop());
@@ -100,12 +103,8 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
-            const orders = (await sdk.info.getUserOpenOrders(
-                user,
-                true,
-            )) as unknown as HyperliquidOpenOrder[];
-            const resolveSymbol = (coin: string) => this.sdkService.resolveSpotSymbol(coin);
+            const orders = await this.info.getOpenOrders(user);
+            const resolveSymbol = (coin: string) => this.meta.resolveSpotSymbol(coin);
             return this.mapper.toOpenOrders(orders, resolveSymbol);
         } catch (error) {
             this.logger.error({ err: error, user }, 'Failed to get open orders');
@@ -118,29 +117,18 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async getOrderStatus(user: string, oid: number | string): Promise<ExchangeOrderInfo | null> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
             const resolvedOid =
                 typeof oid === 'string' && !oid.startsWith('0x') ? Number(oid) : oid;
-            const response = (await sdk.info.getOrderStatus(
-                user,
-                resolvedOid,
-                true,
-            )) as unknown as HyperliquidOrderStatusResponse;
+            const response = await this.info.getOrderStatus(user, resolvedOid as number);
 
             if (!response) {
                 return null;
             }
 
-            if (response.status === 'unknownOid') {
-                return null;
-            }
-
-            return this.mapper.toExchangeOrderInfo(response);
+            return this.mapper.toExchangeOrderInfo(
+                response as Parameters<typeof this.mapper.toExchangeOrderInfo>[0],
+            );
         } catch (error) {
-            if (isApiError(error, 422)) {
-                this.logger.debug({ user, oid }, 'Order status 422, treating as not found');
-                return null;
-            }
             this.logger.error({ err: error, user, oid }, 'Failed to get order status');
             throw error;
         } finally {
@@ -152,12 +140,11 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
         user: string,
         oid: number,
         startTime: number,
+        endTime: number,
     ): Promise<ExchangeOrderFill[]> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
-            const endTime = startTime + 60_000;
-            const fills = await sdk.info.getUserFillsByTime(user, startTime, endTime, true);
+            const fills = await this.info.getUserFills(user, startTime, endTime);
             return this.mapper.toExchangeOrderFills(fills, oid);
         } catch (error) {
             this.logger.error({ err: error, user, oid }, 'Failed to get order fills');
@@ -170,11 +157,7 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async getUserSpotState(user: string): Promise<UserState> {
         const stop = startTimer();
         try {
-            const sdk = this.sdkService.getSdk();
-            const response = (await sdk.info.spot.getSpotClearinghouseState(
-                user,
-                true,
-            )) as unknown as HyperliquidUserStateResponse;
+            const response = await this.info.getSpotClearinghouseState(user);
             return this.mapper.toUserState(response);
         } catch (error) {
             this.logger.error({ error, user }, 'Failed to get user state');
@@ -187,17 +170,39 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
     async pairExists(symbol: TradingSymbol): Promise<boolean> {
         const stop = startTimer();
         try {
-            return await this.sdkService.pairExists(symbol.toString());
+            return await this.meta.pairExists(symbol.toString());
         } finally {
             this.metrics.observeExchangeApiDuration('pairExists', stop());
         }
     }
-}
 
-function isApiError(error: unknown, code: number): boolean {
-    return (
-        error instanceof Error &&
-        error.name === 'HyperliquidAPIError' &&
-        Number((error as Error & { code: unknown }).code) === code
-    );
+    async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {
+        try {
+            const agentPrivateKey = await this.resolveAgentKey(accountAddress);
+            // Attempt to cancel a non-existent order — triggers signing with the agent key.
+            // An unapproved agent will get a distinct "not approved" error.
+            await this.orders.cancelSpotOrder({
+                symbol: 'USDC',
+                exchangeOrderId: 0,
+                agentPrivateKey,
+            });
+            // Should never succeed for a non-existent order
+            return { approved: true };
+        } catch (err) {
+            const message = String(err).toLowerCase();
+            if (message.includes('not approved') || message.includes('agent not approved')) {
+                return { approved: false };
+            }
+            // Any other error (e.g. "order not found") means the agent IS approved
+            return { approved: true };
+        }
+    }
+
+    private async resolveAgentKey(accountAddress: string): Promise<string> {
+        const user = await this.usersApi.findUserByAccountAddress(accountAddress);
+        if (!user) {
+            throw new Error(`No user found for account address: ${accountAddress}`);
+        }
+        return this.usersApi.getAgentPrivateKey(user.id);
+    }
 }

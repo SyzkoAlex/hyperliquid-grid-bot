@@ -17,7 +17,13 @@ export interface ExchangePort {
     getCurrentPrice(symbol: TradingSymbol): Promise<Price>;
     getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]>;
     getOrderStatus(user: string, oid: number | string): Promise<ExchangeOrderInfo | null>;
-    getOrderFills(user: string, oid: number, startTime: number): Promise<ExchangeOrderFill[]>;
+    getOrderFills(
+        user: string,
+        oid: number,
+        startTime: number,
+        endTime: number,
+    ): Promise<ExchangeOrderFill[]>;
     getUserSpotState(user: string): Promise<UserState>;
     pairExists(symbol: TradingSymbol): Promise<boolean>;
+    probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
 }

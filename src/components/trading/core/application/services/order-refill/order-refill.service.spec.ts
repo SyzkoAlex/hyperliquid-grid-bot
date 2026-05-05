@@ -107,7 +107,7 @@ describe('OrderRefillService', () => {
 
     describe('processOne', () => {
         it('should delegate to placement and event publisher for a BUY fill', async () => {
-            const result = await service.processOne(testBuyOrder, testGrid);
+            const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(true);
             expect(result.refillOrder).toBeDefined();
@@ -126,7 +126,7 @@ describe('OrderRefillService', () => {
                 PlaceRefillOrderResult.success(makeRefillOrderDto({ side: OrderSide.Buy })),
             );
 
-            const result = await service.processOne(testSellOrder, testGrid);
+            const result = await service.processOne(testSellOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(true);
             expect(result.profit).toBe(10);
@@ -139,7 +139,7 @@ describe('OrderRefillService', () => {
                 price: 55000,
             };
 
-            const result = await service.processOne(topLevelBuy, testGrid);
+            const result = await service.processOne(topLevelBuy, testGrid, '0xabc');
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('Edge level');
@@ -157,7 +157,7 @@ describe('OrderRefillService', () => {
                 price: 45000,
             };
 
-            const result = await service.processOne(bottomLevelSell, testGrid);
+            const result = await service.processOne(bottomLevelSell, testGrid, '0xabc');
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('Edge level');
@@ -173,7 +173,7 @@ describe('OrderRefillService', () => {
                 PlaceRefillOrderResult.failure('Insufficient balance'),
             );
 
-            const result = await service.processOne(testBuyOrder, testGrid);
+            const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(false);
             expect(result.error).toBe('Insufficient balance');
@@ -192,7 +192,7 @@ describe('OrderRefillService', () => {
                 }),
             ]);
 
-            const result = await service.processOne(testBuyOrder, testGrid);
+            const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('Active order already exists');
@@ -206,7 +206,7 @@ describe('OrderRefillService', () => {
         it('should still attempt refill when publishFillEvent throws', async () => {
             mockTradeEventPublisher.publishFillEvent.mockRejectedValue(new Error('Event bus down'));
 
-            const result = await service.processOne(testBuyOrder, testGrid);
+            const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(true);
             expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(1);
@@ -217,7 +217,7 @@ describe('OrderRefillService', () => {
                 new Error('Unexpected DB error'),
             );
 
-            const result = await service.processOne(testBuyOrder, testGrid);
+            const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
 
             expect(result.success).toBe(false);
             expect(result.error).toContain('Unexpected DB error');

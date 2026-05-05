@@ -1,16 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuickStartStep } from './quick-start.step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
-import { ConfigService } from '@nestjs/config';
-import { Config } from '@/config/config.schema';
 import { SceneStep } from '../create-grid-scene-step';
 
 describe('QuickStartStep', () => {
     let step: QuickStartStep;
     let mockTradingApi: TradingApiPort;
-    let mockConfigService: ConfigService<Config, true>;
     let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
@@ -25,15 +22,11 @@ describe('QuickStartStep', () => {
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
 
-        mockConfigService = {
-            get: vi.fn().mockReturnValue('0x123'),
-        } as unknown as ConfigService<Config, true>;
-
         mockMessageManager = {
             sendEnterMessage: vi.fn(),
         } as unknown as WizardMessageManager;
 
-        step = new QuickStartStep(mockTradingApi, mockMessageManager, mockConfigService);
+        step = new QuickStartStep(mockTradingApi, mockMessageManager);
     });
 
     describe('enter', () => {
@@ -229,6 +222,7 @@ describe('QuickStartStep', () => {
         return {
             session,
             scene: { leave: vi.fn() },
+            user: { accountAddress: '0x123' },
         } as unknown as BotContext;
     }
 });

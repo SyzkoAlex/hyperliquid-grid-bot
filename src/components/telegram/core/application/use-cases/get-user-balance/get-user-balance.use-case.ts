@@ -1,29 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Config } from '@/config/config.schema';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { UserBalance, TokenBalance } from '@components/telegram/core/domain/models/user-balance';
+import { TokenBalance, UserBalance } from '@components/telegram/core/domain/models/user-balance';
 
 @Injectable()
 export class GetUserBalanceUseCase {
-    private readonly accountAddress: string;
+    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
 
-    constructor(
-        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
-        private readonly configService: ConfigService<Config>,
-    ) {
-        this.accountAddress = configService.get('hyperliquid.accountAddress', { infer: true })!;
-    }
+    async execute(accountAddress: string): Promise<UserBalance> {
+        const state = await this.tradingApi.getUserSpotState(accountAddress);
 
-    async execute(): Promise<UserBalance> {
-        const state = await this.tradingApi.getUserSpotState(this.accountAddress);
-
-        const allTokens = await Promise.all(
-            Object.keys(state.spotPositions).map((symbol) =>
-                this.fetchTokenBalance(symbol, state.spotPositions[symbol]),
-            ),
-        );
-
+        const allTokens = await this.fetchAllTokenBalances(state.spotPositions);
         const tokens = allTokens.filter((t) => t.total > 0);
         const totalValueUsdc = state.usdc.total + tokens.reduce((sum, t) => sum + t.valueUsdc, 0);
 
@@ -36,6 +22,16 @@ export class GetUserBalanceUseCase {
             tokens,
             totalValueUsdc,
         };
+    }
+
+    private async fetchAllTokenBalances(
+        spotPositions: Record<string, { available: number; hold: number; total: number }>,
+    ): Promise<TokenBalance[]> {
+        return Promise.all(
+            Object.keys(spotPositions).map((symbol) =>
+                this.fetchTokenBalance(symbol, spotPositions[symbol]),
+            ),
+        );
     }
 
     private async fetchTokenBalance(
