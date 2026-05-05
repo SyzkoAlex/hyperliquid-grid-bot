@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { coerceBoolean } from './coerce-boolean';
 
 export const telegramSessionSchema = z.object({
     ttlSeconds: z.coerce.number().int().positive(),
@@ -11,7 +12,7 @@ export const telegramPaginationSchema = z.object({
 });
 
 export const telegramSchema = z.object({
-    enabled: z.coerce.boolean(),
+    enabled: coerceBoolean(),
     botToken: z.string().min(1),
     allowedUserId: z.coerce.number().int().optional(),
     notificationChatId: z.coerce.number().int(),

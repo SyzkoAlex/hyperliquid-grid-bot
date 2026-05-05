@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { coerceBoolean } from './coerce-boolean';
 
 export const metricsSchema = z.object({
-    enabled: z.coerce.boolean(),
+    enabled: coerceBoolean(),
     path: z.string(),
 });
 

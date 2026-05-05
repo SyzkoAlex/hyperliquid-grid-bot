@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { coerceBoolean } from './coerce-boolean';
 
 export const databaseSchema = z.object({
     host: z.string().min(1),
@@ -7,7 +8,7 @@ export const databaseSchema = z.object({
     password: z.string().min(1),
     database: z.string().min(1),
     poolSize: z.coerce.number().int().positive(),
-    ssl: z.coerce.boolean(),
+    ssl: coerceBoolean(),
 });
 
 export type DatabaseConfig = z.infer<typeof databaseSchema>;

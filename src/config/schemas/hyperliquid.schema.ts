@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { coerceBoolean } from './coerce-boolean';
 
 export const hyperliquidSchema = z.object({
     apiUrl: z.string().url(),
-    testnet: z.coerce.boolean().default(false),
+    testnet: coerceBoolean().default(false),
     agentKeyEncryptionKey: z
         .string()
         .length(64, 'Must be 64 hex chars (32 bytes)')
