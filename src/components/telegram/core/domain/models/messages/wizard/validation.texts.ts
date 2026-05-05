@@ -102,11 +102,23 @@ export class ValidationTexts {
         minRequired: number,
         suggestedMax: number,
     ): string {
+        const ordersCount = levels + 1;
+        const shortfall = Math.ceil(minRequired - suggestedMax);
+        const maxAffordableLevels = Math.floor(suggestedMax / WIZARD_CONFIG.MIN_INVESTMENT) - 1;
+        const canReduceLevels = maxAffordableLevels >= WIZARD_CONFIG.MIN_LEVELS;
+
+        let options = `  • Add at least ${shortfall} more USDC to your balance`;
+        if (canReduceLevels) {
+            options = `  • Reduce to ${maxAffordableLevels} levels or fewer\n` + options;
+        }
+
         return (
             `${EMOJI.WARNING} Insufficient balance for grid creation!\n\n` +
-            `With ${levels} levels, minimum investment is ${minRequired} USDC (${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order).\n` +
-            `Based on your current balance distribution, you can invest at most ~${suggestedMax} USDC.\n\n` +
-            `Please add more funds or choose fewer levels.`
+            `With ${levels} levels, minimum investment is ${minRequired} USDC ` +
+            `(${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order × ${ordersCount} orders).\n` +
+            `Your balance supports at most ~${suggestedMax} USDC for this grid configuration.\n\n` +
+            `Options:\n` +
+            options
         );
     }
 
