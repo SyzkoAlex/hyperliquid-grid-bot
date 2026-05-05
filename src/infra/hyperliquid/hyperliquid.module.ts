@@ -10,8 +10,10 @@ import { HyperliquidOrdersService } from './orders/hyperliquid-orders.service';
     providers: [
         {
             provide: HyperliquidHttpClient,
-            useFactory: (config: ConfigService<Config, true>) =>
-                new HyperliquidHttpClient(config.get('hyperliquid', { infer: true }).apiUrl),
+            useFactory: (config: ConfigService<Config, true>) => {
+                const { apiUrl, requestTimeout } = config.get('hyperliquid', { infer: true });
+                return new HyperliquidHttpClient(apiUrl, requestTimeout);
+            },
             inject: [ConfigService],
         },
         HyperliquidMetaService,

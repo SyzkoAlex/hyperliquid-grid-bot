@@ -19,7 +19,7 @@ describe('AgentKeyAdapter', () => {
     describe('constructor', () => {
         it('should throw when agentKeyEncryptionKey is absent', () => {
             expect(() => new AgentKeyAdapter(makeConfigService(undefined) as any)).toThrow(
-                'AGENT_KEY_ENCRYPTION_KEY is required',
+                'HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY is required',
             );
         });
 

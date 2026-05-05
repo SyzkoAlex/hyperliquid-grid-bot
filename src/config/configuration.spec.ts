@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { expandEnv } from './configuration';
+import { expandEnv, expandObject } from './configuration';
 
 describe('expandEnv', () => {
     beforeEach(() => {
@@ -45,5 +45,17 @@ describe('expandEnv', () => {
     it('should return empty string default when specified', () => {
         const result = expandEnv('${TEST_EXPAND_MISSING:}');
         expect(result).toBe('');
+    });
+});
+
+describe('expandObject', () => {
+    it('should remove keys whose env var is unset and has no default', () => {
+        const result = expandObject({ allowedUserId: '${TEST_EXPAND_MISSING}', foo: 'bar' });
+        expect(result).toEqual({ foo: 'bar' });
+    });
+
+    it('should keep keys whose env var resolves to empty string via ${VAR:} default', () => {
+        const result = expandObject({ allowedUserId: '${TEST_EXPAND_MISSING:}' });
+        expect(result).toEqual({ allowedUserId: '' });
     });
 });

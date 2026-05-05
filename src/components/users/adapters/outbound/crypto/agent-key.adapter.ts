@@ -14,7 +14,9 @@ export class AgentKeyAdapter implements AgentKeyPort {
             infer: true,
         }).agentKeyEncryptionKey;
         if (!encryptionKey) {
-            throw new Error('AGENT_KEY_ENCRYPTION_KEY is required for agent wallet functionality');
+            throw new Error(
+                'HYPERLIQUID_AGENT_KEY_ENCRYPTION_KEY is required for agent wallet functionality',
+            );
         }
         this.encryption = new AesEncryptionService(encryptionKey);
     }

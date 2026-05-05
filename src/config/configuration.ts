@@ -40,7 +40,7 @@ export function expandEnv(value: unknown): unknown {
 /**
  * Recursively expand environment variables in object
  */
-function expandObject(obj: unknown): unknown {
+export function expandObject(obj: unknown): unknown {
     if (Array.isArray(obj)) {
         return obj.map(expandObject).filter((v) => v !== undefined);
     }

@@ -6,9 +6,10 @@ import axios, { AxiosInstance } from 'axios';
 export class HyperliquidHttpClient {
     private readonly http: AxiosInstance;
 
-    constructor(baseUrl: string) {
+    constructor(baseUrl: string, timeoutMs: number) {
         this.http = axios.create({
             baseURL: baseUrl,
+            timeout: timeoutMs,
             headers: { 'Content-Type': 'application/json' },
         });
     }
