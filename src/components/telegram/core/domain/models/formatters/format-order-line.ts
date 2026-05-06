@@ -12,5 +12,5 @@ export function formatOrderLine(order: OrderDto, symbol: string): string {
     const sideEmoji = ORDER_SIDE_EMOJI[order.side] ?? '·';
     const side = order.side === OrderSide.Buy ? 'Buy ' : 'Sell';
     const p = order.price !== null ? `$${PriceFormatter.format(order.price)}` : '—';
-    return `${sideEmoji} ${side}  Lv.${order.levelIndex + 1}  ${p} · ${order.amount} ${symbol}`;
+    return `${sideEmoji} ${side}  ${p} · ${order.amount} ${symbol}`;
 }

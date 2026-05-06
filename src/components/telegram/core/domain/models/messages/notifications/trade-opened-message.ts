@@ -10,8 +10,6 @@ interface TradeOpenedProps {
     price: number;
     amount: number;
     total: number;
-    level: number;
-    totalLevels: number;
 }
 
 export class TradeOpenedMessage {
@@ -23,7 +21,7 @@ export class TradeOpenedMessage {
         this.text =
             `${arrow} <b>${props.side.toUpperCase()} ${props.symbol}</b>\n` +
             `${formatToken(props.amount)} × ${formatPrice(props.price)} = ${formatPrice(props.total)}\n` +
-            `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
+            `Grid (<code>${shortId}</code>)`;
     }
 
     static create(props: TradeOpenedProps): TradeOpenedMessage {

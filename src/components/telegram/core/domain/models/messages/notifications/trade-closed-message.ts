@@ -12,8 +12,6 @@ interface TradeClosedProps {
     total: number;
     profit: number;
     profitPercent: string;
-    level: number;
-    totalLevels: number;
 }
 
 export class TradeClosedMessage {
@@ -27,7 +25,7 @@ export class TradeClosedMessage {
             `${arrow} <b>${props.side.toUpperCase()} ${props.symbol}</b>\n` +
             `${formatToken(props.amount)} × ${formatPrice(props.price)} = ${formatPrice(props.total)}\n` +
             `Profit: ${profitSign}${formatPrice(props.profit)} (${props.profitPercent}%)\n` +
-            `Grid (<code>${shortId}</code>) · Lv.${props.level}/${props.totalLevels}`;
+            `Grid (<code>${shortId}</code>)`;
     }
 
     static create(props: TradeClosedProps): TradeClosedMessage {
@@ -44,8 +42,6 @@ export class TradeClosedMessage {
             total: event.total,
             profit: event.profit,
             profitPercent: ((event.profit / event.total) * 100).toFixed(2),
-            level: event.level,
-            totalLevels: event.totalLevels,
         });
     }
 }
