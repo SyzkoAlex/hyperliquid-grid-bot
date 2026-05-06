@@ -25,6 +25,8 @@ export class GridProfitTabMessage {
         const lower = PriceFormatter.format(grid.lowerPrice);
         const upper = PriceFormatter.format(grid.upperPrice);
         const price = PriceFormatter.format(currentPrice);
+        const entryPrice =
+            grid.creationPrice != null ? `$${PriceFormatter.format(grid.creationPrice)}` : '—';
         const investmentStr = PriceFormatter.format(investment);
         const startedStr = grid.startedAt
             ? new Date(grid.startedAt).toISOString().slice(0, 16).replace('T', ' ')
@@ -50,6 +52,7 @@ export class GridProfitTabMessage {
             `\n` +
             `<b>Investment:</b> $${investmentStr}\n` +
             `<b>Range:</b> $${lower} – $${upper} · ${grid.levels} levels\n` +
+            `<b>Entry Price:</b> ${entryPrice}\n` +
             `<b>Current Price:</b> $${price}\n` +
             `<b>Started:</b> ${startedStr}\n`;
     }

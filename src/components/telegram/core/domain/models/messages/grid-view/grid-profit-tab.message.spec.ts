@@ -116,4 +116,15 @@ describe('GridProfitTabMessage', () => {
         const result = GridProfitTabMessage.create(makeData(grid)).text;
         expect(result).toContain('$595');
     });
+
+    it('shows Entry Price when creationPrice is set', () => {
+        const result = GridProfitTabMessage.create(makeData(makeGrid())).text;
+        expect(result).toContain('Entry Price:</b> $95000');
+    });
+
+    it('shows — for Entry Price when creationPrice is undefined', () => {
+        const grid: GridDto = { ...makeGrid(), creationPrice: undefined };
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('Entry Price:</b> —');
+    });
 });
