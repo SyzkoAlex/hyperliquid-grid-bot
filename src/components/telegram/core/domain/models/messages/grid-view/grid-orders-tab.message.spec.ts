@@ -71,7 +71,7 @@ describe('GridOrdersTabMessage', () => {
         expect(GridOrdersTabMessage.create(makeData(makeGrid())).text).toContain('Active Orders');
     });
 
-    it('shows individual active orders with price and level', () => {
+    it('shows individual active orders with price and side, without level numbers', () => {
         const activeOrders = [
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 0),
             makeOrder(OrderSide.Sell, OrderStatus.Placed, 96000, 6),
@@ -79,8 +79,9 @@ describe('GridOrdersTabMessage', () => {
         const result = GridOrdersTabMessage.create(makeData(makeGrid(), activeOrders)).text;
         expect(result).toContain('▼ Buy');
         expect(result).toContain('▲ Sell');
-        expect(result).toContain('Lv.1');
-        expect(result).toContain('Lv.7');
+        expect(result).toContain('$90000');
+        expect(result).toContain('$96000');
+        expect(result).not.toContain('Lv.');
     });
 
     it('shows "no active orders" when list is empty', () => {
@@ -99,14 +100,15 @@ describe('GridOrdersTabMessage', () => {
         expect(sellPos).toBeLessThan(buyPos); // sell at 96000 appears before buy at 90000
     });
 
-    it('displays all orders provided in activeOrders', () => {
+    it('displays all orders provided in activeOrders without level numbers', () => {
         // activeOrders are pre-filtered at DB level (Pending/Placed only)
         const activeOrders = [
             makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 0),
             makeOrder(OrderSide.Sell, OrderStatus.Placed, 96000, 6),
         ];
         const result = GridOrdersTabMessage.create(makeData(makeGrid(), activeOrders)).text;
-        expect(result).toContain('Lv.1');
-        expect(result).toContain('Lv.7');
+        expect(result).toContain('$90000');
+        expect(result).toContain('$96000');
+        expect(result).not.toContain('Lv.');
     });
 });

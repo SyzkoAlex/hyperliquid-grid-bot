@@ -51,7 +51,7 @@ export class GridProfitTabMessage {
             `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n` +
             `\n` +
             `<b>Investment:</b> $${investmentStr}\n` +
-            `<b>Range:</b> $${lower} – $${upper} · ${grid.levels} levels\n` +
+            `<b>Range:</b> $${lower} – $${upper} · ${grid.levels} levels · ${grid.levels + 1} orders\n` +
             `<b>Entry Price:</b> ${entryPrice}\n` +
             `<b>Current Price:</b> $${price}\n` +
             `<b>Started:</b> ${startedStr}\n`;

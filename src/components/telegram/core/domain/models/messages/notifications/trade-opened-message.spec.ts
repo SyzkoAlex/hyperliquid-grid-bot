@@ -10,8 +10,6 @@ describe('TradeOpenedMessage', () => {
         price: 95000,
         amount: 0.005,
         total: 475,
-        level: 3,
-        totalLevels: 10,
     };
 
     it('shows down arrow for buy side', () => {
@@ -33,10 +31,11 @@ describe('TradeOpenedMessage', () => {
         expect(msg.text).toContain('$475.00');
     });
 
-    it('shows first 8 chars of grid ID and level info', () => {
+    it('shows first 8 chars of grid ID without level info', () => {
         const msg = TradeOpenedMessage.create(baseProps);
         expect(msg.text).toContain('550e8400');
-        expect(msg.text).toContain('Lv.3/10');
+        expect(msg.text).not.toContain('Lv.');
+        expect(msg.text).toContain('Grid (<code>550e8400</code>)');
     });
 
     it('creates from OrderOpenedEvent', () => {
@@ -54,6 +53,6 @@ describe('TradeOpenedMessage', () => {
         expect(msg.text).toContain('▲');
         expect(msg.text).toContain('SELL ETH');
         expect(msg.text).toContain('$3,500.00');
-        expect(msg.text).toContain('Lv.2/8');
+        expect(msg.text).not.toContain('Lv.');
     });
 });

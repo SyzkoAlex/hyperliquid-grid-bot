@@ -86,6 +86,12 @@ describe('GridProfitTabMessage', () => {
         expect(result).toContain('10 levels');
     });
 
+    it('renders both level and order counts in the Range summary', () => {
+        const grid = makeGrid();
+        const result = GridProfitTabMessage.create(makeData(grid)).text;
+        expect(result).toContain('10 levels · 11 orders');
+    });
+
     it('shows Profitable Trades from filledCycles', () => {
         expect(GridProfitTabMessage.create(makeData(makeGrid())).text).toContain(
             'Profitable Trades:</b> 5',
