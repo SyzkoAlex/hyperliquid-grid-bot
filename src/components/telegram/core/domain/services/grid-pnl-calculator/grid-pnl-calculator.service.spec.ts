@@ -252,4 +252,50 @@ describe('GridPnlCalculatorService', () => {
             expect(totalPnl).toBeCloseTo(-17.47, 0);
         });
     });
+
+    describe('initialBase — initial grid base token allocation', () => {
+        it('without initialBase: only-sells scenario gives inflated gridProfit', () => {
+            // 2 initial sells, no buy fills → avgBuyPrice = 0 → gridProfit = full sell volume
+            const orders = [sell(87, 0.137), sell(88, 0.137)];
+            const result = service.calculate(orders, 88.22);
+            expect(result.gridProfit).toBeCloseTo(87 * 0.137 + 88 * 0.137, 2); // inflated
+        });
+
+        it('with initialBase: gridProfit reflects cost basis from creation price', () => {
+            const orders = [sell(87, 0.137), sell(88, 0.137)];
+            const initialBase = { amount: 0.548, price: 88.26 };
+            const result = service.calculate(orders, 88.22, initialBase);
+            // avgBuyPrice ≈ 88.26, gridProfit = (87+88)×0.137 − 0.274×88.26 ≈ −0.20
+            expect(result.gridProfit).toBeCloseTo((87 + 88) * 0.137 - 0.274 * 88.26, 2);
+        });
+
+        it('with initialBase: qtyHeld includes initial allocation minus sells', () => {
+            const orders = [sell(87, 0.137), sell(88, 0.137)];
+            const initialBase = { amount: 0.548, price: 88.26 };
+            const result = service.calculate(orders, 88.22, initialBase);
+            // qtyHeld = 0.548 - 0.274 = 0.274; unrealized = 0.274 × (88.22 - 88.26) ≈ −0.011
+            expect(result.unrealizedPnl).toBeCloseTo(0.274 * (88.22 - 88.26), 3);
+        });
+
+        it('with initialBase: totalPnl invariant still holds', () => {
+            const orders = [sell(87, 0.137), sell(88, 0.137)];
+            const initialBase = { amount: 0.548, price: 88.26 };
+            const result = service.calculate(orders, 88.22, initialBase);
+            // invariant: gridProfit + unrealizedPnl = sellVolume + qtyHeld×currentPrice − buyVolume
+            // where buyVolume includes initialBase
+            const sellVolume = 87 * 0.137 + 88 * 0.137;
+            const buyVolume = 0.548 * 88.26;
+            const qtyHeld = 0.548 - 0.274;
+            const expected = sellVolume + qtyHeld * 88.22 - buyVolume;
+            expect(result.gridProfit + result.unrealizedPnl).toBeCloseTo(expected, 4);
+        });
+
+        it('without initialBase: existing behavior is unchanged', () => {
+            const orders = [buy(100, 1), sell(110, 1)];
+            const withoutInitial = service.calculate(orders, 115);
+            const withUndefined = service.calculate(orders, 115, undefined);
+            expect(withoutInitial.gridProfit).toBeCloseTo(withUndefined.gridProfit);
+            expect(withoutInitial.unrealizedPnl).toBeCloseTo(withUndefined.unrealizedPnl);
+        });
+    });
 });

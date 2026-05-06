@@ -103,6 +103,7 @@ describe('GridSnapshotFactory', () => {
         expect(pnlCalculator.calculate).toHaveBeenCalledWith(
             [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: undefined }],
             98000,
+            undefined,
         );
     });
 
@@ -117,6 +118,49 @@ describe('GridSnapshotFactory', () => {
         expect(pnlCalculator.calculate).toHaveBeenCalledWith(
             [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: 0.038 }],
             98000,
+            undefined,
+        );
+    });
+
+    it('passes initialBase to pnl calculator when investmentBase > 0 and creationPrice set', () => {
+        const grid: GridDto = {
+            ...makeGrid(),
+            investmentBase: 0.548,
+            creationPrice: 88.26,
+        };
+        const filled = makeOrder(OrderSide.Sell, OrderStatus.Filled, 88, 0.137);
+
+        factory.create(grid, [filled], 88.22);
+
+        expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+            [{ side: OrderSide.Sell, price: 88, amount: 0.137, feeUsdc: undefined }],
+            88.22,
+            { amount: 0.548, price: 88.26 },
+        );
+    });
+
+    it('passes undefined initialBase when investmentBase is 0', () => {
+        const filled = makeOrder(OrderSide.Sell, OrderStatus.Filled, 95000, 0.5);
+
+        factory.create(makeGrid(), [filled], 98000);
+
+        expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+            [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: undefined }],
+            98000,
+            undefined,
+        );
+    });
+
+    it('passes undefined initialBase when creationPrice is not set', () => {
+        const grid: GridDto = { ...makeGrid(), investmentBase: 0.5 };
+        const filled = makeOrder(OrderSide.Sell, OrderStatus.Filled, 95000, 0.5);
+
+        factory.create(grid, [filled], 98000);
+
+        expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+            [{ side: OrderSide.Sell, price: 95000, amount: 0.5, feeUsdc: undefined }],
+            98000,
+            undefined,
         );
     });
 
