@@ -1,9 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StopLossWatcherService } from './stop-loss-watcher.service';
 import { StopLossWatchDecision } from './types/stop-loss-watch-decision';
 
 describe('StopLossWatcherService', () => {
     let sut: StopLossWatcherService;
+    let mockCache: {
+        get: ReturnType<typeof vi.fn>;
+        set: ReturnType<typeof vi.fn>;
+        del: ReturnType<typeof vi.fn>;
+    };
 
     const GRID_ID = 'grid-1';
     const STOP_LOSS_PRICE = 100;
@@ -11,12 +16,17 @@ describe('StopLossWatcherService', () => {
     const CONFIRM_MS = 30_000;
 
     beforeEach(() => {
-        sut = new StopLossWatcherService();
+        mockCache = {
+            get: vi.fn().mockResolvedValue(null),
+            set: vi.fn().mockResolvedValue(undefined),
+            del: vi.fn().mockResolvedValue(undefined),
+        };
+        sut = new StopLossWatcherService(mockCache as any);
     });
 
     describe('evaluate', () => {
-        it('returns NoBreach when stop-loss is disabled', () => {
-            const result = sut.evaluate({
+        it('returns NoBreach when stop-loss is disabled', async () => {
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: false,
                 stopLossPrice: STOP_LOSS_PRICE,
@@ -26,8 +36,8 @@ describe('StopLossWatcherService', () => {
             expect(result).toBe(StopLossWatchDecision.NoBreach);
         });
 
-        it('returns NoBreach when stopLossPrice is null', () => {
-            const result = sut.evaluate({
+        it('returns NoBreach when stopLossPrice is null', async () => {
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: null,
@@ -37,30 +47,22 @@ describe('StopLossWatcherService', () => {
             expect(result).toBe(StopLossWatchDecision.NoBreach);
         });
 
-        it('returns NoBreach when price is above stop-loss price and clears existing state', () => {
-            // First call creates breach state
-            sut.evaluate({
-                gridId: GRID_ID,
-                stopLossEnabled: true,
-                stopLossPrice: STOP_LOSS_PRICE,
-                currentPrice: 99.5,
-                now: NOW,
-            });
-            // Price recovers
-            const result = sut.evaluate({
+        it('returns NoBreach and clears state when price is above stop-loss price', async () => {
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: 101,
-                now: NOW + 1000,
+                now: NOW,
             });
             expect(result).toBe(StopLossWatchDecision.NoBreach);
+            expect(mockCache.del).toHaveBeenCalledWith(`sl:breach:${GRID_ID}`);
         });
 
-        it('returns NoBreach when penetration is too small (< 0.2%)', () => {
+        it('returns NoBreach when penetration is too small (< 0.2%)', async () => {
             // Price is 0.1% below — not enough penetration
             const slightlyBelow = STOP_LOSS_PRICE * 0.999;
-            const result = sut.evaluate({
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
@@ -68,11 +70,12 @@ describe('StopLossWatcherService', () => {
                 now: NOW,
             });
             expect(result).toBe(StopLossWatchDecision.NoBreach);
+            expect(mockCache.set).not.toHaveBeenCalled();
         });
 
-        it('returns BreachUnconfirmed when penetration is sufficient but time is too short', () => {
+        it('returns BreachUnconfirmed and stores state when penetration is sufficient but time is too short', async () => {
             const deepBelow = STOP_LOSS_PRICE * 0.997; // 0.3% below
-            const result = sut.evaluate({
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
@@ -80,108 +83,115 @@ describe('StopLossWatcherService', () => {
                 now: NOW,
             });
             expect(result).toBe(StopLossWatchDecision.BreachUnconfirmed);
+            expect(mockCache.set).toHaveBeenCalledWith(
+                `sl:breach:${GRID_ID}`,
+                JSON.stringify({ firstBreachAt: NOW }),
+                300,
+            );
         });
 
-        it('returns Trigger when both penetration and time conditions are met', () => {
+        it('returns Trigger when both penetration and time conditions are met', async () => {
             const deepBelow = STOP_LOSS_PRICE * 0.997;
 
-            // First call — starts the breach timer
-            sut.evaluate({
+            // Simulate existing breach state from 30s ago
+            mockCache.get.mockResolvedValue(JSON.stringify({ firstBreachAt: NOW - CONFIRM_MS }));
+
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
                 now: NOW,
-            });
-
-            // Second call after 30s — should trigger
-            const result = sut.evaluate({
-                gridId: GRID_ID,
-                stopLossEnabled: true,
-                stopLossPrice: STOP_LOSS_PRICE,
-                currentPrice: deepBelow,
-                now: NOW + CONFIRM_MS,
             });
             expect(result).toBe(StopLossWatchDecision.Trigger);
+            expect(mockCache.del).toHaveBeenCalledWith(`sl:breach:${GRID_ID}`);
         });
 
-        it('returns NoBreach on the call after Trigger (state cleared)', () => {
+        it('does not overwrite existing breach state on subsequent calls', async () => {
             const deepBelow = STOP_LOSS_PRICE * 0.997;
 
-            sut.evaluate({
+            // Existing state already in Redis
+            mockCache.get.mockResolvedValue(JSON.stringify({ firstBreachAt: NOW - 5000 }));
+
+            const result = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
                 now: NOW,
             });
-            sut.evaluate({
+
+            // Should not re-set — state already exists
+            expect(mockCache.set).not.toHaveBeenCalled();
+            expect(result).toBe(StopLossWatchDecision.BreachUnconfirmed);
+        });
+
+        it('returns NoBreach on the call after Trigger (state cleared)', async () => {
+            const deepBelow = STOP_LOSS_PRICE * 0.997;
+
+            // First call: Trigger fires, state is cleared
+            mockCache.get.mockResolvedValueOnce(
+                JSON.stringify({ firstBreachAt: NOW - CONFIRM_MS }),
+            );
+
+            await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
-                now: NOW + CONFIRM_MS,
+                now: NOW,
             });
 
-            // After trigger, state is cleared; next call with still-breached price should restart
-            const afterTrigger = sut.evaluate({
+            // Second call: no existing state in Redis (was deleted)
+            mockCache.get.mockResolvedValueOnce(null);
+
+            const afterTrigger = await sut.evaluate({
                 gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
-                now: NOW + CONFIRM_MS + 1,
+                now: NOW + 1,
             });
+            // Timer restarts — should be unconfirmed
             expect(afterTrigger).toBe(StopLossWatchDecision.BreachUnconfirmed);
         });
 
-        it('isolates breach state per gridId', () => {
+        it('isolates breach state per gridId', async () => {
             const deepBelow = STOP_LOSS_PRICE * 0.997;
 
-            // Start breach for grid-1
-            sut.evaluate({
+            // grid-1 has been in breach for 30s, grid-2 has no state
+            mockCache.get.mockImplementation(async (key: string) => {
+                if (key === 'sl:breach:grid-1') {
+                    return JSON.stringify({ firstBreachAt: NOW - CONFIRM_MS });
+                }
+                return null;
+            });
+
+            const result1 = await sut.evaluate({
                 gridId: 'grid-1',
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
                 now: NOW,
             });
+            expect(result1).toBe(StopLossWatchDecision.Trigger);
 
-            // grid-2 should have no breach state
-            const result = sut.evaluate({
+            const result2 = await sut.evaluate({
                 gridId: 'grid-2',
-                stopLossEnabled: true,
-                stopLossPrice: STOP_LOSS_PRICE,
-                currentPrice: deepBelow,
-                now: NOW + CONFIRM_MS,
-            });
-            // grid-2 only started its timer NOW + CONFIRM_MS, so it hasn't elapsed yet
-            expect(result).toBe(StopLossWatchDecision.BreachUnconfirmed);
-        });
-    });
-
-    describe('clear', () => {
-        it('removes breach state for the given gridId', () => {
-            const deepBelow = STOP_LOSS_PRICE * 0.997;
-
-            sut.evaluate({
-                gridId: GRID_ID,
                 stopLossEnabled: true,
                 stopLossPrice: STOP_LOSS_PRICE,
                 currentPrice: deepBelow,
                 now: NOW,
             });
+            // grid-2 only started its timer now, hasn't elapsed yet
+            expect(result2).toBe(StopLossWatchDecision.BreachUnconfirmed);
+        });
+    });
 
-            sut.clear(GRID_ID);
-
-            // After clearing, timer restarts — should be unconfirmed
-            const result = sut.evaluate({
-                gridId: GRID_ID,
-                stopLossEnabled: true,
-                stopLossPrice: STOP_LOSS_PRICE,
-                currentPrice: deepBelow,
-                now: NOW + CONFIRM_MS,
-            });
-            expect(result).toBe(StopLossWatchDecision.BreachUnconfirmed);
+    describe('clear', () => {
+        it('deletes breach state for the given gridId', async () => {
+            await sut.clear(GRID_ID);
+            expect(mockCache.del).toHaveBeenCalledWith(`sl:breach:${GRID_ID}`);
         });
     });
 });

@@ -24,8 +24,8 @@ import { TriggerStopLossParams } from './trigger-stop-loss-params';
 import { TriggerStopLossResult } from './trigger-stop-loss-result';
 
 @Injectable()
-export class TriggerStopLossUseCase {
-    private readonly logger = logger.child({ context: TriggerStopLossUseCase.name });
+export class TriggerStopLossService {
+    private readonly logger = logger.child({ context: TriggerStopLossService.name });
 
     /** Initial IOC sell slippage cap (1%). */
     private static readonly INITIAL_SLIPPAGE_CAP = 0.01;
@@ -168,7 +168,7 @@ export class TriggerStopLossUseCase {
         const result1 = await this.attemptIocSell(
             amount,
             currentMid,
-            TriggerStopLossUseCase.INITIAL_SLIPPAGE_CAP,
+            TriggerStopLossService.INITIAL_SLIPPAGE_CAP,
             cloid,
             symbolObj,
             accountAddress,
@@ -180,7 +180,7 @@ export class TriggerStopLossUseCase {
         const result2 = await this.attemptIocSell(
             amount,
             currentMid,
-            TriggerStopLossUseCase.RETRY_SLIPPAGE_CAP,
+            TriggerStopLossService.RETRY_SLIPPAGE_CAP,
             cloid,
             symbolObj,
             accountAddress,

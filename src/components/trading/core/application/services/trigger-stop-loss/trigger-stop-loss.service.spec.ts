@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TriggerStopLossUseCase } from './trigger-stop-loss.use-case';
+import { TriggerStopLossService } from './trigger-stop-loss.service';
 import { TriggerStopLossParams } from './trigger-stop-loss-params';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
@@ -54,8 +54,8 @@ const makeUserState = (baseAmount: number) =>
         ],
     });
 
-describe('TriggerStopLossUseCase', () => {
-    let sut: TriggerStopLossUseCase;
+describe('TriggerStopLossService', () => {
+    let sut: TriggerStopLossService;
     let mockGrids: {
         markStopLossTriggered: ReturnType<typeof vi.fn>;
         updateGridStatus: ReturnType<typeof vi.fn>;
@@ -106,7 +106,7 @@ describe('TriggerStopLossUseCase', () => {
             }),
         };
 
-        sut = new TriggerStopLossUseCase(
+        sut = new TriggerStopLossService(
             mockGrids as any,
             mockExchange as any,
             mockEventPublisher as any,
