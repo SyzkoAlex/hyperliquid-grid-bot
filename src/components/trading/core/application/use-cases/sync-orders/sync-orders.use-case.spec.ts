@@ -18,7 +18,7 @@ import { OrderRefillService } from '@components/trading/core/application/service
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
 import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
-import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
@@ -418,6 +418,37 @@ describe('SyncOrdersUseCase', () => {
 
             expect(result.errors.length).toBe(1);
             expect(result.errors[0]).toContain('DB error');
+        });
+
+        it('calls TriggerStopLossUseCase when watcher returns Trigger and priceBySymbol is provided', async () => {
+            const grid = createTestGrid({
+                symbol: 'BTC',
+                stopLossEnabled: true,
+                stopLossPrice: 40000,
+            });
+            const order = createTestOrder(grid.id);
+
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 0,
+                filledOrders: [],
+                stpCancelledOrders: [],
+            });
+            mockStopLossMonitor.evaluateGrid.mockReturnValue(StopLossWatchDecision.Trigger);
+
+            const priceBySymbol = new Map([['BTC', 39000]]);
+
+            await useCase.executeForGrids('0x123', [grid], [], priceBySymbol);
+
+            expect(mockTriggerStopLoss.execute).toHaveBeenCalledOnce();
+            expect(mockTriggerStopLoss.execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    gridId: grid.id,
+                    symbol: 'BTC',
+                    currentMid: 39000,
+                    accountAddress: '0x123',
+                }),
+            );
         });
     });
 });

@@ -47,30 +47,44 @@ export class TriggerStopLossUseCase {
             'Stop-loss triggered — starting teardown',
         );
 
-        // Step 1: Mark stop_loss_triggered_at so concurrent polls skip this grid.
+        // Mark stop_loss_triggered_at so concurrent polls skip this grid.
         await this.grids.markStopLossTriggered(gridId);
 
-        // Step 2: Flip status to Stopped BEFORE selling so the next polling
-        // iteration does not try to refill any orders.
+        // Fetch active orders BEFORE flipping status so we capture them regardless
+        // of whether the repository ever filters by grid status in the future.
+        const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
+
+        // Flip status to Stopped BEFORE selling so the next polling iteration
+        // does not try to refill any orders.
         await this.grids.updateGridStatus(gridId, GridStatus.Stopped);
 
-        // Step 3: Cancel all active orders.
-        const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
         for (const order of activeOrders) {
             await this.cancelOrder(order, accountAddress);
         }
 
         this.logger.info({ gridId, cancelledOrders: activeOrders.length }, 'Orders cancelled');
 
-        // Step 4: Re-fetch actual base balance after cancels settle, then compute
-        // how much of that balance is attributable to this grid.
         const userState = await this.exchange.getUserSpotState(accountAddress);
         const { baseBalance } = this.userBalanceExtractor.extractBalances(userState, symbol);
 
-        // Step 5: Fetch the grid record to access initialBaseAmount (investmentBase).
+        // Fetch the grid record to access initialBaseAmount (investmentBase).
         const grid = await this.grids.findGridById(gridId);
 
-        // Step 6: Compute grid-attributable base from fills.
+        if (!grid) {
+            this.logger.error(
+                { gridId },
+                'Grid not found after teardown — cannot compute sell amount',
+            );
+            const event = this.buildEvent(params, 0, 0, false, `Grid ${gridId} not found`);
+            await this.eventPublisher.publish(event);
+            return {
+                success: false,
+                soldBaseAmount: 0,
+                receivedUSDC: 0,
+                errorMessage: `Grid ${gridId} not found`,
+            };
+        }
+
         const sellAmount = await this.computeGridAttributableBase(gridId, grid, baseBalance);
 
         if (sellAmount.lte(Decimal.zero())) {
@@ -80,10 +94,19 @@ export class TriggerStopLossUseCase {
             return { success: true, soldBaseAmount: 0, receivedUSDC: 0 };
         }
 
-        // Step 7: Attempt IOC sell using the real mid at trigger time.
         const midPrice = Price.from(currentMid);
 
-        const result = await this.attemptMarketSell(params, sellAmount, midPrice, stopLossPrice);
+        // Single CLOID for both IOC attempts — Hyperliquid deduplicates by CLOID,
+        // so a lost response on attempt 1 won't result in a second live order on attempt 2.
+        const cloid = uuidv4();
+
+        const result = await this.attemptMarketSell(
+            params,
+            sellAmount,
+            midPrice,
+            stopLossPrice,
+            cloid,
+        );
 
         await this.eventPublisher.publish(
             this.buildEvent(
@@ -107,10 +130,10 @@ export class TriggerStopLossUseCase {
      */
     private async computeGridAttributableBase(
         gridId: string,
-        grid: GridDto | null,
+        grid: GridDto,
         baseBalance: Decimal,
     ): Promise<Decimal> {
-        const initialBase = grid ? Decimal.from(grid.investmentBase) : Decimal.zero();
+        const initialBase = Decimal.from(grid.investmentBase);
 
         const allOrders = await this.grids.findOrdersByGridId(gridId);
         const filledOrders = allOrders.filter((o) => o.status === OrderStatus.Filled);
@@ -137,69 +160,34 @@ export class TriggerStopLossUseCase {
         amount: Decimal,
         currentMid: Price,
         stopLossPrice: number,
+        cloid: string,
     ): Promise<TriggerStopLossResult> {
         const { gridId, symbol, accountAddress } = params;
         const symbolObj = TradingSymbol.create(symbol);
 
-        // Attempt 1: 1% slippage cap
-        const limitPrice1 = Price.from(
-            currentMid.toNumber() * (1 - TriggerStopLossUseCase.INITIAL_SLIPPAGE_CAP),
-        );
-        const orderId1 = uuidv4();
-        this.logger.info(
-            { gridId, limitPrice: limitPrice1.toNumber(), cap: '1%' },
-            'Attempting IOC market sell (attempt 1)',
-        );
-
-        const result1 = await this.exchange.placeSpotMarketSell({
-            symbol: symbolObj,
+        const result1 = await this.attemptIocSell(
             amount,
-            limitPrice: limitPrice1,
-            orderId: orderId1,
+            currentMid,
+            TriggerStopLossUseCase.INITIAL_SLIPPAGE_CAP,
+            cloid,
+            symbolObj,
             accountAddress,
-        });
-
-        if (result1.status === OrderStatus.Filled) {
-            // TODO(v2): read actual fill price from exchange response once
-            // ExchangePlaceOrderResult carries fill data; for now use limit price as proxy.
-            const receivedUSDC = amount.toNumber() * limitPrice1.toNumber();
-            this.logger.info({ gridId, receivedUSDC }, 'IOC sell filled on first attempt');
-            return {
-                success: true,
-                soldBaseAmount: amount.toNumber(),
-                receivedUSDC,
-            };
-        }
-
-        // Attempt 2: 2% slippage cap
-        const limitPrice2 = Price.from(
-            currentMid.toNumber() * (1 - TriggerStopLossUseCase.RETRY_SLIPPAGE_CAP),
+            gridId,
+            '1%',
         );
-        const orderId2 = uuidv4();
-        this.logger.info(
-            { gridId, limitPrice: limitPrice2.toNumber(), cap: '2%' },
-            'Attempting IOC market sell (attempt 2)',
-        );
+        if (result1 !== null) return result1;
 
-        const result2 = await this.exchange.placeSpotMarketSell({
-            symbol: symbolObj,
+        const result2 = await this.attemptIocSell(
             amount,
-            limitPrice: limitPrice2,
-            orderId: orderId2,
+            currentMid,
+            TriggerStopLossUseCase.RETRY_SLIPPAGE_CAP,
+            cloid,
+            symbolObj,
             accountAddress,
-        });
-
-        if (result2.status === OrderStatus.Filled) {
-            // TODO(v2): read actual fill price from exchange response once
-            // ExchangePlaceOrderResult carries fill data; for now use limit price as proxy.
-            const receivedUSDC = amount.toNumber() * limitPrice2.toNumber();
-            this.logger.info({ gridId, receivedUSDC }, 'IOC sell filled on second attempt');
-            return {
-                success: true,
-                soldBaseAmount: amount.toNumber(),
-                receivedUSDC,
-            };
-        }
+            gridId,
+            '2%',
+        );
+        if (result2 !== null) return result2;
 
         const errorMessage =
             `IOC sell unfilled after 2 attempts. ` +
@@ -216,6 +204,52 @@ export class TriggerStopLossUseCase {
         };
     }
 
+    /**
+     * Places a single IOC sell at (currentMid * (1 - slippageCap)).
+     * Returns a filled TriggerStopLossResult on success, or null when the order
+     * was not filled (caller should retry with a wider cap).
+     */
+    private async attemptIocSell(
+        amount: Decimal,
+        currentMid: Price,
+        slippageCap: number,
+        orderId: string,
+        symbol: TradingSymbol,
+        accountAddress: string,
+        gridId: string,
+        attemptLabel: string,
+    ): Promise<TriggerStopLossResult | null> {
+        const limitPrice = Price.from(currentMid.toNumber() * (1 - slippageCap));
+
+        this.logger.info(
+            { gridId, limitPrice: limitPrice.toNumber(), cap: attemptLabel },
+            `Attempting IOC market sell (${attemptLabel})`,
+        );
+
+        const result = await this.exchange.placeSpotMarketSell({
+            symbol,
+            amount,
+            limitPrice,
+            orderId,
+            accountAddress,
+        });
+
+        if (result.status !== OrderStatus.Filled) {
+            return null;
+        }
+
+        // TODO(v2): read actual fill price from exchange response once
+        // ExchangePlaceOrderResult carries fill data; for now use limit price as proxy.
+        const receivedUSDC = amount.toNumber() * limitPrice.toNumber();
+        this.logger.info({ gridId, receivedUSDC }, `IOC sell filled (${attemptLabel})`);
+
+        return {
+            success: true,
+            soldBaseAmount: amount.toNumber(),
+            receivedUSDC,
+        };
+    }
+
     private async cancelOrder(order: OrderDto, accountAddress: string): Promise<void> {
         if (!order.exchangeOrderId) {
             await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
@@ -228,14 +262,14 @@ export class TriggerStopLossUseCase {
                 exchangeOrderId: order.exchangeOrderId,
                 accountAddress,
             });
+            await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
         } catch (error) {
+            // Exchange cancel failed — leave DB status unchanged to avoid phantom "Cancelled" state.
             this.logger.warn(
                 { error, orderId: order.id },
-                'Failed to cancel order on exchange during stop-loss teardown',
+                'Failed to cancel order on exchange during stop-loss teardown — DB status unchanged',
             );
         }
-
-        await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
     }
 
     private buildEvent(

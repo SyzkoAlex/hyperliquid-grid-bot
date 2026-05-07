@@ -4,7 +4,7 @@ import { StopLossBreachState } from './types/stop-loss-breach-state';
 import { StopLossEvaluateInput } from './types/stop-loss-evaluate-input';
 
 /**
- * Pure domain service that decides whether a stop-loss should trigger.
+ * Application service that decides whether a stop-loss should trigger.
  *
  * Maintains in-memory breach state per gridId. Lifetime equals the process;
  * on restart the breach reaccumulates from zero — worst case is a small extra

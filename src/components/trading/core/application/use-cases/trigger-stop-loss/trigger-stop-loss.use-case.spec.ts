@@ -126,6 +126,15 @@ describe('TriggerStopLossUseCase', () => {
         expect(mockGrids.updateGridStatus).toHaveBeenCalledWith('grid-1', GridStatus.Stopped);
     });
 
+    it('fetches active orders BEFORE flipping status to Stopped', async () => {
+        await sut.execute(params);
+
+        const ordersCall = mockGrids.findActiveOrdersByGridId.mock.invocationCallOrder[0];
+        const statusCall = mockGrids.updateGridStatus.mock.invocationCallOrder[0];
+
+        expect(ordersCall).toBeLessThan(statusCall);
+    });
+
     it('cancels all active orders before selling', async () => {
         await sut.execute(params);
 
@@ -152,6 +161,18 @@ describe('TriggerStopLossUseCase', () => {
 
         expect(result.success).toBe(true);
         expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses same CLOID for both IOC attempts', async () => {
+        mockExchange.placeSpotMarketSell
+            .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
+            .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+
+        await sut.execute(params);
+
+        const firstCloid = mockExchange.placeSpotMarketSell.mock.calls[0][0].orderId;
+        const secondCloid = mockExchange.placeSpotMarketSell.mock.calls[1][0].orderId;
+        expect(firstCloid).toBe(secondCloid);
     });
 
     it('publishes failure event when both IOC attempts fail', async () => {
@@ -193,5 +214,35 @@ describe('TriggerStopLossUseCase', () => {
 
         expect(mockExchange.cancelSpotOrder).not.toHaveBeenCalled();
         expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
+    });
+
+    it('publishes failure event and returns failure when findGridById returns null', async () => {
+        mockGrids.findGridById.mockResolvedValue(null);
+
+        const result = await sut.execute(params);
+
+        expect(result.success).toBe(false);
+        expect(result.soldBaseAmount).toBe(0);
+        expect(result.errorMessage).toContain('grid-1');
+
+        expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
+        const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
+        expect(event.success).toBe(false);
+        expect(event.errorMessage).toContain('grid-1');
+
+        // Should not attempt to sell when grid is not found
+        expect(mockExchange.placeSpotMarketSell).not.toHaveBeenCalled();
+    });
+
+    it('does not update DB order status when exchange cancel throws', async () => {
+        mockExchange.cancelSpotOrder.mockRejectedValue(new Error('Exchange unreachable'));
+
+        await sut.execute(params);
+
+        // DB status must NOT be updated when exchange cancel fails
+        expect(mockGrids.updateOrderStatus).not.toHaveBeenCalledWith(
+            'order-1',
+            OrderStatus.Cancelled,
+        );
     });
 });

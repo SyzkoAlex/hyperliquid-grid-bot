@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StopLossMonitorService } from './stop-loss-monitor.service';
-import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 const makeGrid = (overrides = {}) => ({

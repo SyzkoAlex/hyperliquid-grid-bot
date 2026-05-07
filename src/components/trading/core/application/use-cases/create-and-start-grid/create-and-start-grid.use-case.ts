@@ -129,7 +129,7 @@ export class CreateAndStartGridUseCase {
             trailingTriggerPercent: params.trailingTriggerPercent,
             trailingStepPercent: params.trailingStepPercent,
             trailingPartialClosePercent: params.trailingPartialClosePercent,
-            stopLossEnabled: params.stopLossEnabled,
+            stopLossEnabled: params.stopLossEnabled ?? false,
             stopLossPrice: params.stopLossPrice,
         });
 

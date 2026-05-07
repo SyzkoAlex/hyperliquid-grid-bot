@@ -12,6 +12,6 @@ export interface CreateGridDto {
     trailingTriggerPercent?: number;
     trailingStepPercent?: number;
     trailingPartialClosePercent?: number;
-    stopLossEnabled?: boolean;
+    stopLossEnabled: boolean;
     stopLossPrice?: number;
 }

@@ -90,6 +90,10 @@ export class Grid {
             if (this._stopLossPrice.gte(this._lowerPrice)) {
                 throw new Error('Stop-loss price must be strictly below lower price');
             }
+            const minBuffer = this._lowerPrice.toNumber() * 0.995;
+            if (this._stopLossPrice.toNumber() >= minBuffer) {
+                throw new Error('Stop-loss price must be at least 0.5% below lower price');
+            }
         }
     }
 

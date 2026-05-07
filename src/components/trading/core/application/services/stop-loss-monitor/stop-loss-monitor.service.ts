@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
-import { StopLossWatcherService } from '@components/trading/core/domain/services/stop-loss-watcher/stop-loss-watcher.service';
-import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { StopLossWatcherService } from '@components/trading/core/application/services/stop-loss-watcher/stop-loss-watcher.service';
+import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
 
 @Injectable()
 export class StopLossMonitorService {
@@ -10,13 +10,6 @@ export class StopLossMonitorService {
 
     constructor(private readonly watcher: StopLossWatcherService) {}
 
-    /**
-     * Evaluate the stop-loss condition for a single grid.
-     *
-     * Returns the watcher decision so the caller (use case) can decide whether
-     * to trigger stop-loss teardown. This service intentionally has no knowledge
-     * of the `TriggerStopLossUseCase` to avoid an application-layer inversion.
-     */
     evaluateGrid(grid: GridDto, currentPrice: number): StopLossWatchDecision {
         if (!grid.stopLossEnabled || grid.stopLossTriggeredAt) {
             return StopLossWatchDecision.NoBreach;

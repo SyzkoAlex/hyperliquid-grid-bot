@@ -18,15 +18,3 @@ export class AdvancedStopLossPromptMessage {
         return new AdvancedStopLossPromptMessage(lowerPrice);
     }
 }
-
-export class AdvancedStopLossConfirmationMessage {
-    readonly text: string;
-
-    private constructor(price: number) {
-        this.text = `${EMOJI.WARNING} Stop-Loss: ${PriceFormatter.format(price)}`;
-    }
-
-    static create(price: number): AdvancedStopLossConfirmationMessage {
-        return new AdvancedStopLossConfirmationMessage(price);
-    }
-}

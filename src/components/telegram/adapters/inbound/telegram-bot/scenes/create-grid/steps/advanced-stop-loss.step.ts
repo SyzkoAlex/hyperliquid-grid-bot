@@ -7,18 +7,15 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import {
-    AdvancedStopLossPromptMessage,
-    AdvancedStopLossConfirmationMessage,
-} from '@components/telegram/core/domain/models/messages/wizard/advanced-stop-loss.messages';
+import { AdvancedStopLossPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-stop-loss-prompt.message';
+import { AdvancedStopLossConfirmationMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-stop-loss-confirmation.message';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
-/** Minimum relative distance from lower bound required for the SL price. */
-const MIN_BUFFER_FROM_LOWER = 0.005; // 0.5 %
-
 @Injectable()
 export class AdvancedStopLossStep implements WizardStep {
+    /** Minimum relative distance from lower bound required for the SL price. */
+    private static readonly MIN_BUFFER_FROM_LOWER = 0.005; // 0.5 %
     readonly id = SceneStep.StopLoss;
 
     constructor(private readonly messageManager: WizardMessageManager) {}
@@ -64,7 +61,7 @@ export class AdvancedStopLossStep implements WizardStep {
             return null;
         }
 
-        const maxAllowed = lowerPrice * (1 - MIN_BUFFER_FROM_LOWER);
+        const maxAllowed = lowerPrice * (1 - AdvancedStopLossStep.MIN_BUFFER_FROM_LOWER);
         if (price > maxAllowed) {
             await this.messageManager.sendEnterMessage(
                 ctx,

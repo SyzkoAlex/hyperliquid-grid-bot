@@ -10,7 +10,7 @@ import { OrderStatusSyncService } from '@components/trading/core/application/ser
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
-import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
 import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
@@ -33,7 +33,9 @@ export class SyncOrdersUseCase {
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
         const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(accountAddress);
         const activeGrids = await this.grids.findActiveGridsByUserId(userId);
+
         if (activeGrids.length === 0) return SyncOrdersResult.empty();
+
         return this.executeForGrids(accountAddress, activeGrids, exchangeOpenOrders);
     }
 
@@ -91,6 +93,9 @@ export class SyncOrdersUseCase {
     ): Promise<Set<string>> {
         const triggeredGridIds = new Set<string>();
 
+        // priceBySymbol is absent on the legacy execute() path which does not pre-fetch prices.
+        // Stop-loss evaluation is intentionally skipped — callers that need SL must use
+        // executeForGrids with a pre-built price map (see OrdersPollingAdapter).
         if (!priceBySymbol) return triggeredGridIds;
 
         for (const grid of activeGrids) {
