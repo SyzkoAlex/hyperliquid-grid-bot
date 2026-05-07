@@ -26,14 +26,15 @@ export class StopLossBalanceAttributionService {
      * Computes how much of the on-account base balance belongs to this grid.
      *
      * Grid-attributable base = initialBaseAmount + filled_buy_qty - filled_sell_qty.
-     * Clamped to the actual on-account balance so we never try to sell tokens
-     * that belong to another grid or were deposited separately.
+     * Tokens reserved by other active grids on the same symbol are subtracted from
+     * the on-account balance before clamping, so we never over-sell.
      */
     async computeSellAmount(
         gridId: string,
         grid: GridDto,
         accountAddress: string,
         symbol: TradingSymbol,
+        allActiveGridsOnSymbol: GridDto[] = [],
     ): Promise<Decimal> {
         const userState = await this.exchange.getUserSpotState(accountAddress);
         const { baseBalance } = this.userBalanceExtractor.extractBalances(
@@ -41,7 +42,17 @@ export class StopLossBalanceAttributionService {
             symbol.toString(),
         );
 
-        return this.computeGridAttributableBase(gridId, grid, baseBalance);
+        // Subtract the investmentBase reserved by other active grids on the same symbol
+        // so we don't treat their tokens as available for this grid's sell.
+        const otherGridsReserved = allActiveGridsOnSymbol
+            .filter((g) => g.id !== gridId)
+            .reduce((sum, g) => sum + g.investmentBase, 0);
+
+        const availableBalance = baseBalance.gt(Decimal.from(otherGridsReserved))
+            ? Decimal.from(baseBalance.toNumber() - otherGridsReserved)
+            : Decimal.zero();
+
+        return this.computeGridAttributableBase(gridId, grid, availableBalance);
     }
 
     private async computeGridAttributableBase(

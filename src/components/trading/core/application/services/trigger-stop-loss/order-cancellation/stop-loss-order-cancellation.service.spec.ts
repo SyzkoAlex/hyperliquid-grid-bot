@@ -41,7 +41,7 @@ describe('StopLossOrderCancellationService', () => {
 
     describe('cancelActiveOrders', () => {
         it('fetches active orders and cancels each on exchange and in DB', async () => {
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockGrids.findActiveOrdersByGridId).toHaveBeenCalledWith('grid-1');
             expect(mockExchange.cancelSpotOrder).toHaveBeenCalledOnce();
@@ -49,6 +49,8 @@ describe('StopLossOrderCancellationService', () => {
                 'order-1',
                 OrderStatus.Cancelled,
             );
+            expect(result.cancelledCount).toBe(1);
+            expect(result.failedCount).toBe(0);
         });
 
         it('skips exchange cancel and updates DB directly for orders without exchangeOrderId', async () => {
@@ -56,30 +58,36 @@ describe('StopLossOrderCancellationService', () => {
                 makeOrder({ exchangeOrderId: null }),
             ]);
 
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockExchange.cancelSpotOrder).not.toHaveBeenCalled();
             expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
                 'order-1',
                 OrderStatus.Cancelled,
             );
+            expect(result.cancelledCount).toBe(1);
+            expect(result.failedCount).toBe(0);
         });
 
         it('does not update DB order status when exchange cancel throws', async () => {
             mockExchange.cancelSpotOrder.mockRejectedValue(new Error('Exchange unreachable'));
 
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
+            expect(result.cancelledCount).toBe(0);
+            expect(result.failedCount).toBe(1);
         });
 
         it('does nothing when there are no active orders', async () => {
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([]);
 
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockExchange.cancelSpotOrder).not.toHaveBeenCalled();
             expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
+            expect(result.cancelledCount).toBe(0);
+            expect(result.failedCount).toBe(0);
         });
 
         it('cancels all orders when multiple active orders exist', async () => {
@@ -89,10 +97,12 @@ describe('StopLossOrderCancellationService', () => {
                 makeOrder({ id: 'order-3', exchangeOrderId: 'ex-3' }),
             ]);
 
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockExchange.cancelSpotOrder).toHaveBeenCalledTimes(3);
             expect(mockGrids.updateOrderStatus).toHaveBeenCalledTimes(3);
+            expect(result.cancelledCount).toBe(3);
+            expect(result.failedCount).toBe(0);
         });
 
         it('continues cancelling remaining orders when one exchange cancel throws', async () => {
@@ -104,7 +114,7 @@ describe('StopLossOrderCancellationService', () => {
                 .mockRejectedValueOnce(new Error('Exchange unreachable'))
                 .mockResolvedValueOnce({ success: true });
 
-            await sut.cancelActiveOrders('grid-1', '0xabc');
+            const result = await sut.cancelActiveOrders('grid-1', '0xabc');
 
             expect(mockExchange.cancelSpotOrder).toHaveBeenCalledTimes(2);
             // Only order-2 DB status updated (order-1 failed on exchange)
@@ -113,6 +123,8 @@ describe('StopLossOrderCancellationService', () => {
                 'order-2',
                 OrderStatus.Cancelled,
             );
+            expect(result.cancelledCount).toBe(1);
+            expect(result.failedCount).toBe(1);
         });
     });
 });

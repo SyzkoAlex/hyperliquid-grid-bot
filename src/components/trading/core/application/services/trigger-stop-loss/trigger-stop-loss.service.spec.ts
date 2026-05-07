@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TriggerStopLossService } from './trigger-stop-loss.service';
 import { TriggerStopLossParams } from './trigger-stop-loss-params';
-import { GridStatus } from '@domain/models/grid/grid-status';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
 
 const makeGrid = (overrides = {}) => ({
     id: 'grid-1',
     symbol: 'ETH',
-    status: GridStatus.Running,
     lowerPrice: 2000,
     upperPrice: 3000,
     levels: 10,
@@ -26,10 +24,9 @@ const makeGrid = (overrides = {}) => ({
 describe('TriggerStopLossService', () => {
     let sut: TriggerStopLossService;
     let mockGrids: {
-        markStopLossTriggered: ReturnType<typeof vi.fn>;
-        updateGridStatus: ReturnType<typeof vi.fn>;
-        findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
+        markStoppedByStopLoss: ReturnType<typeof vi.fn>;
         findGridById: ReturnType<typeof vi.fn>;
+        findActiveGrids: ReturnType<typeof vi.fn>;
     };
     let mockEventPublisher: { publish: ReturnType<typeof vi.fn> };
     let mockCancellation: { cancelActiveOrders: ReturnType<typeof vi.fn> };
@@ -46,13 +43,14 @@ describe('TriggerStopLossService', () => {
 
     beforeEach(() => {
         mockGrids = {
-            markStopLossTriggered: vi.fn().mockResolvedValue(undefined),
-            updateGridStatus: vi.fn().mockResolvedValue(undefined),
-            findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
+            markStoppedByStopLoss: vi.fn().mockResolvedValue(undefined),
             findGridById: vi.fn().mockResolvedValue(makeGrid()),
+            findActiveGrids: vi.fn().mockResolvedValue([makeGrid()]),
         };
         mockEventPublisher = { publish: vi.fn().mockResolvedValue(undefined) };
-        mockCancellation = { cancelActiveOrders: vi.fn().mockResolvedValue(undefined) };
+        mockCancellation = {
+            cancelActiveOrders: vi.fn().mockResolvedValue({ cancelledCount: 0, failedCount: 0 }),
+        };
         mockBalanceAttribution = {
             computeSellAmount: vi.fn().mockResolvedValue(Decimal.from(0.5)),
         };
@@ -73,16 +71,14 @@ describe('TriggerStopLossService', () => {
         );
     });
 
-    it('marks SL triggered and flips status before delegating to sub-services', async () => {
+    it('calls markStoppedByStopLoss before delegating to sub-services', async () => {
         await sut.execute(params);
 
-        const markCall = mockGrids.markStopLossTriggered.mock.invocationCallOrder[0];
-        const statusCall = mockGrids.updateGridStatus.mock.invocationCallOrder[0];
+        const markCall = mockGrids.markStoppedByStopLoss.mock.invocationCallOrder[0];
         const cancelCall = mockCancellation.cancelActiveOrders.mock.invocationCallOrder[0];
 
-        expect(markCall).toBeLessThan(statusCall);
-        expect(statusCall).toBeLessThan(cancelCall);
-        expect(mockGrids.updateGridStatus).toHaveBeenCalledWith('grid-1', GridStatus.Stopped);
+        expect(markCall).toBeLessThan(cancelCall);
+        expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1');
     });
 
     it('delegates order cancellation to StopLossOrderCancellationService', async () => {
@@ -100,6 +96,17 @@ describe('TriggerStopLossService', () => {
         expect(gridId).toBe('grid-1');
         expect(grid.id).toBe('grid-1');
         expect(accountAddress).toBe('0xabc');
+    });
+
+    it('passes active grids on same symbol to computeSellAmount', async () => {
+        const otherGrid = makeGrid({ id: 'grid-2', symbol: 'ETH' });
+        mockGrids.findActiveGrids.mockResolvedValue([makeGrid(), otherGrid]);
+
+        await sut.execute(params);
+
+        const allActiveGridsOnSymbol = mockBalanceAttribution.computeSellAmount.mock.calls[0][4];
+        expect(allActiveGridsOnSymbol).toHaveLength(2);
+        expect(allActiveGridsOnSymbol.map((g: { id: string }) => g.id)).toContain('grid-2');
     });
 
     it('delegates market sell to StopLossMarketSellService', async () => {
@@ -167,5 +174,37 @@ describe('TriggerStopLossService', () => {
         const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
         expect(event.success).toBe(false);
         expect(event.errorMessage).toBeDefined();
+    });
+
+    it('includes cancel failure warning in errorMessage when some orders failed to cancel', async () => {
+        mockCancellation.cancelActiveOrders.mockResolvedValue({
+            cancelledCount: 1,
+            failedCount: 2,
+        });
+
+        const result = await sut.execute(params);
+
+        expect(result.errorMessage).toContain('2 order(s) could not be cancelled');
+
+        const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
+        expect(event.errorMessage).toContain('2 order(s) could not be cancelled');
+    });
+
+    it('appends cancel warning to market sell error when both fail', async () => {
+        mockCancellation.cancelActiveOrders.mockResolvedValue({
+            cancelledCount: 0,
+            failedCount: 1,
+        });
+        mockMarketSell.execute.mockResolvedValue({
+            success: false,
+            soldBaseAmount: 0,
+            receivedUSDC: 0,
+            errorMessage: 'IOC sell unfilled after 2 attempts.',
+        });
+
+        const result = await sut.execute(params);
+
+        expect(result.errorMessage).toContain('IOC sell unfilled');
+        expect(result.errorMessage).toContain('could not be cancelled');
     });
 });

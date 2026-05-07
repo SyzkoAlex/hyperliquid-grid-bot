@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import { GridStatus } from '@domain/models/grid/grid-status';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
@@ -35,14 +34,14 @@ export class TriggerStopLossService {
             'Stop-loss triggered — starting teardown',
         );
 
-        // Mark stop_loss_triggered_at so concurrent polls skip this grid.
-        await this.grids.markStopLossTriggered(gridId);
+        // Atomically set status=Stopped and stop_loss_triggered_at so concurrent
+        // polls skip this grid and order refill is suppressed.
+        await this.grids.markStoppedByStopLoss(gridId);
 
-        // Flip status to Stopped BEFORE selling so the next polling iteration
-        // does not try to refill any orders.
-        await this.grids.updateGridStatus(gridId, GridStatus.Stopped);
-
-        await this.cancellation.cancelActiveOrders(gridId, accountAddress);
+        const cancellationResult = await this.cancellation.cancelActiveOrders(
+            gridId,
+            accountAddress,
+        );
 
         const grid = await this.grids.findGridById(gridId);
 
@@ -61,11 +60,15 @@ export class TriggerStopLossService {
             };
         }
 
+        const allActiveGrids = await this.grids.findActiveGrids();
+        const allActiveGridsOnSymbol = allActiveGrids.filter((g) => g.symbol === symbol);
+
         const sellAmount = await this.balanceAttribution.computeSellAmount(
             gridId,
             grid,
             accountAddress,
             TradingSymbol.create(symbol),
+            allActiveGridsOnSymbol,
         );
 
         if (sellAmount.lte(Decimal.zero())) {
@@ -83,17 +86,29 @@ export class TriggerStopLossService {
             accountAddress,
         });
 
+        let errorMessage = result.errorMessage;
+        if (cancellationResult.failedCount > 0) {
+            const cancelWarning =
+                `${cancellationResult.failedCount} order(s) could not be cancelled on the exchange — ` +
+                `manual review required.`;
+            this.logger.warn(
+                { gridId, failedCount: cancellationResult.failedCount },
+                cancelWarning,
+            );
+            errorMessage = errorMessage ? `${errorMessage} ${cancelWarning}` : cancelWarning;
+        }
+
         await this.eventPublisher.publish(
             this.buildEvent(
                 params,
                 result.soldBaseAmount,
                 result.receivedUSDC,
                 result.success,
-                result.errorMessage,
+                errorMessage,
             ),
         );
 
-        return result;
+        return { ...result, errorMessage };
     }
 
     private buildEvent(

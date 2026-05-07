@@ -211,5 +211,47 @@ describe('StopLossBalanceAttributionService', () => {
 
             expect(mockExchange.getUserSpotState).toHaveBeenCalledWith('0xdeadbeef');
         });
+
+        it('subtracts other active grids investmentBase from baseBalance before clamping', async () => {
+            // Two grids on ETH: current grid has investmentBase=0.5, other grid has investmentBase=0.3.
+            // Total on-account: 0.8 ETH. Available for this grid = 0.8 - 0.3 = 0.5.
+            mockUserBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(0.8),
+            });
+            const grid = makeGrid(0.5);
+            const otherGrid = { id: 'grid-2', symbol: 'ETH', investmentBase: 0.3 };
+
+            const result = await sut.computeSellAmount(
+                'grid-1',
+                grid as any,
+                accountAddress,
+                symbol,
+                [grid as any, otherGrid as any],
+            );
+
+            // computed = 0.5 (no fills), available = 0.8 - 0.3 = 0.5 → clamped to min(0.5, 0.5)
+            expect(result.toNumber()).toBeCloseTo(0.5);
+        });
+
+        it('returns zero when all baseBalance is reserved by other grids', async () => {
+            // Only 0.3 ETH on account, other grid reserves 0.4 → available = 0
+            mockUserBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(0.3),
+            });
+            const grid = makeGrid(0.5);
+            const otherGrid = { id: 'grid-2', symbol: 'ETH', investmentBase: 0.4 };
+
+            const result = await sut.computeSellAmount(
+                'grid-1',
+                grid as any,
+                accountAddress,
+                symbol,
+                [grid as any, otherGrid as any],
+            );
+
+            expect(result.toNumber()).toBe(0);
+        });
     });
 });

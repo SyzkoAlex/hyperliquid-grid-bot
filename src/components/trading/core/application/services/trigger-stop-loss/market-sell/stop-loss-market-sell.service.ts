@@ -11,21 +11,8 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
-
-export interface StopLossMarketSellParams {
-    gridId: string;
-    symbol: string;
-    amount: Decimal;
-    currentMid: number;
-    accountAddress: string;
-}
-
-export interface StopLossMarketSellResult {
-    success: boolean;
-    soldBaseAmount: number;
-    receivedUSDC: number;
-    errorMessage?: string;
-}
+import { StopLossMarketSellParams } from './types/stop-loss-market-sell-params';
+import { StopLossMarketSellResult } from './types/stop-loss-market-sell-result';
 
 @Injectable()
 export class StopLossMarketSellService {

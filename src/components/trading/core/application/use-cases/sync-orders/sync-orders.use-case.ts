@@ -96,7 +96,16 @@ export class SyncOrdersUseCase {
         // priceBySymbol is absent on the legacy execute() path which does not pre-fetch prices.
         // Stop-loss evaluation is intentionally skipped — callers that need SL must use
         // executeForGrids with a pre-built price map (see OrdersPollingAdapter).
-        if (!priceBySymbol) return triggeredGridIds;
+        if (!priceBySymbol) {
+            const slGrids = activeGrids.filter((g) => g.stopLossEnabled && !g.stopLossTriggeredAt);
+            if (slGrids.length > 0) {
+                this.logger.warn(
+                    { slGridIds: slGrids.map((g) => g.id) },
+                    'priceBySymbol not provided — stop-loss evaluation skipped for grids with stopLossEnabled',
+                );
+            }
+            return triggeredGridIds;
+        }
 
         for (const grid of activeGrids) {
             // Skip grids that have stop-loss disabled or already triggered.

@@ -11,9 +11,6 @@ import { logger } from '@/infra/logger/logger';
 export class PostgresGridMapper {
     private static readonly logger = logger.child({ context: PostgresGridMapper.name });
 
-    /**
-     * Convert Grid domain entity to database record
-     */
     static toDbRecord(grid: Grid): Omit<GridDbRecord, 'updatedAt'> {
         return {
             id: grid.id.toString(),
@@ -41,9 +38,6 @@ export class PostgresGridMapper {
         };
     }
 
-    /**
-     * Convert database row to Grid domain entity
-     */
     static toDomain(row: GridDbRecord): Grid {
         try {
             const params = {

@@ -65,10 +65,11 @@ export class GridsApiAdapter implements GridsApiPort {
         await this.gridRepo.save(grid);
     }
 
-    async markStopLossTriggered(id: string): Promise<void> {
+    async markStoppedByStopLoss(id: string): Promise<void> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
         if (!grid) throw new Error(`Grid not found: ${id}`);
         grid.markStopLossTriggered();
+        grid.stop();
         await this.gridRepo.save(grid);
     }
 

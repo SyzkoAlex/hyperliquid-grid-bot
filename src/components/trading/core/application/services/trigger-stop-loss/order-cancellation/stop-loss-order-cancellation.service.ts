@@ -9,6 +9,11 @@ import {
 } from '@components/trading/core/application/ports/exchange.port';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 
+export interface CancelActiveOrdersResult {
+    cancelledCount: number;
+    failedCount: number;
+}
+
 @Injectable()
 export class StopLossOrderCancellationService {
     private readonly logger = logger.child({ context: StopLossOrderCancellationService.name });
@@ -18,20 +23,33 @@ export class StopLossOrderCancellationService {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
     ) {}
 
-    async cancelActiveOrders(gridId: string, accountAddress: string): Promise<void> {
+    async cancelActiveOrders(
+        gridId: string,
+        accountAddress: string,
+    ): Promise<CancelActiveOrdersResult> {
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
 
+        let cancelledCount = 0;
+        let failedCount = 0;
+
         for (const order of activeOrders) {
-            await this.cancelOrder(order, accountAddress);
+            const cancelled = await this.cancelOrder(order, accountAddress);
+            if (cancelled) {
+                cancelledCount++;
+            } else {
+                failedCount++;
+            }
         }
 
-        this.logger.info({ gridId, cancelledOrders: activeOrders.length }, 'Orders cancelled');
+        this.logger.info({ gridId, cancelledCount, failedCount }, 'Orders cancelled');
+
+        return { cancelledCount, failedCount };
     }
 
-    private async cancelOrder(order: OrderDto, accountAddress: string): Promise<void> {
+    private async cancelOrder(order: OrderDto, accountAddress: string): Promise<boolean> {
         if (!order.exchangeOrderId) {
             await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
-            return;
+            return true;
         }
 
         try {
@@ -41,12 +59,14 @@ export class StopLossOrderCancellationService {
                 accountAddress,
             });
             await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
+            return true;
         } catch (error) {
             // Exchange cancel failed — leave DB status unchanged to avoid phantom "Cancelled" state.
             this.logger.warn(
                 { error, orderId: order.id },
                 'Failed to cancel order on exchange during stop-loss teardown — DB status unchanged',
             );
+            return false;
         }
     }
 }

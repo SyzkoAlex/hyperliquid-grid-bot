@@ -420,6 +420,28 @@ describe('SyncOrdersUseCase', () => {
             expect(result.errors[0]).toContain('DB error');
         });
 
+        it('does not call StopLossWatcherService when priceBySymbol is not provided and stopLossEnabled is true', async () => {
+            const grid = createTestGrid({
+                symbol: 'BTC',
+                stopLossEnabled: true,
+                stopLossPrice: 40000,
+            });
+            const order = createTestOrder(grid.id);
+
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 0,
+                filledOrders: [],
+                stpCancelledOrders: [],
+            });
+
+            // No priceBySymbol passed — SL evaluation must be skipped entirely.
+            await useCase.executeForGrids('0x123', [grid], []);
+
+            expect(mockStopLossWatcher.evaluate).not.toHaveBeenCalled();
+            expect(mockTriggerStopLoss.execute).not.toHaveBeenCalled();
+        });
+
         it('calls TriggerStopLossService when watcher returns Trigger and priceBySymbol is provided', async () => {
             const grid = createTestGrid({
                 symbol: 'BTC',
