@@ -2,12 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TriggerStopLossService } from './trigger-stop-loss.service';
 import { TriggerStopLossParams } from './trigger-stop-loss-params';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { OrderStatus } from '@domain/models/order/order-status';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { Price } from '@domain/models/primitives/price';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
-import { AssetPosition } from '@components/trading/core/domain/models/user-state/asset-position';
 import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
 
 const makeGrid = (overrides = {}) => ({
@@ -28,50 +23,18 @@ const makeGrid = (overrides = {}) => ({
     ...overrides,
 });
 
-const makeOrder = (overrides = {}) => ({
-    id: 'order-1',
-    gridId: 'grid-1',
-    symbol: 'ETH',
-    side: 'buy' as const,
-    status: OrderStatus.Placed,
-    type: 'limit' as const,
-    levelIndex: 0,
-    price: 2000,
-    amount: 0.05,
-    exchangeOrderId: 'ex-1',
-    createdAt: Date.now(),
-    ...overrides,
-});
-
-const makeUserState = (baseAmount: number) =>
-    UserState.create({
-        withdrawableBalance: Decimal.from(1000),
-        assetPositions: [
-            AssetPosition.create({
-                symbol: TradingSymbol.create('ETH'),
-                size: Decimal.from(baseAmount),
-            }),
-        ],
-    });
-
 describe('TriggerStopLossService', () => {
     let sut: TriggerStopLossService;
     let mockGrids: {
         markStopLossTriggered: ReturnType<typeof vi.fn>;
         updateGridStatus: ReturnType<typeof vi.fn>;
         findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
-        findOrdersByGridId: ReturnType<typeof vi.fn>;
-        updateOrderStatus: ReturnType<typeof vi.fn>;
         findGridById: ReturnType<typeof vi.fn>;
     };
-    let mockExchange: {
-        getUserSpotState: ReturnType<typeof vi.fn>;
-        getCurrentPrice: ReturnType<typeof vi.fn>;
-        placeSpotMarketSell: ReturnType<typeof vi.fn>;
-        cancelSpotOrder: ReturnType<typeof vi.fn>;
-    };
     let mockEventPublisher: { publish: ReturnType<typeof vi.fn> };
-    let mockUserBalanceExtractor: { extractBalances: ReturnType<typeof vi.fn> };
+    let mockCancellation: { cancelActiveOrders: ReturnType<typeof vi.fn> };
+    let mockBalanceAttribution: { computeSellAmount: ReturnType<typeof vi.fn> };
+    let mockMarketSell: { execute: ReturnType<typeof vi.fn> };
 
     const params: TriggerStopLossParams = {
         gridId: 'grid-1',
@@ -85,64 +48,71 @@ describe('TriggerStopLossService', () => {
         mockGrids = {
             markStopLossTriggered: vi.fn().mockResolvedValue(undefined),
             updateGridStatus: vi.fn().mockResolvedValue(undefined),
-            findActiveOrdersByGridId: vi.fn().mockResolvedValue([makeOrder()]),
-            findOrdersByGridId: vi.fn().mockResolvedValue([]),
-            updateOrderStatus: vi.fn().mockResolvedValue(undefined),
+            findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
             findGridById: vi.fn().mockResolvedValue(makeGrid()),
         };
-        mockExchange = {
-            getUserSpotState: vi.fn().mockResolvedValue(makeUserState(0.5)),
-            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(1880)),
-            placeSpotMarketSell: vi
-                .fn()
-                .mockResolvedValue({ exchangeOrderId: 'ex-sl', status: OrderStatus.Filled }),
-            cancelSpotOrder: vi.fn().mockResolvedValue({ success: true }),
-        };
         mockEventPublisher = { publish: vi.fn().mockResolvedValue(undefined) };
-        mockUserBalanceExtractor = {
-            extractBalances: vi.fn().mockReturnValue({
-                usdcBalance: Decimal.from(1000),
-                baseBalance: Decimal.from(0.5),
+        mockCancellation = { cancelActiveOrders: vi.fn().mockResolvedValue(undefined) };
+        mockBalanceAttribution = {
+            computeSellAmount: vi.fn().mockResolvedValue(Decimal.from(0.5)),
+        };
+        mockMarketSell = {
+            execute: vi.fn().mockResolvedValue({
+                success: true,
+                soldBaseAmount: 0.5,
+                receivedUSDC: 940,
             }),
         };
 
         sut = new TriggerStopLossService(
             mockGrids as any,
-            mockExchange as any,
             mockEventPublisher as any,
-            mockUserBalanceExtractor as any,
+            mockCancellation as any,
+            mockBalanceAttribution as any,
+            mockMarketSell as any,
         );
     });
 
-    it('marks SL triggered and flips status before selling', async () => {
+    it('marks SL triggered and flips status before delegating to sub-services', async () => {
         await sut.execute(params);
 
         const markCall = mockGrids.markStopLossTriggered.mock.invocationCallOrder[0];
         const statusCall = mockGrids.updateGridStatus.mock.invocationCallOrder[0];
-        const sellCall = mockExchange.placeSpotMarketSell.mock.invocationCallOrder[0];
+        const cancelCall = mockCancellation.cancelActiveOrders.mock.invocationCallOrder[0];
 
         expect(markCall).toBeLessThan(statusCall);
-        expect(statusCall).toBeLessThan(sellCall);
+        expect(statusCall).toBeLessThan(cancelCall);
         expect(mockGrids.updateGridStatus).toHaveBeenCalledWith('grid-1', GridStatus.Stopped);
     });
 
-    it('fetches active orders BEFORE flipping status to Stopped', async () => {
+    it('delegates order cancellation to StopLossOrderCancellationService', async () => {
         await sut.execute(params);
 
-        const ordersCall = mockGrids.findActiveOrdersByGridId.mock.invocationCallOrder[0];
-        const statusCall = mockGrids.updateGridStatus.mock.invocationCallOrder[0];
-
-        expect(ordersCall).toBeLessThan(statusCall);
+        expect(mockCancellation.cancelActiveOrders).toHaveBeenCalledWith('grid-1', '0xabc');
     });
 
-    it('cancels all active orders before selling', async () => {
+    it('delegates sell amount computation to StopLossBalanceAttributionService', async () => {
         await sut.execute(params);
 
-        expect(mockExchange.cancelSpotOrder).toHaveBeenCalledOnce();
-        expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith('order-1', OrderStatus.Cancelled);
+        expect(mockBalanceAttribution.computeSellAmount).toHaveBeenCalledOnce();
+        const [gridId, grid, accountAddress] =
+            mockBalanceAttribution.computeSellAmount.mock.calls[0];
+        expect(gridId).toBe('grid-1');
+        expect(grid.id).toBe('grid-1');
+        expect(accountAddress).toBe('0xabc');
     });
 
-    it('publishes success event when IOC sell fills on first attempt', async () => {
+    it('delegates market sell to StopLossMarketSellService', async () => {
+        await sut.execute(params);
+
+        expect(mockMarketSell.execute).toHaveBeenCalledOnce();
+        const sellParams = mockMarketSell.execute.mock.calls[0][0];
+        expect(sellParams.gridId).toBe('grid-1');
+        expect(sellParams.symbol).toBe('ETH');
+        expect(sellParams.accountAddress).toBe('0xabc');
+    });
+
+    it('publishes success event when market sell succeeds', async () => {
         await sut.execute(params);
 
         expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
@@ -152,68 +122,17 @@ describe('TriggerStopLossService', () => {
         expect(event.gridId).toBe('grid-1');
     });
 
-    it('retries IOC sell at wider cap and publishes success on second attempt', async () => {
-        mockExchange.placeSpotMarketSell
-            .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-            .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
-
-        const result = await sut.execute(params);
-
-        expect(result.success).toBe(true);
-        expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
-    });
-
-    it('uses same CLOID for both IOC attempts', async () => {
-        mockExchange.placeSpotMarketSell
-            .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-            .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
-
-        await sut.execute(params);
-
-        const firstCloid = mockExchange.placeSpotMarketSell.mock.calls[0][0].orderId;
-        const secondCloid = mockExchange.placeSpotMarketSell.mock.calls[1][0].orderId;
-        expect(firstCloid).toBe(secondCloid);
-    });
-
-    it('publishes failure event when both IOC attempts fail', async () => {
-        mockExchange.placeSpotMarketSell.mockResolvedValue({
-            exchangeOrderId: 'ex-1',
-            status: OrderStatus.Placed,
-        });
-
-        const result = await sut.execute(params);
-
-        expect(result.success).toBe(false);
-        expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
-
-        const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
-        expect(event.success).toBe(false);
-        expect(event.errorMessage).toBeDefined();
-    });
-
-    it('publishes success with soldBaseAmount=0 when no base balance', async () => {
-        mockUserBalanceExtractor.extractBalances.mockReturnValue({
-            usdcBalance: Decimal.from(1000),
-            baseBalance: Decimal.zero(),
-        });
+    it('publishes success with soldBaseAmount=0 when sell amount is zero', async () => {
+        mockBalanceAttribution.computeSellAmount.mockResolvedValue(Decimal.zero());
 
         const result = await sut.execute(params);
 
         expect(result.success).toBe(true);
         expect(result.soldBaseAmount).toBe(0);
-        expect(mockExchange.placeSpotMarketSell).not.toHaveBeenCalled();
+        expect(mockMarketSell.execute).not.toHaveBeenCalled();
 
         const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
         expect(event.soldBaseAmount).toBe(0);
-    });
-
-    it('skips cancel loop when there are no active orders', async () => {
-        mockGrids.findActiveOrdersByGridId.mockResolvedValue([]);
-
-        await sut.execute(params);
-
-        expect(mockExchange.cancelSpotOrder).not.toHaveBeenCalled();
-        expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
     });
 
     it('publishes failure event and returns failure when findGridById returns null', async () => {
@@ -230,19 +149,23 @@ describe('TriggerStopLossService', () => {
         expect(event.success).toBe(false);
         expect(event.errorMessage).toContain('grid-1');
 
-        // Should not attempt to sell when grid is not found
-        expect(mockExchange.placeSpotMarketSell).not.toHaveBeenCalled();
+        expect(mockMarketSell.execute).not.toHaveBeenCalled();
     });
 
-    it('does not update DB order status when exchange cancel throws', async () => {
-        mockExchange.cancelSpotOrder.mockRejectedValue(new Error('Exchange unreachable'));
+    it('propagates sell failure result and publishes failure event', async () => {
+        mockMarketSell.execute.mockResolvedValue({
+            success: false,
+            soldBaseAmount: 0,
+            receivedUSDC: 0,
+            errorMessage: 'IOC sell unfilled after 2 attempts.',
+        });
 
-        await sut.execute(params);
+        const result = await sut.execute(params);
 
-        // DB status must NOT be updated when exchange cancel fails
-        expect(mockGrids.updateOrderStatus).not.toHaveBeenCalledWith(
-            'order-1',
-            OrderStatus.Cancelled,
-        );
+        expect(result.success).toBe(false);
+        expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
+        const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
+        expect(event.success).toBe(false);
+        expect(event.errorMessage).toBeDefined();
     });
 });
