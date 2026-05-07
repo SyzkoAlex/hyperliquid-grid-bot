@@ -9,9 +9,9 @@ import {
     EventPublisherPort,
 } from '@/core/application/ports/outbound/event-publisher.port';
 import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
-import { StopLossOrderCancellationService } from '@components/trading/core/application/services/stop-loss-order-cancellation/stop-loss-order-cancellation.service';
-import { StopLossBalanceAttributionService } from '@components/trading/core/application/services/stop-loss-balance-attribution/stop-loss-balance-attribution.service';
-import { StopLossMarketSellService } from '@components/trading/core/application/services/stop-loss-market-sell/stop-loss-market-sell.service';
+import { StopLossOrderCancellationService } from './order-cancellation/stop-loss-order-cancellation.service';
+import { StopLossBalanceAttributionService } from './balance-attribution/stop-loss-balance-attribution.service';
+import { StopLossMarketSellService } from './market-sell/stop-loss-market-sell.service';
 import { TriggerStopLossParams } from './trigger-stop-loss-params';
 import { TriggerStopLossResult } from './trigger-stop-loss-result';
 

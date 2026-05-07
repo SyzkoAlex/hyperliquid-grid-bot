@@ -25,9 +25,9 @@ import { CreateGridHandler } from '@components/trading/adapters/inbound/grid-com
 import { StopGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
 import { StopGridUseCase } from '@components/trading/core/application/use-cases/stop-grid/stop-grid.use-case';
 import { TriggerStopLossService } from '@components/trading/core/application/services/trigger-stop-loss/trigger-stop-loss.service';
-import { StopLossOrderCancellationService } from '@components/trading/core/application/services/stop-loss-order-cancellation/stop-loss-order-cancellation.service';
-import { StopLossBalanceAttributionService } from '@components/trading/core/application/services/stop-loss-balance-attribution/stop-loss-balance-attribution.service';
-import { StopLossMarketSellService } from '@components/trading/core/application/services/stop-loss-market-sell/stop-loss-market-sell.service';
+import { StopLossOrderCancellationService } from '@components/trading/core/application/services/trigger-stop-loss/order-cancellation/stop-loss-order-cancellation.service';
+import { StopLossBalanceAttributionService } from '@components/trading/core/application/services/trigger-stop-loss/balance-attribution/stop-loss-balance-attribution.service';
+import { StopLossMarketSellService } from '@components/trading/core/application/services/trigger-stop-loss/market-sell/stop-loss-market-sell.service';
 import { StopLossWatcherService } from '@components/trading/core/application/services/stop-loss-watcher/stop-loss-watcher.service';
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
