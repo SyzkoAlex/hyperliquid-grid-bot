@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/infra/logger/logger';
+import { Config } from '@/config/config.schema';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
@@ -29,12 +31,10 @@ export interface StopLossMarketSellResult {
 export class StopLossMarketSellService {
     private readonly logger = logger.child({ context: StopLossMarketSellService.name });
 
-    /** Initial IOC sell slippage cap (1%). */
-    static readonly INITIAL_SLIPPAGE_CAP = 0.01;
-    /** Retry IOC sell slippage cap (2%). */
-    static readonly RETRY_SLIPPAGE_CAP = 0.02;
-
-    constructor(@Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort) {}
+    constructor(
+        @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
+        private readonly config: ConfigService<Config, true>,
+    ) {}
 
     async execute(params: StopLossMarketSellParams): Promise<StopLossMarketSellResult> {
         const { gridId, symbol, amount, currentMid, accountAddress } = params;
@@ -45,27 +45,32 @@ export class StopLossMarketSellService {
         // so a lost response on attempt 1 won't result in a second live order on attempt 2.
         const cloid = uuidv4();
 
+        const initialSlippageCap = this.config.get('stopLoss.initialSlippageCapPct', {
+            infer: true,
+        });
+        const retrySlippageCap = this.config.get('stopLoss.retrySlippageCapPct', { infer: true });
+
         const result1 = await this.attemptIocSell(
             amount,
             midPrice,
-            StopLossMarketSellService.INITIAL_SLIPPAGE_CAP,
+            initialSlippageCap,
             cloid,
             symbolObj,
             accountAddress,
             gridId,
-            '1%',
+            `${initialSlippageCap * 100}%`,
         );
         if (result1 !== null) return result1;
 
         const result2 = await this.attemptIocSell(
             amount,
             midPrice,
-            StopLossMarketSellService.RETRY_SLIPPAGE_CAP,
+            retrySlippageCap,
             cloid,
             symbolObj,
             accountAddress,
             gridId,
-            '2%',
+            `${retrySlippageCap * 100}%`,
         );
         if (result2 !== null) return result2;
 

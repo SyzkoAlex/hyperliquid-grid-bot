@@ -3,11 +3,15 @@ import { StopLossMarketSellService } from './stop-loss-market-sell.service';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { Decimal } from '@domain/models/primitives/decimal';
 
+const INITIAL_SLIPPAGE_CAP = 0.01;
+const RETRY_SLIPPAGE_CAP = 0.02;
+
 describe('StopLossMarketSellService', () => {
     let sut: StopLossMarketSellService;
     let mockExchange: {
         placeSpotMarketSell: ReturnType<typeof vi.fn>;
     };
+    let mockConfig: { get: ReturnType<typeof vi.fn> };
 
     const baseParams = {
         gridId: 'grid-1',
@@ -24,7 +28,15 @@ describe('StopLossMarketSellService', () => {
                 .mockResolvedValue({ exchangeOrderId: 'ex-sl', status: OrderStatus.Filled }),
         };
 
-        sut = new StopLossMarketSellService(mockExchange as any);
+        mockConfig = {
+            get: vi.fn((key: string) => {
+                if (key === 'stopLoss.initialSlippageCapPct') return INITIAL_SLIPPAGE_CAP;
+                if (key === 'stopLoss.retrySlippageCapPct') return RETRY_SLIPPAGE_CAP;
+                return undefined;
+            }),
+        };
+
+        sut = new StopLossMarketSellService(mockExchange as any, mockConfig as any);
     });
 
     describe('execute', () => {
@@ -50,13 +62,9 @@ describe('StopLossMarketSellService', () => {
                 mockExchange.placeSpotMarketSell.mock.calls[1][0].limitPrice.toNumber();
 
             // 1% cap: 1880 * (1 - 0.01) = 1861.2
-            expect(firstLimitPrice).toBeCloseTo(
-                1880 * (1 - StopLossMarketSellService.INITIAL_SLIPPAGE_CAP),
-            );
+            expect(firstLimitPrice).toBeCloseTo(1880 * (1 - INITIAL_SLIPPAGE_CAP));
             // 2% cap: 1880 * (1 - 0.02) = 1842.4
-            expect(secondLimitPrice).toBeCloseTo(
-                1880 * (1 - StopLossMarketSellService.RETRY_SLIPPAGE_CAP),
-            );
+            expect(secondLimitPrice).toBeCloseTo(1880 * (1 - RETRY_SLIPPAGE_CAP));
         });
 
         it('retries with wider slippage cap when first IOC attempt is not filled', async () => {
@@ -101,7 +109,7 @@ describe('StopLossMarketSellService', () => {
             const result = await sut.execute(baseParams);
 
             // limitPrice = 1880 * (1 - 0.01) = 1861.2
-            const expectedLimitPrice = 1880 * (1 - StopLossMarketSellService.INITIAL_SLIPPAGE_CAP);
+            const expectedLimitPrice = 1880 * (1 - INITIAL_SLIPPAGE_CAP);
             expect(result.receivedUSDC).toBeCloseTo(0.5 * expectedLimitPrice);
         });
 

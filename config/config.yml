@@ -47,6 +47,10 @@ orders:
     syncLockTtlMs: ${ORDERS_SYNC_LOCK_TTL_MS:30000} # 30 seconds
     restoreLockTtlMs: ${ORDERS_RESTORE_LOCK_TTL_MS:60000} # 60 seconds
 
+stopLoss:
+    initialSlippageCapPct: ${STOP_LOSS_INITIAL_SLIPPAGE_CAP_PCT:0.01}
+    retrySlippageCapPct: ${STOP_LOSS_RETRY_SLIPPAGE_CAP_PCT:0.02}
+
 logging:
     level: ${LOG_LEVEL:trace}
     pretty: ${LOG_PRETTY:true}
