@@ -10,6 +10,8 @@ import { OrderStatusSyncService } from '@components/trading/core/application/ser
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
+import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { GridWithOrders } from './grid-with-orders';
@@ -25,6 +27,7 @@ export class SyncOrdersUseCase {
         private readonly orderRefillService: OrderRefillService,
         private readonly stpRecoveryService: StpRecoveryService,
         private readonly stopLossMonitor: StopLossMonitorService,
+        private readonly triggerStopLoss: TriggerStopLossUseCase,
     ) {}
 
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
@@ -43,6 +46,14 @@ export class SyncOrdersUseCase {
         const result = SyncOrdersResult.empty();
         if (activeGrids.length === 0) return result;
 
+        // SL evaluation runs for ALL active grids regardless of whether they
+        // have any DB orders — a grid with no open orders may still need SL teardown.
+        const triggeredGridIds = await this.evaluateStopLossForGrids(
+            activeGrids,
+            accountAddress,
+            priceBySymbol,
+        );
+
         const gridIds = activeGrids.map((g) => g.id);
         const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
         if (allActiveDbOrders.length === 0) return result;
@@ -59,31 +70,63 @@ export class SyncOrdersUseCase {
         );
 
         for (const gridWithOrders of gridsWithOrders) {
-            await this.processGrid(gridWithOrders, accountAddress, result, priceBySymbol);
+            // Skip order processing for grids whose SL was just triggered.
+            if (triggeredGridIds.has(gridWithOrders.grid.id)) continue;
+            await this.processGrid(gridWithOrders, accountAddress, result);
         }
 
         this.logResultIfNeeded(result);
         return result;
     }
 
+    /**
+     * Evaluate stop-loss for each active grid. Returns a set of grid IDs for
+     * which stop-loss teardown was initiated so that order processing can be
+     * skipped for those grids in this polling iteration.
+     */
+    private async evaluateStopLossForGrids(
+        activeGrids: GridDto[],
+        accountAddress: string,
+        priceBySymbol?: Map<string, number>,
+    ): Promise<Set<string>> {
+        const triggeredGridIds = new Set<string>();
+
+        if (!priceBySymbol) return triggeredGridIds;
+
+        for (const grid of activeGrids) {
+            const currentPrice = priceBySymbol.get(grid.symbol);
+            if (currentPrice === undefined) continue;
+
+            try {
+                const decision = this.stopLossMonitor.evaluateGrid(grid, currentPrice);
+                if (decision !== StopLossWatchDecision.Trigger) continue;
+
+                await this.triggerStopLoss.execute({
+                    gridId: grid.id,
+                    symbol: grid.symbol,
+                    stopLossPrice: grid.stopLossPrice!,
+                    currentMid: currentPrice,
+                    accountAddress,
+                });
+
+                triggeredGridIds.add(grid.id);
+            } catch (error) {
+                this.logger.error(
+                    { error, gridId: grid.id },
+                    'Error during stop-loss evaluation/trigger',
+                );
+            }
+        }
+
+        return triggeredGridIds;
+    }
+
     private async processGrid(
         gridWithOrders: GridWithOrders,
         accountAddress: string,
         result: SyncOrdersResult,
-        priceBySymbol?: Map<string, number>,
     ): Promise<void> {
         try {
-            // Stop-loss check: if triggered, skip status-sync/refill for this grid.
-            const currentPrice = priceBySymbol?.get(gridWithOrders.grid.symbol);
-            if (currentPrice !== undefined) {
-                const slTriggered = await this.stopLossMonitor.processGrid(
-                    gridWithOrders.grid,
-                    currentPrice,
-                    accountAddress,
-                );
-                if (slTriggered) return;
-            }
-
             const statusSyncResult = await this.orderStatusSyncService.process(
                 gridWithOrders.dbOrders,
                 gridWithOrders.exchangeOrders,

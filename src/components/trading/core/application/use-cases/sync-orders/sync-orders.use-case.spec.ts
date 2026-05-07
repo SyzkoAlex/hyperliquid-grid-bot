@@ -17,6 +17,8 @@ import { OrderStatusSyncService } from '@components/trading/core/application/ser
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
+import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
+import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
@@ -28,7 +30,8 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderStatusSyncService: { process: ReturnType<typeof vi.fn> };
     let mockOrderRefillService: { processMany: ReturnType<typeof vi.fn> };
     let mockStpRecoveryService: { recoverMany: ReturnType<typeof vi.fn> };
-    let mockStopLossMonitor: { processGrid: ReturnType<typeof vi.fn> };
+    let mockStopLossMonitor: { evaluateGrid: ReturnType<typeof vi.fn> };
+    let mockTriggerStopLoss: { execute: ReturnType<typeof vi.fn> };
 
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
@@ -87,7 +90,13 @@ describe('SyncOrdersUseCase', () => {
         };
 
         mockStopLossMonitor = {
-            processGrid: vi.fn().mockResolvedValue(false),
+            evaluateGrid: vi.fn().mockReturnValue(StopLossWatchDecision.NoBreach),
+        };
+
+        mockTriggerStopLoss = {
+            execute: vi
+                .fn()
+                .mockResolvedValue({ success: true, soldBaseAmount: 0, receivedUSDC: 0 }),
         };
 
         useCase = new SyncOrdersUseCase(
@@ -97,6 +106,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderRefillService as unknown as OrderRefillService,
             mockStpRecoveryService as unknown as StpRecoveryService,
             mockStopLossMonitor as unknown as StopLossMonitorService,
+            mockTriggerStopLoss as unknown as TriggerStopLossUseCase,
         );
     });
 

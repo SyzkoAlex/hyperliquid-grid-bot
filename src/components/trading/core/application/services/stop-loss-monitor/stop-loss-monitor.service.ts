@@ -3,29 +3,23 @@ import { logger } from '@/infra/logger/logger';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { StopLossWatcherService } from '@components/trading/core/domain/services/stop-loss-watcher/stop-loss-watcher.service';
 import { StopLossWatchDecision } from '@components/trading/core/domain/services/stop-loss-watcher/types/stop-loss-watch-decision';
-import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
 
 @Injectable()
 export class StopLossMonitorService {
     private readonly logger = logger.child({ context: StopLossMonitorService.name });
 
-    constructor(
-        private readonly watcher: StopLossWatcherService,
-        private readonly triggerStopLoss: TriggerStopLossUseCase,
-    ) {}
+    constructor(private readonly watcher: StopLossWatcherService) {}
 
     /**
-     * Evaluate the stop-loss condition for a single grid. Returns `true` if a
-     * stop-loss was triggered (caller should skip further processing for this
-     * grid in the current polling iteration), `false` otherwise.
+     * Evaluate the stop-loss condition for a single grid.
+     *
+     * Returns the watcher decision so the caller (use case) can decide whether
+     * to trigger stop-loss teardown. This service intentionally has no knowledge
+     * of the `TriggerStopLossUseCase` to avoid an application-layer inversion.
      */
-    async processGrid(
-        grid: GridDto,
-        currentPrice: number,
-        accountAddress: string,
-    ): Promise<boolean> {
+    evaluateGrid(grid: GridDto, currentPrice: number): StopLossWatchDecision {
         if (!grid.stopLossEnabled || grid.stopLossTriggeredAt) {
-            return false;
+            return StopLossWatchDecision.NoBreach;
         }
 
         const decision = this.watcher.evaluate({
@@ -36,27 +30,18 @@ export class StopLossMonitorService {
             now: Date.now(),
         });
 
-        if (decision !== StopLossWatchDecision.Trigger) {
-            return false;
+        if (decision === StopLossWatchDecision.Trigger) {
+            this.logger.warn(
+                {
+                    gridId: grid.id,
+                    symbol: grid.symbol,
+                    currentPrice,
+                    stopLossPrice: grid.stopLossPrice,
+                },
+                'Stop-loss condition confirmed — initiating teardown',
+            );
         }
 
-        this.logger.warn(
-            {
-                gridId: grid.id,
-                symbol: grid.symbol,
-                currentPrice,
-                stopLossPrice: grid.stopLossPrice,
-            },
-            'Stop-loss condition confirmed — initiating teardown',
-        );
-
-        await this.triggerStopLoss.execute({
-            gridId: grid.id,
-            symbol: grid.symbol,
-            stopLossPrice: grid.stopLossPrice!,
-            accountAddress,
-        });
-
-        return true;
+        return decision;
     }
 }

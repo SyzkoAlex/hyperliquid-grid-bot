@@ -60,6 +60,7 @@ describe('TriggerStopLossUseCase', () => {
         markStopLossTriggered: ReturnType<typeof vi.fn>;
         updateGridStatus: ReturnType<typeof vi.fn>;
         findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
+        findOrdersByGridId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
         findGridById: ReturnType<typeof vi.fn>;
     };
@@ -76,6 +77,7 @@ describe('TriggerStopLossUseCase', () => {
         gridId: 'grid-1',
         symbol: 'ETH',
         stopLossPrice: 1900,
+        currentMid: 1880,
         accountAddress: '0xabc',
     };
 
@@ -84,6 +86,7 @@ describe('TriggerStopLossUseCase', () => {
             markStopLossTriggered: vi.fn().mockResolvedValue(undefined),
             updateGridStatus: vi.fn().mockResolvedValue(undefined),
             findActiveOrdersByGridId: vi.fn().mockResolvedValue([makeOrder()]),
+            findOrdersByGridId: vi.fn().mockResolvedValue([]),
             updateOrderStatus: vi.fn().mockResolvedValue(undefined),
             findGridById: vi.fn().mockResolvedValue(makeGrid()),
         };

@@ -98,8 +98,7 @@ export class TradingEventsAdapter implements OnModuleInit {
                     event.eventType,
                     event.serialize(),
                 ) as GridStopLossTriggeredEvent;
-                const text = this.messageFactory.buildFromEvent(typed).text;
-                await this.botService.sendMessage(this.notificationChatId, text);
+                await this.notifyUser.execute({ event: typed });
             },
         );
     }

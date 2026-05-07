@@ -24,54 +24,51 @@ const makeGrid = (overrides = {}) => ({
 describe('StopLossMonitorService', () => {
     let sut: StopLossMonitorService;
     let mockWatcher: { evaluate: ReturnType<typeof vi.fn> };
-    let mockTriggerStopLoss: { execute: ReturnType<typeof vi.fn> };
 
     beforeEach(() => {
         mockWatcher = { evaluate: vi.fn().mockReturnValue(StopLossWatchDecision.NoBreach) };
-        mockTriggerStopLoss = { execute: vi.fn().mockResolvedValue({ success: true }) };
 
-        sut = new StopLossMonitorService(mockWatcher as any, mockTriggerStopLoss as any);
+        sut = new StopLossMonitorService(mockWatcher as any);
     });
 
-    it('returns false when stop-loss is disabled', async () => {
+    it('returns NoBreach when stop-loss is disabled', () => {
         const grid = makeGrid({ stopLossEnabled: false });
-        const result = await sut.processGrid(grid, 1800, '0xabc');
-        expect(result).toBe(false);
+        const result = sut.evaluateGrid(grid, 1800);
+        expect(result).toBe(StopLossWatchDecision.NoBreach);
         expect(mockWatcher.evaluate).not.toHaveBeenCalled();
     });
 
-    it('returns false when stopLossTriggeredAt is already set', async () => {
+    it('returns NoBreach when stopLossTriggeredAt is already set', () => {
         const grid = makeGrid({ stopLossTriggeredAt: Date.now() - 1000 });
-        const result = await sut.processGrid(grid, 1800, '0xabc');
-        expect(result).toBe(false);
+        const result = sut.evaluateGrid(grid, 1800);
+        expect(result).toBe(StopLossWatchDecision.NoBreach);
         expect(mockWatcher.evaluate).not.toHaveBeenCalled();
     });
 
-    it('returns false when watcher returns NoBreach', async () => {
+    it('returns NoBreach when watcher returns NoBreach', () => {
         mockWatcher.evaluate.mockReturnValue(StopLossWatchDecision.NoBreach);
-        const result = await sut.processGrid(makeGrid(), 2100, '0xabc');
-        expect(result).toBe(false);
-        expect(mockTriggerStopLoss.execute).not.toHaveBeenCalled();
+        const result = sut.evaluateGrid(makeGrid(), 2100);
+        expect(result).toBe(StopLossWatchDecision.NoBreach);
     });
 
-    it('returns false when watcher returns BreachUnconfirmed', async () => {
+    it('returns BreachUnconfirmed when watcher returns BreachUnconfirmed', () => {
         mockWatcher.evaluate.mockReturnValue(StopLossWatchDecision.BreachUnconfirmed);
-        const result = await sut.processGrid(makeGrid(), 1850, '0xabc');
-        expect(result).toBe(false);
-        expect(mockTriggerStopLoss.execute).not.toHaveBeenCalled();
+        const result = sut.evaluateGrid(makeGrid(), 1850);
+        expect(result).toBe(StopLossWatchDecision.BreachUnconfirmed);
     });
 
-    it('invokes triggerStopLoss and returns true when watcher returns Trigger', async () => {
+    it('returns Trigger when watcher returns Trigger', () => {
         mockWatcher.evaluate.mockReturnValue(StopLossWatchDecision.Trigger);
         const grid = makeGrid();
-        const result = await sut.processGrid(grid, 1850, '0xabc');
+        const result = sut.evaluateGrid(grid, 1850);
 
-        expect(result).toBe(true);
-        expect(mockTriggerStopLoss.execute).toHaveBeenCalledWith({
+        expect(result).toBe(StopLossWatchDecision.Trigger);
+        expect(mockWatcher.evaluate).toHaveBeenCalledWith({
             gridId: 'grid-1',
-            symbol: 'ETH',
+            stopLossEnabled: true,
             stopLossPrice: 1900,
-            accountAddress: '0xabc',
+            currentPrice: 1850,
+            now: expect.any(Number),
         });
     });
 });

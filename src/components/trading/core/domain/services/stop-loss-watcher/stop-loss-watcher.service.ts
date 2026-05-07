@@ -1,14 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { StopLossWatchDecision } from './types/stop-loss-watch-decision';
 import { StopLossBreachState } from './types/stop-loss-breach-state';
-
-export interface StopLossEvaluateInput {
-    gridId: string;
-    stopLossEnabled: boolean;
-    stopLossPrice: number | null;
-    currentPrice: number;
-    now: number;
-}
+import { StopLossEvaluateInput } from './types/stop-loss-evaluate-input';
 
 /**
  * Pure domain service that decides whether a stop-loss should trigger.
