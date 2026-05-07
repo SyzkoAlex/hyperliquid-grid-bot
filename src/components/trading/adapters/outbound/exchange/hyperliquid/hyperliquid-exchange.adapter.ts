@@ -17,9 +17,11 @@ import { UserState } from '@components/trading/core/domain/models/user-state/use
 import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
+import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
 import { OrderSide } from '@domain/models/order/order-side';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/hyperliquid-place-spot-order-input';
+import { Tif } from '@/infra/hyperliquid/orders/wire/tif';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
 @Injectable()
@@ -56,6 +58,32 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             throw error;
         } finally {
             this.metrics.observeExchangeApiDuration('placeSpotOrder', stop());
+        }
+    }
+
+    async placeSpotMarketSell(
+        params: ExchangePlaceMarketSellParams,
+    ): Promise<ExchangePlaceOrderResult> {
+        const stop = startTimer();
+        try {
+            const agentPrivateKey = await this.resolveAgentKey(params.accountAddress);
+            const orderData: PlaceSpotOrderInput = {
+                symbol: params.symbol.toString(),
+                isBuy: false,
+                amount: params.amount.toNumber(),
+                price: params.limitPrice.toNumber(),
+                cloid: ExchangeCloid.create(params.orderId).toString(),
+                agentPrivateKey,
+                tif: Tif.Ioc,
+            };
+            const response = await this.orders.placeSpotOrder(orderData);
+            this.logger.info({ params, response }, 'Market sell placed');
+            return this.mapper.toExchangePlaceOrderResult(response);
+        } catch (error) {
+            this.logger.error({ err: error, params }, 'Failed to place market sell');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('placeSpotMarketSell', stop());
         }
     }
 

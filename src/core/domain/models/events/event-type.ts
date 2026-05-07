@@ -5,4 +5,5 @@ export enum EventType {
     OrderClosed = 'OrderClosedEvent',
     GridCreatedSuccess = 'GridCreatedSuccessEvent',
     GridCreatedError = 'GridCreatedErrorEvent',
+    GridStopLossTriggered = 'GridStopLossTriggeredEvent',
 }

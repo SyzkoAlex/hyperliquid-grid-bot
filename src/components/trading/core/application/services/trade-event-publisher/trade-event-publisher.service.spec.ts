@@ -31,6 +31,7 @@ describe('TradeEventPublisher', () => {
         trailingTriggerPercent: 5,
         trailingStepPercent: 10,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
     };
 
     const makeBuyOrder = (overrides: Partial<OrderDto> = {}): OrderDto => ({

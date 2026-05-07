@@ -5,4 +5,6 @@ export interface CreateGridParams {
     levels: number;
     totalInvestmentUSDC?: number;
     accountAddress: string;
+    stopLossEnabled?: boolean;
+    stopLossPrice?: number;
 }

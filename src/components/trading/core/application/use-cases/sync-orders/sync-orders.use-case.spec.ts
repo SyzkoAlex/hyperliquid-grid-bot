@@ -16,6 +16,7 @@ import { GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
@@ -27,6 +28,7 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderStatusSyncService: { process: ReturnType<typeof vi.fn> };
     let mockOrderRefillService: { processMany: ReturnType<typeof vi.fn> };
     let mockStpRecoveryService: { recoverMany: ReturnType<typeof vi.fn> };
+    let mockStopLossMonitor: { processGrid: ReturnType<typeof vi.fn> };
 
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
@@ -41,6 +43,7 @@ describe('SyncOrdersUseCase', () => {
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
         ...overrides,
     });
 
@@ -83,12 +86,17 @@ describe('SyncOrdersUseCase', () => {
             recoverMany: vi.fn().mockResolvedValue(0),
         };
 
+        mockStopLossMonitor = {
+            processGrid: vi.fn().mockResolvedValue(false),
+        };
+
         useCase = new SyncOrdersUseCase(
             mockOrderClient as unknown as ExchangePort,
             mockGrids as unknown as GridsApiPort,
             mockOrderStatusSyncService as unknown as OrderStatusSyncService,
             mockOrderRefillService as unknown as OrderRefillService,
             mockStpRecoveryService as unknown as StpRecoveryService,
+            mockStopLossMonitor as unknown as StopLossMonitorService,
         );
     });
 

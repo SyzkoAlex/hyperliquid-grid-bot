@@ -8,6 +8,7 @@ import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedLevelsStep } from './steps/advanced-levels.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
+import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
 import { AdvancedPreviewStep } from './steps/advanced-preview.step';
 import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
@@ -36,6 +37,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         private readonly advancedLowerStep: AdvancedLowerStep,
         private readonly advancedLevelsStep: AdvancedLevelsStep,
         private readonly advancedInvestmentStep: AdvancedInvestmentStep,
+        private readonly advancedStopLossStep: AdvancedStopLossStep,
         private readonly advancedPreviewStep: AdvancedPreviewStep,
         private readonly confirmStep: ConfirmStep,
     ) {
@@ -46,6 +48,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         this.navigator.registerStep(advancedLowerStep);
         this.navigator.registerStep(advancedLevelsStep);
         this.navigator.registerStep(advancedInvestmentStep);
+        this.navigator.registerStep(advancedStopLossStep);
         this.navigator.registerStep(advancedPreviewStep);
     }
 
@@ -65,6 +68,8 @@ export class CreateGridSceneHandler implements SceneHandler {
         );
 
         scene.action(CREATE_GRID_PATTERNS.LEVELS, (ctx) => this.handleLevelsAction(ctx));
+
+        scene.action(CREATE_GRID_ACTIONS.STOP_LOSS_OFF, (ctx) => this.handleStopLossOffAction(ctx));
 
         scene.action(CREATE_GRID_ACTIONS.CONFIRM, (ctx) => this.handleConfirmAction(ctx));
         scene.action(CREATE_GRID_ACTIONS.BACK, (ctx) => this.handleBackAction(ctx));
@@ -110,6 +115,17 @@ export class CreateGridSceneHandler implements SceneHandler {
         try {
             const levels = parseInt(ctx.match![1], 10);
             const result = await this.advancedLevelsStep.handleLevelsSelection(ctx, levels);
+            if (result) {
+                await this.navigator.completeStep(ctx, result);
+            }
+        } finally {
+            await ctx.answerCbQuery();
+        }
+    }
+
+    private async handleStopLossOffAction(ctx: BotContext): Promise<void> {
+        try {
+            const result = await this.advancedStopLossStep.handleSkip(ctx);
             if (result) {
                 await this.navigator.completeStep(ctx, result);
             }

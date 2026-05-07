@@ -161,7 +161,7 @@ export class AdvancedInvestmentStep implements WizardStep {
 
             session.createGrid.totalInvestmentUSDC = investment;
             return {
-                nextStep: SceneStep.Preview,
+                nextStep: SceneStep.StopLoss,
                 confirmations: [AdvancedInvestmentConfirmationMessage.create(investment).text],
             };
         } catch (error) {

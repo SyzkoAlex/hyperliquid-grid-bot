@@ -18,4 +18,6 @@ export interface CreateGridWizardState {
     stepMessages?: Record<string, StepMessages>;
     messageIds?: number[];
     showingValidationError?: boolean;
+    stopLossEnabled?: boolean;
+    stopLossPrice?: number;
 }

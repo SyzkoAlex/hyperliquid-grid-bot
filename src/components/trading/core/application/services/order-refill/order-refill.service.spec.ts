@@ -38,6 +38,7 @@ describe('OrderRefillService', () => {
         trailingTriggerPercent: 5,
         trailingStepPercent: 10,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
     };
 
     const testBuyOrder: OrderDto = {

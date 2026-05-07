@@ -8,6 +8,7 @@ import { OrderOpenedEvent } from './trading/order-opened.event';
 import { OrderClosedEvent } from './trading/order-closed.event';
 import { GridCreatedSuccessEvent } from './trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from './trading/grid-created-error.event';
+import { GridStopLossTriggeredEvent } from './trading/grid-stop-loss-triggered.event';
 
 function createEventByType(type: EventType): SerializableEvent {
     const factories: Record<EventType, () => SerializableEvent> = {
@@ -26,6 +27,17 @@ function createEventByType(type: EventType): SerializableEvent {
         [EventType.GridCreatedSuccess]: () =>
             new GridCreatedSuccessEvent('grid-1', 'BTC', 50000, 60000, 10, 5000, 0.5, false),
         [EventType.GridCreatedError]: () => new GridCreatedErrorEvent('Something went wrong'),
+        [EventType.GridStopLossTriggered]: () =>
+            new GridStopLossTriggeredEvent(
+                'grid-1',
+                'BTC',
+                49000,
+                48500,
+                0.1,
+                4850,
+                true,
+                undefined,
+            ),
     };
     return factories[type]();
 }

@@ -36,6 +36,7 @@ export class HyperliquidOrdersService {
             price: limitPx,
             size,
             cloid: input.cloid,
+            tif: input.tif,
         });
         const action = OrderAction.create([wire]);
         const nonce = Date.now();

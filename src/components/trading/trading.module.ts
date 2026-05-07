@@ -24,6 +24,9 @@ import { GridCommandsAdapter } from '@components/trading/adapters/inbound/grid-c
 import { CreateGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/create-grid/create-grid.handler';
 import { StopGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
 import { StopGridUseCase } from '@components/trading/core/application/use-cases/stop-grid/stop-grid.use-case';
+import { TriggerStopLossUseCase } from '@components/trading/core/application/use-cases/trigger-stop-loss/trigger-stop-loss.use-case';
+import { StopLossWatcherService } from '@components/trading/core/domain/services/stop-loss-watcher/stop-loss-watcher.service';
+import { StopLossMonitorService } from '@components/trading/core/application/services/stop-loss-monitor/stop-loss-monitor.service';
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
 import { GridsModule } from '@components/grids/grids.module';
@@ -75,6 +78,9 @@ import { UsersModule } from '@components/users/users.module';
         CreateGridHandler,
         StopGridHandler,
         StopGridUseCase,
+        StopLossWatcherService,
+        StopLossMonitorService,
+        TriggerStopLossUseCase,
         OrdersPollingAdapter,
         OrdersRestoreAdapter,
     ],

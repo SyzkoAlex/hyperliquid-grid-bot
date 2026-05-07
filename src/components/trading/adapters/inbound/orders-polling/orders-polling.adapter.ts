@@ -15,6 +15,7 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 
 @Injectable()
 export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
@@ -100,6 +101,10 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
             byAccount.set(accountAddress, existing);
         }
 
+        // Fetch current prices for all unique symbols in parallel (one HTTP call per symbol).
+        const uniqueSymbols = [...new Set(batch.map(({ grid }) => grid.symbol))];
+        const priceBySymbol = await this.buildPriceMap(uniqueSymbols);
+
         await Promise.all(
             [...byAccount.entries()].map(async ([accountAddress, userGrids]) => {
                 try {
@@ -108,11 +113,28 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
                         accountAddress,
                         userGrids,
                         exchangeOrders,
+                        priceBySymbol,
                     );
                 } catch (error) {
                     this.logger.error({ error, accountAddress }, 'Error syncing grids for account');
                 }
             }),
         );
+    }
+
+    private async buildPriceMap(symbols: string[]): Promise<Map<string, number>> {
+        const priceBySymbol = new Map<string, number>();
+        const results = await Promise.allSettled(
+            symbols.map(async (symbol) => {
+                const price = await this.exchange.getCurrentPrice(TradingSymbol.create(symbol));
+                return { symbol, price: price.toNumber() };
+            }),
+        );
+        for (const result of results) {
+            if (result.status === 'fulfilled') {
+                priceBySymbol.set(result.value.symbol, result.value.price);
+            }
+        }
+        return priceBySymbol;
     }
 }

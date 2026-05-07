@@ -21,6 +21,7 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
         ...overrides,
     };
 }

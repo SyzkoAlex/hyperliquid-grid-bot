@@ -31,6 +31,9 @@ export class PostgresGridMapper {
             trailingPartialClosePercent: grid.trailingPartialClosePercent.toString(),
             trailingCount: grid.trailingCount,
             lastTrailingAt: grid.lastTrailingAt?.toDate() ?? null,
+            stopLossEnabled: grid.stopLossEnabled,
+            stopLossPrice: grid.stopLossPrice?.toNumber().toString() ?? null,
+            stopLossTriggeredAt: grid.stopLossTriggeredAt?.toDate() ?? null,
             userId: grid.userId,
             createdAt: grid.createdAt.toDate(),
             startedAt: grid.startedAt?.toDate() ?? null,
@@ -70,6 +73,13 @@ export class PostgresGridMapper {
                         ? parseFloat(row.trailingPartialClosePercent)
                         : undefined,
                 trailingCount: row.trailingCount,
+                stopLossEnabled: row.stopLossEnabled,
+                stopLossPrice: row.stopLossPrice
+                    ? Price.from(parseFloat(row.stopLossPrice))
+                    : undefined,
+                stopLossTriggeredAt: row.stopLossTriggeredAt
+                    ? Timestamp.from(row.stopLossTriggeredAt)
+                    : undefined,
                 createdAt: row.createdAt ? Timestamp.from(row.createdAt) : undefined,
                 startedAt: row.startedAt ? Timestamp.from(row.startedAt) : undefined,
                 stoppedAt: row.stoppedAt ? Timestamp.from(row.stoppedAt) : undefined,

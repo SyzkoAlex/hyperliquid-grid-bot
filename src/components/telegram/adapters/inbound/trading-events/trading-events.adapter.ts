@@ -10,6 +10,7 @@ import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.eve
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
+import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserUseCase } from '@components/telegram/core/application/use-cases/notify-user/notify-user.use-case';
@@ -87,6 +88,18 @@ export class TradingEventsAdapter implements OnModuleInit {
                     event.serialize(),
                 ) as GridCreatedErrorEvent;
                 await this.notifyCreationResult(typed);
+            },
+        );
+
+        this.subscriber.subscribe<SerializableEvent>(
+            EventType.GridStopLossTriggered,
+            async (event: SerializableEvent) => {
+                const typed = this.deserializer.deserialize(
+                    event.eventType,
+                    event.serialize(),
+                ) as GridStopLossTriggeredEvent;
+                const text = this.messageFactory.buildFromEvent(typed).text;
+                await this.botService.sendMessage(this.notificationChatId, text);
             },
         );
     }

@@ -21,6 +21,7 @@ function makeGrid(): GridDto {
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
     };
 }
 

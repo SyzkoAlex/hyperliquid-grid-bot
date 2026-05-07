@@ -10,6 +10,8 @@ export class CreateGridCommandEvent extends SerializableEvent {
         public readonly totalInvestmentUSDC: number | undefined,
         public readonly trailing: boolean,
         public readonly accountAddress: string,
+        public readonly stopLossEnabled: boolean,
+        public readonly stopLossPrice: number | undefined,
         timestamp?: number,
     ) {
         super(EventType.CreateGridCommand, timestamp);
@@ -23,6 +25,8 @@ export class CreateGridCommandEvent extends SerializableEvent {
         totalInvestmentUSDC?: number;
         trailing?: boolean;
         accountAddress: string;
+        stopLossEnabled?: boolean;
+        stopLossPrice?: number;
     }): CreateGridCommandEvent {
         return new CreateGridCommandEvent(
             params.symbol,
@@ -32,6 +36,8 @@ export class CreateGridCommandEvent extends SerializableEvent {
             params.totalInvestmentUSDC,
             params.trailing ?? false,
             params.accountAddress,
+            params.stopLossEnabled ?? false,
+            params.stopLossPrice,
         );
     }
 
@@ -44,6 +50,8 @@ export class CreateGridCommandEvent extends SerializableEvent {
             totalInvestmentUSDC: this.totalInvestmentUSDC,
             trailing: this.trailing,
             accountAddress: this.accountAddress,
+            stopLossEnabled: this.stopLossEnabled,
+            stopLossPrice: this.stopLossPrice,
         };
     }
 
@@ -57,6 +65,8 @@ export class CreateGridCommandEvent extends SerializableEvent {
             data.totalInvestmentUSDC,
             data.trailing,
             data.accountAddress,
+            data.stopLossEnabled ?? false,
+            data.stopLossPrice,
             data.timestamp,
         );
     }

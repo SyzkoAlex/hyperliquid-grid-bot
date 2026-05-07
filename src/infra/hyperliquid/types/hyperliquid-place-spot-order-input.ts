@@ -1,3 +1,5 @@
+import { Tif } from '../orders/wire/tif';
+
 export interface PlaceSpotOrderInput {
     /** Plain symbol, e.g. "ETH" */
     symbol: string;
@@ -8,4 +10,6 @@ export interface PlaceSpotOrderInput {
     /** Optional pre-computed hex CLOID "0x..." */
     cloid?: string;
     agentPrivateKey: string;
+    /** Time-in-force; defaults to Gtc when absent */
+    tif?: Tif;
 }

@@ -4,6 +4,7 @@ import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.eve
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
+import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
 import { CreateGridCommandEvent } from '@domain/models/events/commands/create-grid-command.event';
 import { StopGridCommandEvent } from '@domain/models/events/commands/stop-grid-command.event';
 
@@ -22,6 +23,8 @@ export class EventDeserializer {
                 return GridCreatedSuccessEvent.deserialize(eventJson);
             case EventType.GridCreatedError:
                 return GridCreatedErrorEvent.deserialize(eventJson);
+            case EventType.GridStopLossTriggered:
+                return GridStopLossTriggeredEvent.deserialize(eventJson);
             default:
                 throw new Error(`Unknown event type: ${eventType}`);
         }

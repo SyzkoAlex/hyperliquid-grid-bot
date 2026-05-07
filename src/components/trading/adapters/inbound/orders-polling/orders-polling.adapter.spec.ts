@@ -18,7 +18,10 @@ describe('OrdersPollingAdapter (Unit)', () => {
     let mockSyncOrders: { executeForGrids: ReturnType<typeof vi.fn> };
     let mockLock: DistributedLockPort;
     let mockGridsApi: { findActiveGridsByCursor: ReturnType<typeof vi.fn> };
-    let mockExchange: { getOpenSpotOrders: ReturnType<typeof vi.fn> };
+    let mockExchange: {
+        getOpenSpotOrders: ReturnType<typeof vi.fn>;
+        getCurrentPrice: ReturnType<typeof vi.fn>;
+    };
 
     beforeEach(async () => {
         mockSyncOrders = { executeForGrids: vi.fn().mockResolvedValue(undefined) };
@@ -36,6 +39,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
 
         mockExchange = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
+            getCurrentPrice: vi.fn().mockResolvedValue({ toNumber: () => 50000 }),
         };
 
         module = await Test.createTestingModule({
@@ -121,6 +125,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             };
 
             // Single item batch — less than BATCH_SIZE=100, loop terminates after first call
@@ -153,6 +158,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             });
 
             // First batch is full (100 items), second batch is empty
@@ -194,6 +200,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             };
             const grid2 = { ...grid1, id: 'grid-uuid-2' };
 
@@ -211,11 +218,12 @@ describe('OrdersPollingAdapter (Unit)', () => {
             // Only one HTTP call for the same accountAddress
             expect(mockExchange.getOpenSpotOrders).toHaveBeenCalledOnce();
             expect(mockExchange.getOpenSpotOrders).toHaveBeenCalledWith('0xacc1');
-            // Both grids passed in one call
+            // Both grids passed in one call, with price map
             expect(mockSyncOrders.executeForGrids).toHaveBeenCalledWith(
                 '0xacc1',
                 [grid1, grid2],
                 [],
+                expect.any(Map),
             );
         });
     });
