@@ -1,10 +1,13 @@
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DEFAULT_TIMEZONE = 'UTC';
 
-export function formatDate(ts: number): string {
-    const d = new Date(ts);
-    const day = String(d.getDate()).padStart(2, '0');
-    const mon = MONTHS[d.getMonth()];
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    return `${day} ${mon} ${h}:${m}`;
+export function formatDate(ts: number, timezone: string = DEFAULT_TIMEZONE): string {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timezone,
+    });
+    return formatter.format(new Date(ts)).replace(',', '');
 }

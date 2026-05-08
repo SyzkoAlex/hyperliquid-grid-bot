@@ -92,6 +92,7 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
             accountAddress: record.accountAddress,
             agentAddress: record.agentAddress,
             status: record.status as UserStatus,
+            timezone: record.timezone,
             createdAt: record.createdAt,
         });
     }

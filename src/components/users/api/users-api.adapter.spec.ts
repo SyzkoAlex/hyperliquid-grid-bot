@@ -15,6 +15,7 @@ function makeUser(status: UserStatus = UserStatus.PendingApproval): User {
         accountAddress: MOCK_ACCOUNT_ADDRESS,
         agentAddress: MOCK_AGENT_ADDRESS,
         status,
+        timezone: 'UTC',
         createdAt: new Date('2024-01-01'),
     });
 }
@@ -74,6 +75,7 @@ describe('UsersApiAdapter', () => {
             expect(result).not.toBeNull();
             expect(result!.id).toBe(MOCK_USER_ID);
             expect(result!.accountAddress).toBe(MOCK_ACCOUNT_ADDRESS);
+            expect(result!.timezone).toBe('UTC');
         });
     });
 

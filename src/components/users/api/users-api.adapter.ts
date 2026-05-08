@@ -74,6 +74,7 @@ export class UsersApiAdapter implements UsersApiPort {
             accountAddress: user.accountAddress,
             agentAddress: user.agentAddress,
             status: user.status,
+            timezone: user.timezone,
         };
     }
 }

@@ -30,7 +30,8 @@ export class GridHistoryTabHandler extends GridViewBaseHandler {
             const snapshot = await this.fetchGridSnapshot(ctx, gridId);
             if (!snapshot) return;
 
-            const text = GridHistoryTabMessage.create(snapshot).text;
+            const timezone = ctx.user?.timezone ?? 'UTC';
+            const text = GridHistoryTabMessage.create(snapshot, timezone).text;
             const markup = this.buildSubTabKeyboard(gridId, page);
             await ctx.editMessageText(text, { parse_mode: TelegramParseMode.HTML, ...markup });
         } finally {

@@ -6,4 +6,5 @@ export interface UserDto {
     accountAddress: string;
     agentAddress: string;
     status: UserStatus;
+    timezone: string;
 }

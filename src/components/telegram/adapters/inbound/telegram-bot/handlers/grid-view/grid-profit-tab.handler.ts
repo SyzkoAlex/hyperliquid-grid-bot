@@ -28,7 +28,8 @@ export class GridProfitTabHandler extends GridViewBaseHandler {
             const snapshot = await this.fetchGridSnapshot(ctx, gridId);
             if (!snapshot) return;
 
-            const text = GridProfitTabMessage.create(snapshot).text;
+            const timezone = ctx.user?.timezone ?? 'UTC';
+            const text = GridProfitTabMessage.create(snapshot, timezone).text;
             const markup = this.buildDetailKeyboard(gridId, snapshot.grid.status, page);
             await ctx.editMessageText(text, { parse_mode: TelegramParseMode.HTML, ...markup });
         } finally {

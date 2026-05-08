@@ -8,11 +8,12 @@ import {
 } from '@components/telegram/core/domain/models/formatters/format-pnl';
 import { formatGridApr } from '@components/telegram/core/domain/models/formatters/format-grid-apr';
 import { gridHeaderParts, isGridOutOfRange } from './grid-message.helpers';
+import { formatDate } from '@components/telegram/core/domain/models/formatters/format-date';
 
 export class GridProfitTabMessage {
     readonly text: string;
 
-    private constructor({ grid, pnl, currentPrice, orderStats }: GridSnapshot) {
+    private constructor({ grid, pnl, currentPrice, orderStats }: GridSnapshot, timezone: string) {
         const { pair, shortId, emoji, label, duration } = gridHeaderParts(grid);
         const gridProfitNet = pnl.gridProfit - pnl.totalFees;
         const totalPnl = gridProfitNet + pnl.unrealizedPnl;
@@ -28,9 +29,7 @@ export class GridProfitTabMessage {
         const entryPrice =
             grid.creationPrice != null ? `$${PriceFormatter.format(grid.creationPrice)}` : '—';
         const investmentStr = PriceFormatter.format(investment);
-        const startedStr = grid.startedAt
-            ? new Date(grid.startedAt).toISOString().slice(0, 16).replace('T', ' ')
-            : '—';
+        const startedStr = grid.startedAt ? formatDate(grid.startedAt, timezone) : '—';
 
         const outOfRange = isGridOutOfRange(grid, currentPrice);
         const rangeWarning =
@@ -57,7 +56,7 @@ export class GridProfitTabMessage {
             `<b>Started:</b> ${startedStr}\n`;
     }
 
-    static create(snapshot: GridSnapshot): GridProfitTabMessage {
-        return new GridProfitTabMessage(snapshot);
+    static create(snapshot: GridSnapshot, timezone: string): GridProfitTabMessage {
+        return new GridProfitTabMessage(snapshot, timezone);
     }
 }

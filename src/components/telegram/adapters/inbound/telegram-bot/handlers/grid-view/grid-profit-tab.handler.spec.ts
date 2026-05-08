@@ -12,7 +12,7 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 
-function makeGrid(status = GridStatus.Running): GridDto {
+function makeGrid(status = GridStatus.Running, startedAt?: number): GridDto {
     return {
         id: GRID_ID,
         symbol: 'BTC',
@@ -27,12 +27,13 @@ function makeGrid(status = GridStatus.Running): GridDto {
         trailingStepPercent: 0,
         trailingPartialClosePercent: 0,
         stopLossEnabled: false,
+        startedAt,
     };
 }
 
-function makeSnapshot(status = GridStatus.Running): GridSnapshot {
+function makeSnapshot(status = GridStatus.Running, startedAt?: number): GridSnapshot {
     return {
-        grid: makeGrid(status),
+        grid: makeGrid(status, startedAt),
         pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
         currentPrice: 95000,
         orderStats: {
@@ -49,9 +50,10 @@ function makeSnapshot(status = GridStatus.Running): GridSnapshot {
     };
 }
 
-function createMockContext(match?: string[]): BotContext {
+function createMockContext(match?: string[], user?: { timezone: string }): BotContext {
     return {
         match,
+        user,
         reply: vi.fn(),
         answerCbQuery: vi.fn(),
         editMessageText: vi.fn(),
@@ -152,6 +154,22 @@ describe('GridProfitTabHandler', () => {
             expect(json).not.toContain(GridAction.ordersTab(GRID_ID, 1));
             expect(json).not.toContain(GridAction.stop(GRID_ID));
             expect(json).toContain(GridAction.historyTab(GRID_ID, 1));
+        });
+
+        it('should format startedAt date in the user timezone', async () => {
+            // May 9 2025 14:32 UTC = May 9 2025 23:32 Asia/Tokyo (UTC+9)
+            const TIMESTAMP = Date.UTC(2025, 4, 9, 14, 32);
+            vi.mocked(getGridWithPnlUseCase.execute).mockResolvedValueOnce(
+                makeSnapshot(GridStatus.Running, TIMESTAMP),
+            );
+            const ctx = createMockContext([`view:grid:${GRID_ID}:p:1`, GRID_ID, '1'], {
+                timezone: 'Asia/Tokyo',
+            });
+
+            await actionCallbacks.get(GridAction.VIEW_PATTERN)!(ctx);
+
+            const [text] = vi.mocked(ctx.editMessageText).mock.calls[0];
+            expect(text).toContain('09 May 23:32');
         });
     });
 });
