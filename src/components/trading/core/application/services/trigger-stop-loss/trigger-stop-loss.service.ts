@@ -11,6 +11,7 @@ import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-s
 import { StopLossOrderCancellationService } from './order-cancellation/stop-loss-order-cancellation.service';
 import { StopLossBalanceAttributionService } from './balance-attribution/stop-loss-balance-attribution.service';
 import { StopLossMarketSellService } from './market-sell/stop-loss-market-sell.service';
+import { CancelActiveOrdersResult } from './order-cancellation/types/cancel-active-orders-result';
 import { TriggerStopLossParams } from './trigger-stop-loss-params';
 import { TriggerStopLossResult } from './trigger-stop-loss-result';
 
@@ -27,106 +28,111 @@ export class TriggerStopLossService {
     ) {}
 
     async execute(params: TriggerStopLossParams): Promise<TriggerStopLossResult> {
-        const { gridId, symbol, stopLossPrice, currentMid, accountAddress } = params;
+        const { gridId, symbol, stopLossPrice, currentMid } = params;
 
         this.logger.info(
             { gridId, symbol, stopLossPrice, currentMid },
             'Stop-loss triggered — starting teardown',
         );
 
-        // Atomically set status=Stopped and stop_loss_triggered_at so concurrent
-        // polls skip this grid and order refill is suppressed.
-        await this.grids.markStoppedByStopLoss(gridId);
+        const cancellationResult = await this.stopAndCancelOrders(params);
+        const sellAmount = await this.resolveSellAmount(params);
 
-        const cancellationResult = await this.cancellation.cancelActiveOrders(
+        if (!sellAmount) {
+            return this.publishAndReturn(params, {
+                success: false,
+                soldBaseAmount: 0,
+                receivedUSDC: 0,
+                errorMessage: `Grid ${gridId} not found`,
+            });
+        }
+
+        if (sellAmount.lte(Decimal.zero())) {
+            this.logger.info({ gridId }, 'Nothing to sell — zero grid-attributable base balance');
+            return this.publishAndReturn(params, {
+                success: true,
+                soldBaseAmount: 0,
+                receivedUSDC: 0,
+            });
+        }
+
+        const sellResult = await this.marketSell.execute({
             gridId,
-            accountAddress,
+            symbol,
+            amount: sellAmount,
+            currentMid: params.currentMid,
+            accountAddress: params.accountAddress,
+        });
+
+        return this.publishAndReturn(
+            params,
+            this.appendCancelWarning(sellResult, cancellationResult, gridId),
         );
+    }
+
+    private async stopAndCancelOrders(
+        params: TriggerStopLossParams,
+    ): Promise<CancelActiveOrdersResult> {
+        // Sets status=Stopped and stop_loss_triggered_at so concurrent polls skip this grid.
+        await this.grids.markStoppedByStopLoss(params.gridId);
+        return this.cancellation.cancelActiveOrders(params.gridId, params.accountAddress);
+    }
+
+    private async resolveSellAmount(params: TriggerStopLossParams): Promise<Decimal | null> {
+        const { gridId, symbol, accountAddress } = params;
 
         const grid = await this.grids.findGridById(gridId);
-
         if (!grid) {
             this.logger.error(
                 { gridId },
                 'Grid not found after teardown — cannot compute sell amount',
             );
-            const event = this.buildEvent(params, 0, 0, false, `Grid ${gridId} not found`);
-            await this.eventPublisher.publish(event);
-            return {
-                success: false,
-                soldBaseAmount: 0,
-                receivedUSDC: 0,
-                errorMessage: `Grid ${gridId} not found`,
-            };
+            return null;
         }
 
         const allActiveGrids = await this.grids.findActiveGrids();
         const allActiveGridsOnSymbol = allActiveGrids.filter((g) => g.symbol === symbol);
 
-        const sellAmount = await this.balanceAttribution.computeSellAmount(
+        return this.balanceAttribution.computeSellAmount(
             gridId,
             grid,
             accountAddress,
             TradingSymbol.create(symbol),
             allActiveGridsOnSymbol,
         );
+    }
 
-        if (sellAmount.lte(Decimal.zero())) {
-            this.logger.info({ gridId }, 'Nothing to sell — zero grid-attributable base balance');
-            const event = this.buildEvent(params, 0, 0, true, undefined);
-            await this.eventPublisher.publish(event);
-            return { success: true, soldBaseAmount: 0, receivedUSDC: 0 };
-        }
+    private appendCancelWarning(
+        result: TriggerStopLossResult,
+        cancellationResult: CancelActiveOrdersResult,
+        gridId: string,
+    ): TriggerStopLossResult {
+        if (cancellationResult.failedCount === 0) return result;
 
-        const result = await this.marketSell.execute({
-            gridId,
-            symbol,
-            amount: sellAmount,
-            currentMid,
-            accountAddress,
-        });
-
-        let errorMessage = result.errorMessage;
-        if (cancellationResult.failedCount > 0) {
-            const cancelWarning =
-                `${cancellationResult.failedCount} order(s) could not be cancelled on the exchange — ` +
-                `manual review required.`;
-            this.logger.warn(
-                { gridId, failedCount: cancellationResult.failedCount },
-                cancelWarning,
-            );
-            errorMessage = errorMessage ? `${errorMessage} ${cancelWarning}` : cancelWarning;
-        }
-
-        await this.eventPublisher.publish(
-            this.buildEvent(
-                params,
-                result.soldBaseAmount,
-                result.receivedUSDC,
-                result.success,
-                errorMessage,
-            ),
-        );
-
+        const cancelWarning = `${cancellationResult.failedCount} order(s) could not be cancelled on the exchange — manual review required.`;
+        this.logger.warn({ gridId, failedCount: cancellationResult.failedCount }, cancelWarning);
+        const errorMessage = result.errorMessage
+            ? `${result.errorMessage} ${cancelWarning}`
+            : cancelWarning;
         return { ...result, errorMessage };
     }
 
-    private buildEvent(
+    private async publishAndReturn(
         params: TriggerStopLossParams,
-        soldBaseAmount: number,
-        receivedUSDC: number,
-        success: boolean,
-        errorMessage: string | undefined,
-    ): GridStopLossTriggeredEvent {
-        return new GridStopLossTriggeredEvent(
-            params.gridId,
-            params.symbol,
-            params.stopLossPrice,
-            params.currentMid,
-            soldBaseAmount,
-            receivedUSDC,
-            success,
-            errorMessage,
+        result: TriggerStopLossResult,
+    ): Promise<TriggerStopLossResult> {
+        await this.eventPublisher.publish(
+            new GridStopLossTriggeredEvent(
+                params.gridId,
+                params.symbol,
+                params.stopLossPrice,
+                params.currentMid,
+                result.soldBaseAmount,
+                result.receivedUSDC,
+                result.success,
+                result.errorMessage,
+            ),
         );
+        return result;
     }
 }
