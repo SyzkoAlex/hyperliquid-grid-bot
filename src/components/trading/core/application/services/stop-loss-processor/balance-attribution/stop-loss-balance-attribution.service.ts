@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
-import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -23,46 +22,22 @@ export class StopLossBalanceAttributionService {
     ) {}
 
     /**
-     * Computes how much of the on-account base balance belongs to this grid.
-     *
-     * Grid-attributable base = initialBaseAmount + filled_buy_qty - filled_sell_qty.
-     * Tokens reserved by other active grids on the same symbol are subtracted from
-     * the on-account balance before clamping, so we never over-sell.
+     * Computes how much base to sell: initialBaseAmount + filled_buy_qty − filled_sell_qty,
+     * clamped to the actual on-account balance.
      */
-    async computeSellAmount(
-        gridId: string,
-        grid: GridDto,
-        accountAddress: string,
-        symbol: TradingSymbol,
-        allActiveGridsOnSymbol: GridDto[] = [],
-    ): Promise<Decimal> {
+    async computeSellAmount(grid: GridDto, accountAddress: string): Promise<Decimal> {
         const userState = await this.exchange.getUserSpotState(accountAddress);
-        const { baseBalance } = this.userBalanceExtractor.extractBalances(
-            userState,
-            symbol.toString(),
-        );
-
-        // Subtract the investmentBase reserved by other active grids on the same symbol
-        // so we don't treat their tokens as available for this grid's sell.
-        const otherGridsReserved = allActiveGridsOnSymbol
-            .filter((g) => g.id !== gridId)
-            .reduce((sum, g) => sum + g.investmentBase, 0);
-
-        const availableBalance = baseBalance.gt(Decimal.from(otherGridsReserved))
-            ? Decimal.from(baseBalance.toNumber() - otherGridsReserved)
-            : Decimal.zero();
-
-        return this.computeGridAttributableBase(gridId, grid, availableBalance);
+        const { baseBalance } = this.userBalanceExtractor.extractBalances(userState, grid.symbol);
+        return this.computeGridAttributableBase(grid, baseBalance);
     }
 
     private async computeGridAttributableBase(
-        gridId: string,
         grid: GridDto,
         baseBalance: Decimal,
     ): Promise<Decimal> {
         const initialBase = Decimal.from(grid.investmentBase);
 
-        const allOrders = await this.grids.findOrdersByGridId(gridId);
+        const allOrders = await this.grids.findOrdersByGridId(grid.id);
         const filledOrders = allOrders.filter((o) => o.status === OrderStatus.Filled);
 
         const filledBuyQty = filledOrders
@@ -83,7 +58,7 @@ export class StopLossBalanceAttributionService {
 
         this.logger.debug(
             {
-                gridId,
+                gridId: grid.id,
                 initialBase: initialBase.toNumber(),
                 filledBuyQty,
                 filledSellQty,

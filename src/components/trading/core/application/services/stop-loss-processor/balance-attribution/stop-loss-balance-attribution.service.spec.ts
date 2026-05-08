@@ -51,7 +51,6 @@ describe('StopLossBalanceAttributionService', () => {
         extractBalances: ReturnType<typeof vi.fn>;
     };
 
-    const symbol = TradingSymbol.create('ETH');
     const accountAddress = '0xabc';
 
     beforeEach(() => {
@@ -79,12 +78,7 @@ describe('StopLossBalanceAttributionService', () => {
         it('returns initialBaseAmount when no orders have been filled', async () => {
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBe(0.5);
         });
@@ -99,12 +93,7 @@ describe('StopLossBalanceAttributionService', () => {
             });
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBeCloseTo(0.6);
         });
@@ -119,30 +108,20 @@ describe('StopLossBalanceAttributionService', () => {
             });
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBeCloseTo(0.3);
         });
 
         it('clamps result to actual on-account balance when computed exceeds it', async () => {
-            // investmentBase=1.0 but only 0.4 on account (e.g., tokens from another grid)
+            // investmentBase=1.0 but only 0.4 on account
             mockUserBalanceExtractor.extractBalances.mockReturnValue({
                 usdcBalance: Decimal.from(1000),
                 baseBalance: Decimal.from(0.4),
             });
             const grid = makeGrid(1.0);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBe(0.4);
         });
@@ -154,12 +133,7 @@ describe('StopLossBalanceAttributionService', () => {
             ]);
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBe(0);
         });
@@ -171,12 +145,7 @@ describe('StopLossBalanceAttributionService', () => {
             });
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             expect(result.toNumber()).toBe(0);
         });
@@ -193,12 +162,7 @@ describe('StopLossBalanceAttributionService', () => {
             });
             const grid = makeGrid(0.5);
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-            );
+            const result = await sut.computeSellAmount(grid as any, accountAddress);
 
             // Only the 0.1 filled buy counts: 0.5 + 0.1 = 0.6
             expect(result.toNumber()).toBeCloseTo(0.6);
@@ -207,51 +171,20 @@ describe('StopLossBalanceAttributionService', () => {
         it('fetches user state from exchange with provided account address', async () => {
             const grid = makeGrid(0.5);
 
-            await sut.computeSellAmount('grid-1', grid as any, '0xdeadbeef', symbol);
+            await sut.computeSellAmount(grid as any, '0xdeadbeef');
 
             expect(mockExchange.getUserSpotState).toHaveBeenCalledWith('0xdeadbeef');
         });
 
-        it('subtracts other active grids investmentBase from baseBalance before clamping', async () => {
-            // Two grids on ETH: current grid has investmentBase=0.5, other grid has investmentBase=0.3.
-            // Total on-account: 0.8 ETH. Available for this grid = 0.8 - 0.3 = 0.5.
-            mockUserBalanceExtractor.extractBalances.mockReturnValue({
-                usdcBalance: Decimal.from(1000),
-                baseBalance: Decimal.from(0.8),
-            });
+        it('passes grid.symbol to balance extractor', async () => {
             const grid = makeGrid(0.5);
-            const otherGrid = { id: 'grid-2', symbol: 'ETH', investmentBase: 0.3 };
 
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-                [grid as any, otherGrid as any],
+            await sut.computeSellAmount(grid as any, accountAddress);
+
+            expect(mockUserBalanceExtractor.extractBalances).toHaveBeenCalledWith(
+                expect.anything(),
+                'ETH',
             );
-
-            // computed = 0.5 (no fills), available = 0.8 - 0.3 = 0.5 → clamped to min(0.5, 0.5)
-            expect(result.toNumber()).toBeCloseTo(0.5);
-        });
-
-        it('returns zero when all baseBalance is reserved by other grids', async () => {
-            // Only 0.3 ETH on account, other grid reserves 0.4 → available = 0
-            mockUserBalanceExtractor.extractBalances.mockReturnValue({
-                usdcBalance: Decimal.from(1000),
-                baseBalance: Decimal.from(0.3),
-            });
-            const grid = makeGrid(0.5);
-            const otherGrid = { id: 'grid-2', symbol: 'ETH', investmentBase: 0.4 };
-
-            const result = await sut.computeSellAmount(
-                'grid-1',
-                grid as any,
-                accountAddress,
-                symbol,
-                [grid as any, otherGrid as any],
-            );
-
-            expect(result.toNumber()).toBe(0);
         });
     });
 });

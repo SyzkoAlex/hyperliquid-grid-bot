@@ -9,9 +9,7 @@ import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchan
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
-import { StopLossWatcherService } from '@components/trading/core/application/services/stop-loss-watcher/stop-loss-watcher.service';
-import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
-import { TriggerStopLossService } from '@components/trading/core/application/services/trigger-stop-loss/trigger-stop-loss.service';
+import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { GridWithOrders } from './grid-with-orders';
@@ -26,8 +24,7 @@ export class SyncOrdersUseCase {
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
         private readonly stpRecoveryService: StpRecoveryService,
-        private readonly stopLossWatcher: StopLossWatcherService,
-        private readonly triggerStopLoss: TriggerStopLossService,
+        private readonly stopLossProcessor: StopLossProcessorService,
     ) {}
 
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
@@ -50,7 +47,7 @@ export class SyncOrdersUseCase {
 
         // SL evaluation runs for ALL active grids regardless of whether they
         // have any DB orders — a grid with no open orders may still need SL teardown.
-        const triggeredGridIds = await this.evaluateStopLossForGrids(
+        const stoppedByLossIds = await this.runStopLossCheck(
             activeGrids,
             accountAddress,
             priceBySymbol,
@@ -73,7 +70,7 @@ export class SyncOrdersUseCase {
 
         for (const gridWithOrders of gridsWithOrders) {
             // Skip order processing for grids whose SL was just triggered.
-            if (triggeredGridIds.has(gridWithOrders.grid.id)) continue;
+            if (stoppedByLossIds.has(gridWithOrders.grid.id)) continue;
             await this.processGrid(gridWithOrders, accountAddress, result);
         }
 
@@ -82,16 +79,15 @@ export class SyncOrdersUseCase {
     }
 
     /**
-     * Evaluate stop-loss for each active grid. Returns a set of grid IDs for
-     * which stop-loss teardown was initiated so that order processing can be
-     * skipped for those grids in this polling iteration.
+     * Runs stop-loss evaluation for all active grids and returns the set of grid IDs
+     * for which teardown was initiated (so order processing can be skipped this tick).
      */
-    private async evaluateStopLossForGrids(
+    private async runStopLossCheck(
         activeGrids: GridDto[],
         accountAddress: string,
         priceBySymbol?: Map<string, number>,
     ): Promise<Set<string>> {
-        const triggeredGridIds = new Set<string>();
+        const stoppedByLossIds = new Set<string>();
 
         // priceBySymbol is absent on the legacy execute() path which does not pre-fetch prices.
         // Stop-loss evaluation is intentionally skipped — callers that need SL must use
@@ -104,46 +100,21 @@ export class SyncOrdersUseCase {
                     'priceBySymbol not provided — stop-loss evaluation skipped for grids with stopLossEnabled',
                 );
             }
-            return triggeredGridIds;
+            return stoppedByLossIds;
         }
 
         for (const grid of activeGrids) {
-            // Skip grids that have stop-loss disabled or already triggered.
-            if (!grid.stopLossEnabled || grid.stopLossTriggeredAt) continue;
-
             const currentPrice = priceBySymbol.get(grid.symbol);
             if (currentPrice === undefined) continue;
 
             try {
-                const decision = await this.stopLossWatcher.evaluate({
-                    gridId: grid.id,
-                    stopLossEnabled: grid.stopLossEnabled,
-                    stopLossPrice: grid.stopLossPrice ?? null,
-                    currentPrice,
-                    now: Date.now(),
-                });
-
-                if (decision !== StopLossWatchDecision.Trigger) continue;
-
-                this.logger.warn(
-                    {
-                        gridId: grid.id,
-                        symbol: grid.symbol,
-                        currentPrice,
-                        stopLossPrice: grid.stopLossPrice,
-                    },
-                    'Stop-loss condition confirmed — initiating teardown',
-                );
-
-                await this.triggerStopLoss.execute({
-                    gridId: grid.id,
-                    symbol: grid.symbol,
-                    stopLossPrice: grid.stopLossPrice!,
-                    currentMid: currentPrice,
+                const triggered = await this.stopLossProcessor.process(
+                    grid,
                     accountAddress,
-                });
-
-                triggeredGridIds.add(grid.id);
+                    currentPrice,
+                    Date.now(),
+                );
+                if (triggered) stoppedByLossIds.add(grid.id);
             } catch (error) {
                 this.logger.error(
                     { error, gridId: grid.id },
@@ -152,7 +123,7 @@ export class SyncOrdersUseCase {
             }
         }
 
-        return triggeredGridIds;
+        return stoppedByLossIds;
     }
 
     private async processGrid(

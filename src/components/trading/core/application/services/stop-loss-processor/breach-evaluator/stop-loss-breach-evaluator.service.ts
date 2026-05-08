@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/config/config.schema';
-import { StopLossWatchDecision } from './types/stop-loss-watch-decision';
-import { StopLossBreachState } from './types/stop-loss-breach-state';
-import { StopLossEvaluateInput } from './types/stop-loss-evaluate-input';
-import { StopLossBreachStateCacheService } from './breach-state-cache/stop-loss-breach-state-cache.service';
+import { StopLossBreachState } from '../types/stop-loss-breach-state';
+import { StopLossBreachStateCacheService } from '../breach-state-cache/stop-loss-breach-state-cache.service';
 
 @Injectable()
-export class StopLossWatcherService {
+export class StopLossBreachEvaluatorService {
     private readonly confirmDurationMs: number;
     private readonly penetrationPct: number;
     private readonly breachTtlSeconds: number;
@@ -24,22 +22,23 @@ export class StopLossWatcherService {
         this.breachTtlSeconds = breachTtlSeconds;
     }
 
-    async evaluate(input: StopLossEvaluateInput): Promise<StopLossWatchDecision> {
-        const { gridId, stopLossEnabled, stopLossPrice, currentPrice, now } = input;
-
-        if (!stopLossEnabled || stopLossPrice === null) {
-            return StopLossWatchDecision.NoBreach;
-        }
-
-        if (currentPrice > stopLossPrice) {
+    /**
+     * Returns true when the price has been sufficiently below stopLossPrice
+     * for the required confirmation duration. Clears breach state after firing.
+     */
+    async evaluate(
+        gridId: string,
+        stopLossPrice: number,
+        currentMid: number,
+        now: number,
+    ): Promise<boolean> {
+        if (currentMid > stopLossPrice) {
             await this.breachCache.delete(gridId);
-            return StopLossWatchDecision.NoBreach;
+            return false;
         }
 
         const penetrationThreshold = stopLossPrice * (1 - this.penetrationPct);
-        if (currentPrice > penetrationThreshold) {
-            return StopLossWatchDecision.NoBreach;
-        }
+        if (currentMid > penetrationThreshold) return false;
 
         const existing = await this.breachCache.get(gridId);
         if (!existing) {
@@ -49,15 +48,9 @@ export class StopLossWatcherService {
         const state = existing ?? new StopLossBreachState(now);
         const elapsed = now - state.firstBreachAt;
 
-        if (elapsed < this.confirmDurationMs) {
-            return StopLossWatchDecision.BreachUnconfirmed;
-        }
+        if (elapsed < this.confirmDurationMs) return false;
 
         await this.breachCache.delete(gridId);
-        return StopLossWatchDecision.Trigger;
-    }
-
-    async clear(gridId: string): Promise<void> {
-        await this.breachCache.delete(gridId);
+        return true;
     }
 }

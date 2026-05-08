@@ -16,9 +16,7 @@ import { GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
-import { StopLossWatcherService } from '@components/trading/core/application/services/stop-loss-watcher/stop-loss-watcher.service';
-import { TriggerStopLossService } from '@components/trading/core/application/services/trigger-stop-loss/trigger-stop-loss.service';
-import { StopLossWatchDecision } from '@components/trading/core/application/services/stop-loss-watcher/types/stop-loss-watch-decision';
+import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
@@ -30,8 +28,7 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderStatusSyncService: { process: ReturnType<typeof vi.fn> };
     let mockOrderRefillService: { processMany: ReturnType<typeof vi.fn> };
     let mockStpRecoveryService: { recoverMany: ReturnType<typeof vi.fn> };
-    let mockStopLossWatcher: { evaluate: ReturnType<typeof vi.fn> };
-    let mockTriggerStopLoss: { execute: ReturnType<typeof vi.fn> };
+    let mockStopLossProcessor: { process: ReturnType<typeof vi.fn> };
 
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
@@ -89,14 +86,8 @@ describe('SyncOrdersUseCase', () => {
             recoverMany: vi.fn().mockResolvedValue(0),
         };
 
-        mockStopLossWatcher = {
-            evaluate: vi.fn().mockResolvedValue(StopLossWatchDecision.NoBreach),
-        };
-
-        mockTriggerStopLoss = {
-            execute: vi
-                .fn()
-                .mockResolvedValue({ success: true, soldBaseAmount: 0, receivedUSDC: 0 }),
+        mockStopLossProcessor = {
+            process: vi.fn().mockResolvedValue(false),
         };
 
         useCase = new SyncOrdersUseCase(
@@ -105,8 +96,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService as unknown as OrderStatusSyncService,
             mockOrderRefillService as unknown as OrderRefillService,
             mockStpRecoveryService as unknown as StpRecoveryService,
-            mockStopLossWatcher as unknown as StopLossWatcherService,
-            mockTriggerStopLoss as unknown as TriggerStopLossService,
+            mockStopLossProcessor as unknown as StopLossProcessorService,
         );
     });
 
@@ -420,7 +410,7 @@ describe('SyncOrdersUseCase', () => {
             expect(result.errors[0]).toContain('DB error');
         });
 
-        it('does not call StopLossWatcherService when priceBySymbol is not provided and stopLossEnabled is true', async () => {
+        it('does not call StopLossProcessorService when priceBySymbol is not provided', async () => {
             const grid = createTestGrid({
                 symbol: 'BTC',
                 stopLossEnabled: true,
@@ -438,11 +428,10 @@ describe('SyncOrdersUseCase', () => {
             // No priceBySymbol passed — SL evaluation must be skipped entirely.
             await useCase.executeForGrids('0x123', [grid], []);
 
-            expect(mockStopLossWatcher.evaluate).not.toHaveBeenCalled();
-            expect(mockTriggerStopLoss.execute).not.toHaveBeenCalled();
+            expect(mockStopLossProcessor.process).not.toHaveBeenCalled();
         });
 
-        it('calls TriggerStopLossService when watcher returns Trigger and priceBySymbol is provided', async () => {
+        it('calls StopLossProcessorService.process for each grid when priceBySymbol is provided', async () => {
             const grid = createTestGrid({
                 symbol: 'BTC',
                 stopLossEnabled: true,
@@ -456,20 +445,18 @@ describe('SyncOrdersUseCase', () => {
                 filledOrders: [],
                 stpCancelledOrders: [],
             });
-            mockStopLossWatcher.evaluate.mockResolvedValue(StopLossWatchDecision.Trigger);
+            mockStopLossProcessor.process.mockResolvedValue(true);
 
             const priceBySymbol = new Map([['BTC', 39000]]);
 
             await useCase.executeForGrids('0x123', [grid], [], priceBySymbol);
 
-            expect(mockTriggerStopLoss.execute).toHaveBeenCalledOnce();
-            expect(mockTriggerStopLoss.execute).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    gridId: grid.id,
-                    symbol: 'BTC',
-                    currentMid: 39000,
-                    accountAddress: '0x123',
-                }),
+            expect(mockStopLossProcessor.process).toHaveBeenCalledOnce();
+            expect(mockStopLossProcessor.process).toHaveBeenCalledWith(
+                expect.objectContaining({ id: grid.id, symbol: 'BTC' }),
+                '0x123',
+                39000,
+                expect.any(Number),
             );
         });
     });
