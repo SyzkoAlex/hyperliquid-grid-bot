@@ -29,6 +29,7 @@ import { StopLossOrderCancellationService } from '@components/trading/core/appli
 import { StopLossBalanceAttributionService } from '@components/trading/core/application/services/trigger-stop-loss/balance-attribution/stop-loss-balance-attribution.service';
 import { StopLossMarketSellService } from '@components/trading/core/application/services/trigger-stop-loss/market-sell/stop-loss-market-sell.service';
 import { StopLossWatcherService } from '@components/trading/core/application/services/stop-loss-watcher/stop-loss-watcher.service';
+import { StopLossBreachStateCacheService } from '@components/trading/core/application/services/stop-loss-watcher/breach-state-cache/stop-loss-breach-state-cache.service';
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
 import { GridsModule } from '@components/grids/grids.module';
@@ -80,6 +81,7 @@ import { UsersModule } from '@components/users/users.module';
         CreateGridHandler,
         StopGridHandler,
         StopGridUseCase,
+        StopLossBreachStateCacheService,
         StopLossWatcherService,
         StopLossOrderCancellationService,
         StopLossBalanceAttributionService,

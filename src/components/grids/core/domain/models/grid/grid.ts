@@ -5,6 +5,7 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Timestamp } from '@domain/models/primitives/timestamp';
+import { STOP_LOSS_MIN_BUFFER_FROM_LOWER } from '@domain/constants/stop-loss.constants';
 
 export class Grid {
     private readonly _id: GridId;
@@ -90,7 +91,7 @@ export class Grid {
             if (this._stopLossPrice.gte(this._lowerPrice)) {
                 throw new Error('Stop-loss price must be strictly below lower price');
             }
-            const minBuffer = this._lowerPrice.toNumber() * 0.995;
+            const minBuffer = this._lowerPrice.toNumber() * (1 - STOP_LOSS_MIN_BUFFER_FROM_LOWER);
             if (this._stopLossPrice.toNumber() >= minBuffer) {
                 throw new Error('Stop-loss price must be at least 0.5% below lower price');
             }

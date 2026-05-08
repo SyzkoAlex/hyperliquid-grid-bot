@@ -50,6 +50,9 @@ orders:
 stopLoss:
     initialSlippageCapPct: ${STOP_LOSS_INITIAL_SLIPPAGE_CAP_PCT:0.01}
     retrySlippageCapPct: ${STOP_LOSS_RETRY_SLIPPAGE_CAP_PCT:0.02}
+    confirmDurationMs: ${STOP_LOSS_CONFIRM_DURATION_MS:30000} # 30 seconds
+    penetrationPct: ${STOP_LOSS_PENETRATION_PCT:0.002} # 0.2%
+    breachTtlSeconds: ${STOP_LOSS_BREACH_TTL_SECONDS:300} # 5 minutes
 
 logging:
     level: ${LOG_LEVEL:trace}

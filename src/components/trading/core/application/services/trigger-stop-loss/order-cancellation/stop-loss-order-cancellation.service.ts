@@ -8,11 +8,7 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
-
-export interface CancelActiveOrdersResult {
-    cancelledCount: number;
-    failedCount: number;
-}
+import { CancelActiveOrdersResult } from './types/cancel-active-orders-result';
 
 @Injectable()
 export class StopLossOrderCancellationService {
