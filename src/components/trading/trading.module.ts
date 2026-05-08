@@ -24,6 +24,13 @@ import { GridCommandsAdapter } from '@components/trading/adapters/inbound/grid-c
 import { CreateGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/create-grid/create-grid.handler';
 import { StopGridHandler } from '@components/trading/adapters/inbound/grid-commands/handlers/stop-grid/stop-grid.handler';
 import { StopGridUseCase } from '@components/trading/core/application/use-cases/stop-grid/stop-grid.use-case';
+import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
+import { StopLossBreachEvaluatorService } from '@components/trading/core/application/services/stop-loss-processor/breach-evaluator/stop-loss-breach-evaluator.service';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
+import { StopLossBreachStateCacheService } from '@components/trading/core/application/services/stop-loss-processor/breach-state-cache/stop-loss-breach-state-cache.service';
+import { StopLossOrderCancellationService } from '@components/trading/core/application/services/stop-loss-processor/order-cancellation/stop-loss-order-cancellation.service';
+import { StopLossBalanceAttributionService } from '@components/trading/core/application/services/stop-loss-processor/balance-attribution/stop-loss-balance-attribution.service';
+import { StopLossMarketSellService } from '@components/trading/core/application/services/stop-loss-processor/market-sell/stop-loss-market-sell.service';
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
 import { GridsModule } from '@components/grids/grids.module';
@@ -75,6 +82,13 @@ import { UsersModule } from '@components/users/users.module';
         CreateGridHandler,
         StopGridHandler,
         StopGridUseCase,
+        StopLossBreachStateCacheService,
+        StopLossBreachEvaluatorService,
+        StopLossOrderCancellationService,
+        StopLossBalanceAttributionService,
+        StopLossMarketSellService,
+        StopLossProcessorService,
+        SymbolPriceFetcherService,
         OrdersPollingAdapter,
         OrdersRestoreAdapter,
     ],

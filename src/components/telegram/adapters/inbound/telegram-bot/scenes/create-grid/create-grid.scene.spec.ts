@@ -10,6 +10,7 @@ import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedLevelsStep } from './steps/advanced-levels.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
+import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
 import { AdvancedPreviewStep } from './steps/advanced-preview.step';
 import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
@@ -85,6 +86,7 @@ describe('CreateGridSceneHandler', () => {
             makeStep(SceneStep.Lower) as unknown as AdvancedLowerStep,
             mockAdvancedLevelsStep,
             makeStep(SceneStep.Investment) as unknown as AdvancedInvestmentStep,
+            makeStep(SceneStep.StopLoss) as unknown as AdvancedStopLossStep,
             makeStep(SceneStep.Preview) as unknown as AdvancedPreviewStep,
             mockConfirmStep,
         );

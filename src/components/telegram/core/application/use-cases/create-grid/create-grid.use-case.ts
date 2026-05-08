@@ -18,6 +18,8 @@ export class CreateGridUseCase {
             levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             accountAddress: params.accountAddress,
+            stopLossEnabled: params.stopLossEnabled,
+            stopLossPrice: params.stopLossPrice,
         });
 
         await this.publisher.publish(event);

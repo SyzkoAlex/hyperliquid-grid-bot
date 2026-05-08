@@ -54,6 +54,8 @@ export class ConfirmStep {
                 levels: state!.levels!,
                 totalInvestmentUSDC: state!.totalInvestmentUSDC,
                 accountAddress,
+                stopLossEnabled: state!.stopLossEnabled,
+                stopLossPrice: state!.stopLossPrice,
             })
             .catch((error) => {
                 this.logger.error({ error }, 'Grid creation failed unexpectedly');

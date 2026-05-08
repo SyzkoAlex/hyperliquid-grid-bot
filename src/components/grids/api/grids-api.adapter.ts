@@ -49,6 +49,9 @@ export class GridsApiAdapter implements GridsApiPort {
             trailingTriggerPercent: dto.trailingTriggerPercent,
             trailingStepPercent: dto.trailingStepPercent,
             trailingPartialClosePercent: dto.trailingPartialClosePercent,
+            stopLossEnabled: dto.stopLossEnabled,
+            stopLossPrice:
+                dto.stopLossPrice !== undefined ? Price.from(dto.stopLossPrice) : undefined,
         });
         await this.gridRepo.save(grid);
         return GridsApiMapper.toGridDto(grid);
@@ -59,6 +62,14 @@ export class GridsApiAdapter implements GridsApiPort {
         if (!grid) throw new Error(`Grid not found: ${id}`);
         if (status === GridStatus.Running) grid.start();
         else if (status === GridStatus.Stopped) grid.stop();
+        await this.gridRepo.save(grid);
+    }
+
+    async markStoppedByStopLoss(id: string): Promise<void> {
+        const grid = await this.gridRepo.findOneById(GridId.from(id));
+        if (!grid) throw new Error(`Grid not found: ${id}`);
+        grid.markStopLossTriggered();
+        grid.stop();
         await this.gridRepo.save(grid);
     }
 

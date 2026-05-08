@@ -9,4 +9,6 @@ export interface CreateAndStartGridParams {
     trailingTriggerPercent?: number;
     trailingStepPercent?: number;
     trailingPartialClosePercent?: number;
+    stopLossEnabled?: boolean;
+    stopLossPrice?: number;
 }

@@ -133,6 +133,26 @@ export class ValidationTexts {
         );
     }
 
+    static stopLossMustBePositive(): string {
+        return `${EMOJI.ERROR} Stop-loss price must be a positive number. Please try again:`;
+    }
+
+    static stopLossMustBeBelowLower(lowerPrice: number): string {
+        return (
+            `${EMOJI.ERROR} Stop-loss price must be strictly below your lower bound ` +
+            `(${PriceFormatter.format(lowerPrice)}). Please enter a lower price:`
+        );
+    }
+
+    static stopLossTooCloseToLower(lowerPrice: number): string {
+        return (
+            `${EMOJI.ERROR} Stop-loss price is too close to your lower bound ` +
+            `(${PriceFormatter.format(lowerPrice)}). ` +
+            `A minimum distance of 0.5% is required to avoid triggering on grid noise. ` +
+            `Please enter a price at least ${PriceFormatter.format(lowerPrice * 0.995)} or lower:`
+        );
+    }
+
     static zeroUsdcBalance(symbol: string, baseBalance: Decimal): string {
         return (
             `${EMOJI.WARNING} You have no USDC!\n\n` +

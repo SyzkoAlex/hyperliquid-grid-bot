@@ -15,6 +15,8 @@ export interface GridsApiPort {
     /** Persist a new grid and return it. */
     createGrid(dto: CreateGridDto): Promise<GridDto>;
     updateGridStatus(id: string, status: GridStatus): Promise<void>;
+    /** Sets status=Stopped and stop_loss_triggered_at in a single save. */
+    markStoppedByStopLoss(id: string): Promise<void>;
 
     // ── Grids — read ───────────────────────────────────────────────
     /** Find a grid by its UUID. Returns null if not found. */

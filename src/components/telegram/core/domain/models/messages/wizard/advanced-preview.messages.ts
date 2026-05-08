@@ -9,17 +9,32 @@ interface AdvancedPreviewParams {
     levels: number;
     totalInvestment: number;
     orderSize: string;
+    stopLossEnabled?: boolean;
+    stopLossPrice?: number;
 }
 
 export class AdvancedPreviewMessage {
     readonly text: string;
 
     private constructor(params: AdvancedPreviewParams) {
-        const { symbol, lowerPrice, upperPrice, currentPrice, levels, totalInvestment, orderSize } =
-            params;
+        const {
+            symbol,
+            lowerPrice,
+            upperPrice,
+            currentPrice,
+            levels,
+            totalInvestment,
+            orderSize,
+            stopLossEnabled,
+            stopLossPrice,
+        } = params;
         const currentPriceText = currentPrice
             ? `${EMOJI.DIAMOND} Current Price: ${PriceFormatter.format(currentPrice)}\n`
             : '';
+        const stopLossText =
+            stopLossEnabled && stopLossPrice !== undefined
+                ? `${EMOJI.DIAMOND} Stop-Loss: ${PriceFormatter.format(stopLossPrice)}\n`
+                : `${EMOJI.DIAMOND} Stop-Loss: off\n`;
 
         this.text =
             `<b>${EMOJI.CLIPBOARD} Grid Configuration Preview</b>\n\n` +
@@ -28,8 +43,9 @@ export class AdvancedPreviewMessage {
             currentPriceText +
             `${EMOJI.DIAMOND} Levels: ${levels}\n` +
             `${EMOJI.DIAMOND} Investment: ${totalInvestment} USDC\n` +
-            `${EMOJI.DIAMOND} Order Size: ~${orderSize} USDC per level\n\n` +
-            `Ready to create grid?`;
+            `${EMOJI.DIAMOND} Order Size: ~${orderSize} USDC per level\n` +
+            stopLossText +
+            `\nReady to create grid?`;
     }
 
     static create(params: AdvancedPreviewParams): AdvancedPreviewMessage {

@@ -83,7 +83,7 @@ describe('AdvancedInvestmentStep', () => {
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toEqual({
-                nextStep: SceneStep.Preview,
+                nextStep: SceneStep.StopLoss,
                 confirmations: ['✅ Investment set: 1000 USDC'],
             });
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBe(1000);

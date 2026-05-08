@@ -85,6 +85,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
             trailingTriggerPercent: 5,
             trailingStepPercent: 2,
             trailingPartialClosePercent: 50,
+            stopLossEnabled: false,
             ...overrides,
         });
         await gridsApi.updateGridStatus(grid.id, GridStatus.Running);

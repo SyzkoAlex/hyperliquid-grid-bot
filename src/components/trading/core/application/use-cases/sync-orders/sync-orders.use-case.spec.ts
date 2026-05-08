@@ -16,10 +16,15 @@ import { GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 
 describe('SyncOrdersUseCase', () => {
     let useCase: SyncOrdersUseCase;
-    let mockOrderClient: { getOpenSpotOrders: ReturnType<typeof vi.fn> };
+    let mockOrderClient: {
+        getOpenSpotOrders: ReturnType<typeof vi.fn>;
+        getCurrentPrice: ReturnType<typeof vi.fn>;
+    };
     let mockGrids: {
         findActiveGridsByUserId: ReturnType<typeof vi.fn>;
         findPlacedOrdersByGridIds: ReturnType<typeof vi.fn>;
@@ -27,6 +32,8 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderStatusSyncService: { process: ReturnType<typeof vi.fn> };
     let mockOrderRefillService: { processMany: ReturnType<typeof vi.fn> };
     let mockStpRecoveryService: { recoverMany: ReturnType<typeof vi.fn> };
+    let mockStopLossProcessor: { process: ReturnType<typeof vi.fn> };
+    let mockPriceFetcher: { fetchPrices: ReturnType<typeof vi.fn> };
 
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
@@ -41,6 +48,7 @@ describe('SyncOrdersUseCase', () => {
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
         ...overrides,
     });
 
@@ -62,6 +70,7 @@ describe('SyncOrdersUseCase', () => {
     beforeEach(() => {
         mockOrderClient = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
+            getCurrentPrice: vi.fn().mockResolvedValue(Price.from(50000)),
         };
 
         mockGrids = {
@@ -83,12 +92,22 @@ describe('SyncOrdersUseCase', () => {
             recoverMany: vi.fn().mockResolvedValue(0),
         };
 
+        mockStopLossProcessor = {
+            process: vi.fn().mockResolvedValue(false),
+        };
+
+        mockPriceFetcher = {
+            fetchPrices: vi.fn().mockResolvedValue(new Map([['BTC', 50000]])),
+        };
+
         useCase = new SyncOrdersUseCase(
             mockOrderClient as unknown as ExchangePort,
             mockGrids as unknown as GridsApiPort,
             mockOrderStatusSyncService as unknown as OrderStatusSyncService,
             mockOrderRefillService as unknown as OrderRefillService,
             mockStpRecoveryService as unknown as StpRecoveryService,
+            mockStopLossProcessor as unknown as StopLossProcessorService,
+            mockPriceFetcher as unknown as SymbolPriceFetcherService,
         );
     });
 
@@ -330,7 +349,7 @@ describe('SyncOrdersUseCase', () => {
 
     describe('executeForGrids', () => {
         it('should return empty result when activeGrids is empty', async () => {
-            const result = await useCase.executeForGrids('0x123', [], []);
+            const result = await useCase.executeForGrids('0x123', [], [], new Map());
 
             expect(result.gridsProcessed).toBe(0);
             expect(result.fillsDetected).toBe(0);
@@ -341,7 +360,7 @@ describe('SyncOrdersUseCase', () => {
             const grid = createTestGrid();
             mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([]);
 
-            const result = await useCase.executeForGrids('0x123', [grid], []);
+            const result = await useCase.executeForGrids('0x123', [grid], [], new Map());
 
             expect(result.gridsProcessed).toBe(0);
             expect(mockOrderStatusSyncService.process).not.toHaveBeenCalled();
@@ -375,7 +394,12 @@ describe('SyncOrdersUseCase', () => {
             });
             mockOrderRefillService.processMany.mockResolvedValue(1);
 
-            const result = await useCase.executeForGrids('0x123', [grid], [exchangeOrder]);
+            const result = await useCase.executeForGrids(
+                '0x123',
+                [grid],
+                [exchangeOrder],
+                new Map(),
+            );
 
             expect(result.gridsProcessed).toBe(1);
             expect(result.fillsDetected).toBe(1);
@@ -396,10 +420,59 @@ describe('SyncOrdersUseCase', () => {
                 .mockRejectedValueOnce(new Error('DB error'))
                 .mockResolvedValueOnce({ filled: 0, filledOrders: [], stpCancelledOrders: [] });
 
-            const result = await useCase.executeForGrids('0x123', [grid1, grid2], []);
+            const result = await useCase.executeForGrids('0x123', [grid1, grid2], [], new Map());
 
             expect(result.errors.length).toBe(1);
             expect(result.errors[0]).toContain('DB error');
+        });
+
+        it('does not call StopLossProcessorService when grid symbol has no price in the map', async () => {
+            const grid = createTestGrid({
+                symbol: 'BTC',
+                stopLossEnabled: true,
+                stopLossPrice: 40000,
+            });
+            const order = createTestOrder(grid.id);
+
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 0,
+                filledOrders: [],
+                stpCancelledOrders: [],
+            });
+
+            // priceBySymbol has no entry for BTC — processor must not be called.
+            await useCase.executeForGrids('0x123', [grid], [], new Map());
+
+            expect(mockStopLossProcessor.process).not.toHaveBeenCalled();
+        });
+
+        it('calls StopLossProcessorService.process for each grid when priceBySymbol is provided', async () => {
+            const grid = createTestGrid({
+                symbol: 'BTC',
+                stopLossEnabled: true,
+                stopLossPrice: 40000,
+            });
+            const order = createTestOrder(grid.id);
+
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order]);
+            mockOrderStatusSyncService.process.mockResolvedValue({
+                filled: 0,
+                filledOrders: [],
+                stpCancelledOrders: [],
+            });
+            mockStopLossProcessor.process.mockResolvedValue(true);
+
+            await useCase.executeForGrids('0x123', [grid], [], new Map([['BTC', 39000]]));
+
+            expect(mockStopLossProcessor.process).toHaveBeenCalledOnce();
+            expect(mockStopLossProcessor.process).toHaveBeenCalledWith(
+                expect.objectContaining({ id: grid.id, symbol: 'BTC' }),
+                '0x123',
+                39000,
+                expect.any(Number),
+                expect.arrayContaining([expect.objectContaining({ id: grid.id })]),
+            );
         });
     });
 });

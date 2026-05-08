@@ -25,4 +25,7 @@ export interface GridCreateParams {
     startedAt?: Timestamp;
     stoppedAt?: Timestamp;
     lastTrailingAt?: Timestamp;
+    stopLossEnabled?: boolean;
+    stopLossPrice?: Price;
+    stopLossTriggeredAt?: Timestamp;
 }

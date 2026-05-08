@@ -5,6 +5,7 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Timestamp } from '@domain/models/primitives/timestamp';
+import { STOP_LOSS_MIN_BUFFER_FROM_LOWER } from '@domain/constants/stop-loss.constants';
 
 export class Grid {
     private readonly _id: GridId;
@@ -26,6 +27,9 @@ export class Grid {
     private _stoppedAt: Timestamp | null;
     private _lastTrailingAt: Timestamp | null;
     private _trailingCount: number;
+    private readonly _stopLossEnabled: boolean;
+    private readonly _stopLossPrice: Price | null;
+    private _stopLossTriggeredAt: Timestamp | null;
 
     private constructor(params: GridCreateParams) {
         this._id = params.id ?? GridId.create();
@@ -47,6 +51,9 @@ export class Grid {
         this._stoppedAt = params.stoppedAt ?? null;
         this._lastTrailingAt = params.lastTrailingAt ?? null;
         this._trailingCount = params.trailingCount ?? 0;
+        this._stopLossEnabled = params.stopLossEnabled ?? false;
+        this._stopLossPrice = params.stopLossPrice ?? null;
+        this._stopLossTriggeredAt = params.stopLossTriggeredAt ?? null;
     }
 
     static create(params: GridCreateParams): Grid {
@@ -76,6 +83,18 @@ export class Grid {
         }
         if (this._trailingPartialClosePercent < 0 || this._trailingPartialClosePercent > 100) {
             throw new Error('Trailing partial close must be between 0 and 100%');
+        }
+        if (this._stopLossEnabled) {
+            if (!this._stopLossPrice) {
+                throw new Error('Stop-loss enabled but stopLossPrice missing');
+            }
+            if (this._stopLossPrice.gte(this._lowerPrice)) {
+                throw new Error('Stop-loss price must be strictly below lower price');
+            }
+            const minBuffer = this._lowerPrice.toNumber() * (1 - STOP_LOSS_MIN_BUFFER_FROM_LOWER);
+            if (this._stopLossPrice.toNumber() >= minBuffer) {
+                throw new Error('Stop-loss price must be at least 0.5% below lower price');
+            }
         }
     }
 
@@ -163,12 +182,28 @@ export class Grid {
         return this._trailingCount;
     }
 
+    get stopLossEnabled(): boolean {
+        return this._stopLossEnabled;
+    }
+
+    get stopLossPrice(): Price | null {
+        return this._stopLossPrice;
+    }
+
+    get stopLossTriggeredAt(): Timestamp | null {
+        return this._stopLossTriggeredAt;
+    }
+
     get id(): GridId {
         return this._id;
     }
 
     get userId(): string {
         return this._userId;
+    }
+
+    markStopLossTriggered(): void {
+        this._stopLossTriggeredAt = Timestamp.now();
     }
 
     equals(other: Grid): boolean {

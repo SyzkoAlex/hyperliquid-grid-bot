@@ -15,6 +15,7 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 
 @Injectable()
 export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
@@ -32,6 +33,7 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
         @Inject(DISTRIBUTED_LOCK_PORT) private readonly lock: DistributedLockPort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
+        private readonly priceFetcher: SymbolPriceFetcherService,
     ) {
         const ordersConfig = this.configService.get('orders', { infer: true });
         this.syncLockTtlMs = ordersConfig.syncLockTtlMs;
@@ -100,6 +102,9 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
             byAccount.set(accountAddress, existing);
         }
 
+        const uniqueSymbols = [...new Set(batch.map(({ grid }) => grid.symbol))];
+        const priceBySymbol = await this.priceFetcher.fetchPrices(uniqueSymbols);
+
         await Promise.all(
             [...byAccount.entries()].map(async ([accountAddress, userGrids]) => {
                 try {
@@ -108,6 +113,7 @@ export class OrdersPollingAdapter implements OnModuleInit, OnModuleDestroy {
                         accountAddress,
                         userGrids,
                         exchangeOrders,
+                        priceBySymbol,
                     );
                 } catch (error) {
                     this.logger.error({ error, accountAddress }, 'Error syncing grids for account');

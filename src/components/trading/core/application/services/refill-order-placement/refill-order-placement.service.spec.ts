@@ -36,6 +36,7 @@ describe('RefillOrderPlacementService', () => {
         trailingTriggerPercent: 5,
         trailingStepPercent: 10,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
     };
 
     const testParams = new RefillParams(OrderSide.Sell, 6, Price.from(51000), Decimal.from(0.01));

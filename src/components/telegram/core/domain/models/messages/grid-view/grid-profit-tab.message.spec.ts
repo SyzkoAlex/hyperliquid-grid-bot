@@ -21,6 +21,7 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
         trailingTriggerPercent: 5,
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
+        stopLossEnabled: false,
         startedAt,
     };
 }

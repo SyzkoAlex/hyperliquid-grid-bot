@@ -25,6 +25,9 @@ export const grids = pgTable('grids', {
     }).default('50'),
     trailingCount: integer('trailing_count').notNull().default(0),
     lastTrailingAt: timestamp('last_trailing_at'),
+    stopLossEnabled: boolean('stop_loss_enabled').notNull().default(false),
+    stopLossPrice: decimal('stop_loss_price', { precision: 20, scale: 8 }),
+    stopLossTriggeredAt: timestamp('stop_loss_triggered_at'),
     startedAt: timestamp('started_at'),
     stoppedAt: timestamp('stopped_at'),
     userId: uuid('user_id')

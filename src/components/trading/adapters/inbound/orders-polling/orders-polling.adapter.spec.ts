@@ -11,6 +11,7 @@ import {
 import { GRIDS_API_PORT } from '@components/grids/api/grids-api.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 
 describe('OrdersPollingAdapter (Unit)', () => {
     let module: TestingModule;
@@ -18,7 +19,10 @@ describe('OrdersPollingAdapter (Unit)', () => {
     let mockSyncOrders: { executeForGrids: ReturnType<typeof vi.fn> };
     let mockLock: DistributedLockPort;
     let mockGridsApi: { findActiveGridsByCursor: ReturnType<typeof vi.fn> };
-    let mockExchange: { getOpenSpotOrders: ReturnType<typeof vi.fn> };
+    let mockExchange: {
+        getOpenSpotOrders: ReturnType<typeof vi.fn>;
+    };
+    let mockPriceFetcher: { fetchPrices: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
         mockSyncOrders = { executeForGrids: vi.fn().mockResolvedValue(undefined) };
@@ -38,6 +42,10 @@ describe('OrdersPollingAdapter (Unit)', () => {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
         };
 
+        mockPriceFetcher = {
+            fetchPrices: vi.fn().mockResolvedValue(new Map([['BTC', 50000]])),
+        };
+
         module = await Test.createTestingModule({
             imports: [ScheduleModule.forRoot()],
             providers: [
@@ -52,6 +60,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 },
                 { provide: GRIDS_API_PORT, useValue: mockGridsApi },
                 { provide: EXCHANGE_PORT, useValue: mockExchange },
+                { provide: SymbolPriceFetcherService, useValue: mockPriceFetcher },
             ],
         }).compile();
 
@@ -121,6 +130,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             };
 
             // Single item batch — less than BATCH_SIZE=100, loop terminates after first call
@@ -153,6 +163,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             });
 
             // First batch is full (100 items), second batch is empty
@@ -194,6 +205,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 trailingTriggerPercent: 5,
                 trailingStepPercent: 2,
                 trailingPartialClosePercent: 50,
+                stopLossEnabled: false,
             };
             const grid2 = { ...grid1, id: 'grid-uuid-2' };
 
@@ -211,11 +223,12 @@ describe('OrdersPollingAdapter (Unit)', () => {
             // Only one HTTP call for the same accountAddress
             expect(mockExchange.getOpenSpotOrders).toHaveBeenCalledOnce();
             expect(mockExchange.getOpenSpotOrders).toHaveBeenCalledWith('0xacc1');
-            // Both grids passed in one call
+            // Both grids passed in one call, with price map
             expect(mockSyncOrders.executeForGrids).toHaveBeenCalledWith(
                 '0xacc1',
                 [grid1, grid2],
                 [],
+                expect.any(Map),
             );
         });
     });

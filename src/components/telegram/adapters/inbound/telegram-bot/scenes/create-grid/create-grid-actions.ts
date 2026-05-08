@@ -12,6 +12,9 @@ export const CREATE_GRID_ACTIONS = {
     // Levels selection
     LEVELS_PREFIX: 'create_grid:levels:',
 
+    // Stop-loss selection
+    STOP_LOSS_OFF: 'create_grid:stop_loss:off',
+
     // Navigation
     CONFIRM: 'create_grid:confirm',
     BACK: 'create_grid:back',

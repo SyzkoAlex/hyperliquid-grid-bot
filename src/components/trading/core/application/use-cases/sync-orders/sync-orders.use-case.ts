@@ -9,6 +9,8 @@ import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchan
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 import { logger } from '@/infra/logger/logger';
 import { SyncOrdersResult } from './sync-orders-result';
 import { GridWithOrders } from './grid-with-orders';
@@ -23,29 +25,49 @@ export class SyncOrdersUseCase {
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
         private readonly stpRecoveryService: StpRecoveryService,
+        private readonly stopLossProcessor: StopLossProcessorService,
+        private readonly priceFetcher: SymbolPriceFetcherService,
     ) {}
 
     async execute(accountAddress: string, userId: string): Promise<SyncOrdersResult> {
-        const exchangeOpenOrders = await this.exchange.getOpenSpotOrders(accountAddress);
-        const activeGrids = await this.grids.findActiveGridsByUserId(userId);
+        const [exchangeOpenOrders, activeGrids] = await Promise.all([
+            this.exchange.getOpenSpotOrders(accountAddress),
+            this.grids.findActiveGridsByUserId(userId),
+        ]);
+
         if (activeGrids.length === 0) return SyncOrdersResult.empty();
-        return this.executeForGrids(accountAddress, activeGrids, exchangeOpenOrders);
+
+        const priceBySymbol = await this.priceFetcher.fetchPrices(activeGrids.map((g) => g.symbol));
+        return this.executeForGrids(accountAddress, activeGrids, exchangeOpenOrders, priceBySymbol);
     }
 
     async executeForGrids(
         accountAddress: string,
         activeGrids: GridDto[],
         exchangeOpenOrders: ExchangeOpenOrder[],
+        priceBySymbol: Map<string, number>,
     ): Promise<SyncOrdersResult> {
         const result = SyncOrdersResult.empty();
         if (activeGrids.length === 0) return result;
 
-        const gridIds = activeGrids.map((g) => g.id);
-        const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(gridIds);
+        // SL evaluation runs for ALL active grids regardless of whether they
+        // have any DB orders — a grid with no open orders may still need SL teardown.
+        const stoppedGridIds = await this.runStopLossCheck(
+            activeGrids,
+            accountAddress,
+            priceBySymbol,
+        );
+
+        const orderableGridIds = activeGrids
+            .map((g) => g.id)
+            .filter((id) => !stoppedGridIds.has(id));
+
+        const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(orderableGridIds);
         if (allActiveDbOrders.length === 0) return result;
 
+        const orderableGrids = activeGrids.filter((g) => !stoppedGridIds.has(g.id));
         const gridsWithOrders = GridWithOrders.buildMany(
-            activeGrids,
+            orderableGrids,
             allActiveDbOrders,
             exchangeOpenOrders,
         );
@@ -61,6 +83,37 @@ export class SyncOrdersUseCase {
 
         this.logResultIfNeeded(result);
         return result;
+    }
+
+    private async runStopLossCheck(
+        activeGrids: GridDto[],
+        accountAddress: string,
+        priceBySymbol: Map<string, number>,
+    ): Promise<Set<string>> {
+        const stoppedGridIds = new Set<string>();
+
+        for (const grid of activeGrids) {
+            const currentPrice = priceBySymbol.get(grid.symbol);
+            if (currentPrice === undefined) continue;
+
+            try {
+                const stopped = await this.stopLossProcessor.process(
+                    grid,
+                    accountAddress,
+                    currentPrice,
+                    Date.now(),
+                    activeGrids,
+                );
+                if (stopped) stoppedGridIds.add(grid.id);
+            } catch (error) {
+                this.logger.error(
+                    { error, gridId: grid.id },
+                    'Error during stop-loss evaluation/trigger',
+                );
+            }
+        }
+
+        return stoppedGridIds;
     }
 
     private async processGrid(

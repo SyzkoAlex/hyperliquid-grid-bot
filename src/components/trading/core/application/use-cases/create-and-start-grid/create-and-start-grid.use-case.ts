@@ -129,6 +129,8 @@ export class CreateAndStartGridUseCase {
             trailingTriggerPercent: params.trailingTriggerPercent,
             trailingStepPercent: params.trailingStepPercent,
             trailingPartialClosePercent: params.trailingPartialClosePercent,
+            stopLossEnabled: params.stopLossEnabled ?? false,
+            stopLossPrice: params.stopLossPrice,
         });
 
         this.logger.info({ gridId: grid.id }, 'Grid entity created and saved');

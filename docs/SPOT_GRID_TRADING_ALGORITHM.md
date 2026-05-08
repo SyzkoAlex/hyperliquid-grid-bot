@@ -549,4 +549,20 @@ Free money on top of strategy profits!
 
 ---
 
+## 🛡️ Risk Management: Stop-Loss
+
+A grid bot is a mean-reversion strategy and **does not cut losses on its own** — if
+price breaks below the lower bound, it is left holding the maximum base inventory
+bought at prices well above the market. A stop-loss is the mechanism that bounds
+this worst case.
+
+For a deep dive into stop-loss design (trigger types, whipsaw filtering,
+post-trigger behaviour, slippage handling, common mistakes, and how major
+platforms approach it), see:
+
+→ **[STOP_LOSS.md](./STOP_LOSS.md)** — Stop-Loss for Spot Grid Trading Bots:
+   theory and best practices.
+
+---
+
 **Simple, safe, and profitable! 📈💰**

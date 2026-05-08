@@ -59,6 +59,8 @@ export class AdvancedPreviewStep implements WizardStep {
             levels: state.levels!,
             totalInvestment: state.totalInvestmentUSDC!,
             orderSize,
+            stopLossEnabled: state.stopLossEnabled,
+            stopLossPrice: state.stopLossPrice,
         }).text;
 
         await this.messageManager.sendEnterMessage(ctx, message, keyboard, TelegramParseMode.HTML);

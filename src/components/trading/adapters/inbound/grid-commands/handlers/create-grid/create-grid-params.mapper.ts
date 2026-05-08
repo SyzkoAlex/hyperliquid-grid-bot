@@ -11,6 +11,8 @@ export class CreateGridParamsMapper {
             levels: command.levels,
             totalInvestmentUSDC: command.totalInvestmentUSDC,
             trailingEnabled: command.trailing,
+            stopLossEnabled: command.stopLossEnabled,
+            stopLossPrice: command.stopLossPrice,
         };
     }
 }

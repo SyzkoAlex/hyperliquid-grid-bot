@@ -22,19 +22,12 @@ Swap tokens directly in the Telegram bot (e.g. USDC → BTC). Useful when user h
 - [ ] Button in main menu or from `/balance`
 - [ ] Auto-swap before grid creation: if only USDC → swap 50% to base token (optional, config flag)
 
-### Surface Create Grid Errors in Telegram
-
-- [ ] Surface balance validation errors from `CreateAndStartGridUseCase` to user in create-grid scene (currently throws but Telegram doesn't show the specific error)
-
 ---
 
 ## Medium Priority
 
 ### GridPnlCalculatorService Improvements
 
-Core `gridProfit` + `unrealizedPnl` are implemented. Remaining:
-
-- [ ] Track cumulative fees per grid, subtract from realized profit → `gridProfitNet`
 - [ ] Add `vsHodl = currentEquity − hodlEquity` comparison
 - [ ] Add breakeven check: warn if `gridStep / avgPrice < 2 × feeRate`
 
@@ -75,14 +68,6 @@ Required changes:
 
 - [ ] Order placement retry logic (3 attempts with backoff)
 - [ ] Rate limiting for exchange API
-
-### Remove Hyperliquid SDK Dependency
-
-Replace `hyperliquid` npm package with custom HTTP client. SDK is used in `hyperliquid-sdk.service.ts` for: spot metadata, order signing (EIP-712), order placement.
-
-- [ ] Implement order signing (EIP-712)
-- [ ] Replace SDK calls with `HyperliquidApiClient` HTTP requests
-- [ ] Remove `hyperliquid` package from dependencies
 
 ---
 

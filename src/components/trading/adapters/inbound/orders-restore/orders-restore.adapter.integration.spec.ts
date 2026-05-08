@@ -97,6 +97,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             trailingTriggerPercent: 5,
             trailingStepPercent: 10,
             trailingPartialClosePercent: 50,
+            stopLossEnabled: false,
             ...overrides,
         });
         await gridsApi.updateGridStatus(grid.id, GridStatus.Running);
