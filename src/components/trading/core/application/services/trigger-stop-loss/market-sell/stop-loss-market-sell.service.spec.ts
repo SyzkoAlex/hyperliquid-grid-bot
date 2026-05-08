@@ -30,8 +30,15 @@ describe('StopLossMarketSellService', () => {
 
         mockConfig = {
             get: vi.fn((key: string) => {
-                if (key === 'stopLoss.initialSlippageCapPct') return INITIAL_SLIPPAGE_CAP;
-                if (key === 'stopLoss.retrySlippageCapPct') return RETRY_SLIPPAGE_CAP;
+                if (key === 'stopLoss') {
+                    return {
+                        initialSlippageCapPct: INITIAL_SLIPPAGE_CAP,
+                        retrySlippageCapPct: RETRY_SLIPPAGE_CAP,
+                        confirmDurationMs: 30_000,
+                        penetrationPct: 0.002,
+                        breachTtlSeconds: 300,
+                    };
+                }
                 return undefined;
             }),
         };

@@ -8,10 +8,21 @@ import { StopLossBreachStateCacheService } from './breach-state-cache/stop-loss-
 
 @Injectable()
 export class StopLossWatcherService {
+    private readonly confirmDurationMs: number;
+    private readonly penetrationPct: number;
+    private readonly breachTtlSeconds: number;
+
     constructor(
         private readonly breachCache: StopLossBreachStateCacheService,
-        private readonly config: ConfigService<Config, true>,
-    ) {}
+        config: ConfigService<Config, true>,
+    ) {
+        const { confirmDurationMs, penetrationPct, breachTtlSeconds } = config.get('stopLoss', {
+            infer: true,
+        });
+        this.confirmDurationMs = confirmDurationMs;
+        this.penetrationPct = penetrationPct;
+        this.breachTtlSeconds = breachTtlSeconds;
+    }
 
     async evaluate(input: StopLossEvaluateInput): Promise<StopLossWatchDecision> {
         const { gridId, stopLossEnabled, stopLossPrice, currentPrice, now } = input;
@@ -25,24 +36,20 @@ export class StopLossWatcherService {
             return StopLossWatchDecision.NoBreach;
         }
 
-        const penetrationPct = this.config.get('stopLoss.penetrationPct', { infer: true });
-        const penetrationThreshold = stopLossPrice * (1 - penetrationPct);
+        const penetrationThreshold = stopLossPrice * (1 - this.penetrationPct);
         if (currentPrice > penetrationThreshold) {
             return StopLossWatchDecision.NoBreach;
         }
 
-        const confirmDurationMs = this.config.get('stopLoss.confirmDurationMs', { infer: true });
-        const breachTtlSeconds = this.config.get('stopLoss.breachTtlSeconds', { infer: true });
-
         const existing = await this.breachCache.get(gridId);
         if (!existing) {
-            await this.breachCache.set(gridId, new StopLossBreachState(now), breachTtlSeconds);
+            await this.breachCache.set(gridId, new StopLossBreachState(now), this.breachTtlSeconds);
         }
 
         const state = existing ?? new StopLossBreachState(now);
         const elapsed = now - state.firstBreachAt;
 
-        if (elapsed < confirmDurationMs) {
+        if (elapsed < this.confirmDurationMs) {
             return StopLossWatchDecision.BreachUnconfirmed;
         }
 

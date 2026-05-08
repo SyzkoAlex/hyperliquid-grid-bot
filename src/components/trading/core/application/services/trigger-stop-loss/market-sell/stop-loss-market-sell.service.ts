@@ -17,11 +17,19 @@ import { StopLossMarketSellResult } from './types/stop-loss-market-sell-result';
 @Injectable()
 export class StopLossMarketSellService {
     private readonly logger = logger.child({ context: StopLossMarketSellService.name });
+    private readonly initialSlippageCap: number;
+    private readonly retrySlippageCap: number;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
-        private readonly config: ConfigService<Config, true>,
-    ) {}
+        config: ConfigService<Config, true>,
+    ) {
+        const { initialSlippageCapPct, retrySlippageCapPct } = config.get('stopLoss', {
+            infer: true,
+        });
+        this.initialSlippageCap = initialSlippageCapPct;
+        this.retrySlippageCap = retrySlippageCapPct;
+    }
 
     async execute(params: StopLossMarketSellParams): Promise<StopLossMarketSellResult> {
         const { gridId, symbol, amount, currentMid, accountAddress } = params;
@@ -32,32 +40,27 @@ export class StopLossMarketSellService {
         // so a lost response on attempt 1 won't result in a second live order on attempt 2.
         const cloid = uuidv4();
 
-        const initialSlippageCap = this.config.get('stopLoss.initialSlippageCapPct', {
-            infer: true,
-        });
-        const retrySlippageCap = this.config.get('stopLoss.retrySlippageCapPct', { infer: true });
-
         const result1 = await this.attemptIocSell(
             amount,
             midPrice,
-            initialSlippageCap,
+            this.initialSlippageCap,
             cloid,
             symbolObj,
             accountAddress,
             gridId,
-            `${initialSlippageCap * 100}%`,
+            `${this.initialSlippageCap * 100}%`,
         );
         if (result1 !== null) return result1;
 
         const result2 = await this.attemptIocSell(
             amount,
             midPrice,
-            retrySlippageCap,
+            this.retrySlippageCap,
             cloid,
             symbolObj,
             accountAddress,
             gridId,
-            `${retrySlippageCap * 100}%`,
+            `${this.retrySlippageCap * 100}%`,
         );
         if (result2 !== null) return result2;
 

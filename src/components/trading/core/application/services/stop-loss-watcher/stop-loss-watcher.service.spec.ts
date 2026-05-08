@@ -10,9 +10,15 @@ const BREACH_TTL_SECONDS = 300;
 function makeConfig() {
     return {
         get: vi.fn((key: string) => {
-            if (key === 'stopLoss.confirmDurationMs') return CONFIRM_MS;
-            if (key === 'stopLoss.penetrationPct') return PENETRATION_PCT;
-            if (key === 'stopLoss.breachTtlSeconds') return BREACH_TTL_SECONDS;
+            if (key === 'stopLoss') {
+                return {
+                    confirmDurationMs: CONFIRM_MS,
+                    penetrationPct: PENETRATION_PCT,
+                    breachTtlSeconds: BREACH_TTL_SECONDS,
+                    initialSlippageCapPct: 0.01,
+                    retrySlippageCapPct: 0.02,
+                };
+            }
         }),
     };
 }
