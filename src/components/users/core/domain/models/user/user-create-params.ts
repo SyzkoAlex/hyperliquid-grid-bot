@@ -6,5 +6,6 @@ export interface UserCreateParams {
     accountAddress: string;
     agentAddress: string;
     status: UserStatus;
+    timezone: string;
     createdAt: Date;
 }

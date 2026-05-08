@@ -7,7 +7,11 @@ import { GridAction } from '@components/telegram/core/domain/models/grid-action'
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { OrderSide } from '@domain/models/order/order-side';
+import { OrderStatus } from '@domain/models/order/order-status';
+import { OrderType } from '@domain/models/order/order-type';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -48,9 +52,27 @@ function makeSnapshot(): GridSnapshot {
     };
 }
 
-function createMockContext(match?: string[]): BotContext {
+function makeFilledOrder(filledAt: number): OrderDto {
+    return {
+        id: '660e8400-e29b-41d4-a716-446655440001',
+        gridId: GRID_ID,
+        symbol: 'BTC',
+        side: OrderSide.Sell,
+        status: OrderStatus.Filled,
+        type: OrderType.Limit,
+        levelIndex: 5,
+        price: 96000,
+        amount: 0.001,
+        exchangeOrderId: null,
+        createdAt: filledAt,
+        filledAt,
+    };
+}
+
+function createMockContext(match?: string[], user?: { timezone: string }): BotContext {
     return {
         match,
+        user,
         reply: vi.fn(),
         answerCbQuery: vi.fn(),
         editMessageText: vi.fn(),
@@ -102,6 +124,24 @@ describe('GridHistoryTabHandler', () => {
                 expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
             );
+        });
+
+        it('should format filled order dates in the user timezone', async () => {
+            // May 9 2025 14:32 UTC = May 9 2025 23:32 Asia/Tokyo (UTC+9)
+            const TIMESTAMP = Date.UTC(2025, 4, 9, 14, 32);
+            const snapshotWithOrder: GridSnapshot = {
+                ...makeSnapshot(),
+                filledOrders: [makeFilledOrder(TIMESTAMP)],
+            };
+            vi.mocked(getGridWithPnlUseCase.execute).mockResolvedValueOnce(snapshotWithOrder);
+            const ctx = createMockContext([`view:grid:${GRID_ID}:p:1:history`, GRID_ID, '1'], {
+                timezone: 'Asia/Tokyo',
+            });
+
+            await actionCallbacks.get(GridAction.VIEW_HISTORY_PATTERN)!(ctx);
+
+            const [text] = vi.mocked(ctx.editMessageText).mock.calls[0];
+            expect(text).toContain('09 May 23:32');
         });
     });
 });

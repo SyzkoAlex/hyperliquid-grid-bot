@@ -7,6 +7,7 @@ export class User {
     private readonly _accountAddress: string;
     private readonly _agentAddress: string;
     private readonly _status: UserStatus;
+    private readonly _timezone: string;
     private readonly _createdAt: Date;
 
     private constructor(params: UserCreateParams) {
@@ -15,6 +16,7 @@ export class User {
         this._accountAddress = params.accountAddress;
         this._agentAddress = params.agentAddress;
         this._status = params.status;
+        this._timezone = params.timezone;
         this._createdAt = params.createdAt;
     }
 
@@ -40,6 +42,10 @@ export class User {
 
     get status(): UserStatus {
         return this._status;
+    }
+
+    get timezone(): string {
+        return this._timezone;
     }
 
     get createdAt(): Date {

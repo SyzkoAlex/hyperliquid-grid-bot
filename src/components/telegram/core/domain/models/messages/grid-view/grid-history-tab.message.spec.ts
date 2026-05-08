@@ -73,22 +73,25 @@ describe('GridHistoryTabMessage', () => {
             makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, 6),
             makeOrder(OrderSide.Buy, OrderStatus.Filled, 90000, 0),
         ];
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders)).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders), 'UTC').text;
         expect(result).toContain('<b>Order History (2)</b>');
     });
 
     it('shows Order History header with count 0 when no filled orders', () => {
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), [])).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), []), 'UTC').text;
         expect(result).toContain('<b>Order History (0)</b>');
     });
 
     it('shows current price line right after the header', () => {
-        const result = GridHistoryTabMessage.create(makeData(makeGrid())).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid()), 'UTC').text;
         expect(result).toContain('<b>Current Price:</b> $95000');
     });
 
     it('does not show status/duration row', () => {
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(GridStatus.Running))).text;
+        const result = GridHistoryTabMessage.create(
+            makeData(makeGrid(GridStatus.Running)),
+            'UTC',
+        ).text;
         expect(result).not.toContain('Active');
         expect(result).not.toContain('🟢');
     });
@@ -99,18 +102,18 @@ describe('GridHistoryTabMessage', () => {
             makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, 6),
             makeOrder(OrderSide.Buy, OrderStatus.Filled, 90000, 0),
         ];
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders)).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders), 'UTC').text;
         expect(result).toContain('▲ Sell');
         expect(result).toContain('▼ Buy');
     });
 
     it('shows "no filled orders yet" when filledOrders is empty', () => {
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), [])).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), []), 'UTC').text;
         expect(result).toContain('no filled orders yet');
     });
 
     it('does not show display limit note when no filled orders', () => {
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), [])).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), []), 'UTC').text;
         expect(result).not.toContain('Showing last');
     });
 
@@ -119,7 +122,7 @@ describe('GridHistoryTabMessage', () => {
             makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, 6),
             makeOrder(OrderSide.Buy, OrderStatus.Filled, 90000, 0),
         ];
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders)).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders), 'UTC').text;
         expect(result).toContain('Showing last 2 filled orders');
     });
 
@@ -127,7 +130,7 @@ describe('GridHistoryTabMessage', () => {
         const filledOrders = Array.from({ length: 31 }, (_, i) =>
             makeOrder(OrderSide.Sell, OrderStatus.Filled, 96000, i % 10),
         );
-        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders)).text;
+        const result = GridHistoryTabMessage.create(makeData(makeGrid(), filledOrders), 'UTC').text;
         expect(result.match(/▲ Sell/g)?.length).toBe(30);
         expect(result).toContain('<b>Order History (30)</b>');
         expect(result).toContain('Showing last 30 filled orders');

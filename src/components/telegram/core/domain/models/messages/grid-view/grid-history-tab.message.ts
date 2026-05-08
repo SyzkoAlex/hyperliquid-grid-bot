@@ -10,7 +10,7 @@ const HISTORY_DISPLAY_LIMIT = 30;
 export class GridHistoryTabMessage {
     readonly text: string;
 
-    private constructor({ grid, filledOrders, currentPrice }: GridSnapshot) {
+    private constructor({ grid, filledOrders, currentPrice }: GridSnapshot, timezone: string) {
         const { pair, shortId } = gridHeaderParts(grid);
         const symbol = grid.symbol;
         const gridStep = (grid.upperPrice - grid.lowerPrice) / grid.levels;
@@ -22,7 +22,7 @@ export class GridHistoryTabMessage {
                 ? ['no filled orders yet']
                 : filled.map((o) => {
                       const line1 = formatOrderLine(o, symbol);
-                      const date = o.filledAt ? formatDate(o.filledAt) : '—';
+                      const date = o.filledAt ? formatDate(o.filledAt, timezone) : '—';
                       const profitPart =
                           o.side === OrderSide.Sell
                               ? `  · profit: +$${PriceFormatter.format(gridStep * o.amount)}`
@@ -42,7 +42,7 @@ export class GridHistoryTabMessage {
             `${lines.join('\n')}\n`;
     }
 
-    static create(snapshot: GridSnapshot): GridHistoryTabMessage {
-        return new GridHistoryTabMessage(snapshot);
+    static create(snapshot: GridSnapshot, timezone: string): GridHistoryTabMessage {
+        return new GridHistoryTabMessage(snapshot, timezone);
     }
 }
