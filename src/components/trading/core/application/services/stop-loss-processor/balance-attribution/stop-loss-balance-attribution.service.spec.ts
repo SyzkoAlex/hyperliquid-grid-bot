@@ -186,5 +186,72 @@ describe('StopLossBalanceAttributionService', () => {
                 'ETH',
             );
         });
+
+        it('subtracts other same-symbol grids reserved base before clamping', async () => {
+            // Account has 1.5 ETH total: 0.5 for this grid + 1.0 for another grid
+            mockUserBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(1.5),
+            });
+            // Both grids have no fills — theoretical base = investmentBase
+            mockGrids.findOrdersByGridId.mockResolvedValue([]);
+
+            const grid = makeGrid(0.5);
+            const otherGrid = {
+                id: 'grid-2',
+                symbol: 'ETH',
+                investmentBase: 1.0,
+                investmentUSDC: 2000,
+            };
+
+            const result = await sut.computeSellAmount(grid as any, accountAddress, [
+                otherGrid,
+            ] as any);
+
+            // availableBalance = 1.5 - 1.0 = 0.5; computed = 0.5 → result = 0.5
+            expect(result.toNumber()).toBeCloseTo(0.5);
+        });
+
+        it('returns zero when other same-symbol grids reserve the entire account balance', async () => {
+            // Other grid claims more than the total account balance
+            mockUserBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(0.8),
+            });
+            mockGrids.findOrdersByGridId.mockResolvedValue([]);
+
+            const grid = makeGrid(0.5);
+            const otherGrid = {
+                id: 'grid-2',
+                symbol: 'ETH',
+                investmentBase: 1.0,
+                investmentUSDC: 2000,
+            };
+
+            const result = await sut.computeSellAmount(grid as any, accountAddress, [
+                otherGrid,
+            ] as any);
+
+            // availableBalance = max(0, 0.8 - 1.0) = 0 → result = 0
+            expect(result.toNumber()).toBe(0);
+        });
+
+        it('ignores other grids on a different symbol', async () => {
+            mockGrids.findOrdersByGridId.mockResolvedValue([]);
+            const grid = makeGrid(0.5);
+            const otherGrid = {
+                id: 'grid-2',
+                symbol: 'BTC',
+                investmentBase: 1.0,
+                investmentUSDC: 2000,
+            };
+
+            const result = await sut.computeSellAmount(grid as any, accountAddress, [
+                otherGrid,
+            ] as any);
+
+            // BTC grid does not reduce ETH available balance
+            expect(result.toNumber()).toBeCloseTo(0.5);
+        });
     });
 });

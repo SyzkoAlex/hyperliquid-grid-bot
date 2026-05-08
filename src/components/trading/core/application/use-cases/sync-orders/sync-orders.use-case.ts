@@ -102,6 +102,7 @@ export class SyncOrdersUseCase {
                     accountAddress,
                     currentPrice,
                     Date.now(),
+                    activeGrids,
                 );
                 if (stopped) stoppedGridIds.add(grid.id);
             } catch (error) {

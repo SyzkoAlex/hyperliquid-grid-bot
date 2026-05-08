@@ -14,7 +14,6 @@ export const CREATE_GRID_ACTIONS = {
 
     // Stop-loss selection
     STOP_LOSS_OFF: 'create_grid:stop_loss:off',
-    STOP_LOSS_ON: 'create_grid:stop_loss:on',
 
     // Navigation
     CONFIRM: 'create_grid:confirm',

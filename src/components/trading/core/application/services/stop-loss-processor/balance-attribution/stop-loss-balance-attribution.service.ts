@@ -23,35 +23,53 @@ export class StopLossBalanceAttributionService {
 
     /**
      * Computes how much base to sell: initialBaseAmount + filled_buy_qty − filled_sell_qty,
-     * clamped to the actual on-account balance.
+     * clamped to the available on-account balance after reserving other same-symbol grids' base.
      */
-    async computeSellAmount(grid: GridDto, accountAddress: string): Promise<Decimal> {
+    async computeSellAmount(
+        grid: GridDto,
+        accountAddress: string,
+        otherActiveGrids: GridDto[] = [],
+    ): Promise<Decimal> {
         const userState = await this.exchange.getUserSpotState(accountAddress);
         const { baseBalance } = this.userBalanceExtractor.extractBalances(userState, grid.symbol);
-        return this.computeGridAttributableBase(grid, baseBalance);
+
+        const sameSymbolOtherGrids = otherActiveGrids.filter((g) => g.symbol === grid.symbol);
+
+        let reservedByOthers = 0;
+        if (sameSymbolOtherGrids.length > 0) {
+            const reservations = await Promise.all(
+                sameSymbolOtherGrids.map((g) => this.computeTheoreticalBase(g)),
+            );
+            reservedByOthers = reservations.reduce((sum, v) => sum + v, 0);
+        }
+
+        const availableBalance = Decimal.from(
+            Math.max(0, baseBalance.toNumber() - reservedByOthers),
+        );
+        return this.computeGridAttributableBase(grid, availableBalance);
+    }
+
+    private async computeTheoreticalBase(grid: GridDto): Promise<number> {
+        const initialBase = Decimal.from(grid.investmentBase).toNumber();
+        const allOrders = await this.grids.findOrdersByGridId(grid.id);
+        const filledOrders = allOrders.filter((o) => o.status === OrderStatus.Filled);
+        const filledBuyQty = filledOrders
+            .filter((o) => o.side === OrderSide.Buy)
+            .reduce((sum, o) => sum + o.amount, 0);
+        const filledSellQty = filledOrders
+            .filter((o) => o.side === OrderSide.Sell)
+            .reduce((sum, o) => sum + o.amount, 0);
+        return Math.max(0, initialBase + filledBuyQty - filledSellQty);
     }
 
     private async computeGridAttributableBase(
         grid: GridDto,
-        baseBalance: Decimal,
+        availableBalance: Decimal,
     ): Promise<Decimal> {
-        const initialBase = Decimal.from(grid.investmentBase);
+        const computed = Decimal.from(await this.computeTheoreticalBase(grid));
 
-        const allOrders = await this.grids.findOrdersByGridId(grid.id);
-        const filledOrders = allOrders.filter((o) => o.status === OrderStatus.Filled);
-
-        const filledBuyQty = filledOrders
-            .filter((o) => o.side === OrderSide.Buy)
-            .reduce((sum, o) => sum + o.amount, 0);
-
-        const filledSellQty = filledOrders
-            .filter((o) => o.side === OrderSide.Sell)
-            .reduce((sum, o) => sum + o.amount, 0);
-
-        const computed = Decimal.from(initialBase.toNumber() + filledBuyQty - filledSellQty);
-
-        // Never exceed what is actually on the account.
-        const clamped = computed.gt(baseBalance) ? baseBalance : computed;
+        // Never exceed what is actually available (account balance minus what other same-symbol grids need).
+        const clamped = computed.gt(availableBalance) ? availableBalance : computed;
 
         // Guard against negative (e.g. data inconsistency).
         const result = clamped.lte(Decimal.zero()) ? Decimal.zero() : clamped;
@@ -59,10 +77,8 @@ export class StopLossBalanceAttributionService {
         this.logger.debug(
             {
                 gridId: grid.id,
-                initialBase: initialBase.toNumber(),
-                filledBuyQty,
-                filledSellQty,
-                baseBalance: baseBalance.toNumber(),
+                computed: computed.toNumber(),
+                availableBalance: availableBalance.toNumber(),
                 result: result.toNumber(),
             },
             'Computed grid-attributable base balance',

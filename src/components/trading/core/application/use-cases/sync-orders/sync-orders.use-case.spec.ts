@@ -471,6 +471,7 @@ describe('SyncOrdersUseCase', () => {
                 '0x123',
                 39000,
                 expect.any(Number),
+                expect.arrayContaining([expect.objectContaining({ id: grid.id })]),
             );
         });
     });

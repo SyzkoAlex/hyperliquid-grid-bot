@@ -173,5 +173,17 @@ describe('StopLossProcessorService', () => {
             expect(event.success).toBe(false);
             expect(event.errorMessage).toContain('IOC sell unfilled');
         });
+
+        it('publishes failure event when teardown throws after marking grid stopped', async () => {
+            mockCancellation.cancelActiveOrders.mockRejectedValue(new Error('DB connection lost'));
+            const grid = makeGrid();
+            await sut.process(grid as any, accountAddress, deepBelow, NOW);
+            expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1');
+            expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
+            const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
+            expect(event.success).toBe(false);
+            expect(event.soldBaseAmount).toBe(0);
+            expect(event.errorMessage).toContain('Teardown error');
+        });
     });
 });

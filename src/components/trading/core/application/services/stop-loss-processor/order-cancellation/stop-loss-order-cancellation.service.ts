@@ -25,12 +25,15 @@ export class StopLossOrderCancellationService {
     ): Promise<CancelActiveOrdersResult> {
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
 
+        const results = await Promise.allSettled(
+            activeOrders.map((order) => this.cancelOrder(order, accountAddress)),
+        );
+
         let cancelledCount = 0;
         let failedCount = 0;
 
-        for (const order of activeOrders) {
-            const cancelled = await this.cancelOrder(order, accountAddress);
-            if (cancelled) {
+        for (const r of results) {
+            if (r.status === 'fulfilled' && r.value) {
                 cancelledCount++;
             } else {
                 failedCount++;

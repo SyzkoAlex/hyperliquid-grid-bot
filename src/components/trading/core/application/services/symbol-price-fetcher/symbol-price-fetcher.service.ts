@@ -5,6 +5,7 @@ import {
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 
+/** Fetches mid prices for a set of symbols in parallel; symbols with failed fetches are silently dropped from the result map. */
 @Injectable()
 export class SymbolPriceFetcherService {
     constructor(@Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort) {}

@@ -37,6 +37,7 @@ export class StopLossProcessorService {
         accountAddress: string,
         currentMid: number,
         now: number,
+        allActiveGrids: GridDto[] = [],
     ): Promise<boolean> {
         if (!grid.stopLossEnabled || !grid.stopLossPrice || grid.stopLossTriggeredAt) return false;
 
@@ -53,7 +54,13 @@ export class StopLossProcessorService {
             'Stop-loss condition confirmed — initiating teardown',
         );
 
-        await this.executeTeardown(grid, grid.stopLossPrice, accountAddress, currentMid);
+        await this.executeTeardown(
+            grid,
+            grid.stopLossPrice,
+            accountAddress,
+            currentMid,
+            allActiveGrids,
+        );
         return true;
     }
 
@@ -62,46 +69,72 @@ export class StopLossProcessorService {
         stopLossPrice: number,
         accountAddress: string,
         currentMid: number,
+        allActiveGrids: GridDto[] = [],
     ): Promise<void> {
         await this.grids.markStoppedByStopLoss(grid.id);
-        const cancellationResult = await this.cancellation.cancelActiveOrders(
-            grid.id,
-            accountAddress,
-        );
 
-        const sellAmount = await this.balanceAttribution.computeSellAmount(grid, accountAddress);
-
-        let result: StopLossMarketSellResult;
-        if (sellAmount.lte(Decimal.zero())) {
-            this.logger.info(
-                { gridId: grid.id },
-                'Nothing to sell — zero grid-attributable base balance',
-            );
-            result = { success: true, soldBaseAmount: 0, receivedUSDC: 0 };
-        } else {
-            result = await this.marketSell.execute({
-                gridId: grid.id,
-                symbol: grid.symbol,
-                amount: sellAmount,
-                currentMid,
-                accountAddress,
-            });
-        }
-
-        result = this.appendCancelWarning(result, cancellationResult, grid.id);
-
-        await this.eventPublisher.publish(
-            new GridStopLossTriggeredEvent(
+        try {
+            const cancellationResult = await this.cancellation.cancelActiveOrders(
                 grid.id,
-                grid.symbol,
-                stopLossPrice,
-                currentMid,
-                result.soldBaseAmount,
-                result.receivedUSDC,
-                result.success,
-                result.errorMessage,
-            ),
-        );
+                accountAddress,
+            );
+
+            const otherActiveGrids = allActiveGrids.filter((g) => g.id !== grid.id);
+            const sellAmount = await this.balanceAttribution.computeSellAmount(
+                grid,
+                accountAddress,
+                otherActiveGrids,
+            );
+
+            let result: StopLossMarketSellResult;
+            if (sellAmount.lte(Decimal.zero())) {
+                this.logger.info(
+                    { gridId: grid.id },
+                    'Nothing to sell — zero grid-attributable base balance',
+                );
+                result = { success: true, soldBaseAmount: 0, receivedUSDC: 0 };
+            } else {
+                result = await this.marketSell.execute({
+                    gridId: grid.id,
+                    symbol: grid.symbol,
+                    amount: sellAmount,
+                    currentMid,
+                    accountAddress,
+                });
+            }
+
+            result = this.appendCancelWarning(result, cancellationResult, grid.id);
+
+            await this.eventPublisher.publish(
+                new GridStopLossTriggeredEvent(
+                    grid.id,
+                    grid.symbol,
+                    stopLossPrice,
+                    currentMid,
+                    result.soldBaseAmount,
+                    result.receivedUSDC,
+                    result.success,
+                    result.errorMessage,
+                ),
+            );
+        } catch (error) {
+            this.logger.error(
+                { error, gridId: grid.id },
+                'Stop-loss teardown failed after marking grid stopped — publishing failure event',
+            );
+            await this.eventPublisher.publish(
+                new GridStopLossTriggeredEvent(
+                    grid.id,
+                    grid.symbol,
+                    stopLossPrice,
+                    currentMid,
+                    0,
+                    0,
+                    false,
+                    `Teardown error: ${error instanceof Error ? error.message : String(error)}`,
+                ),
+            );
+        }
     }
 
     private appendCancelWarning(

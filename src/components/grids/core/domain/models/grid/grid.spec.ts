@@ -46,7 +46,7 @@ describe('Grid.validate', () => {
             ).toThrow('Stop-loss price must be at least 0.5% below lower price');
         });
 
-        it('accepts stopLossPrice exactly at the 0.5% boundary (inclusive lower bound is rejected)', () => {
+        it('rejects stopLossPrice exactly at the 0.5% boundary', () => {
             // Exactly 0.5% below: 2000 * 0.995 = 1990 — this equals minBuffer so should throw
             expect(() =>
                 Grid.create({
