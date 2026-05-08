@@ -11,6 +11,7 @@ import {
 import { GRIDS_API_PORT } from '@components/grids/api/grids-api.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 
 describe('OrdersPollingAdapter (Unit)', () => {
     let module: TestingModule;
@@ -20,8 +21,8 @@ describe('OrdersPollingAdapter (Unit)', () => {
     let mockGridsApi: { findActiveGridsByCursor: ReturnType<typeof vi.fn> };
     let mockExchange: {
         getOpenSpotOrders: ReturnType<typeof vi.fn>;
-        getCurrentPrice: ReturnType<typeof vi.fn>;
     };
+    let mockPriceFetcher: { fetchPrices: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
         mockSyncOrders = { executeForGrids: vi.fn().mockResolvedValue(undefined) };
@@ -39,7 +40,10 @@ describe('OrdersPollingAdapter (Unit)', () => {
 
         mockExchange = {
             getOpenSpotOrders: vi.fn().mockResolvedValue([]),
-            getCurrentPrice: vi.fn().mockResolvedValue({ toNumber: () => 50000 }),
+        };
+
+        mockPriceFetcher = {
+            fetchPrices: vi.fn().mockResolvedValue(new Map([['BTC', 50000]])),
         };
 
         module = await Test.createTestingModule({
@@ -56,6 +60,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
                 },
                 { provide: GRIDS_API_PORT, useValue: mockGridsApi },
                 { provide: EXCHANGE_PORT, useValue: mockExchange },
+                { provide: SymbolPriceFetcherService, useValue: mockPriceFetcher },
             ],
         }).compile();
 

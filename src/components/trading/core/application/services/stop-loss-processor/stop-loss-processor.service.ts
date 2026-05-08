@@ -53,16 +53,16 @@ export class StopLossProcessorService {
             'Stop-loss condition confirmed — initiating teardown',
         );
 
-        await this.executeTeardown(grid, accountAddress, currentMid);
+        await this.executeTeardown(grid, grid.stopLossPrice, accountAddress, currentMid);
         return true;
     }
 
     private async executeTeardown(
         grid: GridDto,
+        stopLossPrice: number,
         accountAddress: string,
         currentMid: number,
     ): Promise<void> {
-        // Sets status=Stopped and stop_loss_triggered_at so concurrent polls skip this grid.
         await this.grids.markStoppedByStopLoss(grid.id);
         const cancellationResult = await this.cancellation.cancelActiveOrders(
             grid.id,
@@ -79,21 +79,22 @@ export class StopLossProcessorService {
             );
             result = { success: true, soldBaseAmount: 0, receivedUSDC: 0 };
         } else {
-            const sellResult = await this.marketSell.execute({
+            result = await this.marketSell.execute({
                 gridId: grid.id,
                 symbol: grid.symbol,
                 amount: sellAmount,
                 currentMid,
                 accountAddress,
             });
-            result = this.appendCancelWarning(sellResult, cancellationResult, grid.id);
         }
+
+        result = this.appendCancelWarning(result, cancellationResult, grid.id);
 
         await this.eventPublisher.publish(
             new GridStopLossTriggeredEvent(
                 grid.id,
                 grid.symbol,
-                grid.stopLossPrice!,
+                stopLossPrice,
                 currentMid,
                 result.soldBaseAmount,
                 result.receivedUSDC,

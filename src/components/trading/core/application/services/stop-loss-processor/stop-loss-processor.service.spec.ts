@@ -16,7 +16,7 @@ const makeGrid = (overrides: Record<string, unknown> = {}) => ({
     investmentBase: 0.5,
     stopLossEnabled: true,
     stopLossPrice: STOP_LOSS_PRICE,
-    stopLossTriggeredAt: null,
+    stopLossTriggeredAt: undefined,
     trailingEnabled: false,
     trailingTriggerPercent: 5,
     trailingStepPercent: 2,
@@ -78,7 +78,7 @@ describe('StopLossProcessorService', () => {
         });
 
         it('returns false without calling evaluator when stopLossTriggeredAt is already set', async () => {
-            const grid = makeGrid({ stopLossTriggeredAt: new Date() });
+            const grid = makeGrid({ stopLossTriggeredAt: Date.now() });
             expect(await sut.process(grid as any, accountAddress, deepBelow, NOW)).toBe(false);
             expect(mockBreachEvaluator.evaluate).not.toHaveBeenCalled();
         });
@@ -135,6 +135,18 @@ describe('StopLossProcessorService', () => {
             const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
             expect(event.soldBaseAmount).toBe(0);
             expect(event.success).toBe(true);
+        });
+
+        it('includes cancel failure warning in event even when sell amount is zero', async () => {
+            mockBalanceAttribution.computeSellAmount.mockResolvedValue(Decimal.zero());
+            mockCancellation.cancelActiveOrders.mockResolvedValue({
+                cancelledCount: 0,
+                failedCount: 1,
+            });
+            const grid = makeGrid();
+            await sut.process(grid as any, accountAddress, deepBelow, NOW);
+            const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
+            expect(event.errorMessage).toContain('1 order(s) could not be cancelled');
         });
 
         it('includes cancel failure warning in event when some orders failed to cancel', async () => {
