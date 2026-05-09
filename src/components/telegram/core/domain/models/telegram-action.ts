@@ -4,4 +4,5 @@ export enum TelegramAction {
     CreateGrid = 'create:grid',
     ShowSettings = 'show:settings',
     ShowHelp = 'show:help',
+    ConnectAccount = 'connect:account',
 }

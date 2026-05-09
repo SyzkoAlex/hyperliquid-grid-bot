@@ -4,6 +4,9 @@ import { BotContext } from '../types/bot-context';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { UserStatus } from '@domain/models/user/user-status';
 import { CONNECT_ACCOUNT_SCENE_ID } from '../scenes/connect-account/connect-account.scene';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { UsersApiPort } from '@components/users/api/users-api.port';
 
 const mockLog = vi.hoisted(() => {
     const log = {
@@ -46,9 +49,15 @@ describe('createAuthMiddleware', () => {
         findUserByChatId: vi.fn().mockResolvedValue(null),
     };
     // No single-user restriction — all users go through the full auth flow
-    const middlewareNoRestriction = createAuthMiddleware(undefined, mockUsersApi as any);
+    const middlewareNoRestriction = createAuthMiddleware(
+        undefined,
+        mockUsersApi as unknown as UsersApiPort,
+    );
     // Single-user restriction to ALLOWED_CHAT_ID
-    const middlewareRestricted = createAuthMiddleware(ALLOWED_CHAT_ID, mockUsersApi as any);
+    const middlewareRestricted = createAuthMiddleware(
+        ALLOWED_CHAT_ID,
+        mockUsersApi as unknown as UsersApiPort,
+    );
 
     it('calls next when chatId matches allowedChatId (allowed user bypass)', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(ACTIVE_USER);
@@ -132,5 +141,122 @@ describe('createAuthMiddleware', () => {
 
         expect(next).toHaveBeenCalledOnce();
         expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows /balance for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999, '/balance');
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows BUTTON_LABELS.BALANCE hears for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999, BUTTON_LABELS.BALANCE);
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows BUTTON_LABELS.CREATE_GRID hears for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999, BUTTON_LABELS.CREATE_GRID);
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows ShowBalance callback for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999);
+        (ctx as any).callbackQuery = { data: TelegramAction.ShowBalance };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows CreateGrid callback for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999);
+        (ctx as any).callbackQuery = { data: TelegramAction.CreateGrid };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows ConnectAccount callback for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999);
+        (ctx as any).callbackQuery = { data: TelegramAction.ConnectAccount };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('allows ShowHelp callback for unregistered users', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(null);
+        const ctx = makeCtx(999999);
+        (ctx as any).callbackQuery = { data: TelegramAction.ShowHelp };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it('sets ctx.user for PendingApproval user reaching a PUBLIC_CALLBACK_ACTION', async () => {
+        const pendingUser = { status: UserStatus.PendingApproval, accountAddress: '0xpending' };
+        mockUsersApi.findUserByChatId.mockResolvedValue(pendingUser);
+        const ctx = makeCtx(999999);
+        (ctx as any).callbackQuery = { data: TelegramAction.ConnectAccount };
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.user).toBe(pendingUser);
+    });
+
+    it('sets ctx.user for PendingApproval user reaching a PUBLIC_TEXT_ENTRY', async () => {
+        const pendingUser = { status: UserStatus.PendingApproval, accountAddress: '0xpending' };
+        mockUsersApi.findUserByChatId.mockResolvedValue(pendingUser);
+        const ctx = makeCtx(999999, BUTTON_LABELS.BALANCE);
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.user).toBe(pendingUser);
+    });
+
+    it('sets ctx.user for active user', async () => {
+        mockUsersApi.findUserByChatId.mockResolvedValue(ACTIVE_USER);
+        const ctx = makeCtx(999999);
+        const next = makeNext().mockResolvedValue(undefined);
+
+        await middlewareNoRestriction(ctx, asNext(next));
+
+        expect(next).toHaveBeenCalledOnce();
+        expect(ctx.user).toBe(ACTIVE_USER);
     });
 });

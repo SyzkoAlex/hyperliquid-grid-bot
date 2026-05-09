@@ -10,7 +10,9 @@ import { Handler } from '../handler';
 import { toInlineKeyboard } from '../inline-keyboard';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
-import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
+import { UserStatus } from '@domain/models/user/user-status';
+import { ConnectAccountMessages } from '@components/telegram/core/domain/models/messages/wizard/connect-account.messages';
+import { connectCtaKeyboard } from '../connect-cta.keyboard';
 
 @Injectable()
 export class BalanceHandler implements Handler {
@@ -47,11 +49,13 @@ export class BalanceHandler implements Handler {
     private async buildView(
         ctx: BotContext,
     ): Promise<{ text: string; keyboard: InlineButton[][] }> {
-        const accountAddress = ctx.user?.accountAddress;
-        if (!accountAddress) {
-            return { text: CommonTexts.ACCOUNT_NOT_CONNECTED, keyboard: [] };
+        if (ctx.user?.status !== UserStatus.Active) {
+            return {
+                text: ConnectAccountMessages.whyConnect(),
+                keyboard: connectCtaKeyboard(),
+            };
         }
-        const balance = await this.getBalanceUseCase.execute(accountAddress);
+        const balance = await this.getBalanceUseCase.execute(ctx.user.accountAddress);
         const text = BalanceMessage.create(balance).text;
         const keyboard: InlineButton[][] = [
             [{ text: BUTTON_LABELS.REFRESH, action: TelegramAction.ShowBalance }],

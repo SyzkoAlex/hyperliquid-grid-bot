@@ -11,6 +11,7 @@ import { GridOrdersTabHandler } from '@components/telegram/adapters/inbound/tele
 import { GridHistoryTabHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/grid-history-tab.handler';
 import { StopGridHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/stop-grid.handler';
 import { BalanceHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/balance/balance.handler';
+import { ConnectAccountHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/connect-account/connect-account.handler';
 import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
@@ -22,6 +23,11 @@ import { CommonTexts } from '@components/telegram/core/domain/models/messages/co
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 import { ManagedLockHandle } from '@/core/application/services/managed-lock/managed-lock-handle';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
+import { UserStatus } from '@domain/models/user/user-status';
+import { ConnectAccountMessages } from '@components/telegram/core/domain/models/messages/wizard/connect-account.messages';
+import { connectCtaKeyboard } from '../telegram-bot/handlers/connect-cta.keyboard';
+import { toInlineKeyboard } from '../telegram-bot/handlers/inline-keyboard';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 // Time to wait after stopping the bot before releasing the lock, to let in-flight
 // getUpdates responses finish processing before another instance can acquire the lock.
@@ -42,6 +48,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly gridHistoryTabHandler: GridHistoryTabHandler,
         private readonly stopGridHandler: StopGridHandler,
         private readonly balanceHandler: BalanceHandler,
+        private readonly connectAccountHandler: ConnectAccountHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
         private readonly connectAccountSceneHandler: ConnectAccountSceneHandler,
         private readonly managedLock: ManagedLockService,
@@ -91,6 +98,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         this.gridHistoryTabHandler.register();
         this.stopGridHandler.register();
         this.balanceHandler.register();
+        this.connectAccountHandler.register();
         this.registerCreateGridHandler();
         this.registerStubHandlers();
     }
@@ -99,13 +107,28 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         this.telegramBotService.onAction(TelegramAction.CreateGrid, (ctx: BotContext) =>
             this.handleCreateGrid(ctx),
         );
-        this.telegramBotService.onHears(BUTTON_LABELS.CREATE_GRID, async (ctx: BotContext) => {
-            await ctx.scene.enter(CREATE_GRID_SCENE_ID);
-        });
+        this.telegramBotService.onHears(BUTTON_LABELS.CREATE_GRID, (ctx: BotContext) =>
+            this.handleCreateGridHears(ctx),
+        );
     }
 
     private async handleCreateGrid(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
+        await this.routeCreateGrid(ctx);
+    }
+
+    private async handleCreateGridHears(ctx: BotContext): Promise<void> {
+        await this.routeCreateGrid(ctx);
+    }
+
+    private async routeCreateGrid(ctx: BotContext): Promise<void> {
+        if (ctx.user?.status !== UserStatus.Active) {
+            await ctx.reply(ConnectAccountMessages.whyConnect(), {
+                parse_mode: TelegramParseMode.HTML,
+                ...toInlineKeyboard(connectCtaKeyboard()),
+            });
+            return;
+        }
         await ctx.scene.enter(CREATE_GRID_SCENE_ID);
     }
 
