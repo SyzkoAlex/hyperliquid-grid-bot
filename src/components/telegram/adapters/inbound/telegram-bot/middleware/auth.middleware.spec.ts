@@ -32,12 +32,26 @@ function asNext(fn: ReturnType<typeof makeNext>): () => Promise<void> {
     return fn as unknown as () => Promise<void>;
 }
 
-function makeCtx(chatId?: number, messageText?: string): BotContext {
+interface MakeCtxOptions {
+    chatId?: number;
+    messageText?: string;
+    callbackQuery?: { data: string };
+    session?: Record<string, unknown>;
+}
+
+function makeCtx(chatIdOrOpts?: number | MakeCtxOptions, messageText?: string): BotContext {
+    const opts: MakeCtxOptions =
+        typeof chatIdOrOpts === 'number'
+            ? { chatId: chatIdOrOpts, messageText }
+            : (chatIdOrOpts ?? {});
+
     return {
-        chat: chatId !== undefined ? { id: chatId } : undefined,
+        chat: opts.chatId !== undefined ? { id: opts.chatId } : undefined,
         reply: vi.fn().mockResolvedValue(undefined),
-        message: messageText !== undefined ? { text: messageText } : undefined,
+        message: opts.messageText !== undefined ? { text: opts.messageText } : undefined,
         scene: { current: null },
+        callbackQuery: opts.callbackQuery,
+        session: opts.session,
     } as unknown as BotContext;
 }
 
@@ -133,8 +147,11 @@ describe('createAuthMiddleware', () => {
 
     it('allows unregistered user who is already in connect-account scene', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(null);
-        const ctx = makeCtx(999999, '0xabc');
-        (ctx as any).session = { __scenes: { current: CONNECT_ACCOUNT_SCENE_ID } };
+        const ctx = makeCtx({
+            chatId: 999999,
+            messageText: '0xabc',
+            session: { __scenes: { current: CONNECT_ACCOUNT_SCENE_ID } },
+        });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));
@@ -178,8 +195,10 @@ describe('createAuthMiddleware', () => {
 
     it('allows ShowBalance callback for unregistered users', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(null);
-        const ctx = makeCtx(999999);
-        (ctx as any).callbackQuery = { data: TelegramAction.ShowBalance };
+        const ctx = makeCtx({
+            chatId: 999999,
+            callbackQuery: { data: TelegramAction.ShowBalance },
+        });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));
@@ -190,8 +209,7 @@ describe('createAuthMiddleware', () => {
 
     it('allows CreateGrid callback for unregistered users', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(null);
-        const ctx = makeCtx(999999);
-        (ctx as any).callbackQuery = { data: TelegramAction.CreateGrid };
+        const ctx = makeCtx({ chatId: 999999, callbackQuery: { data: TelegramAction.CreateGrid } });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));
@@ -202,8 +220,10 @@ describe('createAuthMiddleware', () => {
 
     it('allows ConnectAccount callback for unregistered users', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(null);
-        const ctx = makeCtx(999999);
-        (ctx as any).callbackQuery = { data: TelegramAction.ConnectAccount };
+        const ctx = makeCtx({
+            chatId: 999999,
+            callbackQuery: { data: TelegramAction.ConnectAccount },
+        });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));
@@ -214,8 +234,7 @@ describe('createAuthMiddleware', () => {
 
     it('allows ShowHelp callback for unregistered users', async () => {
         mockUsersApi.findUserByChatId.mockResolvedValue(null);
-        const ctx = makeCtx(999999);
-        (ctx as any).callbackQuery = { data: TelegramAction.ShowHelp };
+        const ctx = makeCtx({ chatId: 999999, callbackQuery: { data: TelegramAction.ShowHelp } });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));
@@ -227,8 +246,10 @@ describe('createAuthMiddleware', () => {
     it('sets ctx.user for PendingApproval user reaching a PUBLIC_CALLBACK_ACTION', async () => {
         const pendingUser = { status: UserStatus.PendingApproval, accountAddress: '0xpending' };
         mockUsersApi.findUserByChatId.mockResolvedValue(pendingUser);
-        const ctx = makeCtx(999999);
-        (ctx as any).callbackQuery = { data: TelegramAction.ConnectAccount };
+        const ctx = makeCtx({
+            chatId: 999999,
+            callbackQuery: { data: TelegramAction.ConnectAccount },
+        });
         const next = makeNext().mockResolvedValue(undefined);
 
         await middlewareNoRestriction(ctx, asNext(next));

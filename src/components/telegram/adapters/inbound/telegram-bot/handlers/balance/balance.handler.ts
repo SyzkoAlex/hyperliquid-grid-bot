@@ -11,8 +11,7 @@ import { toInlineKeyboard } from '../inline-keyboard';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { UserStatus } from '@domain/models/user/user-status';
-import { ConnectAccountMessages } from '@components/telegram/core/domain/models/messages/wizard/connect-account.messages';
-import { connectCtaKeyboard } from '../connect-cta.keyboard';
+import { replyConnectCta } from '../connect-cta.keyboard';
 
 @Injectable()
 export class BalanceHandler implements Handler {
@@ -30,7 +29,11 @@ export class BalanceHandler implements Handler {
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        const view = await this.buildView(ctx);
+        if (ctx.user?.status !== UserStatus.Active) {
+            await replyConnectCta(ctx);
+            return;
+        }
+        const view = await this.buildActiveView(ctx.user.accountAddress);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -39,23 +42,21 @@ export class BalanceHandler implements Handler {
 
     private async handleAction(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
-        const view = await this.buildView(ctx);
+        if (ctx.user?.status !== UserStatus.Active) {
+            await replyConnectCta(ctx);
+            return;
+        }
+        const view = await this.buildActiveView(ctx.user.accountAddress);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
-    private async buildView(
-        ctx: BotContext,
+    private async buildActiveView(
+        accountAddress: string,
     ): Promise<{ text: string; keyboard: InlineButton[][] }> {
-        if (ctx.user?.status !== UserStatus.Active) {
-            return {
-                text: ConnectAccountMessages.whyConnect(),
-                keyboard: connectCtaKeyboard(),
-            };
-        }
-        const balance = await this.getBalanceUseCase.execute(ctx.user.accountAddress);
+        const balance = await this.getBalanceUseCase.execute(accountAddress);
         const text = BalanceMessage.create(balance).text;
         const keyboard: InlineButton[][] = [
             [{ text: BUTTON_LABELS.REFRESH, action: TelegramAction.ShowBalance }],

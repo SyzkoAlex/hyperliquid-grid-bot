@@ -24,10 +24,7 @@ import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/t
 import { ManagedLockHandle } from '@/core/application/services/managed-lock/managed-lock-handle';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 import { UserStatus } from '@domain/models/user/user-status';
-import { ConnectAccountMessages } from '@components/telegram/core/domain/models/messages/wizard/connect-account.messages';
-import { connectCtaKeyboard } from '../telegram-bot/handlers/connect-cta.keyboard';
-import { toInlineKeyboard } from '../telegram-bot/handlers/inline-keyboard';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { replyConnectCta } from '../telegram-bot/handlers/connect-cta.keyboard';
 
 // Time to wait after stopping the bot before releasing the lock, to let in-flight
 // getUpdates responses finish processing before another instance can acquire the lock.
@@ -123,10 +120,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
 
     private async routeCreateGrid(ctx: BotContext): Promise<void> {
         if (ctx.user?.status !== UserStatus.Active) {
-            await ctx.reply(ConnectAccountMessages.whyConnect(), {
-                parse_mode: TelegramParseMode.HTML,
-                ...toInlineKeyboard(connectCtaKeyboard()),
-            });
+            await replyConnectCta(ctx);
             return;
         }
         await ctx.scene.enter(CREATE_GRID_SCENE_ID);

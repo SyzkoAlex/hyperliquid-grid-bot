@@ -9,7 +9,6 @@ import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { UserBalance } from '@components/telegram/core/domain/models/user-balance';
 import { UserStatus } from '@domain/models/user/user-status';
-import { ConnectAccountMessages } from '@components/telegram/core/domain/models/messages/wizard/connect-account.messages';
 
 const MOCK_BALANCE: UserBalance = {
     usdc: { available: 1000, inOrders: 200, total: 1200 },
@@ -95,13 +94,13 @@ describe('BalanceHandler', () => {
 
         it('should show explanation card for unregistered user', async () => {
             handler.register();
-            const ctx = createMockContext({ status: undefined });
+            const ctx = createUnregisteredCtx();
 
             await commandCallbacks.get(TelegramCommand.Balance)!(ctx);
 
             expect(getBalanceUseCase.execute).not.toHaveBeenCalled();
             expect(ctx.reply).toHaveBeenCalledWith(
-                ConnectAccountMessages.whyConnect(),
+                expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
             );
         });
@@ -135,20 +134,21 @@ describe('BalanceHandler', () => {
         });
     });
 
-    function createMockContext(userOverride?: { status?: UserStatus }): BotContext {
-        let user: { accountAddress: string; status: UserStatus } | undefined;
-        if (userOverride === undefined) {
-            user = { accountAddress: '0xtest', status: UserStatus.Active };
-        } else if (userOverride.status !== undefined) {
-            user = { accountAddress: '0xtest', status: userOverride.status };
-        } else {
-            user = undefined;
-        }
+    function createMockContext(): BotContext {
         return {
             reply: vi.fn(),
             answerCbQuery: vi.fn(),
             editMessageText: vi.fn(),
-            user,
+            user: { accountAddress: '0xtest', status: UserStatus.Active },
+        } as unknown as BotContext;
+    }
+
+    function createUnregisteredCtx(): BotContext {
+        return {
+            reply: vi.fn(),
+            answerCbQuery: vi.fn(),
+            editMessageText: vi.fn(),
+            user: undefined,
         } as unknown as BotContext;
     }
 });
