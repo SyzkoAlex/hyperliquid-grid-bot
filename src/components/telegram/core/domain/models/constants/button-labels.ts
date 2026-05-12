@@ -16,6 +16,7 @@ export const BUTTON_LABELS = {
     STOPPED_GRIDS: `${EMOJI.ARCHIVE} History`,
     BALANCE: `${EMOJI.MONEY_BAG} Balance`,
     CREATE_GRID: `${EMOJI.PLUS} Create Grid`,
+    CONNECT: `${EMOJI.KEY} Connect Hyperliquid Account`,
     SETTINGS: `${EMOJI.SETTINGS} Settings`,
     HELP: `${EMOJI.HELP} Help`,
     REFRESH: `${EMOJI.REFRESH} Refresh`,

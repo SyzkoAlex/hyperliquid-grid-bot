@@ -47,4 +47,17 @@ export const ConnectAccountMessages = {
     cancelled(): string {
         return 'Connection cancelled.';
     },
+
+    whyConnect(): string {
+        return (
+            '<b>Connect Your Hyperliquid Account</b>\n\n' +
+            'To place and cancel orders for you, the bot needs an <b>agent wallet</b> on your Hyperliquid account.\n\n' +
+            '<b>Why this is safe</b>\n' +
+            '• Agent wallets can <b>trade only</b> — they <b>cannot withdraw</b> your funds\n' +
+            '• You approve the agent yourself in the official Hyperliquid app\n' +
+            '• You can revoke it any time on the same page — one click\n' +
+            '• Your master wallet key is never shared with the bot\n\n' +
+            '<a href="https://app.hyperliquid.xyz/API">Open Hyperliquid API page</a>'
+        );
+    },
 };

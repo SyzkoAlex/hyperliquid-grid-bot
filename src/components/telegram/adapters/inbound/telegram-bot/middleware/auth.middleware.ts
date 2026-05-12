@@ -5,6 +5,24 @@ import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { UsersApiPort } from '@components/users/api/users-api.port';
 import { UserStatus } from '@domain/models/user/user-status';
 import { CONNECT_ACCOUNT_SCENE_ID } from '../scenes/connect-account/connect-account.scene';
+import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+
+// Public entry points — unregistered users may reach these so the handlers can
+// render a "connect first" explanation card.
+const PUBLIC_TEXT_ENTRIES: ReadonlySet<string> = new Set([
+    '/balance',
+    BUTTON_LABELS.BALANCE,
+    BUTTON_LABELS.CREATE_GRID,
+]);
+
+// Public callback actions (inline-button presses) accessible without registration.
+const PUBLIC_CALLBACK_ACTIONS: ReadonlySet<string> = new Set([
+    TelegramAction.ShowBalance,
+    TelegramAction.CreateGrid,
+    TelegramAction.ConnectAccount,
+    TelegramAction.ShowHelp,
+]);
 
 export function createAuthMiddleware(
     allowedUserId: number | undefined,
@@ -29,21 +47,37 @@ export function createAuthMiddleware(
         // Registered user lookup
         const user = await usersApi.findUserByChatId(chatId);
 
-        if (user?.status === UserStatus.Active) {
+        // Always propagate the user to ctx so downstream handlers have access,
+        // regardless of which branch grants access below.
+        if (user) {
             ctx.user = user;
+        }
+
+        if (user?.status === UserStatus.Active) {
             return next();
         }
 
         // Allow /start for unregistered users to begin onboarding
         const messageText =
             ctx.message && 'text' in ctx.message ? (ctx.message as { text: string }).text : '';
-        if (messageText?.startsWith('/start') ?? false) {
+        if (messageText.startsWith('/start')) {
+            return next();
+        }
+
+        if (messageText && PUBLIC_TEXT_ENTRIES.has(messageText)) {
+            return next();
+        }
+
+        const callbackData =
+            ctx.callbackQuery && 'data' in ctx.callbackQuery
+                ? (ctx.callbackQuery as { data: string }).data
+                : undefined;
+        if (callbackData && PUBLIC_CALLBACK_ACTIONS.has(callbackData)) {
             return next();
         }
 
         // Allow pending users and connect-account scene
         if (user?.status === UserStatus.PendingApproval) {
-            ctx.user = user;
             return next();
         }
 

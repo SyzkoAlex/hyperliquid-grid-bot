@@ -31,4 +31,5 @@ export const EMOJI = {
     ARCHIVE: '📦',
     REFRESH: '🔄',
     STOP: '🛑',
+    KEY: '🔑',
 } as const;

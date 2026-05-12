@@ -8,6 +8,7 @@ import { TelegramAction } from '@components/telegram/core/domain/models/telegram
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { UserBalance } from '@components/telegram/core/domain/models/user-balance';
+import { UserStatus } from '@domain/models/user/user-status';
 
 const MOCK_BALANCE: UserBalance = {
     usdc: { available: 1000, inOrders: 200, total: 1200 },
@@ -67,7 +68,7 @@ describe('BalanceHandler', () => {
     });
 
     describe('handle (command)', () => {
-        it('should fetch balance and reply with formatted text', async () => {
+        it('should fetch balance and reply with formatted text for active user', async () => {
             handler.register();
             const ctx = createMockContext();
 
@@ -80,7 +81,7 @@ describe('BalanceHandler', () => {
             );
         });
 
-        it('should include Refresh button in reply keyboard', async () => {
+        it('should include Refresh button in reply keyboard for active user', async () => {
             handler.register();
             const ctx = createMockContext();
 
@@ -90,10 +91,23 @@ describe('BalanceHandler', () => {
             const options = callArgs[1];
             expect(options.reply_markup).toBeDefined();
         });
+
+        it('should show explanation card for unregistered user', async () => {
+            handler.register();
+            const ctx = createUnregisteredCtx();
+
+            await commandCallbacks.get(TelegramCommand.Balance)!(ctx);
+
+            expect(getBalanceUseCase.execute).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
+            );
+        });
     });
 
     describe('handle (hears)', () => {
-        it('should fetch balance and reply on Balance button', async () => {
+        it('should fetch balance and reply on Balance button for active user', async () => {
             handler.register();
             const ctx = createMockContext();
 
@@ -105,7 +119,7 @@ describe('BalanceHandler', () => {
     });
 
     describe('handleAction', () => {
-        it('should answer callback, fetch balance, and edit message', async () => {
+        it('should answer callback, fetch balance, and edit message for active user', async () => {
             handler.register();
             const ctx = createMockContext();
 
@@ -125,7 +139,16 @@ describe('BalanceHandler', () => {
             reply: vi.fn(),
             answerCbQuery: vi.fn(),
             editMessageText: vi.fn(),
-            user: { accountAddress: '0xtest' },
+            user: { accountAddress: '0xtest', status: UserStatus.Active },
+        } as unknown as BotContext;
+    }
+
+    function createUnregisteredCtx(): BotContext {
+        return {
+            reply: vi.fn(),
+            answerCbQuery: vi.fn(),
+            editMessageText: vi.fn(),
+            user: undefined,
         } as unknown as BotContext;
     }
 });
