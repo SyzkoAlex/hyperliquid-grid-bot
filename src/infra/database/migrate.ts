@@ -2,6 +2,9 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as path from 'path';
+import { createContextLogger } from '../logger/logger';
+
+const logger = createContextLogger('migrate');
 
 async function runMigrations(): Promise<void> {
     const host = process.env.DATABASE_HOST;
@@ -11,21 +14,21 @@ async function runMigrations(): Promise<void> {
     const database = process.env.DATABASE_NAME;
 
     if (!host || !user || !password || !database) {
-        console.error('Missing required DATABASE_* env vars');
+        logger.error('Missing required DATABASE_* env vars');
         process.exit(1);
     }
 
     const pool = new Pool({ host, port, user, password, database });
     const db = drizzle(pool);
 
-    console.log(`Running migrations on ${database}@${host}...`);
+    logger.info(`Running migrations on ${database}@${host}...`);
     await migrate(db, { migrationsFolder: path.join(__dirname, '../../../migrations') });
-    console.log('Migrations complete');
+    logger.info('Migrations complete');
 
     await pool.end();
 }
 
 runMigrations().catch((err) => {
-    console.error('Migration failed:', err);
+    logger.fatal({ err }, 'Migration failed');
     process.exit(1);
 });
