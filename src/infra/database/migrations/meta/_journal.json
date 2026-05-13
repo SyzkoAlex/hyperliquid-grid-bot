@@ -47,14 +47,14 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1746576000000,
+      "when": 1775670607000,
       "tag": "0006_add_stop_loss",
       "breakpoints": true
     },
     {
       "idx": 7,
       "version": "7",
-      "when": 1746748800000,
+      "when": 1775670608000,
       "tag": "0007_add_user_timezone",
       "breakpoints": true
     }
