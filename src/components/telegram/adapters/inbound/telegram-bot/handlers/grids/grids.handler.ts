@@ -10,27 +10,24 @@ import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants
 import { Handler } from '../handler';
 import { GetGridsWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';
-import {
-    ActiveGridsHeaderMessage,
-    StoppedGridsHeaderMessage,
-} from '@components/telegram/core/domain/models/messages/grids/grids-list.messages';
+import { StoppedGridsHeaderMessage } from '@components/telegram/core/domain/models/messages/grids/grids-list.messages';
 import { GridListMessage } from '@components/telegram/core/domain/models/messages/grids/grid-list.message';
 import { toInlineKeyboard } from '../inline-keyboard';
-import { GridsListKeyboard } from './grids-list.keyboard';
+import { GridsListKeyboard } from '@components/telegram/core/domain/models/messages/grids/grids-list.keyboard';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { ActiveGridsViewBuilder } from '@components/telegram/core/application/services/active-grids-view-builder/active-grids-view-builder.service';
 
 @Injectable()
 export class GridsHandler implements Handler {
-    private readonly activePageSize: number;
     private readonly stoppedPageSize: number;
 
     constructor(
         private readonly telegramBotService: TelegramBotService,
         private readonly getGridsWithPnlUseCase: GetGridsWithPnlUseCase,
         configService: ConfigService<Config, true>,
+        private readonly viewBuilder: ActiveGridsViewBuilder,
     ) {
         const pagination = configService.get('telegram', { infer: true }).pagination;
-        this.activePageSize = pagination.activePageSize;
         this.stoppedPageSize = pagination.stoppedPageSize;
     }
 
@@ -52,8 +49,7 @@ export class GridsHandler implements Handler {
     }
 
     private async sendActiveList(ctx: BotContext): Promise<void> {
-        const currentPage = 1;
-        const view = await this.buildActiveView(currentPage);
+        const view = await this.viewBuilder.build(1);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -62,7 +58,7 @@ export class GridsHandler implements Handler {
 
     private async editActiveList(ctx: BotContext, page: number): Promise<void> {
         await ctx.answerCbQuery();
-        const view = await this.buildActiveView(page);
+        const view = await this.viewBuilder.build(page);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -85,29 +81,6 @@ export class GridsHandler implements Handler {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
-    }
-
-    private async buildActiveView(page: number) {
-        const { items, totalCount, currentPage } = await this.getGridsWithPnlUseCase.execute(
-            GridFilter.Running,
-            page,
-            this.activePageSize,
-        );
-        const { totalPages, startIndex } = this.resolvePagination(
-            totalCount,
-            currentPage,
-            this.activePageSize,
-        );
-        const header = ActiveGridsHeaderMessage.create(totalCount, currentPage, totalPages).text;
-        const text = GridListMessage.create(header, items, startIndex).text;
-        const keyboard = GridsListKeyboard.create(
-            items,
-            startIndex,
-            GridsAction.activePage,
-            currentPage,
-            totalPages,
-        );
-        return { text, keyboard };
     }
 
     private async buildStoppedView(page: number) {

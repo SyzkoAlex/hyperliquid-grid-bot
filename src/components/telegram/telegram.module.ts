@@ -41,6 +41,7 @@ import { VerifyAgentUseCase } from './core/application/use-cases/verify-agent/ve
 import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 import { GridSnapshotFactory } from './core/application/services/grid-snapshot-factory/grid-snapshot.factory';
+import { ActiveGridsViewBuilder } from './core/application/services/active-grids-view-builder/active-grids-view-builder.service';
 import { PendingCreationMessageStore } from './adapters/inbound/telegram-bot/pending-creation-message.store';
 import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { GridsModule } from '@components/grids/grids.module';
@@ -77,6 +78,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         VerifyAgentUseCase,
         GridPnlCalculatorService,
         GridSnapshotFactory,
+        ActiveGridsViewBuilder,
         GridsHandler,
         GridProfitTabHandler,
         GridOrdersTabHandler,
