@@ -58,6 +58,7 @@ describe('PostgresUserRepositoryAdapter (Integration)', () => {
             expect(user.accountAddress).toBe(ACCOUNT_ADDRESS);
             expect(user.agentAddress).toBe(AGENT_ADDRESS);
             expect(user.status).toBe(UserStatus.PendingApproval);
+            expect(user.tradeNotificationsEnabled).toBe(true);
             expect(user.createdAt).toBeInstanceOf(Date);
         });
     });
@@ -149,6 +150,20 @@ describe('PostgresUserRepositoryAdapter (Integration)', () => {
             const updated = await repository.findOneById(saved.id);
 
             expect(updated!.status).toBe(UserStatus.Active);
+        });
+    });
+
+    describe('updateTradeNotificationsEnabled', () => {
+        it('defaults to true on save', async () => {
+            const saved = await repository.save(makeSavePayload());
+            expect(saved.tradeNotificationsEnabled).toBe(true);
+        });
+
+        it('updates the trade_notifications_enabled column', async () => {
+            const saved = await repository.save(makeSavePayload());
+            await repository.updateTradeNotificationsEnabled(saved.id, false);
+            const updated = await repository.findOneById(saved.id);
+            expect(updated!.tradeNotificationsEnabled).toBe(false);
         });
     });
 

@@ -67,6 +67,10 @@ export class UsersApiAdapter implements UsersApiPort {
         await this.userRepo.updateStatus(userId, UserStatus.Disconnected);
     }
 
+    async updateTradeNotificationsEnabled(userId: string, enabled: boolean): Promise<void> {
+        await this.userRepo.updateTradeNotificationsEnabled(userId, enabled);
+    }
+
     private toDto(user: User): UserDto {
         return {
             id: user.id,
@@ -75,6 +79,7 @@ export class UsersApiAdapter implements UsersApiPort {
             agentAddress: user.agentAddress,
             status: user.status,
             timezone: user.timezone,
+            tradeNotificationsEnabled: user.tradeNotificationsEnabled,
         };
     }
 }

@@ -32,4 +32,6 @@ export const EMOJI = {
     REFRESH: '🔄',
     STOP: '🛑',
     KEY: '🔑',
+    BELL_ON: '🔔',
+    BELL_OFF: '🔕',
 } as const;

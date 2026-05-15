@@ -16,6 +16,7 @@ function makeUser(status: UserStatus = UserStatus.PendingApproval): User {
         agentAddress: MOCK_AGENT_ADDRESS,
         status,
         timezone: 'UTC',
+        tradeNotificationsEnabled: true,
         createdAt: new Date('2024-01-01'),
     });
 }
@@ -30,6 +31,7 @@ describe('UsersApiAdapter', () => {
         findOneByAccountAddress: ReturnType<typeof vi.fn>;
         findManyActive: ReturnType<typeof vi.fn>;
         updateStatus: ReturnType<typeof vi.fn>;
+        updateTradeNotificationsEnabled: ReturnType<typeof vi.fn>;
         findEncryptedAgentKey: ReturnType<typeof vi.fn>;
     };
 
@@ -47,6 +49,7 @@ describe('UsersApiAdapter', () => {
             findOneByAccountAddress: vi.fn(),
             findManyActive: vi.fn(),
             updateStatus: vi.fn().mockResolvedValue(undefined),
+            updateTradeNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
             findEncryptedAgentKey: vi.fn(),
         };
 

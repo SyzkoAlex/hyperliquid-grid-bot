@@ -12,6 +12,7 @@ import { GridHistoryTabHandler } from '@components/telegram/adapters/inbound/tel
 import { StopGridHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/grid-view/stop-grid.handler';
 import { BalanceHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/balance/balance.handler';
 import { ConnectAccountHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/connect-account/connect-account.handler';
+import { SettingsHandler } from '@components/telegram/adapters/inbound/telegram-bot/handlers/settings/settings.handler';
 import {
     CREATE_GRID_SCENE_ID,
     CreateGridSceneHandler,
@@ -19,7 +20,6 @@ import {
 import { ConnectAccountSceneHandler } from '@components/telegram/adapters/inbound/telegram-bot/scenes/connect-account/connect-account.scene';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { BotContext } from '@components/telegram/adapters/inbound/telegram-bot/types/bot-context';
 import { ManagedLockHandle } from '@/core/application/services/managed-lock/managed-lock-handle';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
@@ -46,6 +46,7 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         private readonly stopGridHandler: StopGridHandler,
         private readonly balanceHandler: BalanceHandler,
         private readonly connectAccountHandler: ConnectAccountHandler,
+        private readonly settingsHandler: SettingsHandler,
         private readonly createGridSceneHandler: CreateGridSceneHandler,
         private readonly connectAccountSceneHandler: ConnectAccountSceneHandler,
         private readonly managedLock: ManagedLockService,
@@ -96,8 +97,8 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
         this.stopGridHandler.register();
         this.balanceHandler.register();
         this.connectAccountHandler.register();
+        this.settingsHandler.register();
         this.registerCreateGridHandler();
-        this.registerStubHandlers();
     }
 
     private registerCreateGridHandler() {
@@ -124,18 +125,5 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
             return;
         }
         await ctx.scene.enter(CREATE_GRID_SCENE_ID);
-    }
-
-    private registerStubHandlers() {
-        const stubReply = async (ctx: BotContext) => {
-            await ctx.reply(CommonTexts.COMING_SOON);
-        };
-        const stubAction = async (ctx: BotContext) => {
-            await ctx.answerCbQuery();
-            await ctx.editMessageText(CommonTexts.COMING_SOON);
-        };
-
-        this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, stubReply);
-        this.telegramBotService.onAction(TelegramAction.ShowSettings, stubAction);
     }
 }

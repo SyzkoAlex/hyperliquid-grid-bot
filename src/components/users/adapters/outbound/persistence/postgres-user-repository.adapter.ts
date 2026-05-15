@@ -67,6 +67,14 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
         this.logger.info({ userId: id, status }, 'User status updated');
     }
 
+    async updateTradeNotificationsEnabled(id: string, enabled: boolean): Promise<void> {
+        await this.db
+            .update(users)
+            .set({ tradeNotificationsEnabled: enabled, updatedAt: new Date() })
+            .where(eq(users.id, id));
+        this.logger.info({ userId: id, enabled }, 'User trade notifications updated');
+    }
+
     async findManyActive(): Promise<User[]> {
         const result = await this.db
             .select()
@@ -93,6 +101,7 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
             agentAddress: record.agentAddress,
             status: record.status as UserStatus,
             timezone: record.timezone,
+            tradeNotificationsEnabled: record.tradeNotificationsEnabled,
             createdAt: record.createdAt,
         });
     }

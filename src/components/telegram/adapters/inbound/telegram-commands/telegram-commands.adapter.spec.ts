@@ -68,6 +68,7 @@ describe('TelegramCommandsAdapter — routeCreateGrid', () => {
             makeHandler() as never,
             makeHandler() as never,
             makeHandler() as never,
+            makeHandler() as never,
             { getScene: vi.fn() } as never,
             { getScene: vi.fn() } as never,
             makeManagedLock(),

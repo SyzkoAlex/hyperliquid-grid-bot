@@ -17,6 +17,7 @@ export interface UserRepositoryPort {
     findOneByChatId(chatId: number): Promise<User | null>;
     findOneByAccountAddress(address: string): Promise<User | null>;
     updateStatus(id: string, status: UserStatus): Promise<void>;
+    updateTradeNotificationsEnabled(id: string, enabled: boolean): Promise<void>;
     findManyActive(): Promise<User[]>;
     findEncryptedAgentKey(userId: string): Promise<string>;
 }

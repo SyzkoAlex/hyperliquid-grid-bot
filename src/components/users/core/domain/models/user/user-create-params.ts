@@ -7,5 +7,6 @@ export interface UserCreateParams {
     agentAddress: string;
     status: UserStatus;
     timezone: string;
+    tradeNotificationsEnabled: boolean;
     createdAt: Date;
 }

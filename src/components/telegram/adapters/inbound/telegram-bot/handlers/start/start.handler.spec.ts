@@ -158,6 +158,7 @@ describe('StartHandler', () => {
             agentAddress: '0xagent',
             status,
             timezone: 'UTC',
+            tradeNotificationsEnabled: true,
         };
     }
 
