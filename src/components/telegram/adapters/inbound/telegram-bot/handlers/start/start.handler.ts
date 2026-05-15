@@ -55,7 +55,9 @@ export class StartHandler implements Handler {
     }
 
     private async replyLanding(ctx: BotContext): Promise<void> {
-        await ctx.reply('​', Markup.removeKeyboard()); // keyboard-flush: removes any persistent reply keyboard
+        // keyboard-flush: removes any persistent reply keyboard before showing landing
+        const { message_id } = await ctx.reply('.', Markup.removeKeyboard());
+        await ctx.deleteMessage(message_id);
         await ctx.reply(LandingMessage.create().text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(connectCtaKeyboard()),

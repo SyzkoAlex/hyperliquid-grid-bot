@@ -165,7 +165,8 @@ describe('StartHandler', () => {
         return {
             chat: { id: 12345 },
             from: username ? { username } : undefined,
-            reply: vi.fn().mockResolvedValue(undefined),
+            reply: vi.fn().mockResolvedValue({ message_id: 1 }),
+            deleteMessage: vi.fn().mockResolvedValue(undefined),
             session: {},
             scene: {
                 enter: vi.fn().mockResolvedValue(undefined),
