@@ -1,15 +1,10 @@
 export class LandingMessage {
     readonly text =
         '<b>Hyperliquid Grid Bot</b>\n\n' +
-        'Automated grid trading for Hyperliquid spot pairs.\n\n' +
-        '<b>What it does</b>\n' +
-        'Places buy and sell orders across a price range you choose. Each time price crosses a level the bot rebalances and locks in a small profit. Works best in sideways, oscillating markets.\n\n' +
-        '<b>How to start</b>\n' +
-        '1. Connect your Hyperliquid account (via an agent wallet — read more on the next screen)\n' +
-        '2. Press <b>Create Grid</b> and pick a token, range, and capital\n' +
-        '3. The bot manages orders for you\n\n' +
-        '<b>⚠️ Disclaimer</b>\n' +
-        'This bot is <b>not affiliated with or endorsed by Hyperliquid</b>. It is an independent tool that interacts with the Hyperliquid public API. Trading involves financial risk — only use funds you can afford to lose. The authors provide no warranty and accept no liability for losses.';
+        'Hey 👋 This bot helps you run grid strategies on Hyperliquid Spot — no terminals, no scripts, right from Telegram.\n\n' +
+        'Pick a token, set a price range and capital — the bot places a grid of limit orders and manages it automatically: catches dips, locks in profit on every fill, and re-places orders.\n\n' +
+        '<b>Safe by design.</b> It connects via an <a href="https://hyperliquid.gitbook.io/hyperliquid-docs/trading/api-wallets">agent wallet</a> — it can only trade, withdrawals are not possible. You can revoke access any time directly on Hyperliquid.\n\n' +
+        '<b>Heads up:</b> we are not affiliated with Hyperliquid — this is an independent open-source tool. Trading carries financial risk, invest responsibly.';
 
     private constructor() {}
 

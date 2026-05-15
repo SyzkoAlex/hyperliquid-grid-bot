@@ -4,13 +4,14 @@ import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
 import { UserStatus } from '@domain/models/user/user-status';
-import { WelcomeMessage } from '@components/telegram/core/domain/models/messages/welcome-message';
 import { LandingMessage } from '@components/telegram/core/domain/models/messages/landing-message';
 import { UserDto } from '@components/users/api/dto/user.dto';
+import { ActiveGridsViewBuilder } from '@components/telegram/core/application/services/active-grids-view-builder/active-grids-view-builder.service';
 
 describe('StartHandler', () => {
     let handler: StartHandler;
     let botService: TelegramBotService;
+    let viewBuilder: ActiveGridsViewBuilder;
     let registeredCallbacks: Map<string, (ctx: BotContext) => Promise<void>>;
 
     beforeEach(() => {
@@ -22,7 +23,12 @@ describe('StartHandler', () => {
             }),
         } as unknown as TelegramBotService;
 
-        handler = new StartHandler(botService);
+        viewBuilder = {
+            build: vi.fn().mockResolvedValue({ text: '', keyboard: [], totalCount: 0 }),
+            buildWithGreeting: vi.fn().mockResolvedValue({ text: '', keyboard: [], totalCount: 0 }),
+        } as unknown as ActiveGridsViewBuilder;
+
+        handler = new StartHandler(botService, viewBuilder);
     });
 
     describe('register', () => {
@@ -37,35 +43,24 @@ describe('StartHandler', () => {
     });
 
     describe('handle', () => {
-        it('should send two replies for new user: removeKeyboard then landing with inline CTA', async () => {
+        it('should send two replies for new user (null): removeKeyboard then landing with inline CTA', async () => {
             handler.register();
             const ctx = createMockContext();
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
             expect(ctx.reply).toHaveBeenCalledTimes(2);
-            // First call removes the persistent reply keyboard
             const [firstCall, secondCall] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls;
             expect(firstCall[1]).toMatchObject({ reply_markup: { remove_keyboard: true } });
-            // Second call sends the landing text with the inline CTA keyboard
-            expect(secondCall[0]).toContain(LandingMessage.create().text.substring(0, 20));
+            expect(secondCall[0]).toContain('Hyperliquid Grid Bot');
+            expect(secondCall[0]).toContain('agent wallet');
             expect(secondCall[1]).toMatchObject({
                 reply_markup: { inline_keyboard: expect.any(Array) },
             });
             expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
 
-        it('should show landing message for new user (no ctx.user)', async () => {
-            handler.register();
-            const ctx = createMockContext();
-
-            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
-
-            expect(ctx.reply).toHaveBeenCalledWith(LandingMessage.create().text, expect.anything());
-            expect(ctx.scene.enter).not.toHaveBeenCalled();
-        });
-
-        it('should show landing message for disconnected user', async () => {
+        it('should send two replies for disconnected user', async () => {
             handler.register();
             const ctx = createMockContext(makeUser(UserStatus.Disconnected));
 
@@ -75,13 +70,13 @@ describe('StartHandler', () => {
             expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
 
-        it('should show welcome message for active user', async () => {
+        it('should send landing message text for new user (no ctx.user)', async () => {
             handler.register();
-            const ctx = createMockContext(makeUser(UserStatus.Active));
+            const ctx = createMockContext();
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(ctx.reply).toHaveBeenCalledWith(WelcomeMessage.create().text, expect.anything());
+            expect(ctx.reply).toHaveBeenCalledWith(LandingMessage.create().text, expect.anything());
             expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
 
@@ -99,6 +94,60 @@ describe('StartHandler', () => {
             expect(ctx.scene.enter).toHaveBeenCalledWith('connect_account');
             expect(ctx.reply).not.toHaveBeenCalled();
         });
+
+        it('should show EmptyGridsMessage with username when active user has no grids', async () => {
+            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
+                text: '',
+                keyboard: [],
+                totalCount: 0,
+            });
+            handler.register();
+            const ctx = createMockContext(makeUser(UserStatus.Active), 'alice');
+
+            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
+
+            expect(viewBuilder.buildWithGreeting).toHaveBeenCalledWith(1, 'alice');
+            expect(ctx.reply).toHaveBeenCalledTimes(1);
+            const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(text).toContain('Welcome back, @alice!');
+            expect(text).toContain('Create Grid');
+            expect(options.reply_markup).toHaveProperty('keyboard');
+        });
+
+        it('should show EmptyGridsMessage without @ when active user has no grids and no username', async () => {
+            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
+                text: '',
+                keyboard: [],
+                totalCount: 0,
+            });
+            handler.register();
+            const ctx = createMockContext(makeUser(UserStatus.Active));
+
+            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
+
+            expect(viewBuilder.buildWithGreeting).toHaveBeenCalledWith(1, undefined);
+            const [text] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(text).toContain('Welcome back!');
+            expect(text).not.toContain('@');
+        });
+
+        it('should show greeting + grid list when active user has grids', async () => {
+            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
+                text: 'Welcome back, @alice!\n\n<b>Active Grids</b> (3)',
+                keyboard: [[{ text: 'Details', action: 'view:grid:abc' }]],
+                totalCount: 3,
+            });
+            handler.register();
+            const ctx = createMockContext(makeUser(UserStatus.Active), 'alice');
+
+            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
+
+            expect(ctx.reply).toHaveBeenCalledTimes(1);
+            const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(text).toContain('Welcome back, @alice!');
+            expect(text).toContain('<b>Active Grids</b> (3)');
+            expect(options.reply_markup).toHaveProperty('inline_keyboard');
+        });
     });
 
     function makeUser(status: UserStatus): UserDto {
@@ -112,9 +161,10 @@ describe('StartHandler', () => {
         };
     }
 
-    function createMockContext(user?: UserDto): BotContext {
+    function createMockContext(user?: UserDto, username?: string): BotContext {
         return {
             chat: { id: 12345 },
+            from: username ? { username } : undefined,
             reply: vi.fn().mockResolvedValue(undefined),
             session: {},
             scene: {
