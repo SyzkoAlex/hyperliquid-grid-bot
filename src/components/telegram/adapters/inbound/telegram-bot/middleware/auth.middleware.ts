@@ -12,8 +12,14 @@ import { TelegramAction } from '@components/telegram/core/domain/models/telegram
 // render a "connect first" explanation card.
 const PUBLIC_TEXT_ENTRIES: ReadonlySet<string> = new Set([
     '/balance',
+    '/grids',
+    '/help',
     BUTTON_LABELS.BALANCE,
     BUTTON_LABELS.CREATE_GRID,
+    BUTTON_LABELS.GRIDS,
+    BUTTON_LABELS.STOPPED_GRIDS,
+    BUTTON_LABELS.HELP,
+    BUTTON_LABELS.SETTINGS,
 ]);
 
 // Public callback actions (inline-button presses) accessible without registration.
@@ -22,6 +28,8 @@ const PUBLIC_CALLBACK_ACTIONS: ReadonlySet<string> = new Set([
     TelegramAction.CreateGrid,
     TelegramAction.ConnectAccount,
     TelegramAction.ShowHelp,
+    TelegramAction.ListGrids,
+    TelegramAction.ShowSettings,
 ]);
 
 export function createAuthMiddleware(

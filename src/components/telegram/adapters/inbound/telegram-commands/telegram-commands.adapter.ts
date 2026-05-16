@@ -127,15 +127,20 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
     }
 
     private registerStubHandlers() {
-        const stubReply = async (ctx: BotContext) => {
+        this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, async (ctx: BotContext) => {
+            if (ctx.user?.status !== UserStatus.Active) {
+                await replyConnectCta(ctx);
+                return;
+            }
             await ctx.reply(CommonTexts.COMING_SOON);
-        };
-        const stubAction = async (ctx: BotContext) => {
+        });
+        this.telegramBotService.onAction(TelegramAction.ShowSettings, async (ctx: BotContext) => {
             await ctx.answerCbQuery();
+            if (ctx.user?.status !== UserStatus.Active) {
+                await replyConnectCta(ctx);
+                return;
+            }
             await ctx.editMessageText(CommonTexts.COMING_SOON);
-        };
-
-        this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, stubReply);
-        this.telegramBotService.onAction(TelegramAction.ShowSettings, stubAction);
+        });
     }
 }
