@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import {
@@ -18,10 +19,12 @@ import { CreateAndStartGridParams } from './create-and-start-grid-params';
 import { CreateAndStartGridResult } from './create-and-start-grid-result';
 import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { Config } from '@/config/config.schema';
 
 @Injectable()
 export class CreateAndStartGridUseCase {
     private readonly logger = logger.child({ context: CreateAndStartGridUseCase.name });
+    private readonly sellSizeBuffer: number;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
@@ -31,7 +34,10 @@ export class CreateAndStartGridUseCase {
         private readonly gridLevelsCalculator: GridLevelsCalculatorService,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
         private readonly orderPlacement: OrderPlacementService,
-    ) {}
+        configService: ConfigService<Config, true>,
+    ) {
+        this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
+    }
 
     async execute(params: CreateAndStartGridParams): Promise<CreateAndStartGridResult> {
         this.logger.info({ params }, 'Creating and starting grid');
@@ -87,6 +93,7 @@ export class CreateAndStartGridUseCase {
             currentPrice,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
+            sellSizeBuffer: this.sellSizeBuffer,
         });
 
         if (usdcBalance.lt(distribution.investmentUSDC)) {
@@ -95,9 +102,9 @@ export class CreateAndStartGridUseCase {
             );
         }
 
-        if (baseBalance.lt(distribution.investmentBase)) {
+        if (baseBalance.lt(distribution.requiredBaseBalance)) {
             throw new Error(
-                `Insufficient base token balance. Required: ${distribution.investmentBase.toString()}, Available: ${baseBalance.toString()}`,
+                `Insufficient base token balance. Required: ${distribution.requiredBaseBalance.toString()}, Available: ${baseBalance.toString()}`,
             );
         }
 

@@ -55,7 +55,8 @@ export class CapitalCalculatorService {
      * @param params.currentPrice - Current market price (used for accurate base token conversion)
      * @param params.lowerPrice - Grid lower price bound
      * @param params.upperPrice - Grid upper price bound
-     * @returns Capital distribution: how much USDC and base tokens to use
+     * @param params.sellSizeBuffer - Buffer fraction added to each sell order during placement (e.g. 0.005 = 0.5%). Used to compute requiredBaseBalance.
+     * @returns Capital distribution including requiredBaseBalance = investmentBase × (1 + sellSizeBuffer)
      */
     calculateDistribution(params: {
         levels: number;
@@ -65,6 +66,7 @@ export class CapitalCalculatorService {
         currentPrice: Price;
         lowerPrice: number;
         upperPrice: number;
+        sellSizeBuffer: number;
     }): CapitalDistribution {
         const capital = params.totalInvestmentUSDC
             ? Decimal.from(params.totalInvestmentUSDC)
@@ -90,7 +92,9 @@ export class CapitalCalculatorService {
             .mul(Decimal.from(sellRatio))
             .div(Decimal.from(params.currentPrice.toNumber()));
 
-        return { investmentUSDC, investmentBase };
+        const requiredBaseBalance = investmentBase.mul(Decimal.from(1 + params.sellSizeBuffer));
+
+        return { investmentUSDC, investmentBase, requiredBaseBalance };
     }
 
     /**

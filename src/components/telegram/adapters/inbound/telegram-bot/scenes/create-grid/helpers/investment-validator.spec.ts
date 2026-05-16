@@ -41,6 +41,7 @@ describe('validateInvestment', () => {
             calculateCapitalDistribution: vi.fn().mockReturnValue({
                 investmentUSDC: 500,
                 investmentBase: 50,
+                requiredBaseBalance: 50.25,
             }),
         } as unknown as TradingApiPort;
     });
@@ -93,6 +94,7 @@ describe('validateInvestment', () => {
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             investmentUSDC: 500,
             investmentBase: 50,
+            requiredBaseBalance: 50.25,
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -109,6 +111,23 @@ describe('validateInvestment', () => {
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             investmentUSDC: 500,
             investmentBase: 50,
+            requiredBaseBalance: 50.25,
+        });
+
+        const result = await validateInvestment(defaultParams, mockTradingApi);
+
+        expect(result.valid).toBe(false);
+        expect(result.showBackButton).toBe(true);
+    });
+
+    it('rejects when base balance covers investmentBase but not requiredBaseBalance', async () => {
+        vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue(
+            mockUserState({ usdcBalance: 10000, spotBalances: { HYPE: 49 } }),
+        );
+        vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+            investmentUSDC: 500,
+            investmentBase: 50,
+            requiredBaseBalance: 50.25, // 50 * 1.005 — exceeds available 49
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -124,6 +143,7 @@ describe('validateInvestment', () => {
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             investmentUSDC: 500,
             investmentBase: 50,
+            requiredBaseBalance: 50.25,
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -165,6 +185,7 @@ describe('validateInvestment', () => {
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             investmentUSDC: 9.9999,
             investmentBase: 100,
+            requiredBaseBalance: 100.5,
         });
 
         const result = await validateInvestment(
@@ -181,6 +202,7 @@ describe('validateInvestment', () => {
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             investmentUSDC: 9.944,
             investmentBase: 100,
+            requiredBaseBalance: 100.5,
         });
 
         const result = await validateInvestment(
