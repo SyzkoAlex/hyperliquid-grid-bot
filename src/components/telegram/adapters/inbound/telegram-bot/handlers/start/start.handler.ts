@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Markup } from 'telegraf';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
@@ -8,7 +7,6 @@ import { EmptyGridsMessage } from '@components/telegram/core/domain/models/messa
 import { Handler } from '../handler';
 import { replyMenuKeyboard } from '../main-menu.keyboard';
 import { toInlineKeyboard } from '../inline-keyboard';
-import { connectCtaKeyboard } from '../connect-cta.keyboard';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { UserStatus } from '@domain/models/user/user-status';
 import { enterConnectAccountScene } from '../enter-connect-account-scene';
@@ -55,10 +53,9 @@ export class StartHandler implements Handler {
     }
 
     private async replyLanding(ctx: BotContext): Promise<void> {
-        await ctx.reply('​', Markup.removeKeyboard()); // keyboard-flush: removes any persistent reply keyboard
         await ctx.reply(LandingMessage.create().text, {
             parse_mode: TelegramParseMode.HTML,
-            ...toInlineKeyboard(connectCtaKeyboard()),
+            ...replyMenuKeyboard(),
         });
     }
 }

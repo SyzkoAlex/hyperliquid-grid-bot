@@ -10,12 +10,16 @@ import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants
 import { Handler } from '../handler';
 import { GetGridsWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';
-import { StoppedGridsHeaderMessage } from '@components/telegram/core/domain/models/messages/grids/grids-list.messages';
+import {
+    ActiveGridsHeaderMessage,
+    StoppedGridsHeaderMessage,
+} from '@components/telegram/core/domain/models/messages/grids/grids-list.messages';
 import { GridListMessage } from '@components/telegram/core/domain/models/messages/grids/grid-list.message';
 import { toInlineKeyboard } from '../inline-keyboard';
 import { GridsListKeyboard } from '@components/telegram/core/domain/models/messages/grids/grids-list.keyboard';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { ActiveGridsViewBuilder } from '@components/telegram/core/application/services/active-grids-view-builder/active-grids-view-builder.service';
+import { UserStatus } from '@domain/models/user/user-status';
 
 @Injectable()
 export class GridsHandler implements Handler {
@@ -49,6 +53,12 @@ export class GridsHandler implements Handler {
     }
 
     private async sendActiveList(ctx: BotContext): Promise<void> {
+        if (ctx.user?.status !== UserStatus.Active) {
+            await ctx.reply(ActiveGridsHeaderMessage.create(0).text, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+            return;
+        }
         const view = await this.viewBuilder.build(1);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
@@ -58,6 +68,12 @@ export class GridsHandler implements Handler {
 
     private async editActiveList(ctx: BotContext, page: number): Promise<void> {
         await ctx.answerCbQuery();
+        if (ctx.user?.status !== UserStatus.Active) {
+            await ctx.editMessageText(ActiveGridsHeaderMessage.create(0).text, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+            return;
+        }
         const view = await this.viewBuilder.build(page);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
@@ -66,6 +82,12 @@ export class GridsHandler implements Handler {
     }
 
     private async sendStoppedList(ctx: BotContext): Promise<void> {
+        if (ctx.user?.status !== UserStatus.Active) {
+            await ctx.reply(StoppedGridsHeaderMessage.create(1, 1, 0).text, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+            return;
+        }
         const currentPage = 1;
         const view = await this.buildStoppedView(currentPage);
         await ctx.reply(view.text, {
@@ -76,6 +98,12 @@ export class GridsHandler implements Handler {
 
     private async editStoppedList(ctx: BotContext, page: number): Promise<void> {
         await ctx.answerCbQuery();
+        if (ctx.user?.status !== UserStatus.Active) {
+            await ctx.editMessageText(StoppedGridsHeaderMessage.create(1, 1, 0).text, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+            return;
+        }
         const view = await this.buildStoppedView(page);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,

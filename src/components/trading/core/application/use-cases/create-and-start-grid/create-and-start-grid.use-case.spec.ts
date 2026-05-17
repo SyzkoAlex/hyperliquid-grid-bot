@@ -75,6 +75,10 @@ describe('CreateAndStartGridUseCase', () => {
             placeGridOrders: vi.fn(),
         };
 
+        const configService = {
+            get: vi.fn().mockReturnValue(0.005),
+        } as any;
+
         useCase = new CreateAndStartGridUseCase(
             exchange,
             grids,
@@ -83,6 +87,7 @@ describe('CreateAndStartGridUseCase', () => {
             gridLevelsCalculator,
             userBalanceExtractor,
             orderPlacement,
+            configService,
         );
     });
 
@@ -112,6 +117,7 @@ describe('CreateAndStartGridUseCase', () => {
             const distribution = {
                 investmentUSDC: Decimal.from(5000),
                 investmentBase: Decimal.from(0.1),
+                requiredBaseBalance: Decimal.from(0.1005),
             };
 
             const currentPrice = Price.from(50000);
@@ -162,6 +168,7 @@ describe('CreateAndStartGridUseCase', () => {
                 currentPrice: currentPrice,
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                sellSizeBuffer: 0.005,
             });
 
             expect(grids.createGrid).toHaveBeenCalledTimes(1);
@@ -210,6 +217,7 @@ describe('CreateAndStartGridUseCase', () => {
             const distribution = {
                 investmentUSDC: Decimal.from(3000),
                 investmentBase: Decimal.from(0.5),
+                requiredBaseBalance: Decimal.from(0.5025),
             };
 
             const currentPrice = Price.from(3000);
@@ -302,6 +310,38 @@ describe('CreateAndStartGridUseCase', () => {
             expect(capitalCalculator.calculateDistribution).not.toHaveBeenCalled();
         });
 
+        it('should throw when base balance covers investmentBase but not the sell buffer', async () => {
+            const params = {
+                chatId: 123456,
+                address: '0x123',
+                symbol: 'HYPE',
+                lowerPrice: 57.52,
+                upperPrice: 86.28,
+                levels: 10,
+                totalInvestmentUSDC: 4271,
+                trailingEnabled: false,
+            };
+
+            exchange.getUserSpotState.mockResolvedValue({});
+            exchange.getCurrentPrice.mockResolvedValue(Price.from(71.9));
+            userBalanceExtractor.extractBalances.mockReturnValue({
+                usdcBalance: Decimal.from(2000),
+                baseBalance: Decimal.from(32.16), // covers investmentBase but not investmentBase * 1.005
+            });
+            capitalCalculator.calculateDistribution.mockReturnValue({
+                investmentUSDC: Decimal.from(1941),
+                investmentBase: Decimal.from(32.16),
+                requiredBaseBalance: Decimal.from(32.32), // 32.16 * 1.005
+            });
+
+            await expect(useCase.execute(params)).rejects.toThrow(
+                'Insufficient base token balance',
+            );
+            expect(capitalCalculator.calculateDistribution).toHaveBeenCalledWith(
+                expect.objectContaining({ sellSizeBuffer: 0.005 }),
+            );
+        });
+
         it('should skip orders without exchange order ID', async () => {
             const params = {
                 chatId: 123456,
@@ -322,6 +362,7 @@ describe('CreateAndStartGridUseCase', () => {
             const distribution = {
                 investmentUSDC: Decimal.from(1500),
                 investmentBase: Decimal.from(10),
+                requiredBaseBalance: Decimal.from(10.05),
             };
 
             const currentPrice = Price.from(125);

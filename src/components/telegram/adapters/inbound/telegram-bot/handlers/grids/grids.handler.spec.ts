@@ -11,6 +11,7 @@ import { GridsAction } from '@components/telegram/core/domain/models/grids-actio
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { GridFilter } from '@components/telegram/core/application/use-cases/get-grids-with-pnl/grid-filter';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { UserStatus } from '@domain/models/user/user-status';
 
 describe('GridsHandler', () => {
     let handler: GridsHandler;
@@ -87,9 +88,9 @@ describe('GridsHandler', () => {
     });
 
     describe('sendActiveList', () => {
-        it('should delegate to viewBuilder and reply', async () => {
+        it('should delegate to viewBuilder and reply for active user', async () => {
             handler.register();
-            const ctx = createMockContext();
+            const ctx = createActiveContext();
 
             await commandCallbacks.get(TelegramCommand.Grids)!(ctx);
 
@@ -107,19 +108,32 @@ describe('GridsHandler', () => {
                 totalCount: 2,
             });
             handler.register();
-            const ctx = createMockContext();
+            const ctx = createActiveContext();
 
             await commandCallbacks.get(TelegramCommand.Grids)!(ctx);
 
             const text = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
             expect(text).toContain('BTC/USDC');
         });
+
+        it('should reply with no-grids placeholder for non-active user', async () => {
+            handler.register();
+            const ctx = createMockContext();
+
+            await commandCallbacks.get(TelegramCommand.Grids)!(ctx);
+
+            expect(viewBuilder.build).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalledWith(
+                expect.stringContaining('No active grids'),
+                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
+            );
+        });
     });
 
     describe('editActiveList', () => {
-        it('should answer callback and edit message via viewBuilder', async () => {
+        it('should answer callback and edit message via viewBuilder for active user', async () => {
             handler.register();
-            const ctx = createMockContext();
+            const ctx = createActiveContext();
 
             await actionCallbacks.get(TelegramAction.ListGrids)!(ctx);
 
@@ -130,24 +144,51 @@ describe('GridsHandler', () => {
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
             );
         });
+
+        it('should edit message with no-grids placeholder for non-active user', async () => {
+            handler.register();
+            const ctx = createMockContext();
+
+            await actionCallbacks.get(TelegramAction.ListGrids)!(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(viewBuilder.build).not.toHaveBeenCalled();
+            expect(ctx.editMessageText).toHaveBeenCalledWith(
+                expect.stringContaining('No active grids'),
+                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
+            );
+        });
     });
 
     describe('sendStoppedList', () => {
-        it('should fetch stopped grids and reply', async () => {
+        it('should fetch stopped grids and reply for active user', async () => {
             handler.register();
-            const ctx = createMockContext();
+            const ctx = createActiveContext();
 
             await hearsCallbacks.get(BUTTON_LABELS.STOPPED_GRIDS)!(ctx);
 
             expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(GridFilter.Stopped, 1, 5);
             expect(ctx.reply).toHaveBeenCalled();
         });
+
+        it('should reply with no-history placeholder for non-active user', async () => {
+            handler.register();
+            const ctx = createMockContext();
+
+            await hearsCallbacks.get(BUTTON_LABELS.STOPPED_GRIDS)!(ctx);
+
+            expect(getGridsWithPnlUseCase.execute).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalledWith(
+                expect.stringContaining('No stopped grids'),
+                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
+            );
+        });
     });
 
     describe('pagination', () => {
         it('should parse page from active page action and delegate to viewBuilder', async () => {
             handler.register();
-            const ctx = createMockContext({
+            const ctx = createActiveContext({
                 match: ['grids:active:2', '2'] as unknown as RegExpExecArray,
             });
 
@@ -158,7 +199,7 @@ describe('GridsHandler', () => {
 
         it('should parse page from stopped page action', async () => {
             handler.register();
-            const ctx = createMockContext({
+            const ctx = createActiveContext({
                 match: ['grids:stopped:3', '3'] as unknown as RegExpExecArray,
             });
 
@@ -168,11 +209,22 @@ describe('GridsHandler', () => {
         });
     });
 
+    function createActiveContext(overrides: Partial<BotContext> = {}): BotContext {
+        return {
+            reply: vi.fn(),
+            answerCbQuery: vi.fn(),
+            editMessageText: vi.fn(),
+            user: { status: UserStatus.Active, accountAddress: '0xtest' },
+            ...overrides,
+        } as unknown as BotContext;
+    }
+
     function createMockContext(overrides: Partial<BotContext> = {}): BotContext {
         return {
             reply: vi.fn(),
             answerCbQuery: vi.fn(),
             editMessageText: vi.fn(),
+            user: undefined,
             ...overrides,
         } as unknown as BotContext;
     }

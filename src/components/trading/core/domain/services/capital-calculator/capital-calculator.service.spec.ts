@@ -132,6 +132,7 @@ describe('CapitalCalculatorService', () => {
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                sellSizeBuffer: 0,
             });
 
             // investmentUSDC = 10000 * 5/11 ~= 4545.45
@@ -150,6 +151,7 @@ describe('CapitalCalculatorService', () => {
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                sellSizeBuffer: 0,
             };
 
             const result1 = service.calculateDistribution(params);
@@ -175,6 +177,7 @@ describe('CapitalCalculatorService', () => {
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                sellSizeBuffer: 0,
             });
 
             // Total portfolio = 10000, investmentUSDC = 10000 * 5/11 ~= 4545.45
@@ -191,10 +194,48 @@ describe('CapitalCalculatorService', () => {
                 currentPrice: Price.from(50000),
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                sellSizeBuffer: 0,
             });
 
             expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
             expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
+        });
+
+        it('requiredBaseBalance equals investmentBase when sellSizeBuffer is zero', () => {
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: 10000,
+                usdcBalance: Decimal.from(10000),
+                baseBalance: Decimal.from(1),
+                currentPrice: Price.from(50000),
+                lowerPrice: 45000,
+                upperPrice: 55000,
+                sellSizeBuffer: 0,
+            });
+
+            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
+                result.investmentBase.toNumber(),
+                10,
+            );
+        });
+
+        it('requiredBaseBalance equals investmentBase * (1 + sellSizeBuffer)', () => {
+            const buffer = 0.005;
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: 10000,
+                usdcBalance: Decimal.from(10000),
+                baseBalance: Decimal.from(1),
+                currentPrice: Price.from(50000),
+                lowerPrice: 45000,
+                upperPrice: 55000,
+                sellSizeBuffer: buffer,
+            });
+
+            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
+                result.investmentBase.toNumber() * (1 + buffer),
+                10,
+            );
         });
 
         it('should produce equal per-order USDC notional -- research example (USOL)', () => {
@@ -213,6 +254,7 @@ describe('CapitalCalculatorService', () => {
                 currentPrice: Price.from(currentPrice),
                 lowerPrice: 75,
                 upperPrice: 100,
+                sellSizeBuffer: 0,
             });
 
             // investmentUSDC = 103 * 4/11 ~= 37.45

@@ -25,6 +25,7 @@ describe('AdvancedInvestmentStep', () => {
             calculateCapitalDistribution: vi.fn().mockReturnValue({
                 investmentUSDC: 500,
                 investmentBase: 50,
+                requiredBaseBalance: 50.25,
             }),
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
@@ -131,6 +132,7 @@ describe('AdvancedInvestmentStep', () => {
             vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
                 investmentUSDC: 15000, // More than available balance
                 investmentBase: 50,
+                requiredBaseBalance: 50.25,
             });
 
             const result = await step.handleTextInput(ctx, '1000');

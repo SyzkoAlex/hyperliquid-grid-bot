@@ -8,6 +8,7 @@ import { roundToCents } from './round-to-cents';
 interface CapitalDistribution {
     investmentUSDC: Decimal;
     investmentBase: Decimal;
+    requiredBaseBalance: Decimal;
 }
 
 export interface InvestmentValidationParams {
@@ -72,6 +73,7 @@ export async function validateInvestment(
 
     const investmentUSDC = Decimal.from(distributionDto.investmentUSDC);
     const investmentBase = Decimal.from(distributionDto.investmentBase);
+    const requiredBaseBalance = Decimal.from(distributionDto.requiredBaseBalance);
 
     const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
         levels,
@@ -106,7 +108,7 @@ export async function validateInvestment(
     }
 
     const usdcShortfall = investmentUSDC.sub(usdcBalance);
-    const baseShortfall = investmentBase.sub(baseBalance);
+    const baseShortfall = requiredBaseBalance.sub(baseBalance);
     const hasInsufficientBalance =
         usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
 
@@ -132,5 +134,5 @@ export async function validateInvestment(
         };
     }
 
-    return { valid: true, distribution: { investmentUSDC, investmentBase } };
+    return { valid: true, distribution: { investmentUSDC, investmentBase, requiredBaseBalance } };
 }

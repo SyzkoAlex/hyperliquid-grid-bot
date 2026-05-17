@@ -81,16 +81,16 @@ describe('GridProfitTabMessage', () => {
         expect(GridProfitTabMessage.create(makeData(makeGrid()), 'UTC').text).toContain('Grid (');
     });
 
-    it('shows Investment and levels', () => {
+    it('shows Investment', () => {
         const result = GridProfitTabMessage.create(makeData(makeGrid()), 'UTC').text;
         expect(result).toContain('Investment:');
-        expect(result).toContain('10 levels');
     });
 
-    it('renders both level and order counts in the Range summary', () => {
+    it('renders order count in the Range summary', () => {
         const grid = makeGrid();
         const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
-        expect(result).toContain('10 levels · 11 orders');
+        expect(result).toContain('11 orders');
+        expect(result).not.toContain('levels');
     });
 
     it('shows Profitable Trades from filledCycles', () => {

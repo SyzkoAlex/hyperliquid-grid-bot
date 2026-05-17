@@ -43,30 +43,29 @@ describe('StartHandler', () => {
     });
 
     describe('handle', () => {
-        it('should send two replies for new user (null): removeKeyboard then landing with inline CTA', async () => {
+        it('should send one landing reply with reply menu for new user (null)', async () => {
             handler.register();
             const ctx = createMockContext();
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(ctx.reply).toHaveBeenCalledTimes(2);
-            const [firstCall, secondCall] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls;
-            expect(firstCall[1]).toMatchObject({ reply_markup: { remove_keyboard: true } });
-            expect(secondCall[0]).toContain('Hyperliquid Grid Bot');
-            expect(secondCall[0]).toContain('agent wallet');
-            expect(secondCall[1]).toMatchObject({
-                reply_markup: { inline_keyboard: expect.any(Array) },
-            });
+            expect(ctx.reply).toHaveBeenCalledTimes(1);
+            const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(text).toBe(LandingMessage.create().text);
+            expect(options.reply_markup).toHaveProperty('keyboard');
+            expect(options.reply_markup).not.toHaveProperty('inline_keyboard');
             expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
 
-        it('should send two replies for disconnected user', async () => {
+        it('should send one landing reply with reply menu for disconnected user', async () => {
             handler.register();
             const ctx = createMockContext(makeUser(UserStatus.Disconnected));
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(ctx.reply).toHaveBeenCalledTimes(2);
+            expect(ctx.reply).toHaveBeenCalledTimes(1);
+            const [, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(options.reply_markup).toHaveProperty('keyboard');
             expect(ctx.scene.enter).not.toHaveBeenCalled();
         });
 
@@ -166,7 +165,8 @@ describe('StartHandler', () => {
         return {
             chat: { id: 12345 },
             from: username ? { username } : undefined,
-            reply: vi.fn().mockResolvedValue(undefined),
+            reply: vi.fn().mockResolvedValue({ message_id: 1 }),
+            deleteMessage: vi.fn().mockResolvedValue(undefined),
             session: {},
             scene: {
                 enter: vi.fn().mockResolvedValue(undefined),

@@ -76,10 +76,12 @@ export class TradingApiAdapter implements TradingApiPort {
             currentPrice: Price.from(params.currentPrice),
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
+            sellSizeBuffer: this.sellSizeBuffer,
         });
         return {
             investmentUSDC: distribution.investmentUSDC.toNumber(),
             investmentBase: distribution.investmentBase.toNumber(),
+            requiredBaseBalance: distribution.requiredBaseBalance.toNumber(),
         };
     }
 
