@@ -61,7 +61,7 @@
     {
       "idx": 8,
       "version": "7",
-      "when": 1778000000000,
+      "when": 1778976000000,
       "tag": "0008_add_user_trade_notifications",
       "breakpoints": true
     }

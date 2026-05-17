@@ -12,6 +12,8 @@ import { UserStatus } from '@domain/models/user/user-status';
 import { replyConnectCta } from '../connect-cta.keyboard';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 
+type SettingsView = { text: string; keyboard: InlineButton[][] };
+
 @Injectable()
 export class SettingsHandler implements Handler {
     constructor(
@@ -29,7 +31,7 @@ export class SettingsHandler implements Handler {
         );
     }
 
-    private buildView(enabled: boolean): { text: string; keyboard: InlineButton[][] } {
+    private buildView(enabled: boolean): SettingsView {
         const message = SettingsMessage.create(enabled);
         const keyboard: InlineButton[][] = [
             [{ text: message.toggleLabel, action: TelegramAction.ToggleTradeNotifications }],
@@ -70,6 +72,7 @@ export class SettingsHandler implements Handler {
         }
         const next = !ctx.user.tradeNotificationsEnabled;
         await this.usersApi.updateTradeNotificationsEnabled(ctx.user.id, next);
+        ctx.user.tradeNotificationsEnabled = next;
         const view = this.buildView(next);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,

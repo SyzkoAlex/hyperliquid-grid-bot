@@ -7,6 +7,7 @@ describe('SettingsMessage', () => {
         const result = SettingsMessage.create(true);
         expect(result.text).toContain(EMOJI.SETTINGS);
         expect(result.text).toContain('Settings');
+        expect(result.text).toContain('Toggle below to enable or disable trade notifications.');
     });
 
     it('shows ON state in text and toggleLabel when enabled', () => {

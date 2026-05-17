@@ -7,7 +7,6 @@ import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants
 import { UserStatus } from '@domain/models/user/user-status';
 import { CREATE_GRID_SCENE_ID } from '../telegram-bot/scenes/create-grid/create-grid.scene';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
-import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { ConfigService } from '@nestjs/config';
 import { ManagedLockService } from '@/core/application/services/managed-lock/managed-lock.service';
 
@@ -111,72 +110,6 @@ describe('TelegramCommandsAdapter — routeCreateGrid', () => {
 
             expect(ctx.scene.enter).toHaveBeenCalledWith(CREATE_GRID_SCENE_ID);
             expect(ctx.reply).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('Settings action', () => {
-        it('should reply with connect CTA when user is not Active', async () => {
-            const ctx = {
-                answerCbQuery: vi.fn().mockResolvedValue(undefined),
-                reply: vi.fn().mockResolvedValue(undefined),
-                editMessageText: vi.fn(),
-                user: undefined,
-            } as unknown as BotContext;
-
-            await actionCallbacks.get(TelegramAction.ShowSettings)!(ctx);
-
-            expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(ctx.reply).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
-            );
-            expect(ctx.editMessageText).not.toHaveBeenCalled();
-        });
-
-        it('should edit message with coming-soon text when user is Active', async () => {
-            const ctx = {
-                answerCbQuery: vi.fn().mockResolvedValue(undefined),
-                reply: vi.fn(),
-                editMessageText: vi.fn().mockResolvedValue(undefined),
-                user: { status: UserStatus.Active, accountAddress: '0xabc' },
-            } as unknown as BotContext;
-
-            await actionCallbacks.get(TelegramAction.ShowSettings)!(ctx);
-
-            expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(ctx.editMessageText).toHaveBeenCalledWith(CommonTexts.COMING_SOON);
-            expect(ctx.reply).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('Settings hears', () => {
-        it('should reply with connect CTA when user is not Active', async () => {
-            const ctx = {
-                reply: vi.fn().mockResolvedValue(undefined),
-                editMessageText: vi.fn(),
-                user: undefined,
-            } as unknown as BotContext;
-
-            await hearsCallbacks.get(BUTTON_LABELS.SETTINGS)!(ctx);
-
-            expect(ctx.reply).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
-            );
-            expect(ctx.editMessageText).not.toHaveBeenCalled();
-        });
-
-        it('should reply with coming-soon text when user is Active', async () => {
-            const ctx = {
-                reply: vi.fn().mockResolvedValue(undefined),
-                editMessageText: vi.fn(),
-                user: { status: UserStatus.Active, accountAddress: '0xabc' },
-            } as unknown as BotContext;
-
-            await hearsCallbacks.get(BUTTON_LABELS.SETTINGS)!(ctx);
-
-            expect(ctx.reply).toHaveBeenCalledWith(CommonTexts.COMING_SOON);
-            expect(ctx.editMessageText).not.toHaveBeenCalled();
         });
     });
 

@@ -140,6 +140,7 @@ describe('SettingsHandler', () => {
             await actionCallbacks.get(TelegramAction.ToggleTradeNotifications)!(ctx);
 
             expect(usersApi.updateTradeNotificationsEnabled).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalled();
         });
     });
 
