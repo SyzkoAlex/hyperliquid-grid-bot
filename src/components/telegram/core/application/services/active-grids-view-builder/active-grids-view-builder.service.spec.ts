@@ -107,33 +107,4 @@ describe('ActiveGridsViewBuilder', () => {
             expect(paginationButton).toBeDefined();
         });
     });
-
-    describe('buildWithGreeting', () => {
-        it('should prepend username greeting when username is provided', async () => {
-            const items = [makeSnapshot('grid-1')];
-            getGridsWithPnlUseCase.execute.mockResolvedValue({
-                items,
-                totalCount: 1,
-                currentPage: 1,
-            });
-
-            const view = await service.buildWithGreeting(1, 'alice');
-
-            expect(view.text).toMatch(/^Welcome back, @alice!/);
-        });
-
-        it('should prepend fallback greeting when username is absent', async () => {
-            const items = [makeSnapshot('grid-1')];
-            getGridsWithPnlUseCase.execute.mockResolvedValue({
-                items,
-                totalCount: 1,
-                currentPage: 1,
-            });
-
-            const view = await service.buildWithGreeting(1);
-
-            expect(view.text).toMatch(/^Welcome back!/);
-            expect(view.text).not.toContain('@');
-        });
-    });
 });

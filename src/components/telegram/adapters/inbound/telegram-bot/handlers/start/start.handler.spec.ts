@@ -25,7 +25,6 @@ describe('StartHandler', () => {
 
         viewBuilder = {
             build: vi.fn().mockResolvedValue({ text: '', keyboard: [], totalCount: 0 }),
-            buildWithGreeting: vi.fn().mockResolvedValue({ text: '', keyboard: [], totalCount: 0 }),
         } as unknown as ActiveGridsViewBuilder;
 
         handler = new StartHandler(botService, viewBuilder);
@@ -95,7 +94,7 @@ describe('StartHandler', () => {
         });
 
         it('should show EmptyGridsMessage with username when active user has no grids', async () => {
-            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
+            vi.mocked(viewBuilder.build).mockResolvedValue({
                 text: '',
                 keyboard: [],
                 totalCount: 0,
@@ -105,7 +104,7 @@ describe('StartHandler', () => {
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(viewBuilder.buildWithGreeting).toHaveBeenCalledWith(1, 'alice');
+            expect(viewBuilder.build).toHaveBeenCalledWith(1);
             expect(ctx.reply).toHaveBeenCalledTimes(1);
             const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
             expect(text).toContain('Welcome back, @alice!');
@@ -114,7 +113,7 @@ describe('StartHandler', () => {
         });
 
         it('should show EmptyGridsMessage without @ when active user has no grids and no username', async () => {
-            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
+            vi.mocked(viewBuilder.build).mockResolvedValue({
                 text: '',
                 keyboard: [],
                 totalCount: 0,
@@ -124,15 +123,15 @@ describe('StartHandler', () => {
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(viewBuilder.buildWithGreeting).toHaveBeenCalledWith(1, undefined);
+            expect(viewBuilder.build).toHaveBeenCalledWith(1);
             const [text] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
             expect(text).toContain('Welcome back!');
             expect(text).not.toContain('@');
         });
 
-        it('should show greeting + grid list when active user has grids', async () => {
-            vi.mocked(viewBuilder.buildWithGreeting).mockResolvedValue({
-                text: 'Welcome back, @alice!\n\n<b>Active Grids</b> (3)',
+        it('should show greeting with reply keyboard then grid list with inline keyboard when active user has grids', async () => {
+            vi.mocked(viewBuilder.build).mockResolvedValue({
+                text: '<b>Active Grids</b> (3)',
                 keyboard: [[{ text: 'Details', action: 'view:grid:abc' }]],
                 totalCount: 3,
             });
@@ -141,11 +140,16 @@ describe('StartHandler', () => {
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(ctx.reply).toHaveBeenCalledTimes(1);
-            const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
-            expect(text).toContain('Welcome back, @alice!');
-            expect(text).toContain('<b>Active Grids</b> (3)');
-            expect(options.reply_markup).toHaveProperty('inline_keyboard');
+            expect(ctx.reply).toHaveBeenCalledTimes(2);
+            const [[greetingText, greetingOptions], [gridsText, gridsOptions]] = (
+                ctx.reply as ReturnType<typeof vi.fn>
+            ).mock.calls;
+            expect(greetingText).toBe('Welcome back, @alice!');
+            expect(greetingOptions.reply_markup).toHaveProperty('keyboard');
+            expect(greetingOptions.reply_markup).not.toHaveProperty('inline_keyboard');
+            expect(gridsText).toContain('<b>Active Grids</b> (3)');
+            expect(gridsOptions.reply_markup).toHaveProperty('inline_keyboard');
+            expect(gridsOptions.reply_markup).not.toHaveProperty('keyboard');
         });
     });
 

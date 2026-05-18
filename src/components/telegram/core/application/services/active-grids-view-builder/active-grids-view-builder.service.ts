@@ -7,7 +7,6 @@ import { ActiveGridsHeaderMessage } from '@components/telegram/core/domain/model
 import { GridListMessage } from '@components/telegram/core/domain/models/messages/grids/grid-list.message';
 import { GridsListKeyboard } from '@components/telegram/core/domain/models/messages/grids/grids-list.keyboard';
 import { GridsAction } from '@components/telegram/core/domain/models/grids-action';
-import { ActiveGreetingMessage } from '@components/telegram/core/domain/models/messages/active-greeting-message';
 import { ActiveGridsView } from './types/active-grids-view';
 
 @Injectable()
@@ -39,11 +38,5 @@ export class ActiveGridsViewBuilder {
             totalPages,
         );
         return { text, keyboard, totalCount };
-    }
-
-    async buildWithGreeting(page: number, username?: string): Promise<ActiveGridsView> {
-        const view = await this.build(page);
-        const greeting = ActiveGreetingMessage.create({ username }).text;
-        return { ...view, text: `${greeting}\n\n${view.text}` };
     }
 }

@@ -4,6 +4,7 @@ import { BotContext } from '../../types/bot-context';
 import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
 import { LandingMessage } from '@components/telegram/core/domain/models/messages/landing-message';
 import { EmptyGridsMessage } from '@components/telegram/core/domain/models/messages/empty-grids-message';
+import { ActiveGreetingMessage } from '@components/telegram/core/domain/models/messages/active-greeting-message';
 import { Handler } from '../handler';
 import { replyMenuKeyboard } from '../main-menu.keyboard';
 import { toInlineKeyboard } from '../inline-keyboard';
@@ -36,7 +37,7 @@ export class StartHandler implements Handler {
 
         // Active user
         const username = ctx.from?.username;
-        const view = await this.viewBuilder.buildWithGreeting(1, username);
+        const view = await this.viewBuilder.build(1);
 
         if (view.totalCount === 0) {
             await ctx.reply(EmptyGridsMessage.create({ username }).text, {
@@ -46,6 +47,10 @@ export class StartHandler implements Handler {
             return;
         }
 
+        await ctx.reply(ActiveGreetingMessage.create({ username }).text, {
+            parse_mode: TelegramParseMode.HTML,
+            ...replyMenuKeyboard(),
+        });
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
