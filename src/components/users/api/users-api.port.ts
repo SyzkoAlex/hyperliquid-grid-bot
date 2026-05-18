@@ -29,4 +29,7 @@ export interface UsersApiPort {
 
     /** Disconnect a user and revoke their agent wallet. */
     disconnectUser(userId: string): Promise<void>;
+
+    /** Enable or disable trade notifications for a user. */
+    updateTradeNotificationsEnabled(userId: string, enabled: boolean): Promise<void>;
 }

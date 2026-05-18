@@ -1,4 +1,4 @@
-import { bigint, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { bigint, boolean, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 /**
  * Users table for agent wallet integration.
@@ -12,6 +12,7 @@ export const users = pgTable('users', {
     agentPrivateKeyEncrypted: varchar('agent_private_key_encrypted', { length: 500 }).notNull(),
     status: varchar('status', { length: 20 }).notNull(), // pending_approval, active, disconnected
     timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
+    tradeNotificationsEnabled: boolean('trade_notifications_enabled').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

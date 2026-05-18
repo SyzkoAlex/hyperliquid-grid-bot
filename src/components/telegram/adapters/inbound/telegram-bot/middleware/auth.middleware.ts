@@ -30,6 +30,7 @@ const PUBLIC_CALLBACK_ACTIONS: ReadonlySet<string> = new Set([
     TelegramAction.ShowHelp,
     TelegramAction.ListGrids,
     TelegramAction.ShowSettings,
+    TelegramAction.ToggleTradeNotifications,
 ]);
 
 export function createAuthMiddleware(

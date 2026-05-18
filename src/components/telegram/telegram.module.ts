@@ -31,6 +31,7 @@ import { GridHistoryTabHandler } from './adapters/inbound/telegram-bot/handlers/
 import { StopGridHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/stop-grid.handler';
 import { BalanceHandler } from './adapters/inbound/telegram-bot/handlers/balance/balance.handler';
 import { ConnectAccountHandler } from './adapters/inbound/telegram-bot/handlers/connect-account/connect-account.handler';
+import { SettingsHandler } from './adapters/inbound/telegram-bot/handlers/settings/settings.handler';
 import { GetGridsWithPnlUseCase } from './core/application/use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
 import { GetGridWithPnlUseCase } from './core/application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
 import { GetUserBalanceUseCase } from './core/application/use-cases/get-user-balance/get-user-balance.use-case';
@@ -86,6 +87,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         StopGridHandler,
         BalanceHandler,
         ConnectAccountHandler,
+        SettingsHandler,
         GetUserBalanceUseCase,
         SelectPairStep,
         SelectModeStep,

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { UsersApiAdapter } from './users-api.adapter';
 import { UserStatus } from '@domain/models/user/user-status';
 import { User } from '../core/domain/models/user/user';
+import { UserRepositoryPort } from '../core/application/ports/user-repository.port';
+import { AgentKeyPort } from '../core/application/ports/agent-key.port';
 
 const MOCK_USER_ID = '00000000-0000-0000-0000-000000000001';
 const MOCK_CHAT_ID = 123456789;
@@ -16,6 +18,7 @@ function makeUser(status: UserStatus = UserStatus.PendingApproval): User {
         agentAddress: MOCK_AGENT_ADDRESS,
         status,
         timezone: 'UTC',
+        tradeNotificationsEnabled: true,
         createdAt: new Date('2024-01-01'),
     });
 }
@@ -30,6 +33,7 @@ describe('UsersApiAdapter', () => {
         findOneByAccountAddress: ReturnType<typeof vi.fn>;
         findManyActive: ReturnType<typeof vi.fn>;
         updateStatus: ReturnType<typeof vi.fn>;
+        updateTradeNotificationsEnabled: ReturnType<typeof vi.fn>;
         findEncryptedAgentKey: ReturnType<typeof vi.fn>;
     };
 
@@ -47,6 +51,7 @@ describe('UsersApiAdapter', () => {
             findOneByAccountAddress: vi.fn(),
             findManyActive: vi.fn(),
             updateStatus: vi.fn().mockResolvedValue(undefined),
+            updateTradeNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
             findEncryptedAgentKey: vi.fn(),
         };
 
@@ -59,7 +64,10 @@ describe('UsersApiAdapter', () => {
             decryptPrivateKey: vi.fn().mockReturnValue('0x' + 'ab'.repeat(32)),
         };
 
-        sut = new UsersApiAdapter(mockRepo as any, mockAgentKey as any);
+        sut = new UsersApiAdapter(
+            mockRepo as unknown as UserRepositoryPort,
+            mockAgentKey as unknown as AgentKeyPort,
+        );
     });
 
     describe('findUserById', () => {

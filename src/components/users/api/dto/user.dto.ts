@@ -7,4 +7,5 @@ export interface UserDto {
     agentAddress: string;
     status: UserStatus;
     timezone: string;
+    tradeNotificationsEnabled: boolean;
 }

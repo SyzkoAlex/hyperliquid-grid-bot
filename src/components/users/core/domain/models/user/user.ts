@@ -8,6 +8,7 @@ export class User {
     private readonly _agentAddress: string;
     private readonly _status: UserStatus;
     private readonly _timezone: string;
+    private readonly _tradeNotificationsEnabled: boolean;
     private readonly _createdAt: Date;
 
     private constructor(params: UserCreateParams) {
@@ -17,6 +18,7 @@ export class User {
         this._agentAddress = params.agentAddress;
         this._status = params.status;
         this._timezone = params.timezone;
+        this._tradeNotificationsEnabled = params.tradeNotificationsEnabled;
         this._createdAt = params.createdAt;
     }
 
@@ -46,6 +48,10 @@ export class User {
 
     get timezone(): string {
         return this._timezone;
+    }
+
+    get tradeNotificationsEnabled(): boolean {
+        return this._tradeNotificationsEnabled;
     }
 
     get createdAt(): Date {

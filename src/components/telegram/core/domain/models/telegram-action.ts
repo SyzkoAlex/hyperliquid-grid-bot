@@ -5,4 +5,5 @@ export enum TelegramAction {
     ShowSettings = 'show:settings',
     ShowHelp = 'show:help',
     ConnectAccount = 'connect:account',
+    ToggleTradeNotifications = 'settings:toggle:trade-notifications',
 }
