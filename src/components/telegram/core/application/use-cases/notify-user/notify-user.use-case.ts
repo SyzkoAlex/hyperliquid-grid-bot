@@ -4,7 +4,7 @@ import {
     TelegramNotificationPort,
 } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
-import { NotificationRouter } from '@components/telegram/core/application/services/notification-router/notification-router.service';
+import { NotificationRouterService } from '@components/telegram/core/application/services/notification-router/notification-router.service';
 import { logger } from '@/infra/logger/logger';
 import { NotifyUserParams } from './notify-user-params';
 
@@ -16,7 +16,7 @@ export class NotifyUserUseCase {
         @Inject(TELEGRAM_NOTIFICATION_PORT)
         private readonly telegramNotification: TelegramNotificationPort,
         private readonly messageFactory: NotificationMessageFactory,
-        private readonly router: NotificationRouter,
+        private readonly router: NotificationRouterService,
     ) {}
 
     async execute(params: NotifyUserParams): Promise<void> {

@@ -4,7 +4,7 @@ import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.eve
 import { NotificationRoute } from '@components/telegram/core/application/services/notification-router/types/notification-route';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
-import { NotificationRouter } from '@components/telegram/core/application/services/notification-router/notification-router.service';
+import { NotificationRouterService } from '@components/telegram/core/application/services/notification-router/notification-router.service';
 
 const CHAT_ID = 123456789;
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -21,7 +21,7 @@ describe('NotifyUserUseCase', () => {
     let sut: NotifyUserUseCase;
     let mockTelegramNotification: Mocked<TelegramNotificationPort>;
     let mockMessageFactory: Mocked<Pick<NotificationMessageFactory, 'buildFromEvent'>>;
-    let mockRouter: Mocked<Pick<NotificationRouter, 'resolve'>>;
+    let mockRouter: Mocked<Pick<NotificationRouterService, 'resolve'>>;
 
     beforeEach(() => {
         mockTelegramNotification = {
@@ -36,7 +36,7 @@ describe('NotifyUserUseCase', () => {
         sut = new NotifyUserUseCase(
             mockTelegramNotification,
             mockMessageFactory as unknown as NotificationMessageFactory,
-            mockRouter as unknown as NotificationRouter,
+            mockRouter as unknown as NotificationRouterService,
         );
     });
 

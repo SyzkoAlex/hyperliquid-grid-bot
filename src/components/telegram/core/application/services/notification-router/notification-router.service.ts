@@ -15,8 +15,8 @@ import { NotificationRoute } from './types/notification-route';
  * Returns null when grid or user cannot be resolved; the failure is logged at WARN level.
  */
 @Injectable()
-export class NotificationRouter {
-    private readonly logger = logger.child({ context: NotificationRouter.name });
+export class NotificationRouterService {
+    private readonly logger = logger.child({ context: NotificationRouterService.name });
 
     constructor(
         @Inject(GRIDS_API_PORT) private readonly gridsApi: GridsApiPort,

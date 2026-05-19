@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
-import { NotificationRouter } from './notification-router.service';
+import { NotificationRouterService } from './notification-router.service';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
@@ -50,8 +50,8 @@ function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
     };
 }
 
-describe('NotificationRouter', () => {
-    let sut: NotificationRouter;
+describe('NotificationRouterService', () => {
+    let sut: NotificationRouterService;
     let mockGridsApi: Mocked<Pick<GridsApiPort, 'findGridById'>>;
     let mockUsersApi: Mocked<Pick<UsersApiPort, 'findUserById' | 'findUserByAccountAddress'>>;
 
@@ -63,7 +63,7 @@ describe('NotificationRouter', () => {
             findUserById: vi.fn().mockResolvedValue(makeUserDto()),
             findUserByAccountAddress: vi.fn().mockResolvedValue(makeUserDto()),
         };
-        sut = new NotificationRouter(
+        sut = new NotificationRouterService(
             mockGridsApi as unknown as GridsApiPort,
             mockUsersApi as unknown as UsersApiPort,
         );
