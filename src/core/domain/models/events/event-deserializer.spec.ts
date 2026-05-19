@@ -26,7 +26,8 @@ function createEventByType(type: EventType): SerializableEvent {
             new OrderClosedEvent('grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100, 2, 10),
         [EventType.GridCreatedSuccess]: () =>
             new GridCreatedSuccessEvent('grid-1', 'BTC', 50000, 60000, 10, 5000, 0.5, false),
-        [EventType.GridCreatedError]: () => new GridCreatedErrorEvent('Something went wrong'),
+        [EventType.GridCreatedError]: () =>
+            new GridCreatedErrorEvent('Something went wrong', '0xabc'),
         [EventType.GridStopLossTriggered]: () =>
             new GridStopLossTriggeredEvent(
                 'grid-1',

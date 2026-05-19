@@ -1,6 +1,4 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Config } from '@/config/config.schema';
 import {
     EVENT_SUBSCRIBER_PORT,
     EventSubscriberPort,
@@ -27,7 +25,6 @@ import { logger } from '@/infra/logger/logger';
 @Injectable()
 export class TradingEventsAdapter implements OnModuleInit {
     private readonly logger = logger.child({ context: TradingEventsAdapter.name });
-    private readonly notificationChatId: number;
 
     constructor(
         @Inject(EVENT_SUBSCRIBER_PORT) private readonly subscriber: EventSubscriberPort,
@@ -36,10 +33,7 @@ export class TradingEventsAdapter implements OnModuleInit {
         private readonly messageFactory: NotificationMessageFactory,
         private readonly botService: TelegramBotService,
         private readonly pendingCreationMessageStore: PendingCreationMessageStore,
-        configService: ConfigService<Config, true>,
-    ) {
-        this.notificationChatId = configService.get('telegram', { infer: true }).notificationChatId;
-    }
+    ) {}
 
     onModuleInit() {
         this.subscribeToEvents();
@@ -106,12 +100,13 @@ export class TradingEventsAdapter implements OnModuleInit {
     private async notifyCreationResult(
         event: GridCreatedSuccessEvent | GridCreatedErrorEvent,
     ): Promise<void> {
-        const text = this.messageFactory.buildFromEvent(event).text;
         const pending = this.pendingCreationMessageStore.consume();
         if (pending) {
+            // Direct response to user's wizard action — bypasses tradeNotificationsEnabled flag.
+            const text = this.messageFactory.buildFromEvent(event).text;
             await this.botService.editMessage(pending.chatId, pending.messageId, text);
-        } else {
-            await this.botService.sendMessage(this.notificationChatId, text);
+            return;
         }
+        await this.notifyUser.execute({ event });
     }
 }

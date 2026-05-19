@@ -39,7 +39,7 @@ describe('NotificationMessageFactory', () => {
     });
 
     it('builds GridCreatedErrorMessage from GridCreatedErrorEvent', () => {
-        const event = new GridCreatedErrorEvent('Insufficient balance');
+        const event = new GridCreatedErrorEvent('Insufficient balance', '0xabc');
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('Grid Creation Failed');
         expect(msg.text).toContain('Insufficient balance');

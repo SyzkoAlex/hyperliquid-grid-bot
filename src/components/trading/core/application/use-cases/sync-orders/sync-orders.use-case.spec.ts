@@ -37,6 +37,7 @@ describe('SyncOrdersUseCase', () => {
 
     const createTestGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: crypto.randomUUID(),
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Running,
         lowerPrice: 45000,

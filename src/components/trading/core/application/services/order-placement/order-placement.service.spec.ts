@@ -34,6 +34,7 @@ const makeGrid = (
     levels: number,
 ): GridDto => ({
     id: MOCK_GRID_ID,
+    userId: 'user-1',
     symbol,
     status: GridStatus.Running,
     lowerPrice,

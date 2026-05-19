@@ -15,7 +15,6 @@ export const telegramSchema = z.object({
     enabled: coerceBoolean(),
     botToken: z.string().min(1),
     allowedUserId: z.coerce.number().int().optional(),
-    notificationChatId: z.coerce.number().int(),
     session: telegramSessionSchema,
     pagination: telegramPaginationSchema,
     botLockTtlMs: z.coerce.number().int().positive(),

@@ -10,6 +10,7 @@ import { OrderType } from '@domain/models/order/order-type';
 function makeGrid(): GridDto {
     return {
         id: 'grid-1',
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Running,
         lowerPrice: 90000,

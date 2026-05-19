@@ -35,6 +35,7 @@ export class CreateGridHandler {
 
             const errorEvent = new GridCreatedErrorEvent(
                 error instanceof Error ? error.message : 'Unknown error',
+                command.accountAddress,
             );
             await this.publisher.publish(errorEvent);
         }

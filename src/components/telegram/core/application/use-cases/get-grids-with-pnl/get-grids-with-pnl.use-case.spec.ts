@@ -15,6 +15,7 @@ const PAGE_SIZE = 5;
 function makeGrid(status = GridStatus.Running): GridDto {
     return {
         id: '550e8400-e29b-41d4-a716-446655440000',
+        userId: 'user-1',
         symbol: 'BTC',
         status,
         lowerPrice: 90000,

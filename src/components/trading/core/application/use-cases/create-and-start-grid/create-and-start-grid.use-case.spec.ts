@@ -17,6 +17,7 @@ describe('CreateAndStartGridUseCase', () => {
 
     const makeGridDto = (overrides: Partial<GridDto> = {}): GridDto => ({
         id: '550e8400-e29b-41d4-a716-446655440000',
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Idle,
         lowerPrice: 45000,

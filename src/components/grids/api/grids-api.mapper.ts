@@ -7,6 +7,7 @@ export class GridsApiMapper {
     static toGridDto(grid: Grid): GridDto {
         return {
             id: grid.id.toString(),
+            userId: grid.userId,
             symbol: grid.symbol.toString(),
             status: grid.status,
             lowerPrice: grid.lowerPrice.toNumber(),
