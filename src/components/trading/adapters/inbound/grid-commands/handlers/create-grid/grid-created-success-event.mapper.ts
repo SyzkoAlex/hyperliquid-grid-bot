@@ -4,6 +4,7 @@ import { CreateAndStartGridResult } from '@components/trading/core/application/u
 export class GridCreatedSuccessEventMapper {
     static fromResult(result: CreateAndStartGridResult): GridCreatedSuccessEvent {
         return new GridCreatedSuccessEvent(
+            result.grid.userId,
             result.grid.id,
             result.grid.symbol,
             result.grid.lowerPrice,

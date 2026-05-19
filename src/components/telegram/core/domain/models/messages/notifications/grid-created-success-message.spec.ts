@@ -43,6 +43,7 @@ describe('GridCreatedSuccessMessage', () => {
 
     it('creates from GridCreatedSuccessEvent', () => {
         const event = new GridCreatedSuccessEvent(
+            'user-1',
             'abcdef01-2345-6789-abcd-ef0123456789',
             'ETH',
             3000,

@@ -3,6 +3,7 @@ import { EventType } from '../event-type';
 
 export class GridCreatedSuccessEvent extends SerializableEvent {
     constructor(
+        public readonly userId: string,
         public readonly gridId: string,
         public readonly symbol: string,
         public readonly lowerPrice: number,
@@ -13,7 +14,7 @@ export class GridCreatedSuccessEvent extends SerializableEvent {
         public readonly trailingEnabled: boolean,
         timestamp?: number,
     ) {
-        super(EventType.GridCreatedSuccess, timestamp);
+        super(EventType.GridCreatedSuccess, userId, timestamp);
     }
 
     protected toJSON(): Record<string, any> {
@@ -32,6 +33,7 @@ export class GridCreatedSuccessEvent extends SerializableEvent {
     static deserialize(json: string): GridCreatedSuccessEvent {
         const data = JSON.parse(json);
         return new GridCreatedSuccessEvent(
+            data.userId,
             data.gridId,
             data.symbol,
             data.lowerPrice,

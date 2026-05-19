@@ -56,6 +56,7 @@ export class TradeEventPublisher {
         profit: Decimal,
     ): OrderClosedEvent {
         return new OrderClosedEvent(
+            grid.userId,
             grid.id,
             grid.symbol,
             filledOrder.side,
@@ -77,6 +78,7 @@ export class TradeEventPublisher {
         level: number,
     ): OrderOpenedEvent {
         return new OrderOpenedEvent(
+            grid.userId,
             grid.id,
             grid.symbol,
             filledOrder.side,

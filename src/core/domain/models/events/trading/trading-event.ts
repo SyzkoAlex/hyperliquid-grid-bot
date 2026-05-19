@@ -5,6 +5,7 @@ export abstract class SerializableEvent {
 
     constructor(
         public readonly eventType: EventType,
+        public readonly userId: string,
         timestamp?: number,
     ) {
         this.timestamp = timestamp ?? Date.now();
@@ -13,6 +14,7 @@ export abstract class SerializableEvent {
     serialize(): string {
         return JSON.stringify({
             eventType: this.eventType,
+            userId: this.userId,
             timestamp: this.timestamp,
             ...this.toJSON(),
         });

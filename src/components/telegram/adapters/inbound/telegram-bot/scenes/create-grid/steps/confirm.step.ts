@@ -48,6 +48,7 @@ export class ConfirmStep {
 
         void this.createGridUseCase
             .execute({
+                userId: ctx.user!.id,
                 symbol: state!.symbol!,
                 lowerPrice: state!.lowerPrice!,
                 upperPrice: state!.upperPrice!,

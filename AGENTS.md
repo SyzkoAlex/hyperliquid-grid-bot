@@ -14,6 +14,19 @@ This runs: typecheck → lint → format:check → build → test
 
 - When writing a commit message — do NOT add `Co-Authored-By` or any agent/AI attribution
 
+### Post-review commit
+
+When the pre-commit hook blocks `git commit` for code review, do exactly:
+
+1. Run the `code-review` subagent on the current `git diff` and show its
+   report to the user.
+2. Wait for the user's decision (commit / fix / skip).
+3. Retry the commit as ONE Bash command:
+   `touch ~/.claude/.code-review-done && git commit -m "..."`
+
+Do not split the `touch` and `git commit` into two separate Bash calls —
+the hook accepts the chained form. Never use `--no-verify`.
+
 ---
 
 ## Code Style

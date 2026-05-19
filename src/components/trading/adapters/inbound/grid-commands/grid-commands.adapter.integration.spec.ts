@@ -125,6 +125,7 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Create and publish command
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -205,6 +206,7 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Command with only required params (uses defaults)
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
@@ -267,6 +269,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             });
 
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'SOL',
                 lowerPrice: 100,
                 upperPrice: 150,
@@ -300,6 +303,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             subscriber.subscribe(EventType.GridCreatedError, errorHandler);
 
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -340,6 +344,7 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Try to create grid with more capital than available
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -397,6 +402,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             });
 
             const command = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -476,6 +482,7 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Create first grid (BTC)
             const command1 = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -487,6 +494,7 @@ describe('GridCommandsAdapter (Integration)', () => {
 
             // Create second grid (ETH)
             const command2 = CreateGridCommandEvent.create({
+                userId: TEST_USER_ID,
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,

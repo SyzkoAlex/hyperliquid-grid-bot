@@ -11,13 +11,34 @@ describe('NotificationMessageFactory', () => {
     const factory = new NotificationMessageFactory();
 
     it('builds TradeOpenedMessage from OrderOpenedEvent', () => {
-        const event = new OrderOpenedEvent('grid-1', 'BTC', 'buy', 95000, 0.01, 950, 1, 10);
+        const event = new OrderOpenedEvent(
+            'user-1',
+            'grid-1',
+            'BTC',
+            'buy',
+            95000,
+            0.01,
+            950,
+            1,
+            10,
+        );
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('BUY BTC');
     });
 
     it('builds TradeClosedMessage from OrderClosedEvent', () => {
-        const event = new OrderClosedEvent('grid-1', 'BTC', 'sell', 96000, 0.01, 960, 10, 1, 10);
+        const event = new OrderClosedEvent(
+            'user-1',
+            'grid-1',
+            'BTC',
+            'sell',
+            96000,
+            0.01,
+            960,
+            10,
+            1,
+            10,
+        );
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('SELL BTC');
         expect(msg.text).toContain('Profit:');
@@ -25,6 +46,7 @@ describe('NotificationMessageFactory', () => {
 
     it('builds GridCreatedSuccessMessage from GridCreatedSuccessEvent', () => {
         const event = new GridCreatedSuccessEvent(
+            'user-1',
             'grid-1',
             'ETH',
             3000,
@@ -39,7 +61,7 @@ describe('NotificationMessageFactory', () => {
     });
 
     it('builds GridCreatedErrorMessage from GridCreatedErrorEvent', () => {
-        const event = new GridCreatedErrorEvent('Insufficient balance', '0xabc');
+        const event = new GridCreatedErrorEvent('user-1', 'Insufficient balance');
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('Grid Creation Failed');
         expect(msg.text).toContain('Insufficient balance');
@@ -48,7 +70,7 @@ describe('NotificationMessageFactory', () => {
     it('throws for unsupported event type', () => {
         class UnknownEvent extends SerializableEvent {
             constructor() {
-                super('unknown' as EventType);
+                super('unknown' as EventType, 'user-1');
             }
 
             protected toJSON(): Record<string, unknown> {

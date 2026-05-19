@@ -8,6 +8,7 @@ import { NotificationRouterService } from '@components/telegram/core/application
 
 const CHAT_ID = 123456789;
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
+const USER_ID = '660e8400-e29b-41d4-a716-446655440001';
 
 function makeRoute(overrides: Partial<NotificationRoute> = {}): NotificationRoute {
     return {
@@ -43,7 +44,17 @@ describe('NotifyUserUseCase', () => {
     describe('execute', () => {
         it('should not call sendMessage when router returns null', async () => {
             mockRouter.resolve.mockResolvedValue(null);
-            const event = new OrderOpenedEvent(GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000, 1, 10);
+            const event = new OrderOpenedEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                'buy',
+                50000,
+                0.1,
+                5000,
+                1,
+                10,
+            );
 
             await sut.execute({ event });
 
@@ -52,7 +63,17 @@ describe('NotifyUserUseCase', () => {
 
         it('should not call sendMessage when tradeNotificationsEnabled is false', async () => {
             mockRouter.resolve.mockResolvedValue(makeRoute({ tradeNotificationsEnabled: false }));
-            const event = new OrderOpenedEvent(GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000, 1, 10);
+            const event = new OrderOpenedEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                'buy',
+                50000,
+                0.1,
+                5000,
+                1,
+                10,
+            );
 
             await sut.execute({ event });
 
@@ -60,7 +81,17 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should call sendMessage with chatId and text when notifications are enabled', async () => {
-            const event = new OrderOpenedEvent(GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000, 1, 10);
+            const event = new OrderOpenedEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                'buy',
+                50000,
+                0.1,
+                5000,
+                1,
+                10,
+            );
 
             await sut.execute({ event });
 
@@ -71,7 +102,17 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should build the message text using the factory', async () => {
-            const event = new OrderOpenedEvent(GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000, 1, 10);
+            const event = new OrderOpenedEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                'buy',
+                50000,
+                0.1,
+                5000,
+                1,
+                10,
+            );
 
             await sut.execute({ event });
 

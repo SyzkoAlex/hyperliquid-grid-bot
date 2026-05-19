@@ -44,6 +44,7 @@ describe('TradeClosedMessage', () => {
 
     it('creates from OrderClosedEvent and computes profitPercent', () => {
         const event = new OrderClosedEvent(
+            'user-1',
             'abcdef01-2345-6789-abcd-ef0123456789',
             'ETH',
             'buy',
@@ -64,6 +65,7 @@ describe('TradeClosedMessage', () => {
 
     it('computes negative profitPercent from event', () => {
         const event = new OrderClosedEvent(
+            'user-1',
             'abcdef01-2345-6789-abcd-ef0123456789',
             'BTC',
             'sell',

@@ -6,6 +6,7 @@ describe('GridStopLossTriggeredMessage', () => {
     describe('fromEvent — success path', () => {
         it('contains Stop-Loss Triggered, sold amount, and USDC received', () => {
             const event = new GridStopLossTriggeredEvent(
+                'user-1',
                 'grid-abc',
                 'ETH',
                 1900,
@@ -30,6 +31,7 @@ describe('GridStopLossTriggeredMessage', () => {
     describe('fromEvent — failure path', () => {
         it('contains Manual action needed and error message', () => {
             const event = new GridStopLossTriggeredEvent(
+                'user-1',
                 'grid-xyz',
                 'BTC',
                 45000,

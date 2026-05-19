@@ -3,6 +3,7 @@ import { EventType } from '../event-type';
 
 export class OrderClosedEvent extends SerializableEvent {
     constructor(
+        public readonly userId: string,
         public readonly gridId: string,
         public readonly symbol: string,
         public readonly side: string,
@@ -14,7 +15,7 @@ export class OrderClosedEvent extends SerializableEvent {
         public readonly totalLevels: number,
         timestamp?: number,
     ) {
-        super(EventType.OrderClosed, timestamp);
+        super(EventType.OrderClosed, userId, timestamp);
     }
 
     protected toJSON(): Record<string, any> {
@@ -34,6 +35,7 @@ export class OrderClosedEvent extends SerializableEvent {
     static deserialize(json: string): OrderClosedEvent {
         const data = JSON.parse(json);
         return new OrderClosedEvent(
+            data.userId,
             data.gridId,
             data.symbol,
             data.side,

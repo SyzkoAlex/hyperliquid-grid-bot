@@ -27,7 +27,7 @@ describe('GridCreatedErrorMessage', () => {
 
     describe('fromEvent', () => {
         it('extracts error from event', () => {
-            const event = new GridCreatedErrorEvent('Exchange rejected order', '0xabc');
+            const event = new GridCreatedErrorEvent('user-1', 'Exchange rejected order');
             const result = GridCreatedErrorMessage.fromEvent(event);
             expect(result.text).toContain('Exchange rejected order');
         });

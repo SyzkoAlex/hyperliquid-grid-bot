@@ -34,8 +34,8 @@ export class CreateGridHandler {
             this.logger.error({ error, command }, 'Failed to create grid');
 
             const errorEvent = new GridCreatedErrorEvent(
+                command.userId,
                 error instanceof Error ? error.message : 'Unknown error',
-                command.accountAddress,
             );
             await this.publisher.publish(errorEvent);
         }

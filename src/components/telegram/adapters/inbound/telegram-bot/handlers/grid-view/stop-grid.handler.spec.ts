@@ -58,7 +58,7 @@ function createMockContext(match?: string[]): BotContext {
         answerCbQuery: vi.fn(),
         editMessageText: vi.fn(),
         deleteMessage: vi.fn(),
-        user: { accountAddress: '0xtest' },
+        user: { id: 'user-1', accountAddress: '0xtest' },
     } as unknown as BotContext;
 }
 
@@ -139,7 +139,7 @@ describe('StopGridHandler', () => {
             await actionCallbacks.get(GridAction.CONFIRM_STOP_PATTERN)!(ctx);
 
             expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(stopGridUseCase.execute).toHaveBeenCalledWith(GRID_ID, '0xtest');
+            expect(stopGridUseCase.execute).toHaveBeenCalledWith('user-1', GRID_ID, '0xtest');
             expect(ctx.editMessageText).toHaveBeenCalledWith(
                 GridViewTexts.STOPPED_SUCCESS,
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
