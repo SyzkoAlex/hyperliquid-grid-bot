@@ -1,18 +1,24 @@
 import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import { NotifyUserUseCase } from './notify-user.use-case';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
-import { NotificationRoute } from '@components/telegram/core/application/services/notification-router/types/notification-route';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
-import { NotificationRouterService } from '@components/telegram/core/application/services/notification-router/notification-router.service';
+import { UsersApiPort } from '@components/users/api/users-api.port';
+import { UserDto } from '@components/users/api/dto/user.dto';
+import { UserStatus } from '@domain/models/user/user-status';
 
 const CHAT_ID = 123456789;
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const USER_ID = '660e8400-e29b-41d4-a716-446655440001';
 
-function makeRoute(overrides: Partial<NotificationRoute> = {}): NotificationRoute {
+function makeUser(overrides: Partial<UserDto> = {}): UserDto {
     return {
-        chatId: CHAT_ID,
+        id: USER_ID,
+        telegramChatId: CHAT_ID,
+        accountAddress: '0xabc',
+        agentAddress: '0xagent',
+        status: UserStatus.Active,
+        timezone: 'UTC',
         tradeNotificationsEnabled: true,
         ...overrides,
     };
@@ -22,7 +28,7 @@ describe('NotifyUserUseCase', () => {
     let sut: NotifyUserUseCase;
     let mockTelegramNotification: Mocked<TelegramNotificationPort>;
     let mockMessageFactory: Mocked<Pick<NotificationMessageFactory, 'buildFromEvent'>>;
-    let mockRouter: Mocked<Pick<NotificationRouterService, 'resolve'>>;
+    let mockUsersApi: Mocked<Pick<UsersApiPort, 'findUserById'>>;
 
     beforeEach(() => {
         mockTelegramNotification = {
@@ -31,19 +37,19 @@ describe('NotifyUserUseCase', () => {
         mockMessageFactory = {
             buildFromEvent: vi.fn().mockReturnValue({ text: 'notification text' }),
         };
-        mockRouter = {
-            resolve: vi.fn().mockResolvedValue(makeRoute()),
+        mockUsersApi = {
+            findUserById: vi.fn().mockResolvedValue(makeUser()),
         };
         sut = new NotifyUserUseCase(
             mockTelegramNotification,
             mockMessageFactory as unknown as NotificationMessageFactory,
-            mockRouter as unknown as NotificationRouterService,
+            mockUsersApi as unknown as UsersApiPort,
         );
     });
 
     describe('execute', () => {
-        it('should not call sendMessage when router returns null', async () => {
-            mockRouter.resolve.mockResolvedValue(null);
+        it('should not call sendMessage when user not found', async () => {
+            mockUsersApi.findUserById.mockResolvedValue(null);
             const event = new OrderOpenedEvent(
                 USER_ID,
                 GRID_ID,
@@ -62,7 +68,9 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should not call sendMessage when tradeNotificationsEnabled is false', async () => {
-            mockRouter.resolve.mockResolvedValue(makeRoute({ tradeNotificationsEnabled: false }));
+            mockUsersApi.findUserById.mockResolvedValue(
+                makeUser({ tradeNotificationsEnabled: false }),
+            );
             const event = new OrderOpenedEvent(
                 USER_ID,
                 GRID_ID,
@@ -117,6 +125,24 @@ describe('NotifyUserUseCase', () => {
             await sut.execute({ event });
 
             expect(mockMessageFactory.buildFromEvent).toHaveBeenCalledWith(event);
+        });
+
+        it('should look up user by event.userId', async () => {
+            const event = new OrderOpenedEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                'buy',
+                50000,
+                0.1,
+                5000,
+                1,
+                10,
+            );
+
+            await sut.execute({ event });
+
+            expect(mockUsersApi.findUserById).toHaveBeenCalledWith(USER_ID);
         });
     });
 });

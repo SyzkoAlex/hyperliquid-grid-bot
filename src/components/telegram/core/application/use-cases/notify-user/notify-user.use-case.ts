@@ -4,7 +4,7 @@ import {
     TelegramNotificationPort,
 } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
-import { NotificationRouterService } from '@components/telegram/core/application/services/notification-router/notification-router.service';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { logger } from '@/infra/logger/logger';
 import { NotifyUserParams } from './notify-user-params';
 
@@ -16,21 +16,27 @@ export class NotifyUserUseCase {
         @Inject(TELEGRAM_NOTIFICATION_PORT)
         private readonly telegramNotification: TelegramNotificationPort,
         private readonly messageFactory: NotificationMessageFactory,
-        private readonly router: NotificationRouterService,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {}
 
     async execute(params: NotifyUserParams): Promise<void> {
         const { event } = params;
-        const route = await this.router.resolve(event);
-        if (!route) return;
-        if (!route.tradeNotificationsEnabled) {
+        const user = await this.usersApi.findUserById(event.userId);
+        if (!user) {
+            this.logger.warn(
+                { userId: event.userId, eventType: event.eventType },
+                'User not found for notification event',
+            );
+            return;
+        }
+        if (!user.tradeNotificationsEnabled) {
             this.logger.debug(
-                { chatId: route.chatId, eventType: event.eventType },
+                { chatId: user.telegramChatId, eventType: event.eventType },
                 'Trade notifications disabled — skipping',
             );
             return;
         }
         const text = this.messageFactory.buildFromEvent(event).text;
-        await this.telegramNotification.sendMessage(route.chatId, text);
+        await this.telegramNotification.sendMessage(user.telegramChatId, text);
     }
 }
