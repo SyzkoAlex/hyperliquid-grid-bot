@@ -37,13 +37,6 @@ export class NotificationRouterService {
     }
 
     private async userFromAccountAddress(event: GridCreatedErrorEvent): Promise<UserDto | null> {
-        if (!event.accountAddress) {
-            this.logger.warn(
-                { eventType: event.eventType },
-                'GridCreatedErrorEvent missing accountAddress',
-            );
-            return null;
-        }
         const user = await this.usersApi.findUserByAccountAddress(event.accountAddress);
         if (!user)
             this.logger.warn(

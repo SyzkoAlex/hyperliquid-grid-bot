@@ -196,14 +196,5 @@ describe('NotificationRouterService', () => {
             expect(mockGridsApi.findGridById).not.toHaveBeenCalled();
             expect(mockUsersApi.findUserById).not.toHaveBeenCalled();
         });
-
-        it('should return null when GridCreatedErrorEvent has no accountAddress', async () => {
-            const event = new GridCreatedErrorEvent('Insufficient balance', '');
-
-            const result = await sut.resolve(event);
-
-            expect(result).toBeNull();
-            expect(mockUsersApi.findUserByAccountAddress).not.toHaveBeenCalled();
-        });
     });
 });
