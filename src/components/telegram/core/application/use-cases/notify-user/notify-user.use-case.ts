@@ -8,6 +8,8 @@ import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.po
 import { logger } from '@/infra/logger/logger';
 import { NotifyUserParams } from './notify-user-params';
 
+/** Routes a serializable event to the user's personal Telegram chat.
+ * Skips silently when the user is not found or has tradeNotificationsEnabled: false. */
 @Injectable()
 export class NotifyUserUseCase {
     private readonly logger = logger.child({ context: NotifyUserUseCase.name });
@@ -36,7 +38,16 @@ export class NotifyUserUseCase {
             );
             return;
         }
-        const text = this.messageFactory.buildFromEvent(event).text;
+        let text: string;
+        try {
+            text = this.messageFactory.buildFromEvent(event).text;
+        } catch (err) {
+            this.logger.warn(
+                { eventType: event.eventType, userId: event.userId, err },
+                'Failed to build notification message — skipping',
+            );
+            return;
+        }
         await this.telegramNotification.sendMessage(user.telegramChatId, text);
     }
 }

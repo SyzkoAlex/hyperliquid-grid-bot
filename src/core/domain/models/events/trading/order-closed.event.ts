@@ -3,7 +3,7 @@ import { EventType } from '../event-type';
 
 export class OrderClosedEvent extends SerializableEvent {
     constructor(
-        public readonly userId: string,
+        userId: string,
         public readonly gridId: string,
         public readonly symbol: string,
         public readonly side: string,

@@ -3,7 +3,7 @@ import { EventType } from '../event-type';
 
 export class StopGridCommandEvent extends SerializableEvent {
     constructor(
-        public readonly userId: string,
+        userId: string,
         public readonly gridId: string,
         public readonly accountAddress: string,
         timestamp?: number,

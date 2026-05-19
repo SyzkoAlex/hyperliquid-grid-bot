@@ -3,7 +3,7 @@ import { EventType } from '../event-type';
 
 export class GridCreatedErrorEvent extends SerializableEvent {
     constructor(
-        public readonly userId: string,
+        userId: string,
         public readonly error: string,
         timestamp?: number,
     ) {

@@ -70,6 +70,7 @@ describe('EventDeserializer', () => {
 
         expect(restored.eventType).toBe(eventType);
         expect(restored.timestamp).toBe(original.timestamp);
+        expect(restored.userId).toBe(USER_ID);
     });
 
     it('has a factory for every EventType (compile-time exhaustiveness)', () => {

@@ -28,7 +28,7 @@ describe('NotifyUserUseCase', () => {
     let sut: NotifyUserUseCase;
     let mockTelegramNotification: Mocked<TelegramNotificationPort>;
     let mockMessageFactory: Mocked<Pick<NotificationMessageFactory, 'buildFromEvent'>>;
-    let mockUsersApi: Mocked<Pick<UsersApiPort, 'findUserById'>>;
+    let mockUsersApi: Mocked<UsersApiPort>;
 
     beforeEach(() => {
         mockTelegramNotification = {
@@ -39,11 +39,19 @@ describe('NotifyUserUseCase', () => {
         };
         mockUsersApi = {
             findUserById: vi.fn().mockResolvedValue(makeUser()),
+            findUserByChatId: vi.fn().mockResolvedValue(null),
+            findUserByAccountAddress: vi.fn().mockResolvedValue(null),
+            findActiveUsers: vi.fn().mockResolvedValue([]),
+            getAgentPrivateKey: vi.fn().mockResolvedValue(''),
+            createPendingUser: vi.fn().mockResolvedValue({ user: makeUser(), agentAddress: '' }),
+            activateUser: vi.fn().mockResolvedValue(undefined),
+            disconnectUser: vi.fn().mockResolvedValue(undefined),
+            updateTradeNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
         };
         sut = new NotifyUserUseCase(
             mockTelegramNotification,
             mockMessageFactory as unknown as NotificationMessageFactory,
-            mockUsersApi as unknown as UsersApiPort,
+            mockUsersApi,
         );
     });
 

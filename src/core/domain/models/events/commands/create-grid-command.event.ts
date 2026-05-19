@@ -3,7 +3,7 @@ import { EventType } from '../event-type';
 
 export class CreateGridCommandEvent extends SerializableEvent {
     constructor(
-        public readonly userId: string,
+        userId: string,
         public readonly symbol: string,
         public readonly lowerPrice: number,
         public readonly upperPrice: number,
