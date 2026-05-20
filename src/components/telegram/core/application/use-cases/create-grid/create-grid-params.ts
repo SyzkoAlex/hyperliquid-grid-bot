@@ -1,4 +1,5 @@
 export interface CreateGridParams {
+    userId: string;
     symbol: string;
     lowerPrice: number;
     upperPrice: number;

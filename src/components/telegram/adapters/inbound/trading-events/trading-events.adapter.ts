@@ -1,6 +1,4 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Config } from '@/config/config.schema';
 import {
     EVENT_SUBSCRIBER_PORT,
     EventSubscriberPort,
@@ -27,7 +25,6 @@ import { logger } from '@/infra/logger/logger';
 @Injectable()
 export class TradingEventsAdapter implements OnModuleInit {
     private readonly logger = logger.child({ context: TradingEventsAdapter.name });
-    private readonly notificationChatId: number;
 
     constructor(
         @Inject(EVENT_SUBSCRIBER_PORT) private readonly subscriber: EventSubscriberPort,
@@ -36,10 +33,7 @@ export class TradingEventsAdapter implements OnModuleInit {
         private readonly messageFactory: NotificationMessageFactory,
         private readonly botService: TelegramBotService,
         private readonly pendingCreationMessageStore: PendingCreationMessageStore,
-        configService: ConfigService<Config, true>,
-    ) {
-        this.notificationChatId = configService.get('telegram', { infer: true }).notificationChatId;
-    }
+    ) {}
 
     onModuleInit() {
         this.subscribeToEvents();
@@ -47,71 +41,50 @@ export class TradingEventsAdapter implements OnModuleInit {
     }
 
     private subscribeToEvents() {
-        this.subscriber.subscribe<SerializableEvent>(
-            EventType.OrderOpened,
-            async (event: SerializableEvent) => {
-                const typed = this.deserializer.deserialize(
-                    event.eventType,
-                    event.serialize(),
-                ) as OrderOpenedEvent;
-                await this.notifyUser.execute({ event: typed });
-            },
+        this.subscribeEvent<OrderOpenedEvent>(EventType.OrderOpened, (e) =>
+            this.notifyUser.execute({ event: e }),
         );
-
-        this.subscriber.subscribe<SerializableEvent>(
-            EventType.OrderClosed,
-            async (event: SerializableEvent) => {
-                const typed = this.deserializer.deserialize(
-                    event.eventType,
-                    event.serialize(),
-                ) as OrderClosedEvent;
-                await this.notifyUser.execute({ event: typed });
-            },
+        this.subscribeEvent<OrderClosedEvent>(EventType.OrderClosed, (e) =>
+            this.notifyUser.execute({ event: e }),
         );
-
-        this.subscriber.subscribe<SerializableEvent>(
-            EventType.GridCreatedSuccess,
-            async (event: SerializableEvent) => {
-                const typed = this.deserializer.deserialize(
-                    event.eventType,
-                    event.serialize(),
-                ) as GridCreatedSuccessEvent;
-                await this.notifyCreationResult(typed);
-            },
+        this.subscribeEvent<GridCreatedSuccessEvent>(EventType.GridCreatedSuccess, (e) =>
+            this.notifyCreationResult(e),
         );
-
-        this.subscriber.subscribe<SerializableEvent>(
-            EventType.GridCreatedError,
-            async (event: SerializableEvent) => {
-                const typed = this.deserializer.deserialize(
-                    event.eventType,
-                    event.serialize(),
-                ) as GridCreatedErrorEvent;
-                await this.notifyCreationResult(typed);
-            },
+        this.subscribeEvent<GridCreatedErrorEvent>(EventType.GridCreatedError, (e) =>
+            this.notifyCreationResult(e),
         );
-
-        this.subscriber.subscribe<SerializableEvent>(
-            EventType.GridStopLossTriggered,
-            async (event: SerializableEvent) => {
-                const typed = this.deserializer.deserialize(
-                    event.eventType,
-                    event.serialize(),
-                ) as GridStopLossTriggeredEvent;
-                await this.notifyUser.execute({ event: typed });
-            },
+        this.subscribeEvent<GridStopLossTriggeredEvent>(EventType.GridStopLossTriggered, (e) =>
+            this.notifyUser.execute({ event: e }),
         );
     }
 
+    private subscribeEvent<T extends SerializableEvent>(
+        type: EventType,
+        dispatch: (event: T) => Promise<void>,
+    ): void {
+        this.subscriber.subscribe<SerializableEvent>(type, async (event: SerializableEvent) => {
+            const typed = this.deserializer.deserialize(event.eventType, event.serialize()) as T;
+            await dispatch(typed);
+        });
+    }
+
+    /**
+     * Routes grid creation result to either the active wizard (edit the pending "Creating…" message)
+     * or the user's chat via NotifyUserUseCase when no wizard is waiting.
+     *
+     * Lives in the adapter because it depends on PendingCreationMessageStore and TelegramBotService,
+     * both of which are Telegram-specific infrastructure unavailable at the use-case layer.
+     * The wizard path intentionally bypasses tradeNotificationsEnabled — the user is actively waiting.
+     */
     private async notifyCreationResult(
         event: GridCreatedSuccessEvent | GridCreatedErrorEvent,
     ): Promise<void> {
-        const text = this.messageFactory.buildFromEvent(event).text;
         const pending = this.pendingCreationMessageStore.consume();
         if (pending) {
+            const text = this.messageFactory.buildFromEvent(event).text;
             await this.botService.editMessage(pending.chatId, pending.messageId, text);
-        } else {
-            await this.botService.sendMessage(this.notificationChatId, text);
+            return;
         }
+        await this.notifyUser.execute({ event });
     }
 }

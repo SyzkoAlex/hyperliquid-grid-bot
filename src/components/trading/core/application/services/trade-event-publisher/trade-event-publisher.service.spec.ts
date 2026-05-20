@@ -20,6 +20,7 @@ describe('TradeEventPublisher', () => {
     // Grid: 11 levels, spacing = (55000-45000)/(11-1) = 1000
     const testGrid: GridDto = {
         id: GRID_ID,
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Running,
         lowerPrice: 45000,

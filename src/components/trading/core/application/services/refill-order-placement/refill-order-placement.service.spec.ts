@@ -25,6 +25,7 @@ describe('RefillOrderPlacementService', () => {
 
     const testGrid: GridDto = {
         id: GRID_ID,
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Running,
         lowerPrice: 45000,

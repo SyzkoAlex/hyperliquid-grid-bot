@@ -27,6 +27,7 @@ describe('OrderRefillService', () => {
     // Grid: 11 gaps → 12 price points (indices 0..11), spacing = (55000-45000)/11 ≈ 909
     const testGrid: GridDto = {
         id: GRID_ID,
+        userId: 'user-1',
         symbol: 'BTC',
         status: GridStatus.Running,
         lowerPrice: 45000,

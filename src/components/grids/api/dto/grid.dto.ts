@@ -2,6 +2,7 @@ import { GridStatus } from '@domain/models/grid/grid-status';
 
 export interface GridDto {
     id: string;
+    userId: string;
     symbol: string;
     status: GridStatus;
     lowerPrice: number;

@@ -87,7 +87,7 @@ export class StopGridHandler extends GridViewBaseHandler {
                 await ctx.editMessageText(CommonTexts.ACCOUNT_NOT_CONNECTED);
                 return;
             }
-            await this.stopGridUseCase.execute(gridId, accountAddress);
+            await this.stopGridUseCase.execute(ctx.user!.id, gridId, accountAddress);
             await ctx.editMessageText(GridViewTexts.STOPPED_SUCCESS, {
                 parse_mode: TelegramParseMode.HTML,
             });

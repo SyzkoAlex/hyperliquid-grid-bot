@@ -107,6 +107,7 @@ export class StopLossProcessorService {
 
             await this.eventPublisher.publish(
                 new GridStopLossTriggeredEvent(
+                    grid.userId,
                     grid.id,
                     grid.symbol,
                     stopLossPrice,
@@ -124,6 +125,7 @@ export class StopLossProcessorService {
             );
             await this.eventPublisher.publish(
                 new GridStopLossTriggeredEvent(
+                    grid.userId,
                     grid.id,
                     grid.symbol,
                     stopLossPrice,

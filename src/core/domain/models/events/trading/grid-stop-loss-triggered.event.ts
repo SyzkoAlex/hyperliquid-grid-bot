@@ -3,6 +3,7 @@ import { EventType } from '../event-type';
 
 export class GridStopLossTriggeredEvent extends SerializableEvent {
     constructor(
+        userId: string,
         public readonly gridId: string,
         public readonly symbol: string,
         public readonly stopLossPrice: number,
@@ -13,7 +14,7 @@ export class GridStopLossTriggeredEvent extends SerializableEvent {
         public readonly errorMessage: string | undefined,
         timestamp?: number,
     ) {
-        super(EventType.GridStopLossTriggered, timestamp);
+        super(EventType.GridStopLossTriggered, userId, timestamp);
     }
 
     protected toJSON(): Record<string, unknown> {
@@ -32,6 +33,7 @@ export class GridStopLossTriggeredEvent extends SerializableEvent {
     static deserialize(json: string): GridStopLossTriggeredEvent {
         const data = JSON.parse(json);
         return new GridStopLossTriggeredEvent(
+            data.userId,
             data.gridId,
             data.symbol,
             data.stopLossPrice,

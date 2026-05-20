@@ -10,25 +10,40 @@ import { GridCreatedSuccessEvent } from './trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from './trading/grid-created-error.event';
 import { GridStopLossTriggeredEvent } from './trading/grid-stop-loss-triggered.event';
 
+const USER_ID = 'user-1';
+
 function createEventByType(type: EventType): SerializableEvent {
     const factories: Record<EventType, () => SerializableEvent> = {
         [EventType.CreateGridCommand]: () =>
             CreateGridCommandEvent.create({
+                userId: USER_ID,
                 symbol: 'BTC',
                 lowerPrice: 50000,
                 upperPrice: 60000,
                 accountAddress: '0xabc',
             }),
-        [EventType.StopGridCommand]: () => StopGridCommandEvent.create('grid-1', '0xabc'),
+        [EventType.StopGridCommand]: () => StopGridCommandEvent.create(USER_ID, 'grid-1', '0xabc'),
         [EventType.OrderOpened]: () =>
-            new OrderOpenedEvent('grid-1', 'BTC', 'buy', 50000, 0.1, 5000, 1, 10),
+            new OrderOpenedEvent(USER_ID, 'grid-1', 'BTC', 'buy', 50000, 0.1, 5000, 1, 10),
         [EventType.OrderClosed]: () =>
-            new OrderClosedEvent('grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100, 2, 10),
+            new OrderClosedEvent(USER_ID, 'grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100, 2, 10),
         [EventType.GridCreatedSuccess]: () =>
-            new GridCreatedSuccessEvent('grid-1', 'BTC', 50000, 60000, 10, 5000, 0.5, false),
-        [EventType.GridCreatedError]: () => new GridCreatedErrorEvent('Something went wrong'),
+            new GridCreatedSuccessEvent(
+                USER_ID,
+                'grid-1',
+                'BTC',
+                50000,
+                60000,
+                10,
+                5000,
+                0.5,
+                false,
+            ),
+        [EventType.GridCreatedError]: () =>
+            new GridCreatedErrorEvent(USER_ID, 'Something went wrong'),
         [EventType.GridStopLossTriggered]: () =>
             new GridStopLossTriggeredEvent(
+                USER_ID,
                 'grid-1',
                 'BTC',
                 49000,
@@ -55,6 +70,7 @@ describe('EventDeserializer', () => {
 
         expect(restored.eventType).toBe(eventType);
         expect(restored.timestamp).toBe(original.timestamp);
+        expect(restored.userId).toBe(USER_ID);
     });
 
     it('has a factory for every EventType (compile-time exhaustiveness)', () => {

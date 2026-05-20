@@ -119,6 +119,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
         it('should process batch and stop when batch is smaller than BATCH_SIZE', async () => {
             const grid = {
                 id: 'grid-uuid-1',
+                userId: 'user-1',
                 symbol: 'BTC',
                 status: GridStatus.Running,
                 lowerPrice: 45000,
@@ -152,6 +153,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
         it('should advance cursor and make a second call when full batch is returned', async () => {
             const makeGrid = (id: string) => ({
                 id,
+                userId: 'user-1',
                 symbol: 'BTC',
                 status: GridStatus.Running,
                 lowerPrice: 45000,
@@ -194,6 +196,7 @@ describe('OrdersPollingAdapter (Unit)', () => {
         it('should deduplicate exchange calls per accountAddress', async () => {
             const grid1 = {
                 id: 'grid-uuid-1',
+                userId: 'user-1',
                 symbol: 'BTC',
                 status: GridStatus.Running,
                 lowerPrice: 45000,

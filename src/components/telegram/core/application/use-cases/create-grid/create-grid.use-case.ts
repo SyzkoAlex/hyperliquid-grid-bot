@@ -12,6 +12,7 @@ export class CreateGridUseCase {
 
     async execute(params: CreateGridParams): Promise<void> {
         const event = CreateGridCommandEvent.create({
+            userId: params.userId,
             symbol: params.symbol,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,

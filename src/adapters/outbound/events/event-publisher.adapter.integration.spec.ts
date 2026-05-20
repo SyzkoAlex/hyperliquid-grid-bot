@@ -12,7 +12,7 @@ import { SerializableEvent } from '@domain/models/events/trading/trading-event';
 
 class TestEvent extends SerializableEvent {
     constructor(public readonly data: string) {
-        super(EventType.GridCreatedSuccess);
+        super(EventType.GridCreatedSuccess, 'user-1');
     }
 
     protected toJSON() {

@@ -3,10 +3,11 @@ import { EventType } from '../event-type';
 
 export class GridCreatedErrorEvent extends SerializableEvent {
     constructor(
+        userId: string,
         public readonly error: string,
         timestamp?: number,
     ) {
-        super(EventType.GridCreatedError, timestamp);
+        super(EventType.GridCreatedError, userId, timestamp);
     }
 
     protected toJSON(): Record<string, any> {
@@ -17,6 +18,6 @@ export class GridCreatedErrorEvent extends SerializableEvent {
 
     static deserialize(json: string): GridCreatedErrorEvent {
         const data = JSON.parse(json);
-        return new GridCreatedErrorEvent(data.error, data.timestamp);
+        return new GridCreatedErrorEvent(data.userId, data.error, data.timestamp);
     }
 }

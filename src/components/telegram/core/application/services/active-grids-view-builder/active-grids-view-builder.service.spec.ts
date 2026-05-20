@@ -10,6 +10,7 @@ import { GridFilter } from '../../use-cases/get-grids-with-pnl/grid-filter';
 function makeGrid(id: string, status = GridStatus.Running): GridDto {
     return {
         id,
+        userId: 'user-1',
         symbol: 'BTC',
         status,
         lowerPrice: 90000,

@@ -1,29 +1,53 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Config } from '@/config/config.schema';
 import {
     TELEGRAM_NOTIFICATION_PORT,
     TelegramNotificationPort,
 } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
+import { logger } from '@/infra/logger/logger';
 import { NotifyUserParams } from './notify-user-params';
 
+/** Routes a serializable event to the user's personal Telegram chat.
+ * Skips silently when the user is not found or has tradeNotificationsEnabled: false. */
 @Injectable()
 export class NotifyUserUseCase {
-    private readonly notificationChatId: number;
+    private readonly logger = logger.child({ context: NotifyUserUseCase.name });
 
     constructor(
         @Inject(TELEGRAM_NOTIFICATION_PORT)
         private readonly telegramNotification: TelegramNotificationPort,
         private readonly messageFactory: NotificationMessageFactory,
-        configService: ConfigService<Config, true>,
-    ) {
-        this.notificationChatId = configService.get('telegram', { infer: true }).notificationChatId;
-    }
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
+    ) {}
 
     async execute(params: NotifyUserParams): Promise<void> {
         const { event } = params;
-        const text = this.messageFactory.buildFromEvent(event).text;
-        await this.telegramNotification.sendMessage(this.notificationChatId, text);
+        const user = await this.usersApi.findUserById(event.userId);
+        if (!user) {
+            this.logger.warn(
+                { userId: event.userId, eventType: event.eventType },
+                'User not found for notification event',
+            );
+            return;
+        }
+        if (!user.tradeNotificationsEnabled) {
+            this.logger.debug(
+                { chatId: user.telegramChatId, eventType: event.eventType },
+                'Trade notifications disabled — skipping',
+            );
+            return;
+        }
+        let text: string;
+        try {
+            text = this.messageFactory.buildFromEvent(event).text;
+        } catch (err) {
+            this.logger.warn(
+                { eventType: event.eventType, userId: event.userId, err },
+                'Failed to build notification message — skipping',
+            );
+            return;
+        }
+        await this.telegramNotification.sendMessage(user.telegramChatId, text);
     }
 }

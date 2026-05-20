@@ -3,6 +3,7 @@ import { EventType } from '../event-type';
 
 export class CreateGridCommandEvent extends SerializableEvent {
     constructor(
+        userId: string,
         public readonly symbol: string,
         public readonly lowerPrice: number,
         public readonly upperPrice: number,
@@ -14,10 +15,11 @@ export class CreateGridCommandEvent extends SerializableEvent {
         public readonly stopLossPrice: number | undefined,
         timestamp?: number,
     ) {
-        super(EventType.CreateGridCommand, timestamp);
+        super(EventType.CreateGridCommand, userId, timestamp);
     }
 
     static create(params: {
+        userId: string;
         symbol: string;
         lowerPrice: number;
         upperPrice: number;
@@ -29,6 +31,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
         stopLossPrice?: number;
     }): CreateGridCommandEvent {
         return new CreateGridCommandEvent(
+            params.userId,
             params.symbol,
             params.lowerPrice,
             params.upperPrice,
@@ -58,6 +61,7 @@ export class CreateGridCommandEvent extends SerializableEvent {
     static deserialize(json: string): CreateGridCommandEvent {
         const data = JSON.parse(json);
         return new CreateGridCommandEvent(
+            data.userId,
             data.symbol,
             data.lowerPrice,
             data.upperPrice,
