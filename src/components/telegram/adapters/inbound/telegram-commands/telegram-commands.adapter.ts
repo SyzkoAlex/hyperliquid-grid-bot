@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { TelegramError } from 'telegraf';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
@@ -26,14 +27,11 @@ import { ManagedLockService } from '@/core/application/services/managed-lock/man
 import { UserStatus } from '@domain/models/user/user-status';
 import { replyConnectCta } from '../telegram-bot/handlers/connect-cta.keyboard';
 
-// Time to wait after stopping the bot before releasing the lock, to let in-flight
-// getUpdates responses finish processing before another instance can acquire the lock.
-const BOT_DRAIN_DELAY_MS = 2000;
-
 @Injectable()
 export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
     private readonly logger = logger.child({ context: TelegramCommandsAdapter.name });
     private managedLockHandle: ManagedLockHandle | null = null;
+    private isRegistered = false;
 
     constructor(
         private readonly telegramBotService: TelegramBotService,
@@ -65,15 +63,27 @@ export class TelegramCommandsAdapter implements OnModuleInit, OnModuleDestroy {
     }
 
     async onModuleDestroy() {
-        this.telegramBotService.stop();
-        await new Promise<void>((resolve) => setTimeout(resolve, BOT_DRAIN_DELAY_MS));
+        await this.telegramBotService.stopAndWait();
         await this.managedLockHandle?.dispose();
     }
 
     private async startBot() {
-        this.registerScenes();
-        this.registerHandlers();
-        await this.telegramBotService.launch();
+        if (!this.isRegistered) {
+            this.registerScenes();
+            this.registerHandlers();
+            this.isRegistered = true;
+        }
+        try {
+            await this.telegramBotService.launch();
+        } catch (err) {
+            if (err instanceof TelegramError && err.code === 409) {
+                this.logger.warn(
+                    { errorDescription: err.description },
+                    'Telegram 409 Conflict: another getUpdates session is still active — likely a deployment race',
+                );
+            }
+            throw err;
+        }
         this.logger.info('Telegram bot started (lock acquired)');
     }
 

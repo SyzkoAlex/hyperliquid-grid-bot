@@ -19,6 +19,7 @@ import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.po
 @Injectable()
 export class TelegramBotService implements OnModuleInit, OnModuleDestroy, TelegramNotificationPort {
     private _bot: Telegraf<BotContext>;
+    private launchPromise: Promise<void> | null = null;
     private readonly stage = new Scenes.Stage<BotContext>([]);
     private readonly logger = logger.child({ context: TelegramBotService.name });
     private readonly enabled: boolean;
@@ -143,8 +144,22 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     }
 
     async launch(): Promise<void> {
-        await this.bot.launch();
+        this.launchPromise = this.bot.launch();
+        try {
+            await this.launchPromise;
+        } finally {
+            this.launchPromise = null;
+        }
         this.logger.info('Telegram bot launched');
+    }
+
+    async stopAndWait(): Promise<void> {
+        if (!this._bot) return;
+        this._bot.stop();
+        if (this.launchPromise) {
+            await this.launchPromise.catch(() => {});
+        }
+        this.logger.info('Telegram bot stopped');
     }
 
     stop(): void {
