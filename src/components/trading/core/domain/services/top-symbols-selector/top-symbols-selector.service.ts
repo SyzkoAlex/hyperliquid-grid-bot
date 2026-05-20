@@ -20,7 +20,7 @@ export class TopSymbolsSelectorService {
         const tokensByIndex = new Map<number, SpotMetaToken>(meta.tokens.map((t) => [t.index, t]));
 
         const candidates = meta.universe
-            .map((u, i) => ({ u, ctx: assetCtxs[i] }))
+            .map((u) => ({ u, ctx: assetCtxs[u.index] }))
             .filter(({ u, ctx }) => u.tokens[1] === usdcIndex && ctx !== undefined)
             .map(({ u, ctx }) => {
                 const base = tokensByIndex.get(u.tokens[0]);

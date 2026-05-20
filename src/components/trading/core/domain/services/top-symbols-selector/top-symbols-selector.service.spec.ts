@@ -139,6 +139,25 @@ describe('TopSymbolsSelectorService', () => {
             expect(mockResolver.resolve).toHaveBeenCalled();
         });
 
+        it('uses u.index (not position) to look up assetCtxs — new tokens at front do not steal high-volume data', () => {
+            // universe[0] is a new/low-volume token at market index 2
+            // universe[1] is HYPE at market index 0
+            // assetCtxs is indexed by market index: [0]=high, [1]=unused, [2]=low
+            const meta: SpotMeta = {
+                tokens: [makeToken('USDC', 0), makeToken('HYPE', 1), makeToken('PUCKY', 2)],
+                universe: [
+                    { name: 'PUCKY/USDC', tokens: [2, 0], index: 2, isCanonical: true },
+                    { name: 'HYPE/USDC', tokens: [1, 0], index: 0, isCanonical: true },
+                ],
+            };
+            const assetCtxs = [makeCtx('10000'), makeCtx('0'), makeCtx('50')];
+
+            const result = sut.select(meta, assetCtxs, 2);
+
+            expect(result[0].symbol).toBe('HYPE');
+            expect(result[1].symbol).toBe('PUCKY');
+        });
+
         it('EXCLUDED_STABLECOIN_BASES contains USDT and USDH but not USDC', () => {
             expect(EXCLUDED_STABLECOIN_BASES.has('USDT')).toBe(true);
             expect(EXCLUDED_STABLECOIN_BASES.has('USDH')).toBe(true);
