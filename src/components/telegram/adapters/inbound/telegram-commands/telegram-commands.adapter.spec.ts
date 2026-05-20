@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TelegramError } from 'telegraf';
 import { TelegramCommandsAdapter } from './telegram-commands.adapter';
 import { TelegramBotService } from '../telegram-bot/telegram-bot.service';
 import { BotContext } from '../telegram-bot/types/bot-context';
@@ -27,6 +28,7 @@ function makeBotService() {
             registerScene: vi.fn(),
             launch: vi.fn().mockResolvedValue(undefined),
             stop: vi.fn(),
+            stopAndWait: vi.fn().mockResolvedValue(undefined),
         } as unknown as TelegramBotService,
     };
 }
@@ -142,5 +144,108 @@ describe('TelegramCommandsAdapter — routeCreateGrid', () => {
             expect(ctx.scene.enter).toHaveBeenCalledWith(CREATE_GRID_SCENE_ID);
             expect(ctx.reply).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('TelegramCommandsAdapter — isRegistered guard', () => {
+    it('should register handlers and scenes only once across multiple startBot calls', async () => {
+        const bot = makeBotService();
+
+        const adapter = new TelegramCommandsAdapter(
+            bot.service,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            { getScene: vi.fn() } as never,
+            { getScene: vi.fn() } as never,
+            makeManagedLock(),
+            makeConfigService() as never,
+        );
+
+        const startBot = (adapter as unknown as { startBot: () => Promise<void> }).startBot.bind(
+            adapter,
+        );
+
+        await startBot();
+        await startBot();
+
+        // registerScene is called once per scene (2 scenes), only on the first startBot call
+        expect(bot.service.registerScene).toHaveBeenCalledTimes(2);
+        expect(bot.service.launch).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('TelegramCommandsAdapter — 409 handling', () => {
+    it('should log warn and rethrow when launch throws a 409 TelegramError', async () => {
+        const bot = makeBotService();
+        const conflictError = new TelegramError({
+            error_code: 409,
+            description: 'Conflict: terminated by other getUpdates request',
+        });
+        (bot.service.launch as ReturnType<typeof vi.fn>).mockRejectedValue(conflictError);
+
+        const adapter = new TelegramCommandsAdapter(
+            bot.service,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            { getScene: vi.fn() } as never,
+            { getScene: vi.fn() } as never,
+            makeManagedLock(),
+            makeConfigService() as never,
+        );
+
+        const startBot = (adapter as unknown as { startBot: () => Promise<void> }).startBot.bind(
+            adapter,
+        );
+
+        await expect(startBot()).rejects.toThrow(conflictError);
+    });
+
+    it('should rethrow non-409 errors without special handling', async () => {
+        const bot = makeBotService();
+        const otherError = new TelegramError({
+            error_code: 500,
+            description: 'Internal Server Error',
+        });
+        (bot.service.launch as ReturnType<typeof vi.fn>).mockRejectedValue(otherError);
+
+        const adapter = new TelegramCommandsAdapter(
+            bot.service,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            makeHandler() as never,
+            { getScene: vi.fn() } as never,
+            { getScene: vi.fn() } as never,
+            makeManagedLock(),
+            makeConfigService() as never,
+        );
+
+        const startBot = (adapter as unknown as { startBot: () => Promise<void> }).startBot.bind(
+            adapter,
+        );
+
+        await expect(startBot()).rejects.toThrow(otherError);
     });
 });
