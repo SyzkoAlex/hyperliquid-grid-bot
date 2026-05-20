@@ -2,13 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 import { Inject } from '@nestjs/common';
-import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
+import {
+    TRADING_API_PORT,
+    TradingApiPort,
+    TokenDescriptor,
+} from '@components/trading/api/trading-api.port';
 import { CREATE_GRID_ACTIONS, buildPairAction } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
-import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import {
     SelectPairTexts,
@@ -26,9 +29,13 @@ export class SelectPairStep implements WizardStep {
     ) {}
 
     async enter(ctx: BotContext): Promise<void> {
+        const topTokens = await this.tradingApi.getTopSymbolsByVolume();
         const keyboard: InlineButton[][] = [
-            ...WIZARD_CONFIG.POPULAR_TOKENS.map((token) => [
-                { text: token, action: buildPairAction(token) },
+            ...topTokens.map((t: TokenDescriptor) => [
+                {
+                    text: t.displayName === t.symbol ? t.symbol : `${t.displayName} (${t.symbol})`,
+                    action: buildPairAction(t.symbol),
+                },
             ]),
             [{ text: BUTTON_LABELS.OTHER_TOKEN, action: CREATE_GRID_ACTIONS.OTHER_PAIR }],
             [{ text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL }],
