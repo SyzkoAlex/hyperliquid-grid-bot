@@ -85,6 +85,7 @@ export class CreateAndStartGridUseCase {
             );
         }
 
+        const szDecimals = this.exchange.getSzDecimals(TradingSymbol.create(params.symbol));
         const distribution = this.capitalCalculator.calculateDistribution({
             levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
@@ -94,6 +95,7 @@ export class CreateAndStartGridUseCase {
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
             sellSizeBuffer: this.sellSizeBuffer,
+            szDecimals,
         });
 
         if (usdcBalance.lt(distribution.investmentUSDC)) {

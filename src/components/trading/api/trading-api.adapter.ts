@@ -68,6 +68,7 @@ export class TradingApiAdapter implements TradingApiPort {
     }
 
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {
+        const szDecimals = this.exchange.getSzDecimals(TradingSymbol.fromString(params.symbol));
         const distribution = this.capitalCalculator.calculateDistribution({
             levels: params.levels,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
@@ -77,6 +78,7 @@ export class TradingApiAdapter implements TradingApiPort {
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
             sellSizeBuffer: this.sellSizeBuffer,
+            szDecimals,
         });
         return {
             investmentUSDC: distribution.investmentUSDC.toNumber(),

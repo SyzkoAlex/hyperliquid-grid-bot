@@ -13,7 +13,10 @@ import { formatDate } from '@components/telegram/core/domain/models/formatters/f
 export class GridProfitTabMessage {
     readonly text: string;
 
-    private constructor({ grid, pnl, currentPrice, orderStats }: GridSnapshot, timezone: string) {
+    private constructor(
+        { grid, pnl, currentPrice, orderStats, activeOrders }: GridSnapshot,
+        timezone: string,
+    ) {
         const { pair, shortId, emoji, label, duration } = gridHeaderParts(grid);
         const gridProfitNet = pnl.gridProfit - pnl.totalFees;
         const totalPnl = gridProfitNet + pnl.unrealizedPnl;
@@ -50,7 +53,7 @@ export class GridProfitTabMessage {
             `<b>Profitable Trades:</b> ${orderStats.filledCycles}\n` +
             `\n` +
             `<b>Investment:</b> $${investmentStr}\n` +
-            `<b>Range:</b> $${lower} – $${upper} · ${grid.levels + 1} orders\n` +
+            `<b>Range:</b> $${lower} – $${upper} · ${activeOrders.length} orders\n` +
             `<b>Entry Price:</b> ${entryPrice}\n` +
             `<b>Current Price:</b> $${price}\n` +
             `<b>Started:</b> ${startedStr}\n`;

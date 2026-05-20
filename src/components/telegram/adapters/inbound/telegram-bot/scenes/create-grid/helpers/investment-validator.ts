@@ -62,6 +62,7 @@ export async function validateInvestment(
     const baseBalance = Decimal.from(userState.spotBalances[symbol] ?? 0);
 
     const distributionDto = tradingApi.calculateCapitalDistribution({
+        symbol,
         levels,
         totalInvestmentUSDC: investment,
         usdcBalance: userState.usdcBalance,

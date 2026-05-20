@@ -204,6 +204,10 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
         }
     }
 
+    getSzDecimals(symbol: TradingSymbol): number {
+        return this.meta.getSzDecimals(symbol.toString());
+    }
+
     async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {
         try {
             const agentPrivateKey = await this.resolveAgentKey(accountAddress);

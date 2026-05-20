@@ -537,6 +537,7 @@ async function setupTestEnvironment() {
         getUserSpotState: vi.fn(),
         getCurrentPrice: vi.fn(),
         pairExists: vi.fn(),
+        getSzDecimals: vi.fn().mockReturnValue(5),
     };
 
     const moduleBuilder = Test.createTestingModule({

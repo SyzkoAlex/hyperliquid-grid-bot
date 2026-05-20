@@ -157,6 +157,7 @@ describe('validateInvestment', () => {
 
         expect(mockTradingApi.calculateCapitalDistribution).toHaveBeenCalledWith(
             expect.objectContaining({
+                symbol: 'HYPE',
                 totalInvestmentUSDC: 1000,
                 levels: 10,
                 currentPrice: 10,

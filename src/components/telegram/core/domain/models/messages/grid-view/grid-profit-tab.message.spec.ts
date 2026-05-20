@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { GridProfitTabMessage } from './grid-profit-tab.message';
 import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
+import { OrderStatus } from '@domain/models/order/order-status';
+import { OrderSide } from '@domain/models/order/order-side';
+import { OrderType } from '@domain/models/order/order-type';
 import { GridPnl } from '../../../../../core/domain/models/grid-pnl';
 import { OrderStats } from '../../../../../core/domain/models/order-stats';
 
@@ -38,12 +42,29 @@ const DEFAULT_ORDER_STATS: OrderStats = {
     filledCycles: 5,
 };
 
+function makeOrder(id: string, price: number, side: OrderSide): OrderDto {
+    return {
+        id,
+        gridId: 'grid-1',
+        symbol: 'BTC',
+        side,
+        type: OrderType.Limit,
+        status: OrderStatus.Placed,
+        levelIndex: 0,
+        price,
+        amount: 0.001,
+        createdAt: Date.now(),
+        exchangeOrderId: null,
+    };
+}
+
 function makeData(
     grid: GridDto,
     pnl: GridPnl = DEFAULT_PNL,
     orderStats: OrderStats = DEFAULT_ORDER_STATS,
+    activeOrders: OrderDto[] = [],
 ): GridSnapshot {
-    return { grid, pnl, currentPrice: 95000, orderStats, activeOrders: [], filledOrders: [] };
+    return { grid, pnl, currentPrice: 95000, orderStats, activeOrders, filledOrders: [] };
 }
 
 describe('GridProfitTabMessage', () => {
@@ -87,11 +108,23 @@ describe('GridProfitTabMessage', () => {
         expect(result).toContain('Investment:');
     });
 
-    it('renders order count in the Range summary', () => {
+    it('renders actual active order count in the Range summary', () => {
         const grid = makeGrid();
-        const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
+        const orders = Array.from({ length: 11 }, (_, i) =>
+            makeOrder(`order-${i}`, 90000 + i * 1000, i < 5 ? OrderSide.Buy : OrderSide.Sell),
+        );
+        const result = GridProfitTabMessage.create(
+            makeData(grid, DEFAULT_PNL, DEFAULT_ORDER_STATS, orders),
+            'UTC',
+        ).text;
         expect(result).toContain('11 orders');
         expect(result).not.toContain('levels');
+    });
+
+    it('renders 0 orders when no active orders', () => {
+        const grid = makeGrid();
+        const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
+        expect(result).toContain('0 orders');
     });
 
     it('shows Profitable Trades from filledCycles', () => {

@@ -28,4 +28,5 @@ export interface ExchangePort {
     getUserSpotState(user: string): Promise<UserState>;
     pairExists(symbol: TradingSymbol): Promise<boolean>;
     probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
+    getSzDecimals(symbol: TradingSymbol): number;
 }

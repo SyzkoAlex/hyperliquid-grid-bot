@@ -133,6 +133,7 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             });
 
             // investmentUSDC = 10000 * 5/11 ~= 4545.45
@@ -152,6 +153,7 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             };
 
             const result1 = service.calculateDistribution(params);
@@ -178,6 +180,7 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             });
 
             // Total portfolio = 10000, investmentUSDC = 10000 * 5/11 ~= 4545.45
@@ -195,6 +198,7 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             });
 
             expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
@@ -211,11 +215,12 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             });
 
             expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
                 result.investmentBase.toNumber(),
-                10,
+                7,
             );
         });
 
@@ -230,11 +235,12 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: buffer,
+                szDecimals: 8,
             });
 
             expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
                 result.investmentBase.toNumber() * (1 + buffer),
-                10,
+                7,
             );
         });
 
@@ -255,6 +261,7 @@ describe('CapitalCalculatorService', () => {
                 lowerPrice: 75,
                 upperPrice: 100,
                 sellSizeBuffer: 0,
+                szDecimals: 8,
             });
 
             // investmentUSDC = 103 * 4/11 ~= 37.45
@@ -271,6 +278,31 @@ describe('CapitalCalculatorService', () => {
             const sellNotionalPerOrder = (result.investmentBase.toNumber() * currentPrice) / 7;
             expect(buyNotionalPerOrder).toBeCloseTo(perOrder, 4);
             expect(sellNotionalPerOrder).toBeCloseTo(perOrder, 4);
+        });
+
+        it('mirrors exchange ceil-rounding per sell level (regression: szDecimals=5, HYPE-like)', () => {
+            // HYPE token: szDecimals=5, price=$10, range $8-$12, 10 levels
+            // buyCount=5, sellCount=6, totalLevels=11
+            // investmentBase = 100 * (6/11) / 10 = 5.45454545...
+            // basePerSellLevel = 5.45454.../6 = 0.90909090...
+            // ceil(0.90909090..., 5) = ceil(90909.09...) / 100000 = 90910 / 100000 = 0.9091
+            // requiredBaseBalance = 0.9091 * 6 = 5.4546
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: 100,
+                usdcBalance: Decimal.from(100),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(10),
+                lowerPrice: 8,
+                upperPrice: 12,
+                sellSizeBuffer: 0,
+                szDecimals: 5,
+            });
+
+            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(5.4546, 4);
+            expect(result.requiredBaseBalance.toNumber()).toBeGreaterThan(
+                result.investmentBase.toNumber(),
+            );
         });
     });
 });

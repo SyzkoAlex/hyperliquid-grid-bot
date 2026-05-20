@@ -38,6 +38,7 @@ describe('CreateAndStartGridUseCase', () => {
         exchange = {
             getUserSpotState: vi.fn(),
             getCurrentPrice: vi.fn(),
+            getSzDecimals: vi.fn().mockReturnValue(5),
         };
 
         grids = {
@@ -170,6 +171,7 @@ describe('CreateAndStartGridUseCase', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
 
             expect(grids.createGrid).toHaveBeenCalledTimes(1);

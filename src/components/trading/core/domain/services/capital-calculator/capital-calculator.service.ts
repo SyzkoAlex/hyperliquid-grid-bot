@@ -4,6 +4,11 @@ import { CapitalDistribution } from '../../models/capital-distribution';
 import { Price } from '@domain/models/primitives/price';
 import { countBuySellLevels } from '../../utils/count-buy-sell-levels';
 
+function ceilToSzDecimals(value: number, szDecimals: number): number {
+    const multiplier = Math.pow(10, szDecimals);
+    return Math.ceil(value * multiplier) / multiplier;
+}
+
 /**
  * Capital Calculator Service
  *
@@ -55,8 +60,9 @@ export class CapitalCalculatorService {
      * @param params.currentPrice - Current market price (used for accurate base token conversion)
      * @param params.lowerPrice - Grid lower price bound
      * @param params.upperPrice - Grid upper price bound
-     * @param params.sellSizeBuffer - Buffer fraction added to each sell order during placement (e.g. 0.005 = 0.5%). Used to compute requiredBaseBalance.
-     * @returns Capital distribution including requiredBaseBalance = investmentBase × (1 + sellSizeBuffer)
+     * @param params.sellSizeBuffer - Buffer fraction added to each sell order during placement (e.g. 0.005 = 0.5%)
+     * @param params.szDecimals - Exchange size-decimals for the base token; used to mirror per-order ceil-rounding in requiredBaseBalance
+     * @returns Capital distribution including requiredBaseBalance = sellCount × ceil(investmentBase/sellCount × (1+sellSizeBuffer), szDecimals)
      */
     calculateDistribution(params: {
         levels: number;
@@ -67,6 +73,7 @@ export class CapitalCalculatorService {
         lowerPrice: number;
         upperPrice: number;
         sellSizeBuffer: number;
+        szDecimals: number;
     }): CapitalDistribution {
         const capital = params.totalInvestmentUSDC
             ? Decimal.from(params.totalInvestmentUSDC)
@@ -92,7 +99,20 @@ export class CapitalCalculatorService {
             .mul(Decimal.from(sellRatio))
             .div(Decimal.from(params.currentPrice.toNumber()));
 
-        const requiredBaseBalance = investmentBase.mul(Decimal.from(1 + params.sellSizeBuffer));
+        const basePerSellLevel = investmentBase
+            .div(Decimal.from(sellCount))
+            .mul(Decimal.from(1 + params.sellSizeBuffer))
+            .toNumber();
+
+        // The exchange ceil-rounds each sell order size to szDecimals decimal places.
+        // Summing N ceil-rounded values can exceed N * exact_value, causing
+        // the last order to fail with "Insufficient spot balance".
+        // We mirror that rounding here so the balance check matches reality.
+        const effectivePerSellLevel = ceilToSzDecimals(basePerSellLevel, params.szDecimals);
+
+        const requiredBaseBalance = Decimal.from(effectivePerSellLevel).mul(
+            Decimal.from(sellCount),
+        );
 
         return { investmentUSDC, investmentBase, requiredBaseBalance };
     }
