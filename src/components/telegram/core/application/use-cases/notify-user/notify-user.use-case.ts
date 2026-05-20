@@ -6,10 +6,14 @@ import {
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { logger } from '@/infra/logger/logger';
+import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserParams } from './notify-user-params';
 
+const CRITICAL_EVENT_TYPES = new Set<EventType>([EventType.GridStopLossTriggered]);
+
 /** Routes a serializable event to the user's personal Telegram chat.
- * Skips silently when the user is not found or has tradeNotificationsEnabled: false. */
+ * Skips silently when the user is not found or has tradeNotificationsEnabled: false.
+ * Critical events (stop-loss) bypass the trade-notifications toggle. */
 @Injectable()
 export class NotifyUserUseCase {
     private readonly logger = logger.child({ context: NotifyUserUseCase.name });
@@ -31,7 +35,8 @@ export class NotifyUserUseCase {
             );
             return;
         }
-        if (!user.tradeNotificationsEnabled) {
+        const isCritical = CRITICAL_EVENT_TYPES.has(event.eventType);
+        if (!isCritical && !user.tradeNotificationsEnabled) {
             this.logger.debug(
                 { chatId: user.telegramChatId, eventType: event.eventType },
                 'Trade notifications disabled — skipping',

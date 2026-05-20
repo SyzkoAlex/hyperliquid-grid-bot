@@ -4,7 +4,7 @@ import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-s
 
 describe('GridStopLossTriggeredMessage', () => {
     describe('fromEvent — success path', () => {
-        it('contains Stop-Loss Triggered, sold amount, and USDC received', () => {
+        it('contains Stop-Loss Triggered, sold amount, avg price, and USDC received', () => {
             const event = new GridStopLossTriggeredEvent(
                 'user-1',
                 'grid-abc',
@@ -24,7 +24,27 @@ describe('GridStopLossTriggeredMessage', () => {
             expect(message.text).toContain('ETH');
             expect(message.text).toContain('0.500000');
             expect(message.text).toContain('925.00');
+            expect(message.text).toContain('Avg Price');
             expect(message.text).not.toContain('Manual action needed');
+        });
+
+        it('shows avg price as receivedUSDC / soldBaseAmount', () => {
+            const event = new GridStopLossTriggeredEvent(
+                'user-1',
+                'grid-abc',
+                'ETH',
+                1900,
+                1850,
+                0.5,
+                925,
+                true,
+                undefined,
+            );
+
+            const message = GridStopLossTriggeredMessage.fromEvent(event);
+
+            // 925 / 0.5 = 1850
+            expect(message.text).toContain('1850');
         });
     });
 

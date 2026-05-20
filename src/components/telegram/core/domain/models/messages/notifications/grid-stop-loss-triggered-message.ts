@@ -18,6 +18,8 @@ export class GridStopLossTriggeredMessage {
 
     private constructor(props: GridStopLossTriggeredProps) {
         if (props.success) {
+            const avgPrice =
+                props.soldBaseAmount > 0 ? props.receivedUSDC / props.soldBaseAmount : 0;
             this.text =
                 `${EMOJI.STOP} <b>Stop-Loss Triggered</b>\n\n` +
                 `<b>Grid:</b> <code>${props.gridId}</code>\n` +
@@ -25,6 +27,7 @@ export class GridStopLossTriggeredMessage {
                 `<b>SL Price:</b> $${PriceFormatter.format(props.stopLossPrice)}\n\n` +
                 `<b>Exit:</b>\n` +
                 `• Sold: ${props.soldBaseAmount.toFixed(6)} ${props.symbol}\n` +
+                `• Avg Price: ~$${PriceFormatter.format(avgPrice)}\n` +
                 `• Received: ~$${props.receivedUSDC.toFixed(2)} USDC\n\n` +
                 `All orders cancelled. Grid stopped.`;
         } else {

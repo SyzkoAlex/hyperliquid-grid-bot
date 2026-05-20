@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import { NotifyUserUseCase } from './notify-user.use-case';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
+import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
 import { UsersApiPort } from '@components/users/api/users-api.port';
@@ -151,6 +152,30 @@ describe('NotifyUserUseCase', () => {
             await sut.execute({ event });
 
             expect(mockUsersApi.findUserById).toHaveBeenCalledWith(USER_ID);
+        });
+
+        it('should send stop-loss notification even when tradeNotificationsEnabled is false', async () => {
+            mockUsersApi.findUserById.mockResolvedValue(
+                makeUser({ tradeNotificationsEnabled: false }),
+            );
+            const event = new GridStopLossTriggeredEvent(
+                USER_ID,
+                GRID_ID,
+                'ETH',
+                1900,
+                1850,
+                0.5,
+                925,
+                true,
+                undefined,
+            );
+
+            await sut.execute({ event });
+
+            expect(mockTelegramNotification.sendMessage).toHaveBeenCalledWith(
+                CHAT_ID,
+                'notification text',
+            );
         });
     });
 });
