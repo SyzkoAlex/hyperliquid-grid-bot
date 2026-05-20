@@ -2,6 +2,9 @@ import { UserStateDto } from './dto/user-state.dto';
 import { CapitalDistributionDto } from './dto/capital-distribution.dto';
 import { CalculateCapitalDistributionDto } from './dto/calculate-capital-distribution.dto';
 import { CalculateMaxInvestmentDto } from './dto/calculate-max-investment.dto';
+import { TokenDescriptorDto } from './dto/token-descriptor.dto';
+
+export type { TokenDescriptorDto as TokenDescriptor };
 
 export const TRADING_API_PORT = Symbol('TRADING_API_PORT');
 
@@ -20,4 +23,6 @@ export interface TradingApiPort {
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number;
     /** Check whether the agent wallet has been approved on-chain for the given account. */
     probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
+    /** Return the top tokens by 24h volume with both on-chain symbol and display name. */
+    getTopSymbolsByVolume(limit?: number): Promise<TokenDescriptorDto[]>;
 }

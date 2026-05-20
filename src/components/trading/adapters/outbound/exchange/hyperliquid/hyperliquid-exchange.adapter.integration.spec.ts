@@ -16,6 +16,11 @@ import { HyperliquidModule } from '@/infra/hyperliquid/hyperliquid.module';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
 import { loadConfiguration } from '@/config/configuration';
+import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
+import {
+    TopSymbolsSelectorService,
+    EXCLUDED_STABLECOIN_BASES,
+} from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
@@ -40,6 +45,8 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                     provide: METRICS_PORT,
                     useValue: { observeExchangeApiDuration: () => {} },
                 },
+                TokenDisplayResolverService,
+                TopSymbolsSelectorService,
             ],
         }).compile();
 
@@ -202,6 +209,60 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
             const orderStatus = await adapter.getOrderStatus(testWalletAddress, unknownNumericOid);
 
             expect(orderStatus).toBeNull();
+        });
+    });
+
+    describe('getTopSymbolsByVolume', () => {
+        it('returns token descriptors within the requested limit with valid shape', async () => {
+            const limit = 5;
+            const STABLECOINS = EXCLUDED_STABLECOIN_BASES;
+
+            const tokens = await adapter.getTopSymbolsByVolume(limit);
+
+            expect(tokens.length).toBeGreaterThan(0);
+            expect(tokens.length).toBeLessThanOrEqual(limit);
+            for (const t of tokens) {
+                expect(typeof t.symbol).toBe('string');
+                expect(t.symbol.length).toBeGreaterThan(0);
+                expect(t.symbol).not.toContain('/');
+                expect(STABLECOINS.has(t.symbol)).toBe(false);
+                expect(typeof t.displayName).toBe('string');
+                expect(t.displayName.length).toBeGreaterThan(0);
+            }
+        });
+
+        it('returns unique symbols', async () => {
+            const tokens = await adapter.getTopSymbolsByVolume(10);
+            const symbols = tokens.map((t) => t.symbol);
+
+            expect(new Set(symbols).size).toBe(symbols.length);
+        });
+
+        it('respects limit=10 and returns a meaningful number of results', async () => {
+            const tokens = await adapter.getTopSymbolsByVolume(10);
+
+            expect(tokens.length).toBeGreaterThanOrEqual(3);
+            expect(tokens.length).toBeLessThanOrEqual(10);
+        });
+
+        it('correctly resolves Unit token display names', async () => {
+            const tokens = await adapter.getTopSymbolsByVolume(10);
+
+            const usol = tokens.find((t) => t.symbol === 'USOL');
+            if (usol) expect(usol.displayName).toBe('SOL');
+
+            const ubtc = tokens.find((t) => t.symbol === 'UBTC');
+            if (ubtc) expect(ubtc.displayName).toBe('BTC');
+
+            const ueth = tokens.find((t) => t.symbol === 'UETH');
+            if (ueth) expect(ueth.displayName).toBe('ETH');
+        });
+
+        it('keeps displayName === symbol for non-Unit tokens like HYPE', async () => {
+            const tokens = await adapter.getTopSymbolsByVolume(10);
+
+            const hype = tokens.find((t) => t.symbol === 'HYPE');
+            if (hype) expect(hype.displayName).toBe('HYPE');
         });
     });
 });

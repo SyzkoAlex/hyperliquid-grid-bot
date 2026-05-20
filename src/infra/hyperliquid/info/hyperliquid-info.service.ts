@@ -6,6 +6,7 @@ import { HyperliquidOpenOrder } from '../types/hyperliquid-open-order';
 import { HyperliquidOrderStatusResponse } from '../types/hyperliquid-order-status-response';
 import { HyperliquidUserStateResponse } from '../types/hyperliquid-user-state-response';
 import { UserFills } from '../types/hyperliquid-user-fills';
+import { HyperliquidSpotMetaAndAssetCtxs } from '../types/hyperliquid-spot-meta-and-asset-ctxs';
 
 @Injectable()
 export class HyperliquidInfoService {
@@ -51,6 +52,12 @@ export class HyperliquidInfoService {
         return this.http.postInfo<HyperliquidUserStateResponse>({
             type: 'spotClearinghouseState',
             user,
+        });
+    }
+
+    async getSpotMetaAndAssetCtxs(): Promise<HyperliquidSpotMetaAndAssetCtxs> {
+        return this.http.postInfo<HyperliquidSpotMetaAndAssetCtxs>({
+            type: 'spotMetaAndAssetCtxs',
         });
     }
 }

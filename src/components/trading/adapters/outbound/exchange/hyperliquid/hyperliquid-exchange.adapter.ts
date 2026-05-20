@@ -23,6 +23,8 @@ import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/hyperliquid-place-spot-order-input';
 import { Tif } from '@/infra/hyperliquid/orders/wire/tif';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
+import { TokenDescriptor } from '@components/trading/core/domain/models/token/token-descriptor';
+import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 
 @Injectable()
 export class HyperliquidExchangeAdapter implements ExchangePort {
@@ -35,6 +37,7 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
         private readonly mapper: HyperliquidExchangeMapper,
         @Inject(METRICS_PORT) private readonly metrics: MetricsPort,
         @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
+        private readonly selector: TopSymbolsSelectorService,
     ) {}
 
     async placeSpotOrder(params: ExchangePlaceOrderParams): Promise<ExchangePlaceOrderResult> {
@@ -206,6 +209,19 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
 
     getSzDecimals(symbol: TradingSymbol): number {
         return this.meta.getSzDecimals(symbol.toString());
+    }
+
+    async getTopSymbolsByVolume(limit: number): Promise<TokenDescriptor[]> {
+        const stop = startTimer();
+        try {
+            const [meta, assetCtxs] = await this.info.getSpotMetaAndAssetCtxs();
+            return this.selector.select(meta, assetCtxs, limit);
+        } catch (error) {
+            this.logger.error({ err: error }, 'Failed to get top symbols by volume');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('getTopSymbolsByVolume', stop());
+        }
     }
 
     async probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }> {

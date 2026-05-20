@@ -4,13 +4,13 @@ import { SpotMeta } from '../types/hyperliquid-spot-meta';
 
 const SPOT_META: SpotMeta = {
     tokens: [
-        { name: 'USDC', index: 0, szDecimals: 8 },
-        { name: 'HYPE', index: 1, szDecimals: 5 },
-        { name: 'BTC', index: 2, szDecimals: 6 },
+        { name: 'USDC', index: 0, szDecimals: 8, fullName: null, isCanonical: true },
+        { name: 'HYPE', index: 1, szDecimals: 5, fullName: 'Hyperliquid', isCanonical: false },
+        { name: 'BTC', index: 2, szDecimals: 6, fullName: 'Unit Bitcoin', isCanonical: false },
     ],
     universe: [
-        { tokens: [1, 0], index: 35 },
-        { tokens: [2, 0], index: 12 },
+        { name: '@35', tokens: [1, 0], index: 35, isCanonical: false },
+        { name: '@12', tokens: [2, 0], index: 12, isCanonical: false },
     ],
 };
 
