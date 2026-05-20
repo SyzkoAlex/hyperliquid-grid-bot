@@ -46,6 +46,12 @@ orders:
     syncLockTtlMs: ${ORDERS_SYNC_LOCK_TTL_MS:30000} # 30 seconds
     restoreLockTtlMs: ${ORDERS_RESTORE_LOCK_TTL_MS:60000} # 60 seconds
 
+tokens:
+    topSize: ${TOKENS_TOP_SIZE:10}
+    refreshIntervalMs: ${TOKENS_REFRESH_INTERVAL_MS:3600000} # 1 hour
+    cacheTtlSeconds: ${TOKENS_CACHE_TTL_SECONDS:86400} # 24 hours
+    lockTtlMs: ${TOKENS_LOCK_TTL_MS:60000} # 60 seconds
+
 stopLoss:
     initialSlippageCapPct: ${STOP_LOSS_INITIAL_SLIPPAGE_CAP_PCT:0.01}
     retrySlippageCapPct: ${STOP_LOSS_RETRY_SLIPPAGE_CAP_PCT:0.02}

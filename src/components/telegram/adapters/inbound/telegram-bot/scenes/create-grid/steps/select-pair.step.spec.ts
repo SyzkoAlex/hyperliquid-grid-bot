@@ -4,6 +4,7 @@ import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
+import { buildPairAction } from '../create-grid-actions';
 
 describe('SelectPairStep', () => {
     let step: SelectPairStep;
@@ -15,6 +16,12 @@ describe('SelectPairStep', () => {
             pairExists: vi.fn(),
             getCurrentPrice: vi.fn(),
             getUserSpotState: vi.fn(),
+            getTopSymbolsByVolume: vi.fn().mockResolvedValue([
+                { symbol: 'HYPE', displayName: 'HYPE' },
+                { symbol: 'UBTC', displayName: 'BTC' },
+                { symbol: 'UETH', displayName: 'ETH' },
+                { symbol: 'USOL', displayName: 'SOL' },
+            ]),
         } as unknown as TradingApiPort;
 
         mockMessageManager = {
@@ -25,7 +32,7 @@ describe('SelectPairStep', () => {
     });
 
     describe('enter', () => {
-        it('sends prompt with popular token buttons and cancel', async () => {
+        it('sends prompt with HYPE button (same-symbol, no parens) and cancel', async () => {
             const ctx = createMockContext();
 
             await step.enter(ctx);
@@ -37,6 +44,48 @@ describe('SelectPairStep', () => {
                     expect.arrayContaining([expect.objectContaining({ text: 'HYPE' })]),
                 ]),
             );
+        });
+
+        it('renders BTC (UBTC) for a token where displayName differs from symbol', async () => {
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
+            const rows = keyboard as { text: string; action: string }[][];
+            const btcRow = rows.find((r) => r[0].text === 'BTC (UBTC)');
+            expect(btcRow).toBeDefined();
+        });
+
+        it('uses on-chain symbol (UBTC) as callback_data for the BTC button', async () => {
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
+            const rows = keyboard as { text: string; action: string }[][];
+            const btcRow = rows.find((r) => r[0].text === 'BTC (UBTC)');
+            expect(btcRow![0].action).toBe(buildPairAction('UBTC'));
+        });
+
+        it('calls tradingApi.getTopSymbolsByVolume and renders all returned tokens as buttons', async () => {
+            const dynamicTokens = [
+                { symbol: 'TOKEN1', displayName: 'TOKEN1' },
+                { symbol: 'TOKEN2', displayName: 'TOKEN2' },
+                { symbol: 'TOKEN3', displayName: 'TOKEN3' },
+            ];
+            vi.mocked(mockTradingApi.getTopSymbolsByVolume).mockResolvedValue(dynamicTokens);
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            expect(mockTradingApi.getTopSymbolsByVolume).toHaveBeenCalledOnce();
+
+            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
+            const tokenButtons = (keyboard as { text: string; action: string }[][]).filter((row) =>
+                dynamicTokens.some((t) => t.symbol === row[0].text),
+            );
+            expect(tokenButtons).toHaveLength(dynamicTokens.length);
         });
     });
 

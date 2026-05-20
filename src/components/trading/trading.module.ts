@@ -9,6 +9,7 @@ import { CreateAndStartGridUseCase } from '@components/trading/core/application/
 import { SyncOrdersUseCase } from '@components/trading/core/application/use-cases/sync-orders/sync-orders.use-case';
 import { RestoreOrdersUseCase } from '@components/trading/core/application/use-cases/restore-orders/restore-orders.use-case';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
+import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
 import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
 import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
@@ -33,6 +34,10 @@ import { StopLossBalanceAttributionService } from '@components/trading/core/appl
 import { StopLossMarketSellService } from '@components/trading/core/application/services/stop-loss-processor/market-sell/stop-loss-market-sell.service';
 import { OrdersPollingAdapter } from '@components/trading/adapters/inbound/orders-polling/orders-polling.adapter';
 import { OrdersRestoreAdapter } from '@components/trading/adapters/inbound/orders-restore/orders-restore.adapter';
+import { TopSymbolsCacheService } from '@components/trading/core/application/services/top-symbols-cache/top-symbols-cache.service';
+import { TopSymbolsRefreshAdapter } from '@components/trading/adapters/inbound/top-symbols-refresh/top-symbols-refresh.adapter';
+import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
+import { RefreshTopSymbolsUseCase } from '@components/trading/core/application/use-cases/refresh-top-symbols/refresh-top-symbols.use-case';
 import { GridsModule } from '@components/grids/grids.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
@@ -58,6 +63,7 @@ import { UsersModule } from '@components/users/users.module';
         SyncOrdersUseCase,
         RestoreOrdersUseCase,
         CapitalCalculatorService,
+        TokenDisplayResolverService,
         {
             provide: GridLevelsCalculatorService,
             useFactory: (configService: ConfigService<Config, true>) => {
@@ -91,6 +97,10 @@ import { UsersModule } from '@components/users/users.module';
         SymbolPriceFetcherService,
         OrdersPollingAdapter,
         OrdersRestoreAdapter,
+        TopSymbolsCacheService,
+        TopSymbolsSelectorService,
+        RefreshTopSymbolsUseCase,
+        TopSymbolsRefreshAdapter,
     ],
     exports: [TRADING_API_PORT],
 })

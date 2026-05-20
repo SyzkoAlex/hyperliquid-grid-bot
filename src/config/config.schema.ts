@@ -10,6 +10,7 @@ export { ordersSchema, type OrdersConfig } from './schemas/orders.schema';
 export { loggingSchema, type LoggingConfig } from './schemas/logging.schema';
 export { metricsSchema, type MetricsConfig } from './schemas/metrics.schema';
 export { stopLossSchema, type StopLossConfig } from './schemas/stop-loss.schema';
+export { tokensSchema, type TokensConfig } from './schemas/tokens.schema';
 
 // Import for combined schema
 import { appSchema } from './schemas/app.schema';
@@ -21,6 +22,7 @@ import { ordersSchema } from './schemas/orders.schema';
 import { loggingSchema } from './schemas/logging.schema';
 import { metricsSchema } from './schemas/metrics.schema';
 import { stopLossSchema } from './schemas/stop-loss.schema';
+import { tokensSchema } from './schemas/tokens.schema';
 
 // Combined schema
 export const configSchema = z.object({
@@ -33,6 +35,7 @@ export const configSchema = z.object({
     logging: loggingSchema,
     metrics: metricsSchema,
     stopLoss: stopLossSchema,
+    tokens: tokensSchema,
 });
 
 export type Config = z.infer<typeof configSchema>;

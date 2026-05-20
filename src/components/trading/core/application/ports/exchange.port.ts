@@ -9,6 +9,7 @@ import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchan
 import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchange-order/exchange-order-fill';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
+import { TokenDescriptor } from '@components/trading/core/domain/models/token/token-descriptor';
 
 export const EXCHANGE_PORT = Symbol('EXCHANGE_PORT');
 
@@ -29,4 +30,5 @@ export interface ExchangePort {
     pairExists(symbol: TradingSymbol): Promise<boolean>;
     probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
     getSzDecimals(symbol: TradingSymbol): number;
+    getTopSymbolsByVolume(limit: number): Promise<TokenDescriptor[]>;
 }
