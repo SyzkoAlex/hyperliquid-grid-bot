@@ -38,6 +38,7 @@ import { TopSymbolsCacheService } from '@components/trading/core/application/ser
 import { TopSymbolsRefreshAdapter } from '@components/trading/adapters/inbound/top-symbols-refresh/top-symbols-refresh.adapter';
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 import { RefreshTopSymbolsUseCase } from '@components/trading/core/application/use-cases/refresh-top-symbols/refresh-top-symbols.use-case';
+import { GetTopSymbolsUseCase } from '@components/trading/core/application/use-cases/get-top-symbols/get-top-symbols.use-case';
 import { GridsModule } from '@components/grids/grids.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
@@ -99,6 +100,7 @@ import { UsersModule } from '@components/users/users.module';
         OrdersRestoreAdapter,
         TopSymbolsCacheService,
         TopSymbolsSelectorService,
+        GetTopSymbolsUseCase,
         RefreshTopSymbolsUseCase,
         TopSymbolsRefreshAdapter,
     ],

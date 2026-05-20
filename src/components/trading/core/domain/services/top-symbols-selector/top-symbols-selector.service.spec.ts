@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-    TopSymbolsSelectorService,
-    EXCLUDED_STABLECOIN_BASES,
-} from './top-symbols-selector.service';
+import { TopSymbolsSelectorService } from './top-symbols-selector.service';
+import { EXCLUDED_STABLECOIN_BASES } from '@components/trading/core/domain/models/constants/excluded-stablecoin-bases';
 import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
 import { SpotMeta } from '@/infra/hyperliquid/types/hyperliquid-spot-meta';
 import { HyperliquidSpotAssetCtx } from '@/infra/hyperliquid/types/hyperliquid-spot-asset-ctx';
 
-function makeToken(name: string, index: number, fullName: string | null = null) {
+function makeToken(
+    name: string,
+    index: number,
+    fullName: string | null = null,
+): SpotMeta['tokens'][number] {
     return { name, index, szDecimals: 2, fullName, isCanonical: true };
 }
 

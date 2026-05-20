@@ -12,6 +12,8 @@ export class RefreshTopSymbolsUseCase {
         private readonly cache: TopSymbolsCacheService,
     ) {}
 
+    // Exceptions from the exchange propagate to the caller (TopSymbolsRefreshAdapter),
+    // which logs and swallows them so a transient failure never crashes the polling loop.
     async execute(limit: number, cacheTtlSeconds: number): Promise<void> {
         const tokens = await this.exchange.getTopSymbolsByVolume(limit);
         if (tokens.length > 0) {

@@ -5,7 +5,7 @@ import { Inject } from '@nestjs/common';
 import {
     TRADING_API_PORT,
     TradingApiPort,
-    TokenDescriptor,
+    TokenDescriptorDto,
 } from '@components/trading/api/trading-api.port';
 import { CREATE_GRID_ACTIONS, buildPairAction } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
@@ -29,9 +29,14 @@ export class SelectPairStep implements WizardStep {
     ) {}
 
     async enter(ctx: BotContext): Promise<void> {
-        const topTokens = await this.tradingApi.getTopSymbolsByVolume();
+        let topTokens: TokenDescriptorDto[] = [];
+        try {
+            topTokens = await this.tradingApi.getTopSymbolsByVolume();
+        } catch {
+            // fall through with empty list; user can still enter a pair manually
+        }
         const keyboard: InlineButton[][] = [
-            ...topTokens.map((t: TokenDescriptor) => [
+            ...topTokens.map((t: TokenDescriptorDto) => [
                 {
                     text: t.displayName === t.symbol ? t.symbol : `${t.displayName} (${t.symbol})`,
                     action: buildPairAction(t.symbol),

@@ -1,4 +1,1 @@
-export interface TokenDescriptorDto {
-    readonly symbol: string;
-    readonly displayName: string;
-}
+export type { TokenDescriptor as TokenDescriptorDto } from '@components/trading/core/domain/models/token/token-descriptor';

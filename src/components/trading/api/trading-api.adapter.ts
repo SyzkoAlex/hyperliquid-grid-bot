@@ -14,8 +14,7 @@ import { CapitalCalculatorService } from '@components/trading/core/domain/servic
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Price } from '@domain/models/primitives/price';
 import { Config } from '@/config/config.schema';
-import { TopSymbolsCacheService } from '@components/trading/core/application/services/top-symbols-cache/top-symbols-cache.service';
-import { DEFAULT_TOP_TOKENS } from '@components/trading/core/domain/models/constants/default-top-tokens';
+import { GetTopSymbolsUseCase } from '@components/trading/core/application/use-cases/get-top-symbols/get-top-symbols.use-case';
 import { TokenDescriptorDto } from './dto/token-descriptor.dto';
 
 @Injectable()
@@ -27,7 +26,7 @@ export class TradingApiAdapter implements TradingApiPort {
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly capitalCalculator: CapitalCalculatorService,
         configService: ConfigService<Config, true>,
-        private readonly topSymbolsCache: TopSymbolsCacheService,
+        private readonly getTopSymbolsUseCase: GetTopSymbolsUseCase,
     ) {
         this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
         this.defaultTopSize = configService.get('tokens', { infer: true }).topSize;
@@ -106,7 +105,6 @@ export class TradingApiAdapter implements TradingApiPort {
     }
 
     async getTopSymbolsByVolume(limit?: number): Promise<TokenDescriptorDto[]> {
-        const effectiveLimit = limit ?? this.defaultTopSize;
-        return this.topSymbolsCache.getOrDefault(effectiveLimit, DEFAULT_TOP_TOKENS);
+        return this.getTopSymbolsUseCase.execute(limit ?? this.defaultTopSize);
     }
 }

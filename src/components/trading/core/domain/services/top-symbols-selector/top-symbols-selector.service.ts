@@ -3,8 +3,7 @@ import { SpotMeta } from '@/infra/hyperliquid/types/hyperliquid-spot-meta';
 import { HyperliquidSpotAssetCtx } from '@/infra/hyperliquid/types/hyperliquid-spot-asset-ctx';
 import { TokenDescriptor } from '@components/trading/core/domain/models/token/token-descriptor';
 import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
-
-export const EXCLUDED_STABLECOIN_BASES = new Set(['USDT', 'USDH']);
+import { EXCLUDED_STABLECOIN_BASES } from '@components/trading/core/domain/models/constants/excluded-stablecoin-bases';
 
 type SpotMetaToken = SpotMeta['tokens'][number];
 
@@ -18,11 +17,13 @@ export class TopSymbolsSelectorService {
             return [];
         }
 
+        const tokensByIndex = new Map<number, SpotMetaToken>(meta.tokens.map((t) => [t.index, t]));
+
         const candidates = meta.universe
             .map((u, i) => ({ u, ctx: assetCtxs[i] }))
             .filter(({ u, ctx }) => u.tokens[1] === usdcIndex && ctx !== undefined)
             .map(({ u, ctx }) => {
-                const base = meta.tokens.find((t) => t.index === u.tokens[0]);
+                const base = tokensByIndex.get(u.tokens[0]);
                 return base ? { base, volume: parseFloat(ctx.dayNtlVlm) } : null;
             })
             .filter(

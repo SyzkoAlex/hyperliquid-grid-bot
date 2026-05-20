@@ -68,6 +68,19 @@ describe('SelectPairStep', () => {
             expect(btcRow![0].action).toBe(buildPairAction('UBTC'));
         });
 
+        it('renders only Other Token and Cancel buttons when getTopSymbolsByVolume throws', async () => {
+            vi.mocked(mockTradingApi.getTopSymbolsByVolume).mockRejectedValue(
+                new Error('network error'),
+            );
+            const ctx = createMockContext();
+
+            await step.enter(ctx);
+
+            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
+            const rows = keyboard as { text: string; action: string }[][];
+            expect(rows).toHaveLength(2);
+        });
+
         it('calls tradingApi.getTopSymbolsByVolume and renders all returned tokens as buttons', async () => {
             const dynamicTokens = [
                 { symbol: 'TOKEN1', displayName: 'TOKEN1' },

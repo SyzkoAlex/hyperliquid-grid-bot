@@ -4,7 +4,7 @@ import { CalculateCapitalDistributionDto } from './dto/calculate-capital-distrib
 import { CalculateMaxInvestmentDto } from './dto/calculate-max-investment.dto';
 import { TokenDescriptorDto } from './dto/token-descriptor.dto';
 
-export type { TokenDescriptorDto as TokenDescriptor };
+export type { TokenDescriptorDto };
 
 export const TRADING_API_PORT = Symbol('TRADING_API_PORT');
 

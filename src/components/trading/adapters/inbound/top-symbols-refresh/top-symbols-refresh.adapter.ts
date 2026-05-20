@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Inject, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { logger } from '@/infra/logger/logger';
@@ -7,7 +7,6 @@ import {
     DISTRIBUTED_LOCK_PORT,
     DistributedLockPort,
 } from '@/core/application/ports/outbound/distributed-lock.port';
-import { Inject } from '@nestjs/common';
 import { RefreshTopSymbolsUseCase } from '@components/trading/core/application/use-cases/refresh-top-symbols/refresh-top-symbols.use-case';
 
 @Injectable()
@@ -34,7 +33,7 @@ export class TopSymbolsRefreshAdapter implements OnApplicationBootstrap, OnModul
     }
 
     onApplicationBootstrap(): void {
-        this.runRefresh();
+        void this.runRefresh();
         const interval = setInterval(() => this.runRefresh(), this.refreshIntervalMs);
         this.schedulerRegistry.addInterval(this.intervalName, interval);
         this.logger.info({ intervalMs: this.refreshIntervalMs }, 'Top symbols refresh initialized');
@@ -54,7 +53,7 @@ export class TopSymbolsRefreshAdapter implements OnApplicationBootstrap, OnModul
         }
         this.isRunning = true;
         try {
-            const result = await this.lock.withLock('top-symbols-refresh', this.lockTtlMs, () =>
+            const result = await this.lock.withLock(this.intervalName, this.lockTtlMs, () =>
                 this.refresh(),
             );
             if (result === null) {

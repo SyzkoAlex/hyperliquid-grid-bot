@@ -17,10 +17,8 @@ import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
 import { loadConfiguration } from '@/config/configuration';
 import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
-import {
-    TopSymbolsSelectorService,
-    EXCLUDED_STABLECOIN_BASES,
-} from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
+import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
+import { EXCLUDED_STABLECOIN_BASES } from '@components/trading/core/domain/models/constants/excluded-stablecoin-bases';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
@@ -215,8 +213,6 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
     describe('getTopSymbolsByVolume', () => {
         it('returns token descriptors within the requested limit with valid shape', async () => {
             const limit = 5;
-            const STABLECOINS = EXCLUDED_STABLECOIN_BASES;
-
             const tokens = await adapter.getTopSymbolsByVolume(limit);
 
             expect(tokens.length).toBeGreaterThan(0);
@@ -225,7 +221,7 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 expect(typeof t.symbol).toBe('string');
                 expect(t.symbol.length).toBeGreaterThan(0);
                 expect(t.symbol).not.toContain('/');
-                expect(STABLECOINS.has(t.symbol)).toBe(false);
+                expect(EXCLUDED_STABLECOIN_BASES.has(t.symbol)).toBe(false);
                 expect(typeof t.displayName).toBe('string');
                 expect(t.displayName.length).toBeGreaterThan(0);
             }
