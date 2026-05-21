@@ -46,27 +46,27 @@ export class CreateAndStartGridUseCase {
             TradingSymbol.create(params.symbol),
         );
 
-        const { investmentUSDC, investmentBase } = await this.getUserBalanceAndCalculateCapital(
+        const { requiredUSDC, rawInvestmentBase } = await this.getUserBalanceAndCalculateCapital(
             params,
             currentPrice,
         );
 
         const grid = await this.createAndSaveGrid(
             params,
-            investmentUSDC,
-            investmentBase,
+            requiredUSDC,
+            rawInvestmentBase,
             currentPrice,
         );
 
         await this.startGridWithOrders(grid, currentPrice, params.address);
 
-        return new CreateAndStartGridResult(grid, investmentUSDC, investmentBase);
+        return new CreateAndStartGridResult(grid, requiredUSDC, rawInvestmentBase);
     }
 
     private async getUserBalanceAndCalculateCapital(
         params: CreateAndStartGridParams,
         currentPrice: Price,
-    ): Promise<{ investmentUSDC: Decimal; investmentBase: Decimal }> {
+    ): Promise<{ requiredUSDC: Decimal; rawInvestmentBase: Decimal }> {
         const userState = await this.exchange.getUserSpotState(params.address);
         const { usdcBalance, baseBalance } = this.userBalanceExtractor.extractBalances(
             userState,
@@ -98,25 +98,28 @@ export class CreateAndStartGridUseCase {
             szDecimals,
         });
 
-        if (usdcBalance.lt(distribution.investmentUSDC)) {
+        if (usdcBalance.lt(distribution.requiredUSDC)) {
             throw new Error(
-                `Insufficient USDC balance. Required: ${distribution.investmentUSDC.toString()}, Available: ${usdcBalance.toString()}`,
+                `Insufficient USDC balance. Required: ${distribution.requiredUSDC.toString()}, Available: ${usdcBalance.toString()}`,
             );
         }
 
-        if (baseBalance.lt(distribution.requiredBaseBalance)) {
+        if (baseBalance.lt(distribution.requiredBase)) {
             throw new Error(
-                `Insufficient base token balance. Required: ${distribution.requiredBaseBalance.toString()}, Available: ${baseBalance.toString()}`,
+                `Insufficient base token balance. Required: ${distribution.requiredBase.toString()}, Available: ${baseBalance.toString()}`,
             );
         }
 
-        return distribution;
+        return {
+            requiredUSDC: distribution.requiredUSDC,
+            rawInvestmentBase: distribution.rawInvestmentBase,
+        };
     }
 
     private async createAndSaveGrid(
         params: CreateAndStartGridParams,
-        investmentUSDC: Decimal,
-        investmentBase: Decimal,
+        requiredUSDC: Decimal,
+        rawInvestmentBase: Decimal,
         currentPrice: Price,
     ): Promise<GridDto> {
         const user = await this.usersApi.findUserByAccountAddress(params.address);
@@ -131,8 +134,8 @@ export class CreateAndStartGridUseCase {
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
             levels: params.levels,
-            investmentUSDC: investmentUSDC.toNumber(),
-            investmentBase: investmentBase.toNumber(),
+            investmentUSDC: requiredUSDC.toNumber(),
+            investmentBase: rawInvestmentBase.toNumber(),
             creationPrice: currentPrice.toNumber(),
             trailingEnabled: params.trailingEnabled,
             trailingTriggerPercent: params.trailingTriggerPercent,

@@ -117,9 +117,9 @@ describe('CreateAndStartGridUseCase', () => {
             };
 
             const distribution = {
-                investmentUSDC: Decimal.from(5000),
-                investmentBase: Decimal.from(0.1),
-                requiredBaseBalance: Decimal.from(0.1005),
+                requiredUSDC: Decimal.from(5000),
+                requiredBase: Decimal.from(0.1005),
+                rawInvestmentBase: Decimal.from(0.1),
             };
 
             const currentPrice = Price.from(50000);
@@ -156,8 +156,9 @@ describe('CreateAndStartGridUseCase', () => {
 
             expect(result.grid.symbol).toBe('BTC');
             expect(result.grid.levels).toBe(10);
-            expect(result.investmentUSDC).toEqual(distribution.investmentUSDC);
-            expect(result.investmentBase).toEqual(distribution.investmentBase);
+            expect(result.investmentUSDC).toEqual(distribution.requiredUSDC);
+            // investmentBase comes directly from distribution.rawInvestmentBase
+            expect(result.investmentBase).toEqual(distribution.rawInvestmentBase);
 
             expect(exchange.getUserSpotState).toHaveBeenCalledWith('0x123');
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
@@ -218,9 +219,9 @@ describe('CreateAndStartGridUseCase', () => {
                 baseBalance: Decimal.from(1),
             };
             const distribution = {
-                investmentUSDC: Decimal.from(3000),
-                investmentBase: Decimal.from(0.5),
-                requiredBaseBalance: Decimal.from(0.5025),
+                requiredUSDC: Decimal.from(3000),
+                requiredBase: Decimal.from(0.5025),
+                rawInvestmentBase: Decimal.from(0.5),
             };
 
             const currentPrice = Price.from(3000);
@@ -313,7 +314,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(capitalCalculator.calculateDistribution).not.toHaveBeenCalled();
         });
 
-        it('should throw when base balance covers investmentBase but not the sell buffer', async () => {
+        it('should throw when base balance covers rawInvestmentBase but not requiredBase', async () => {
             const params = {
                 chatId: 123456,
                 address: '0x123',
@@ -329,12 +330,12 @@ describe('CreateAndStartGridUseCase', () => {
             exchange.getCurrentPrice.mockResolvedValue(Price.from(71.9));
             userBalanceExtractor.extractBalances.mockReturnValue({
                 usdcBalance: Decimal.from(2000),
-                baseBalance: Decimal.from(32.16), // covers investmentBase but not investmentBase * 1.005
+                baseBalance: Decimal.from(32.16), // covers rawInvestmentBase but not requiredBase
             });
             capitalCalculator.calculateDistribution.mockReturnValue({
-                investmentUSDC: Decimal.from(1941),
-                investmentBase: Decimal.from(32.16),
-                requiredBaseBalance: Decimal.from(32.32), // 32.16 * 1.005
+                requiredUSDC: Decimal.from(1941),
+                requiredBase: Decimal.from(32.32), // buffered+ceil value > rawInvestmentBase
+                rawInvestmentBase: Decimal.from(32.16),
             });
 
             await expect(useCase.execute(params)).rejects.toThrow(
@@ -363,9 +364,9 @@ describe('CreateAndStartGridUseCase', () => {
                 baseBalance: Decimal.from(15),
             };
             const distribution = {
-                investmentUSDC: Decimal.from(1500),
-                investmentBase: Decimal.from(10),
-                requiredBaseBalance: Decimal.from(10.05),
+                requiredUSDC: Decimal.from(1500),
+                requiredBase: Decimal.from(10.05),
+                rawInvestmentBase: Decimal.from(10),
             };
 
             const currentPrice = Price.from(125);

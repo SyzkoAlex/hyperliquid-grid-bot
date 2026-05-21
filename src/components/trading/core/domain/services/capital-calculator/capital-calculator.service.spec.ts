@@ -136,11 +136,13 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            // investmentUSDC = 10000 * 5/11 ~= 4545.45
-            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
+            // requiredUSDC = 10000 * 5/11 ~= 4545.45
+            expect(result.requiredUSDC.toNumber()).toBeCloseTo(4545.45, 1);
 
-            // investmentBase = 10000 * 6/11 / 50000 ~= 0.10909
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
+            // rawInvestmentBase = 10000 * 6/11 / 50000 ~= 0.10909
+            expect(result.rawInvestmentBase.toNumber()).toBeCloseTo(0.10909, 4);
+            // requiredBase with sellSizeBuffer=0 and szDecimals=8 equals raw investmentBase
+            expect(result.requiredBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
         it('should produce consistent results for the same parameters', () => {
@@ -159,12 +161,12 @@ describe('CapitalCalculatorService', () => {
             const result1 = service.calculateDistribution(params);
             const result2 = service.calculateDistribution(params);
 
-            expect(result1.investmentUSDC.toNumber()).toBeCloseTo(
-                result2.investmentUSDC.toNumber(),
+            expect(result1.requiredUSDC.toNumber()).toBeCloseTo(
+                result2.requiredUSDC.toNumber(),
                 10,
             );
-            expect(result1.investmentBase.toNumber()).toBeCloseTo(
-                result2.investmentBase.toNumber(),
+            expect(result1.requiredBase.toNumber()).toBeCloseTo(
+                result2.requiredBase.toNumber(),
                 10,
             );
         });
@@ -183,9 +185,10 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            // Total portfolio = 10000, investmentUSDC = 10000 * 5/11 ~= 4545.45
-            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
+            // Total portfolio = 10000, requiredUSDC = 10000 * 5/11 ~= 4545.45
+            expect(result.requiredUSDC.toNumber()).toBeCloseTo(4545.45, 1);
+            // requiredBase with sellSizeBuffer=0 and szDecimals=8 equals raw investmentBase ~= 0.10909
+            expect(result.requiredBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
         it('should calculate distribution even with insufficient balance', () => {
@@ -201,11 +204,13 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            expect(result.investmentUSDC.toNumber()).toBeCloseTo(4545.45, 1);
-            expect(result.investmentBase.toNumber()).toBeCloseTo(0.10909, 4);
+            expect(result.requiredUSDC.toNumber()).toBeCloseTo(4545.45, 1);
+            // requiredBase with sellSizeBuffer=0 and szDecimals=8 equals raw investmentBase ~= 0.10909
+            expect(result.requiredBase.toNumber()).toBeCloseTo(0.10909, 4);
         });
 
-        it('requiredBaseBalance equals investmentBase when sellSizeBuffer is zero', () => {
+        it('requiredBase equals rawInvestmentBase when sellSizeBuffer is zero (szDecimals=8)', () => {
+            // With sellSizeBuffer=0 and szDecimals=8, ceil-rounding has no effect at this precision
             const result = service.calculateDistribution({
                 levels: 10,
                 totalInvestmentUSDC: 10000,
@@ -218,13 +223,12 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
-                result.investmentBase.toNumber(),
-                7,
-            );
+            const expectedRawBase = (10000 * (6 / 11)) / 50000;
+            expect(result.rawInvestmentBase.toNumber()).toBeCloseTo(expectedRawBase, 7);
+            expect(result.requiredBase.toNumber()).toBeCloseTo(expectedRawBase, 7);
         });
 
-        it('requiredBaseBalance equals investmentBase * (1 + sellSizeBuffer)', () => {
+        it('requiredBase equals rawInvestmentBase * (1 + sellSizeBuffer) for szDecimals=8', () => {
             const buffer = 0.005;
             const result = service.calculateDistribution({
                 levels: 10,
@@ -238,8 +242,9 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(
-                result.investmentBase.toNumber() * (1 + buffer),
+            // requiredBase is derived from rawInvestmentBase — verify the relationship directly
+            expect(result.requiredBase.toNumber()).toBeCloseTo(
+                result.rawInvestmentBase.toNumber() * (1 + buffer),
                 7,
             );
         });
@@ -264,18 +269,19 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 8,
             });
 
-            // investmentUSDC = 103 * 4/11 ~= 37.45
+            // requiredUSDC = 103 * 4/11 ~= 37.45
             const expectedUSDC = investment * (4 / 11);
-            expect(result.investmentUSDC.toNumber()).toBeCloseTo(expectedUSDC, 4);
+            expect(result.requiredUSDC.toNumber()).toBeCloseTo(expectedUSDC, 4);
 
+            // requiredBase with sellSizeBuffer=0 and szDecimals=8 equals raw investmentBase
             // investmentBase = 103 * 7/11 / 84.57
             const expectedBase = (investment * (7 / 11)) / currentPrice;
-            expect(result.investmentBase.toNumber()).toBeCloseTo(expectedBase, 6);
+            expect(result.requiredBase.toNumber()).toBeCloseTo(expectedBase, 6);
 
             // Verify equal per-order notional: both buy and sell notional per order ~= 103/11
             const perOrder = investment / 11;
-            const buyNotionalPerOrder = result.investmentUSDC.toNumber() / 4;
-            const sellNotionalPerOrder = (result.investmentBase.toNumber() * currentPrice) / 7;
+            const buyNotionalPerOrder = result.requiredUSDC.toNumber() / 4;
+            const sellNotionalPerOrder = (result.requiredBase.toNumber() * currentPrice) / 7;
             expect(buyNotionalPerOrder).toBeCloseTo(perOrder, 4);
             expect(sellNotionalPerOrder).toBeCloseTo(perOrder, 4);
         });
@@ -286,7 +292,7 @@ describe('CapitalCalculatorService', () => {
             // investmentBase = 100 * (6/11) / 10 = 5.45454545...
             // basePerSellLevel = 5.45454.../6 = 0.90909090...
             // ceil(0.90909090..., 5) = ceil(90909.09...) / 100000 = 90910 / 100000 = 0.9091
-            // requiredBaseBalance = 0.9091 * 6 = 5.4546
+            // requiredBase = 0.9091 * 6 = 5.4546
             const result = service.calculateDistribution({
                 levels: 10,
                 totalInvestmentUSDC: 100,
@@ -299,9 +305,35 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 5,
             });
 
-            expect(result.requiredBaseBalance.toNumber()).toBeCloseTo(5.4546, 4);
-            expect(result.requiredBaseBalance.toNumber()).toBeGreaterThan(
-                result.investmentBase.toNumber(),
+            expect(result.requiredBase.toNumber()).toBeCloseTo(5.4546, 4);
+            expect(result.requiredBase.toNumber()).toBeGreaterThan(
+                // raw investmentBase = 100 * (6/11) / 10 = 5.45454...
+                (100 * (6 / 11)) / 10,
+            );
+        });
+
+        it('overshoots rawInvestmentBase by exchange ceil rounding for low szDecimals (regression: HYPE mainnet)', () => {
+            // HYPE mainnet: szDecimals = 2. Investment scenario from the original bug report:
+            // capital ≈ 3050 USDC, range 67-82, currentPrice = 74.49, levels = 10
+            // → buyCount = 5, sellCount = 6, totalLevels = 11
+            // rawInvestmentBase = 3050 * 6/11 / 74.49 ≈ 22.3337 HYPE
+            // per-sell raw = 22.3337/6 * 1.005 ≈ 3.7409 → ceil(., 2) = 3.75 → requiredBase = 22.50
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: 3050,
+                usdcBalance: Decimal.from(3050),
+                baseBalance: Decimal.from(100),
+                currentPrice: Price.from(74.49),
+                lowerPrice: 67,
+                upperPrice: 82,
+                sellSizeBuffer: 0.005,
+                szDecimals: 2,
+            });
+
+            expect(result.rawInvestmentBase.toNumber()).toBeCloseTo(22.3337, 3);
+            expect(result.requiredBase.toNumber()).toBeCloseTo(22.5, 6);
+            expect(result.requiredBase.toNumber()).toBeGreaterThan(
+                result.rawInvestmentBase.toNumber(),
             );
         });
     });

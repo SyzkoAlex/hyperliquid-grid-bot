@@ -47,6 +47,9 @@ function ceilToSzDecimals(value: number, szDecimals: number): number {
  * investmentUSDC = 10,000 * 5/11 ~= 4,545.45 USDC (for buy orders)
  * investmentBase = 10,000 * 6/11 / 50,000 ~= 0.10909 BTC (for sell orders)
  * ```
+ *
+ * The returned `requiredUSDC` equals this `investmentUSDC`. The returned `requiredBase` equals
+ * this `investmentBase` after buffering and ceil-rounding per sell order.
  */
 @Injectable()
 export class CapitalCalculatorService {
@@ -61,8 +64,12 @@ export class CapitalCalculatorService {
      * @param params.lowerPrice - Grid lower price bound
      * @param params.upperPrice - Grid upper price bound
      * @param params.sellSizeBuffer - Buffer fraction added to each sell order during placement (e.g. 0.005 = 0.5%)
-     * @param params.szDecimals - Exchange size-decimals for the base token; used to mirror per-order ceil-rounding in requiredBaseBalance
-     * @returns Capital distribution including requiredBaseBalance = sellCount × ceil(investmentBase/sellCount × (1+sellSizeBuffer), szDecimals)
+     * @param params.szDecimals - Exchange size-decimals for the base token; used to mirror per-order ceil-rounding in requiredBase
+     * @returns Capital distribution with:
+     *          - requiredUSDC: raw buy notional
+     *          - requiredBase: sellCount × ceil(rawInvestmentBase/sellCount × (1+sellSizeBuffer), szDecimals)
+     *          - rawInvestmentBase: un-buffered intermediate base allocation; used for grid persistence,
+     *            stripped at the API adapter boundary so external consumers never see it
      */
     calculateDistribution(params: {
         levels: number;
@@ -94,7 +101,7 @@ export class CapitalCalculatorService {
         const buyRatio = buyCount / totalLevels;
         const sellRatio = sellCount / totalLevels;
 
-        const investmentUSDC = capital.mul(Decimal.from(buyRatio));
+        const requiredUSDC = capital.mul(Decimal.from(buyRatio));
         const investmentBase = capital
             .mul(Decimal.from(sellRatio))
             .div(Decimal.from(params.currentPrice.toNumber()));
@@ -104,17 +111,11 @@ export class CapitalCalculatorService {
             .mul(Decimal.from(1 + params.sellSizeBuffer))
             .toNumber();
 
-        // The exchange ceil-rounds each sell order size to szDecimals decimal places.
-        // Summing N ceil-rounded values can exceed N * exact_value, causing
-        // the last order to fail with "Insufficient spot balance".
-        // We mirror that rounding here so the balance check matches reality.
         const effectivePerSellLevel = ceilToSzDecimals(basePerSellLevel, params.szDecimals);
 
-        const requiredBaseBalance = Decimal.from(effectivePerSellLevel).mul(
-            Decimal.from(sellCount),
-        );
+        const requiredBase = Decimal.from(effectivePerSellLevel).mul(Decimal.from(sellCount));
 
-        return { investmentUSDC, investmentBase, requiredBaseBalance };
+        return { requiredUSDC, requiredBase, rawInvestmentBase: investmentBase };
     }
 
     /**

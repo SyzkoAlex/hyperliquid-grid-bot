@@ -39,9 +39,8 @@ describe('validateInvestment', () => {
             getUserSpotState: vi.fn().mockResolvedValue(mockUserState()),
             pairExists: vi.fn(),
             calculateCapitalDistribution: vi.fn().mockReturnValue({
-                investmentUSDC: 500,
-                investmentBase: 50,
-                requiredBaseBalance: 50.25,
+                requiredUSDC: 500,
+                requiredBase: 50.25,
             }),
         } as unknown as TradingApiPort;
     });
@@ -51,8 +50,8 @@ describe('validateInvestment', () => {
 
         expect(result.valid).toBe(true);
         expect(result.distribution).toBeDefined();
-        expect(result.distribution!.investmentUSDC.toNumber()).toBe(500);
-        expect(result.distribution!.investmentBase.toNumber()).toBe(50);
+        expect(result.distribution!.requiredUSDC.toNumber()).toBe(500);
+        expect(result.distribution!.requiredBase.toNumber()).toBe(50.25);
     });
 
     it('rejects NaN investment', async () => {
@@ -92,9 +91,8 @@ describe('validateInvestment', () => {
             mockUserState({ usdcBalance: 100, spotBalances: { HYPE: 1000 } }),
         );
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 500,
-            investmentBase: 50,
-            requiredBaseBalance: 50.25,
+            requiredUSDC: 500,
+            requiredBase: 50.25,
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -109,9 +107,8 @@ describe('validateInvestment', () => {
             mockUserState({ usdcBalance: 10000, spotBalances: { HYPE: 1 } }),
         );
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 500,
-            investmentBase: 50,
-            requiredBaseBalance: 50.25,
+            requiredUSDC: 500,
+            requiredBase: 50.25,
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -120,14 +117,13 @@ describe('validateInvestment', () => {
         expect(result.showBackButton).toBe(true);
     });
 
-    it('rejects when base balance covers investmentBase but not requiredBaseBalance', async () => {
+    it('rejects when base balance covers raw amount but not the buffered requiredBase', async () => {
         vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue(
             mockUserState({ usdcBalance: 10000, spotBalances: { HYPE: 49 } }),
         );
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 500,
-            investmentBase: 50,
-            requiredBaseBalance: 50.25, // 50 * 1.005 — exceeds available 49
+            requiredUSDC: 500,
+            requiredBase: 50.25, // buffered value — exceeds available 49
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -141,9 +137,8 @@ describe('validateInvestment', () => {
             mockUserState({ usdcBalance: 10000, spotBalances: {} }),
         );
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 500,
-            investmentBase: 50,
-            requiredBaseBalance: 50.25,
+            requiredUSDC: 500,
+            requiredBase: 50.25,
         });
 
         const result = await validateInvestment(defaultParams, mockTradingApi);
@@ -184,9 +179,8 @@ describe('validateInvestment', () => {
         // levels=1 → countBuySellLevels gives buyCount=1, sellCount=1.
         vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 9.9999,
-            investmentBase: 100,
-            requiredBaseBalance: 100.5,
+            requiredUSDC: 9.9999,
+            requiredBase: 100.5,
         });
 
         const result = await validateInvestment(
@@ -201,9 +195,8 @@ describe('validateInvestment', () => {
         // 9.944 rounds to 9.94 which is still < 10 — must reject.
         vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-            investmentUSDC: 9.944,
-            investmentBase: 100,
-            requiredBaseBalance: 100.5,
+            requiredUSDC: 9.944,
+            requiredBase: 100.5,
         });
 
         const result = await validateInvestment(
@@ -213,5 +206,23 @@ describe('validateInvestment', () => {
 
         expect(result.valid).toBe(false);
         expect(result.showBackButton).toBe(true);
+    });
+
+    it('renders an insufficient-balance message where Required − Available equals the shortfall (regression)', async () => {
+        vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue(
+            mockUserState({ usdcBalance: 10000, spotBalances: { HYPE: 22.48089116 } }),
+        );
+        vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
+            requiredUSDC: 500, // not the bottleneck
+            requiredBase: 22.5, // buffered + ceil-rounded value
+        });
+        vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74.49);
+
+        const result = await validateInvestment(defaultParams, mockTradingApi);
+
+        expect(result.valid).toBe(false);
+        expect(result.errorMessage).toContain('22.5'); // displayed "Required" matches the check value
+        expect(result.errorMessage).toContain('0.019109'); // shortfall = 22.5 - 22.48089116
+        expect(result.errorMessage).not.toContain('22.333687'); // raw investmentBase must NOT appear
     });
 });

@@ -5,10 +5,9 @@ import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
 import { roundToCents } from './round-to-cents';
 
-interface CapitalDistribution {
-    investmentUSDC: Decimal;
-    investmentBase: Decimal;
-    requiredBaseBalance: Decimal;
+interface ValidatedDistribution {
+    requiredUSDC: Decimal;
+    requiredBase: Decimal;
 }
 
 export interface InvestmentValidationParams {
@@ -24,7 +23,7 @@ export interface InvestmentValidationResult {
     valid: boolean;
     errorMessage?: string;
     showBackButton?: boolean;
-    distribution?: CapitalDistribution;
+    distribution?: ValidatedDistribution;
 }
 
 export async function validateInvestment(
@@ -72,9 +71,8 @@ export async function validateInvestment(
         upperPrice,
     });
 
-    const investmentUSDC = Decimal.from(distributionDto.investmentUSDC);
-    const investmentBase = Decimal.from(distributionDto.investmentBase);
-    const requiredBaseBalance = Decimal.from(distributionDto.requiredBaseBalance);
+    const requiredUSDC = Decimal.from(distributionDto.requiredUSDC);
+    const requiredBase = Decimal.from(distributionDto.requiredBase);
 
     const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
         levels,
@@ -84,8 +82,8 @@ export async function validateInvestment(
     );
 
     if (buyCount > 0 && sellCount > 0) {
-        const minBuyNotional = investmentUSDC.div(Decimal.from(buyCount)).toNumber();
-        const minSellNotional = investmentBase
+        const minBuyNotional = requiredUSDC.div(Decimal.from(buyCount)).toNumber();
+        const minSellNotional = requiredBase
             .mul(Decimal.from(currentPriceNum))
             .div(Decimal.from(sellCount))
             .toNumber();
@@ -108,8 +106,8 @@ export async function validateInvestment(
         }
     }
 
-    const usdcShortfall = investmentUSDC.sub(usdcBalance);
-    const baseShortfall = requiredBaseBalance.sub(baseBalance);
+    const usdcShortfall = requiredUSDC.sub(usdcBalance);
+    const baseShortfall = requiredBase.sub(baseBalance);
     const hasInsufficientBalance =
         usdcShortfall.gt(Decimal.zero()) || baseShortfall.gt(Decimal.zero());
 
@@ -126,8 +124,8 @@ export async function validateInvestment(
                 baseInUsdc,
                 totalBalance,
                 currentPriceNum,
-                investmentUSDC,
-                investmentBase,
+                requiredUSDC,
+                requiredBase,
                 usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
                 baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
             ),
@@ -135,5 +133,5 @@ export async function validateInvestment(
         };
     }
 
-    return { valid: true, distribution: { investmentUSDC, investmentBase, requiredBaseBalance } };
+    return { valid: true, distribution: { requiredUSDC, requiredBase } };
 }

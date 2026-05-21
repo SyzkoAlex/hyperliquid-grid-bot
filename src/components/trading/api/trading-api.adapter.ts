@@ -86,9 +86,8 @@ export class TradingApiAdapter implements TradingApiPort {
             szDecimals,
         });
         return {
-            investmentUSDC: distribution.investmentUSDC.toNumber(),
-            investmentBase: distribution.investmentBase.toNumber(),
-            requiredBaseBalance: distribution.requiredBaseBalance.toNumber(),
+            requiredUSDC: distribution.requiredUSDC.toNumber(),
+            requiredBase: distribution.requiredBase.toNumber(),
         };
     }
 

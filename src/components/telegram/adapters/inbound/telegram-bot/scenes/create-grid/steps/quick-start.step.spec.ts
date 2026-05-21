@@ -16,9 +16,8 @@ describe('QuickStartStep', () => {
             getUserSpotState: vi.fn(),
             pairExists: vi.fn(),
             calculateCapitalDistribution: vi.fn().mockReturnValue({
-                investmentUSDC: 500,
-                investmentBase: 0.01,
-                requiredBaseBalance: 0.01005,
+                requiredUSDC: 500,
+                requiredBase: 0.01005,
             }),
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
@@ -181,9 +180,8 @@ describe('QuickStartStep', () => {
                 spotPositions: { BTC: { available: 1, total: 1, hold: 0 } },
             });
             vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-                investmentUSDC: 500,
-                investmentBase: 0.01,
-                requiredBaseBalance: 0.01005,
+                requiredUSDC: 500,
+                requiredBase: 0.01005,
             });
 
             const result = await step.handleTextInput(ctx, '1000');
