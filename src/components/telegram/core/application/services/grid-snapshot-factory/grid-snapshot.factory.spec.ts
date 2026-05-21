@@ -7,7 +7,7 @@ import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
 
-function makeGrid(): GridDto {
+function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     return {
         id: 'grid-1',
         userId: 'user-1',
@@ -23,6 +23,7 @@ function makeGrid(): GridDto {
         trailingStepPercent: 2,
         trailingPartialClosePercent: 50,
         stopLossEnabled: false,
+        ...overrides,
     };
 }
 
@@ -182,6 +183,46 @@ describe('GridSnapshotFactory', () => {
     it('sets currentPrice on snapshot', () => {
         const snapshot = factory.create(makeGrid(), [], 98000);
         expect(snapshot.currentPrice).toBe(98000);
+    });
+
+    describe('effectivePrice for stopped grids', () => {
+        it('uses live currentPrice for a running grid', () => {
+            const grid = makeGrid({ status: GridStatus.Running, stopPrice: 91000 });
+
+            factory.create(grid, [], 98000);
+
+            expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+                expect.any(Array),
+                98000,
+                undefined,
+            );
+        });
+
+        it('uses frozen stopPrice for a stopped grid that has one', () => {
+            const grid = makeGrid({ status: GridStatus.Stopped, stopPrice: 91000 });
+
+            const snapshot = factory.create(grid, [], 98000);
+
+            expect(snapshot.currentPrice).toBe(91000);
+            expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+                expect.any(Array),
+                91000,
+                undefined,
+            );
+        });
+
+        it('falls back to live currentPrice for a legacy stopped grid with no stopPrice', () => {
+            const grid = makeGrid({ status: GridStatus.Stopped, stopPrice: undefined });
+
+            const snapshot = factory.create(grid, [], 98000);
+
+            expect(snapshot.currentPrice).toBe(98000);
+            expect(pnlCalculator.calculate).toHaveBeenCalledWith(
+                expect.any(Array),
+                98000,
+                undefined,
+            );
+        });
     });
 
     it('computes orderStats correctly', () => {

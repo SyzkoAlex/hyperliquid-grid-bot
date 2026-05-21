@@ -3,6 +3,7 @@ import { Grid } from './grid';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
+import { GridStatus } from '@domain/models/grid/grid-status';
 
 const makeBaseParams = () => ({
     userId: 'user-1',
@@ -12,6 +13,33 @@ const makeBaseParams = () => ({
     levels: 10,
     investmentUSDC: Decimal.from(1000),
     investmentBase: Decimal.from(0),
+});
+
+describe('Grid.stop', () => {
+    it('records stopPrice and sets status to Stopped when called with a price', () => {
+        const grid = Grid.create({ ...makeBaseParams() });
+        grid.start();
+        grid.stop(Price.from(2500));
+
+        expect(grid.status).toBe(GridStatus.Stopped);
+        expect(grid.stopPrice?.toNumber()).toBe(2500);
+        expect(grid.stoppedAt).not.toBeNull();
+    });
+
+    it('succeeds without stopPrice; stopPrice stays null on a freshly-created grid', () => {
+        const grid = Grid.create({ ...makeBaseParams() });
+        grid.start();
+        grid.stop();
+
+        expect(grid.status).toBe(GridStatus.Stopped);
+        expect(grid.stopPrice).toBeNull();
+    });
+
+    it('throws when status is Idle', () => {
+        const grid = Grid.create({ ...makeBaseParams() });
+
+        expect(() => grid.stop()).toThrow('Grid must be running or paused to stop');
+    });
 });
 
 describe('Grid.validate', () => {

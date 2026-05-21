@@ -23,6 +23,7 @@ export class GridsApiMapper {
             createdAt: grid.createdAt.toDate().getTime(),
             startedAt: grid.startedAt?.toDate().getTime(),
             stoppedAt: grid.stoppedAt?.toDate().getTime(),
+            stopPrice: grid.stopPrice?.toNumber(),
             stopLossEnabled: grid.stopLossEnabled,
             stopLossPrice: grid.stopLossPrice?.toNumber(),
             stopLossTriggeredAt: grid.stopLossTriggeredAt?.toDate().getTime(),

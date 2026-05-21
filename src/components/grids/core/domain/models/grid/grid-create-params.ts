@@ -16,6 +16,7 @@ export interface GridCreateParams {
     investmentUSDC: Decimal; // USD/USDC for buy orders
     investmentBase: Decimal; // Base asset (BTC/ETH) for sell orders
     creationPrice?: Price;
+    stopPrice?: Price;
     trailingEnabled?: boolean;
     trailingTriggerPercent?: number;
     trailingStepPercent?: number;

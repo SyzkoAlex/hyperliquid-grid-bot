@@ -106,4 +106,14 @@ describe('GridListMessage', () => {
 
         expect(msg.text).toContain('$595');
     });
+
+    it('shows frozen stopPrice as the price for a stopped grid with stopPrice set', () => {
+        const snapshot = makeSnapshot({
+            grid: makeGrid({ status: GridStatus.Stopped, stopPrice: 88000 }),
+            currentPrice: 88000,
+        });
+        const msg = GridListMessage.create(header, [snapshot], 0);
+
+        expect(msg.text).toContain('$88000');
+    });
 });

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderStatus } from '@domain/models/order/order-status';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridSnapshot } from '../../../domain/models/grid-snapshot';
 import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { computeOrderStats } from '../../../domain/models/order-stats';
@@ -11,6 +12,11 @@ export class GridSnapshotFactory {
     constructor(private readonly pnlCalculator: GridPnlCalculatorService) {}
 
     create(grid: GridDto, orders: OrderDto[], currentPrice: number): GridSnapshot {
+        const effectivePrice =
+            grid.status === GridStatus.Stopped && grid.stopPrice != null
+                ? grid.stopPrice
+                : currentPrice;
+
         const activeOrders = this.getActiveOrders(orders);
         const filledOrders = this.getFilledOrders(orders);
 
@@ -26,11 +32,11 @@ export class GridSnapshotFactory {
                 amount: o.amount,
                 feeUsdc: o.feeUsdc,
             })),
-            currentPrice,
+            effectivePrice,
             initialBase,
         );
         const orderStats = computeOrderStats(activeOrders, filledOrders);
-        return { grid, pnl, currentPrice, orderStats, activeOrders, filledOrders };
+        return { grid, pnl, currentPrice: effectivePrice, orderStats, activeOrders, filledOrders };
     }
 
     private getFilledOrders(orders: OrderDto[]): OrderDto[] {

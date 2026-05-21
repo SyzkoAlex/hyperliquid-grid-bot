@@ -71,7 +71,7 @@ export class StopLossProcessorService {
         currentMid: number,
         allActiveGrids: GridDto[] = [],
     ): Promise<void> {
-        await this.grids.markStoppedByStopLoss(grid.id);
+        await this.grids.markStoppedByStopLoss(grid.id, currentMid);
 
         try {
             const cancellationResult = await this.cancellation.cancelActiveOrders(

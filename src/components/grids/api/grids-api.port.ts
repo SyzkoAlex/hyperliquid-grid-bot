@@ -14,9 +14,12 @@ export interface GridsApiPort {
     // ── Grids — write ──────────────────────────────────────────────
     /** Persist a new grid and return it. */
     createGrid(dto: CreateGridDto): Promise<GridDto>;
-    updateGridStatus(id: string, status: GridStatus): Promise<void>;
-    /** Sets status=Stopped and stop_loss_triggered_at in a single save. */
-    markStoppedByStopLoss(id: string): Promise<void>;
+    /** Set status to Running for an idle/stopped grid. */
+    updateGridStatus(id: string, status: GridStatus.Running): Promise<void>;
+    /** Set status=Stopped and record the optional price snapshot at the moment of stop. */
+    markStopped(id: string, stopPrice?: number): Promise<void>;
+    /** Sets status=Stopped, stop_loss_triggered_at, and the stop price in a single save. */
+    markStoppedByStopLoss(id: string, stopPrice?: number): Promise<void>;
 
     // ── Grids — read ───────────────────────────────────────────────
     /** Find a grid by its UUID. Returns null if not found. */

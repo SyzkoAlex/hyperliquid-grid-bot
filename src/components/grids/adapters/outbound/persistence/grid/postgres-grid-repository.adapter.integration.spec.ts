@@ -317,4 +317,29 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             expect(addresses).toContain(secondAccountAddress);
         });
     });
+
+    describe('stopPrice round-trip', () => {
+        it('persists and reloads stopPrice through a full round-trip', async () => {
+            const grid = createGrid();
+            grid.start();
+            grid.stop(Price.from(123.45));
+
+            await repository.save(grid);
+            const found = await repository.findOneById(grid.id);
+
+            expect(found).not.toBeNull();
+            expect(found!.stopPrice?.toNumber()).toBeCloseTo(123.45, 4);
+        });
+
+        it('reloads null stopPrice when stop was called without a price', async () => {
+            const grid = createGrid();
+            grid.start();
+            grid.stop();
+
+            await repository.save(grid);
+            const found = await repository.findOneById(grid.id);
+
+            expect(found!.stopPrice).toBeNull();
+        });
+    });
 });

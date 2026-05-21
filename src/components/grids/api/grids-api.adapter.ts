@@ -57,19 +57,25 @@ export class GridsApiAdapter implements GridsApiPort {
         return GridsApiMapper.toGridDto(grid);
     }
 
-    async updateGridStatus(id: string, status: GridStatus): Promise<void> {
+    async updateGridStatus(id: string, status: GridStatus.Running): Promise<void> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
         if (!grid) throw new Error(`Grid not found: ${id}`);
         if (status === GridStatus.Running) grid.start();
-        else if (status === GridStatus.Stopped) grid.stop();
         await this.gridRepo.save(grid);
     }
 
-    async markStoppedByStopLoss(id: string): Promise<void> {
+    async markStopped(id: string, stopPrice?: number): Promise<void> {
+        const grid = await this.gridRepo.findOneById(GridId.from(id));
+        if (!grid) throw new Error(`Grid not found: ${id}`);
+        grid.stop(stopPrice !== undefined ? Price.from(stopPrice) : undefined);
+        await this.gridRepo.save(grid);
+    }
+
+    async markStoppedByStopLoss(id: string, stopPrice?: number): Promise<void> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
         if (!grid) throw new Error(`Grid not found: ${id}`);
         grid.markStopLossTriggered();
-        grid.stop();
+        grid.stop(stopPrice !== undefined ? Price.from(stopPrice) : undefined);
         await this.gridRepo.save(grid);
     }
 
