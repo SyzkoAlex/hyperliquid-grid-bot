@@ -31,6 +31,7 @@ export class PostgresGridMapper {
             stopLossEnabled: grid.stopLossEnabled,
             stopLossPrice: grid.stopLossPrice?.toNumber().toString() ?? null,
             stopLossTriggeredAt: grid.stopLossTriggeredAt?.toDate() ?? null,
+            stopPrice: grid.stopPrice?.toNumber().toString() ?? null,
             userId: grid.userId,
             createdAt: grid.createdAt.toDate(),
             startedAt: grid.startedAt?.toDate() ?? null,
@@ -74,6 +75,7 @@ export class PostgresGridMapper {
                 stopLossTriggeredAt: row.stopLossTriggeredAt
                     ? Timestamp.from(row.stopLossTriggeredAt)
                     : undefined,
+                stopPrice: row.stopPrice ? Price.from(parseFloat(row.stopPrice)) : undefined,
                 createdAt: row.createdAt ? Timestamp.from(row.createdAt) : undefined,
                 startedAt: row.startedAt ? Timestamp.from(row.startedAt) : undefined,
                 stoppedAt: row.stoppedAt ? Timestamp.from(row.stoppedAt) : undefined,

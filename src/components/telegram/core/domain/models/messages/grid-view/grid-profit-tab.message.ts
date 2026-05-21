@@ -34,6 +34,11 @@ export class GridProfitTabMessage {
         const investmentStr = PriceFormatter.format(investment);
         const startedStr = grid.startedAt ? formatDate(grid.startedAt, timezone) : '—';
 
+        const priceLabel =
+            grid.status === GridStatus.Stopped && grid.stopPrice != null
+                ? 'Stop Price'
+                : 'Current Price';
+
         const outOfRange = isGridOutOfRange(grid, currentPrice);
         const rangeWarning =
             outOfRange && grid.status === GridStatus.Running
@@ -55,7 +60,7 @@ export class GridProfitTabMessage {
             `<b>Investment:</b> $${investmentStr}\n` +
             `<b>Range:</b> $${lower} – $${upper} · ${activeOrders.length} orders\n` +
             `<b>Entry Price:</b> ${entryPrice}\n` +
-            `<b>Current Price:</b> $${price}\n` +
+            `<b>${priceLabel}:</b> $${price}\n` +
             `<b>Started:</b> ${startedStr}\n`;
     }
 

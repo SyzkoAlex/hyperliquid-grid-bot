@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -34,12 +33,26 @@ export class StopGridUseCase {
             await this.cancelOrder(order, accountAddress);
         }
 
-        await this.grids.updateGridStatus(gridId, GridStatus.Stopped);
+        const stopPrice = await this.fetchCurrentPriceSafe(grid.symbol);
+        await this.grids.markStopped(gridId, stopPrice);
 
         this.logger.info(
             { gridId, cancelledOrders: activeOrders.length },
             'Grid stopped successfully',
         );
+    }
+
+    private async fetchCurrentPriceSafe(symbol: string): Promise<number | undefined> {
+        try {
+            const price = await this.exchange.getCurrentPrice(TradingSymbol.create(symbol));
+            return price.toNumber();
+        } catch (error) {
+            this.logger.warn(
+                { error, symbol },
+                'Failed to fetch current price for stop snapshot; proceeding without it',
+            );
+            return undefined;
+        }
     }
 
     private async cancelOrder(order: OrderDto, accountAddress: string): Promise<void> {

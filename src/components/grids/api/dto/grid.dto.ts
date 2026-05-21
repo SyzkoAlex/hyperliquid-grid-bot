@@ -18,6 +18,7 @@ export interface GridDto {
     createdAt?: number; // timestamp ms
     startedAt?: number;
     stoppedAt?: number;
+    stopPrice?: number;
     stopLossEnabled: boolean;
     stopLossPrice?: number;
     stopLossTriggeredAt?: number; // timestamp ms

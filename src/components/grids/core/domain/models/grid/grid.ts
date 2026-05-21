@@ -18,6 +18,7 @@ export class Grid {
     private readonly _investmentUSDC: Decimal;
     private readonly _investmentBase: Decimal;
     private readonly _creationPrice: Price | null;
+    private _stopPrice: Price | null;
     private readonly _trailingEnabled: boolean;
     private readonly _trailingTriggerPercent: number;
     private readonly _trailingStepPercent: number;
@@ -42,6 +43,7 @@ export class Grid {
         this._investmentUSDC = params.investmentUSDC;
         this._investmentBase = params.investmentBase;
         this._creationPrice = params.creationPrice ?? null;
+        this._stopPrice = params.stopPrice ?? null;
         this._trailingEnabled = params.trailingEnabled ?? false;
         this._trailingTriggerPercent = params.trailingTriggerPercent ?? 5;
         this._trailingStepPercent = params.trailingStepPercent ?? 10;
@@ -106,12 +108,15 @@ export class Grid {
         this._startedAt = Timestamp.now();
     }
 
-    stop() {
+    stop(stopPrice?: Price | null): void {
         if (this._status !== GridStatus.Running && this._status !== GridStatus.Paused) {
             throw new Error('Grid must be running or paused to stop');
         }
         this._status = GridStatus.Stopped;
         this._stoppedAt = Timestamp.now();
+        if (stopPrice != null) {
+            this._stopPrice = stopPrice;
+        }
     }
 
     get symbol(): TradingSymbol {
@@ -144,6 +149,10 @@ export class Grid {
 
     get creationPrice(): Price | null {
         return this._creationPrice;
+    }
+
+    get stopPrice(): Price | null {
+        return this._stopPrice;
     }
 
     get trailingEnabled(): boolean {

@@ -100,7 +100,7 @@ describe('StopLossProcessorService', () => {
         it('returns true and triggers teardown when evaluator confirms breach', async () => {
             const grid = makeGrid();
             expect(await sut.process(grid as any, accountAddress, deepBelow, NOW)).toBe(true);
-            expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1');
+            expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1', deepBelow);
         });
 
         it('calls markStoppedByStopLoss before cancellation', async () => {
@@ -178,7 +178,7 @@ describe('StopLossProcessorService', () => {
             mockCancellation.cancelActiveOrders.mockRejectedValue(new Error('DB connection lost'));
             const grid = makeGrid();
             await sut.process(grid as any, accountAddress, deepBelow, NOW);
-            expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1');
+            expect(mockGrids.markStoppedByStopLoss).toHaveBeenCalledWith('grid-1', deepBelow);
             expect(mockEventPublisher.publish).toHaveBeenCalledOnce();
             const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
             expect(event.success).toBe(false);

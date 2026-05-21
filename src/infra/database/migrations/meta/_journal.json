@@ -64,6 +64,13 @@
       "when": 1778976000000,
       "tag": "0008_add_user_trade_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778976001000,
+      "tag": "0009_add_stop_price",
+      "breakpoints": true
     }
   ]
 }

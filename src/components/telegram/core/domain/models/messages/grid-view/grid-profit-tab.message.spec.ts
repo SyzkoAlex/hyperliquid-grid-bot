@@ -168,4 +168,28 @@ describe('GridProfitTabMessage', () => {
         const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
         expect(result).toContain('Entry Price:</b> —');
     });
+
+    describe('price label', () => {
+        it('shows Current Price: for a running grid', () => {
+            const grid = makeGrid(GridStatus.Running);
+            const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
+            expect(result).toContain('Current Price:</b>');
+            expect(result).not.toContain('Stop Price:');
+        });
+
+        it('shows Stop Price: for a stopped grid with stopPrice set', () => {
+            const grid: GridDto = { ...makeGrid(GridStatus.Stopped), stopPrice: 92000 };
+            const snapshot: GridSnapshot = { ...makeData(grid), currentPrice: 92000 };
+            const result = GridProfitTabMessage.create(snapshot, 'UTC').text;
+            expect(result).toContain('Stop Price:</b> $92000');
+            expect(result).not.toContain('Current Price:');
+        });
+
+        it('shows Current Price: for a legacy stopped grid without stopPrice', () => {
+            const grid: GridDto = { ...makeGrid(GridStatus.Stopped), stopPrice: undefined };
+            const result = GridProfitTabMessage.create(makeData(grid), 'UTC').text;
+            expect(result).toContain('Current Price:</b>');
+            expect(result).not.toContain('Stop Price:');
+        });
+    });
 });

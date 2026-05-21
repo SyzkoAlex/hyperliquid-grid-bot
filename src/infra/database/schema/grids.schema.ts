@@ -28,6 +28,7 @@ export const grids = pgTable('grids', {
     stopLossEnabled: boolean('stop_loss_enabled').notNull().default(false),
     stopLossPrice: decimal('stop_loss_price', { precision: 20, scale: 8 }),
     stopLossTriggeredAt: timestamp('stop_loss_triggered_at'),
+    stopPrice: decimal('stop_price', { precision: 20, scale: 8 }),
     startedAt: timestamp('started_at'),
     stoppedAt: timestamp('stopped_at'),
     userId: uuid('user_id')
