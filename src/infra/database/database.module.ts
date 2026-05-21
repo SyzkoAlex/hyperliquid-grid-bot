@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type { DrizzleDb } from './drizzle-db';
 import { Config } from '@/config/config.schema';
+import { logger } from '@/infra/logger/logger';
 import * as schema from './schema';
 
 export const DRIZZLE_DB = Symbol('DRIZZLE_DB');
@@ -15,7 +16,7 @@ export const DRIZZLE_DB = Symbol('DRIZZLE_DB');
             provide: Pool,
             useFactory: (configService: ConfigService<Config, true>): Pool => {
                 const dbConfig = configService.get('database', { infer: true });
-                return new Pool({
+                const pool = new Pool({
                     host: dbConfig.host,
                     port: dbConfig.port,
                     user: dbConfig.user,
@@ -23,7 +24,13 @@ export const DRIZZLE_DB = Symbol('DRIZZLE_DB');
                     database: dbConfig.database,
                     max: dbConfig.poolSize,
                     ssl: dbConfig.ssl || false,
+                    idleTimeoutMillis: 30_000,
+                    connectionTimeoutMillis: 5_000,
                 });
+                pool.on('error', (err) => {
+                    logger.error({ err, context: DatabaseModule.name }, 'pg pool error');
+                });
+                return pool;
             },
             inject: [ConfigService],
         },
