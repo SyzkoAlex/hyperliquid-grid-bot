@@ -133,6 +133,16 @@ export class ValidationTexts {
         );
     }
 
+    static baseLockedInOrders(symbol: string, available: Decimal, hold: Decimal): string {
+        return (
+            `${EMOJI.WARNING} Your ${symbol} is locked in existing orders!\n\n` +
+            `${EMOJI.MONEY} ${symbol} balance:\n` +
+            `  • Available: ${available.toFixed(6)}\n` +
+            `  • In orders: ${hold.toFixed(6)}\n\n` +
+            `Cancel some existing orders to free up ${symbol}, then try again.`
+        );
+    }
+
     static stopLossMustBePositive(): string {
         return `${EMOJI.ERROR} Stop-loss price must be a positive number. Please try again:`;
     }

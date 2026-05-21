@@ -63,11 +63,14 @@ export class AdvancedInvestmentStep implements WizardStep {
                           );
 
                 if (balanceInfo.baseBalance.isZero()) {
-                    await this.messageManager.sendEnterMessage(
-                        ctx,
-                        ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
-                        keyboard,
-                    );
+                    const text = !balanceInfo.baseHold.isZero()
+                        ? ValidationTexts.baseLockedInOrders(
+                              symbol,
+                              balanceInfo.baseBalance,
+                              balanceInfo.baseHold,
+                          )
+                        : ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance);
+                    await this.messageManager.sendEnterMessage(ctx, text, keyboard);
                     return;
                 }
 
@@ -82,15 +85,18 @@ export class AdvancedInvestmentStep implements WizardStep {
 
                 const minRequired = (levels + 1) * WIZARD_CONFIG.MIN_INVESTMENT;
                 if (balanceInfo.suggestedMaxRounded < minRequired) {
-                    await this.messageManager.sendEnterMessage(
-                        ctx,
-                        ValidationTexts.insufficientBalanceForGrid(
-                            levels,
-                            minRequired,
-                            balanceInfo.suggestedMaxRounded,
-                        ),
-                        keyboard,
-                    );
+                    const text = !balanceInfo.baseHold.isZero()
+                        ? ValidationTexts.baseLockedInOrders(
+                              symbol,
+                              balanceInfo.baseBalance,
+                              balanceInfo.baseHold,
+                          )
+                        : ValidationTexts.insufficientBalanceForGrid(
+                              levels,
+                              minRequired,
+                              balanceInfo.suggestedMaxRounded,
+                          );
+                    await this.messageManager.sendEnterMessage(ctx, text, keyboard);
                     return;
                 }
 

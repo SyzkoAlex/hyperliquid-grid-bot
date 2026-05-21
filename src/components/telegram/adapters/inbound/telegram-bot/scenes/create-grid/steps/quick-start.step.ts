@@ -57,11 +57,14 @@ export class QuickStartStep implements WizardStep {
                 );
 
                 if (balanceInfo.baseBalance.isZero()) {
-                    await this.messageManager.sendEnterMessage(
-                        ctx,
-                        ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance),
-                        keyboard,
-                    );
+                    const text = !balanceInfo.baseHold.isZero()
+                        ? ValidationTexts.baseLockedInOrders(
+                              symbol,
+                              balanceInfo.baseBalance,
+                              balanceInfo.baseHold,
+                          )
+                        : ValidationTexts.zeroBaseBalance(symbol, balanceInfo.usdcBalance);
+                    await this.messageManager.sendEnterMessage(ctx, text, keyboard);
                     return;
                 }
 
@@ -77,15 +80,18 @@ export class QuickStartStep implements WizardStep {
                 const minRequired =
                     (WIZARD_CONFIG.DEFAULT_LEVELS + 1) * WIZARD_CONFIG.MIN_INVESTMENT;
                 if (balanceInfo.suggestedMaxRounded < minRequired) {
-                    await this.messageManager.sendEnterMessage(
-                        ctx,
-                        ValidationTexts.insufficientBalanceForGrid(
-                            WIZARD_CONFIG.DEFAULT_LEVELS,
-                            minRequired,
-                            balanceInfo.suggestedMaxRounded,
-                        ),
-                        keyboard,
-                    );
+                    const text = !balanceInfo.baseHold.isZero()
+                        ? ValidationTexts.baseLockedInOrders(
+                              symbol,
+                              balanceInfo.baseBalance,
+                              balanceInfo.baseHold,
+                          )
+                        : ValidationTexts.insufficientBalanceForGrid(
+                              WIZARD_CONFIG.DEFAULT_LEVELS,
+                              minRequired,
+                              balanceInfo.suggestedMaxRounded,
+                          );
+                    await this.messageManager.sendEnterMessage(ctx, text, keyboard);
                     return;
                 }
 

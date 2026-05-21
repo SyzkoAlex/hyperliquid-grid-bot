@@ -28,6 +28,47 @@ describe('GridStopLossTriggeredMessage', () => {
             expect(message.text).not.toContain('Manual action needed');
         });
 
+        it('appends cancel warning when errorMessage is set on success path', () => {
+            const event = new GridStopLossTriggeredEvent(
+                'user-1',
+                'grid-abc',
+                'HYPE',
+                64,
+                44,
+                13.65,
+                609.84,
+                true,
+                '4 order(s) could not be cancelled on the exchange — manual review required.',
+            );
+
+            const message = GridStopLossTriggeredMessage.fromEvent(event);
+
+            expect(message.text).toContain('All orders cancelled. Grid stopped.');
+            expect(message.text).toContain(
+                '4 order(s) could not be cancelled on the exchange — manual review required.',
+            );
+            expect(message.text).not.toContain('Manual action needed');
+        });
+
+        it('does not show errorMessage when undefined on success path', () => {
+            const event = new GridStopLossTriggeredEvent(
+                'user-1',
+                'grid-abc',
+                'ETH',
+                1900,
+                1850,
+                0.5,
+                925,
+                true,
+                undefined,
+            );
+
+            const message = GridStopLossTriggeredMessage.fromEvent(event);
+
+            expect(message.text).toContain('All orders cancelled. Grid stopped.');
+            expect(message.text).not.toContain('could not be cancelled');
+        });
+
         it('shows avg price as receivedUSDC / soldBaseAmount', () => {
             const event = new GridStopLossTriggeredEvent(
                 'user-1',

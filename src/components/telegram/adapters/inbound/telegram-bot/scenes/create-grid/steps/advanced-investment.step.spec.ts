@@ -52,6 +52,44 @@ describe('AdvancedInvestmentStep', () => {
             expect(message).toContain('USDC: 5000');
         });
 
+        it('should show locked-in-orders warning when all base is in orders (available = 0)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5697,
+                usdc: { available: 5697, total: 5697, hold: 0 },
+                spotBalances: { HYPE: 0 },
+                spotPositions: { HYPE: { available: 0, total: 22.48, hold: 22.48 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('locked in existing orders');
+            expect(message).toContain('HYPE');
+        });
+
+        it('should show locked-in-orders warning when partial base is locked and max-investment is too low', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5697,
+                usdc: { available: 5697, total: 5697, hold: 0 },
+                spotBalances: { HYPE: 0.001 },
+                spotPositions: { HYPE: { available: 0.001, total: 22.481, hold: 22.48 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
+
+            await step.enter(ctx);
+
+            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
+            expect(message).toContain('locked in existing orders');
+            expect(message).not.toContain('Insufficient balance');
+        });
+
         it('should show zero USDC balance warning when USDC is zero', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };

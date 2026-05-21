@@ -29,7 +29,8 @@ export class GridStopLossTriggeredMessage {
                 `• Sold: ${props.soldBaseAmount.toFixed(6)} ${props.symbol}\n` +
                 `• Avg Price: ~$${PriceFormatter.format(avgPrice)}\n` +
                 `• Received: ~$${props.receivedUSDC.toFixed(2)} USDC\n\n` +
-                `All orders cancelled. Grid stopped.`;
+                `All orders cancelled. Grid stopped.` +
+                (props.errorMessage ? `\n\n${EMOJI.WARNING} ${props.errorMessage}` : '');
         } else {
             this.text =
                 `${EMOJI.STOP} <b>Stop-Loss Triggered</b>\n\n` +

@@ -4,6 +4,7 @@ import { TradingApiPort } from '@components/trading/api/trading-api.port';
 export interface BalanceInfo {
     usdcBalance: Decimal;
     baseBalance: Decimal;
+    baseHold: Decimal;
     baseInUsdc: Decimal;
     totalBalance: Decimal;
     currentPrice: number;
@@ -25,6 +26,7 @@ export async function fetchBalanceInfo(
 
     const usdcBalance = Decimal.from(userState.usdcBalance);
     const baseBalance = Decimal.from(userState.spotBalances[symbol] ?? 0);
+    const baseHold = Decimal.from(userState.spotPositions[symbol]?.hold ?? 0);
     const baseInUsdc = baseBalance.mul(Decimal.from(currentPrice));
     const totalBalance = usdcBalance.add(baseInUsdc);
 
@@ -40,6 +42,7 @@ export async function fetchBalanceInfo(
     return {
         usdcBalance,
         baseBalance,
+        baseHold,
         baseInUsdc,
         totalBalance,
         currentPrice,

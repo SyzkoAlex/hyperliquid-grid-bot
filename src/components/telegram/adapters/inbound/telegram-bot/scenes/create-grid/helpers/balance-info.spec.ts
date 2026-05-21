@@ -74,6 +74,37 @@ describe('fetchBalanceInfo', () => {
         });
     });
 
+    it('reads baseHold from spotPositions[symbol].hold', async () => {
+        vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+            usdcBalance: 500,
+            usdc: { available: 500, total: 500, hold: 0 },
+            spotBalances: { HYPE: 0.001 },
+            spotPositions: { HYPE: { available: 0.001, total: 22.481, hold: 22.48 } },
+        });
+        vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
+        vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
+
+        const result = await fetchBalanceInfo(mockTradingApi, '0xABC', 'HYPE', 10, 66, 82);
+
+        expect(result.baseHold.toNumber()).toBe(22.48);
+        expect(result.baseBalance.toNumber()).toBe(0.001);
+    });
+
+    it('defaults baseHold to 0 when spotPositions entry is missing', async () => {
+        vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+            usdcBalance: 500,
+            usdc: { available: 500, total: 500, hold: 0 },
+            spotBalances: { ETH: 1 },
+            spotPositions: {},
+        });
+        vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(3000);
+        vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1000);
+
+        const result = await fetchBalanceInfo(mockTradingApi, '0xABC', 'ETH', 10, 2700, 3300);
+
+        expect(result.baseHold.toNumber()).toBe(0);
+    });
+
     it('passes accountAddress and symbol to the trading API', async () => {
         vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
             usdcBalance: 100,
