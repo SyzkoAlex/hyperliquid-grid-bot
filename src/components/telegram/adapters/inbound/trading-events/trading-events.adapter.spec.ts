@@ -35,6 +35,7 @@ describe('TradingEventsAdapter — notifyCreationResult', () => {
         botService = { editMessage: vi.fn().mockResolvedValue(undefined) };
         pendingStore = { consume: vi.fn().mockReturnValue(null) };
 
+        const mockUsersApi = { findUserById: vi.fn().mockResolvedValue(null) };
         const adapter = new TradingEventsAdapter(
             subscriber as unknown as EventSubscriberPort,
             new EventDeserializer(),
@@ -42,6 +43,7 @@ describe('TradingEventsAdapter — notifyCreationResult', () => {
             messageFactory as unknown as NotificationMessageFactory,
             botService as unknown as TelegramBotService,
             pendingStore as unknown as PendingCreationMessageStore,
+            mockUsersApi as any,
         );
         adapter.onModuleInit();
     });

@@ -48,6 +48,7 @@ describe('NotifyUserUseCase', () => {
             activateUser: vi.fn().mockResolvedValue(undefined),
             disconnectUser: vi.fn().mockResolvedValue(undefined),
             updateTradeNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
+            markAgentExpired: vi.fn().mockResolvedValue({ agentAddress: '0xagent' }),
         };
         sut = new NotifyUserUseCase(
             mockTelegramNotification,

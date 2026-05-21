@@ -71,6 +71,17 @@ export class UsersApiAdapter implements UsersApiPort {
         await this.userRepo.updateTradeNotificationsEnabled(userId, enabled);
     }
 
+    async markAgentExpired(userId: string): Promise<{ agentAddress: string }> {
+        const keyPair = this.agentKeyPort.generateKeyPair();
+        const encryptedKey = this.agentKeyPort.encryptPrivateKey(keyPair.privateKey);
+        await this.userRepo.updateAgentKeyAndStatus(userId, {
+            agentAddress: keyPair.address,
+            agentPrivateKeyEncrypted: encryptedKey,
+            status: UserStatus.AgentExpired,
+        });
+        return { agentAddress: keyPair.address };
+    }
+
     private toDto(user: User): UserDto {
         return {
             id: user.id,

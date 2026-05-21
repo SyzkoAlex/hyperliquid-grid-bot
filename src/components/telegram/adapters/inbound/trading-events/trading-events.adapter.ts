@@ -9,12 +9,16 @@ import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.eve
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
 import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
+import { AgentApprovalLostEvent } from '@domain/models/events/trading/agent-approval-lost.event';
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserUseCase } from '@components/telegram/core/application/use-cases/notify-user/notify-user.use-case';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
 import { TelegramBotService } from '@components/telegram/adapters/inbound/telegram-bot/telegram-bot.service';
 import { PendingCreationMessageStore } from '@components/telegram/adapters/inbound/telegram-bot/pending-creation-message.store';
+import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { logger } from '@/infra/logger/logger';
 
 /**
@@ -33,6 +37,7 @@ export class TradingEventsAdapter implements OnModuleInit {
         private readonly messageFactory: NotificationMessageFactory,
         private readonly botService: TelegramBotService,
         private readonly pendingCreationMessageStore: PendingCreationMessageStore,
+        @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
     ) {}
 
     onModuleInit() {
@@ -56,6 +61,9 @@ export class TradingEventsAdapter implements OnModuleInit {
         this.subscribeEvent<GridStopLossTriggeredEvent>(EventType.GridStopLossTriggered, (e) =>
             this.notifyUser.execute({ event: e }),
         );
+        this.subscribeEvent<AgentApprovalLostEvent>(EventType.AgentApprovalLost, (e) =>
+            this.notifyAgentExpired(e),
+        );
     }
 
     private subscribeEvent<T extends SerializableEvent>(
@@ -65,6 +73,36 @@ export class TradingEventsAdapter implements OnModuleInit {
         this.subscriber.subscribe<SerializableEvent>(type, async (event: SerializableEvent) => {
             const typed = this.deserializer.deserialize(event.eventType, event.serialize()) as T;
             await dispatch(typed);
+        });
+    }
+
+    /**
+     * Sends an agent-expired notification with a "Reconnect account" CTA button.
+     * Bypasses tradeNotificationsEnabled — this is a critical account-level alert.
+     */
+    private async notifyAgentExpired(event: AgentApprovalLostEvent): Promise<void> {
+        const user = await this.usersApi.findUserById(event.userId);
+        if (!user) {
+            this.logger.warn(
+                { userId: event.userId },
+                'User not found for AgentApprovalLost event',
+            );
+            return;
+        }
+
+        const text = this.messageFactory.buildFromEvent(event).text;
+        await this.botService.bot.telegram.sendMessage(user.telegramChatId, text, {
+            parse_mode: TelegramParseMode.HTML,
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🔗 Reconnect account',
+                            callback_data: TelegramAction.ConnectAccount,
+                        },
+                    ],
+                ],
+            },
         });
     }
 

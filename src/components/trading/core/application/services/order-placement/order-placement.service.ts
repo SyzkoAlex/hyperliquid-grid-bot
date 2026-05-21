@@ -13,6 +13,8 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
+import { HandleAgentExpiredUseCase } from '@components/trading/core/application/use-cases/handle-agent-expired/handle-agent-expired.use-case';
 
 @Injectable()
 export class OrderPlacementService {
@@ -21,6 +23,7 @@ export class OrderPlacementService {
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        private readonly handleAgentExpiredUseCase: HandleAgentExpiredUseCase,
     ) {}
 
     async placeGridOrders(
@@ -50,16 +53,23 @@ export class OrderPlacementService {
         accountAddress: string,
     ): Promise<boolean> {
         const order = await this.createAndSavePendingOrder(grid, level);
-        const result = await this.exchange.placeSpotOrder({
-            symbol: TradingSymbol.create(grid.symbol),
-            side: level.side,
-            price: level.price,
-            amount: Decimal.from(level.amountBase!),
-            orderId: order.id,
-            accountAddress,
-        });
-
-        return await this.updateOrderStatus(order, level, result);
+        try {
+            const result = await this.exchange.placeSpotOrder({
+                symbol: TradingSymbol.create(grid.symbol),
+                side: level.side,
+                price: level.price,
+                amount: Decimal.from(level.amountBase!),
+                orderId: order.id,
+                accountAddress,
+            });
+            return await this.updateOrderStatus(order, level, result);
+        } catch (error) {
+            if (error instanceof AgentNotApprovedError) {
+                await this.handleAgentExpiredUseCase.execute(error.accountAddress);
+                return false;
+            }
+            throw error;
+        }
     }
 
     private async createAndSavePendingOrder(grid: GridDto, level: GridLevel): Promise<OrderDto> {

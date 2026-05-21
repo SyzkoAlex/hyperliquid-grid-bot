@@ -4,6 +4,7 @@ import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.eve
 import { OrderClosedEvent } from '@domain/models/events/trading/order-closed.event';
 import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
+import { AgentApprovalLostEvent } from '@domain/models/events/trading/agent-approval-lost.event';
 import { SerializableEvent } from '@domain/models/events/trading/trading-event';
 import { EventType } from '@domain/models/events/event-type';
 
@@ -65,6 +66,12 @@ describe('NotificationMessageFactory', () => {
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('Grid Creation Failed');
         expect(msg.text).toContain('Insufficient balance');
+    });
+
+    it('builds AgentApprovalLostMessage from AgentApprovalLostEvent', () => {
+        const event = new AgentApprovalLostEvent('user-1');
+        const msg = factory.buildFromEvent(event);
+        expect(msg.text).toContain('Agent Wallet Approval Lost');
     });
 
     it('throws for unsupported event type', () => {

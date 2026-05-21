@@ -6,4 +6,5 @@ export enum EventType {
     GridCreatedSuccess = 'GridCreatedSuccessEvent',
     GridCreatedError = 'GridCreatedErrorEvent',
     GridStopLossTriggered = 'GridStopLossTriggeredEvent',
+    AgentApprovalLost = 'AgentApprovalLostEvent',
 }

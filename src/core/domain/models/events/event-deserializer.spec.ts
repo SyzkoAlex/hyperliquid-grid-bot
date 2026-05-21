@@ -9,6 +9,7 @@ import { OrderClosedEvent } from './trading/order-closed.event';
 import { GridCreatedSuccessEvent } from './trading/grid-created-success.event';
 import { GridCreatedErrorEvent } from './trading/grid-created-error.event';
 import { GridStopLossTriggeredEvent } from './trading/grid-stop-loss-triggered.event';
+import { AgentApprovalLostEvent } from './trading/agent-approval-lost.event';
 
 const USER_ID = 'user-1';
 
@@ -53,6 +54,7 @@ function createEventByType(type: EventType): SerializableEvent {
                 true,
                 undefined,
             ),
+        [EventType.AgentApprovalLost]: () => new AgentApprovalLostEvent(USER_ID),
     };
     return factories[type]();
 }

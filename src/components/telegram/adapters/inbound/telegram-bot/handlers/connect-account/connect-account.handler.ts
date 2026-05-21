@@ -18,9 +18,13 @@ export class ConnectAccountHandler implements Handler {
     private async handle(ctx: BotContext): Promise<void> {
         await ctx.answerCbQuery();
 
-        // PendingApproval users have a half-completed connection — pre-populate the session
-        // so the scene resumes at ApproveAgent. ctx.user is set by auth middleware.
-        if (ctx.user?.status === UserStatus.PendingApproval) {
+        // PendingApproval and AgentExpired users already have a keypair stored — pre-populate the
+        // session so the scene opens directly at the ApproveAgent step.
+        // ctx.user is set by auth middleware.
+        if (
+            ctx.user?.status === UserStatus.PendingApproval ||
+            ctx.user?.status === UserStatus.AgentExpired
+        ) {
             await enterConnectAccountScene(ctx, ctx.user);
             return;
         }

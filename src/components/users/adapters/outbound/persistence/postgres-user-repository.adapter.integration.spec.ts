@@ -167,6 +167,29 @@ describe('PostgresUserRepositoryAdapter (Integration)', () => {
         });
     });
 
+    describe('updateAgentKeyAndStatus', () => {
+        it('should update agentAddress, agentPrivateKeyEncrypted, and status atomically', async () => {
+            const saved = await repository.save(makeSavePayload());
+            const newAgentAddress = '0x' + 'f'.repeat(40);
+            const newEncryptedKey = 'new-encrypted-key';
+
+            await repository.updateAgentKeyAndStatus(saved.id, {
+                agentAddress: newAgentAddress,
+                agentPrivateKeyEncrypted: newEncryptedKey,
+                status: UserStatus.AgentExpired,
+            });
+
+            const updated = await repository.findOneById(saved.id);
+
+            expect(updated!.agentAddress).toBe(newAgentAddress);
+            expect(updated!.status).toBe(UserStatus.AgentExpired);
+
+            // Verify key was updated by reading it back
+            const key = await repository.findEncryptedAgentKey(saved.id);
+            expect(key).toBe(newEncryptedKey);
+        });
+    });
+
     describe('findEncryptedAgentKey', () => {
         it('should return the encrypted key string', async () => {
             const saved = await repository.save(makeSavePayload());

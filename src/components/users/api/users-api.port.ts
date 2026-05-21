@@ -32,4 +32,7 @@ export interface UsersApiPort {
 
     /** Enable or disable trade notifications for a user. */
     updateTradeNotificationsEnabled(userId: string, enabled: boolean): Promise<void>;
+
+    /** Flip user status to AgentExpired and regenerate a fresh agent keypair. */
+    markAgentExpired(userId: string): Promise<{ agentAddress: string }>;
 }

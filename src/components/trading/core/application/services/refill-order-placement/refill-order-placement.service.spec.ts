@@ -10,6 +10,7 @@ import { RefillParams } from '../order-refill/refill-params';
 import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { DuplicateActiveOrderError } from '@components/grids/api/errors/duplicate-active-order.error';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const PENDING_ORDER_ID = '880e8400-e29b-41d4-a716-446655440003';
@@ -22,6 +23,7 @@ describe('RefillOrderPlacementService', () => {
         updateOrderExchangeId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
     };
+    let handleAgentExpired: { execute: ReturnType<typeof vi.fn> };
 
     const testGrid: GridDto = {
         id: GRID_ID,
@@ -71,7 +73,15 @@ describe('RefillOrderPlacementService', () => {
             updateOrderStatus: vi.fn().mockResolvedValue(undefined),
         };
 
-        service = new RefillOrderPlacementService(mockExchange as any, mockGrids as any);
+        handleAgentExpired = {
+            execute: vi.fn().mockResolvedValue(undefined),
+        };
+
+        service = new RefillOrderPlacementService(
+            mockExchange as any,
+            mockGrids as any,
+            handleAgentExpired as any,
+        );
     });
 
     it('should create pending order, place on exchange, and update with exchangeOrderId', async () => {
@@ -143,5 +153,21 @@ describe('RefillOrderPlacementService', () => {
         expect(result.success).toBe(false);
         expect(result.error).toContain('Duplicate');
         expect(mockExchange.placeSpotOrder).not.toHaveBeenCalled();
+    });
+
+    it('should call handleAgentExpired and return failure when AgentNotApprovedError is thrown', async () => {
+        mockExchange.placeSpotOrder.mockRejectedValue(
+            new AgentNotApprovedError('0xabc', 'not approved'),
+        );
+
+        const result = await service.placeRefillOrder(testGrid, testParams, '0xabc');
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Agent approval expired');
+        expect(handleAgentExpired.execute).toHaveBeenCalledWith('0xabc');
+        expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+            PENDING_ORDER_ID,
+            OrderStatus.Failed,
+        );
     });
 });
