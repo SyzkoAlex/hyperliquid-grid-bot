@@ -39,6 +39,8 @@ import { TopSymbolsRefreshAdapter } from '@components/trading/adapters/inbound/t
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 import { RefreshTopSymbolsUseCase } from '@components/trading/core/application/use-cases/refresh-top-symbols/refresh-top-symbols.use-case';
 import { GetTopSymbolsUseCase } from '@components/trading/core/application/use-cases/get-top-symbols/get-top-symbols.use-case';
+import { HandleAgentExpiredUseCase } from '@components/trading/core/application/use-cases/handle-agent-expired/handle-agent-expired.use-case';
+import { AGENT_EXPIRATION_HANDLER_PORT } from '@components/trading/core/application/ports/agent-expiration-handler.port';
 import { GridsModule } from '@components/grids/grids.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
@@ -103,6 +105,7 @@ import { UsersModule } from '@components/users/users.module';
         GetTopSymbolsUseCase,
         RefreshTopSymbolsUseCase,
         TopSymbolsRefreshAdapter,
+        { provide: AGENT_EXPIRATION_HANDLER_PORT, useClass: HandleAgentExpiredUseCase },
     ],
     exports: [TRADING_API_PORT],
 })

@@ -9,6 +9,7 @@ import { User } from '../../../core/domain/models/user/user';
 import {
     UserRepositoryPort,
     SaveUserData,
+    UpdateAgentKeyAndStatusData,
 } from '../../../core/application/ports/user-repository.port';
 
 @Injectable()
@@ -65,6 +66,19 @@ export class PostgresUserRepositoryAdapter implements UserRepositoryPort {
     async updateStatus(id: string, status: UserStatus): Promise<void> {
         await this.db.update(users).set({ status, updatedAt: new Date() }).where(eq(users.id, id));
         this.logger.info({ userId: id, status }, 'User status updated');
+    }
+
+    async updateAgentKeyAndStatus(id: string, data: UpdateAgentKeyAndStatusData): Promise<void> {
+        await this.db
+            .update(users)
+            .set({
+                agentAddress: data.agentAddress,
+                agentPrivateKeyEncrypted: data.agentPrivateKeyEncrypted,
+                status: data.status,
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, id));
+        this.logger.info({ userId: id, status: data.status }, 'User agent key and status updated');
     }
 
     async updateTradeNotificationsEnabled(id: string, enabled: boolean): Promise<void> {

@@ -34,6 +34,7 @@ describe('UsersApiAdapter', () => {
         findManyActive: ReturnType<typeof vi.fn>;
         updateStatus: ReturnType<typeof vi.fn>;
         updateTradeNotificationsEnabled: ReturnType<typeof vi.fn>;
+        updateAgentKeyAndStatus: ReturnType<typeof vi.fn>;
         findEncryptedAgentKey: ReturnType<typeof vi.fn>;
     };
 
@@ -52,6 +53,7 @@ describe('UsersApiAdapter', () => {
             findManyActive: vi.fn(),
             updateStatus: vi.fn().mockResolvedValue(undefined),
             updateTradeNotificationsEnabled: vi.fn().mockResolvedValue(undefined),
+            updateAgentKeyAndStatus: vi.fn().mockResolvedValue(undefined),
             findEncryptedAgentKey: vi.fn(),
         };
 
@@ -132,6 +134,24 @@ describe('UsersApiAdapter', () => {
         it('should call updateStatus with Active', async () => {
             await sut.activateUser(MOCK_USER_ID);
             expect(mockRepo.updateStatus).toHaveBeenCalledWith(MOCK_USER_ID, UserStatus.Active);
+        });
+    });
+
+    describe('markAgentExpired', () => {
+        it('generates a new keypair, encrypts, and calls updateAgentKeyAndStatus with AgentExpired', async () => {
+            const result = await sut.markAgentExpired(MOCK_USER_ID);
+
+            expect(mockAgentKey.generateKeyPair).toHaveBeenCalledOnce();
+            expect(mockAgentKey.encryptPrivateKey).toHaveBeenCalledWith('0x' + 'ab'.repeat(32));
+            expect(mockRepo.updateAgentKeyAndStatus).toHaveBeenCalledWith(
+                MOCK_USER_ID,
+                expect.objectContaining({
+                    agentAddress: MOCK_AGENT_ADDRESS,
+                    agentPrivateKeyEncrypted: 'encrypted-key',
+                    status: UserStatus.AgentExpired,
+                }),
+            );
+            expect(result.agentAddress).toBe(MOCK_AGENT_ADDRESS);
         });
     });
 

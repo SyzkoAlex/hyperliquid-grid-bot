@@ -93,6 +93,21 @@ describe('StartHandler', () => {
             expect(ctx.reply).not.toHaveBeenCalled();
         });
 
+        it('should resume connect-account scene for agent-expired user', async () => {
+            handler.register();
+            const ctx = createMockContext(makeUser(UserStatus.AgentExpired));
+
+            await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
+
+            expect(ctx.session.connectAccount).toEqual({
+                accountAddress: '0xabc',
+                userId: 'user-1',
+                agentAddress: '0xagent',
+            });
+            expect(ctx.scene.enter).toHaveBeenCalledWith('connect_account');
+            expect(ctx.reply).not.toHaveBeenCalled();
+        });
+
         it('should show EmptyGridsMessage with username when active user has no grids', async () => {
             vi.mocked(viewBuilder.build).mockResolvedValue({
                 text: '',

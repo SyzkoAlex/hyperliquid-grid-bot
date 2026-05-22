@@ -66,6 +66,26 @@ describe('ConnectAccountHandler', () => {
             expect(ctx.scene.enter).toHaveBeenCalledWith(CONNECT_ACCOUNT_SCENE_ID);
         });
 
+        it('should pre-populate session and enter scene for AgentExpired user', async () => {
+            handler.register();
+            const ctx = createMockContext({
+                status: UserStatus.AgentExpired,
+                accountAddress: '0xabc',
+                id: 'user-1',
+                agentAddress: '0xagent',
+            });
+
+            await actionCallbacks.get(TelegramAction.ConnectAccount)!(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(ctx.session.connectAccount).toEqual({
+                accountAddress: '0xabc',
+                userId: 'user-1',
+                agentAddress: '0xagent',
+            });
+            expect(ctx.scene.enter).toHaveBeenCalledWith(CONNECT_ACCOUNT_SCENE_ID);
+        });
+
         it('should enter scene when ctx.user is undefined (unregistered)', async () => {
             handler.register();
             const ctx = createMockContext(undefined);

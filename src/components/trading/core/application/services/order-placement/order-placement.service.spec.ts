@@ -8,6 +8,7 @@ import { Price } from '@domain/models/primitives/price';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 
 const MOCK_GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const MOCK_ORDER_ID = '660e8400-e29b-41d4-a716-446655440001';
@@ -53,6 +54,7 @@ describe('OrderPlacementService', () => {
     let service: OrderPlacementService;
     let orderClient: any;
     let orderRepository: any;
+    let handleAgentExpired: any;
 
     beforeEach(() => {
         orderClient = {
@@ -65,7 +67,11 @@ describe('OrderPlacementService', () => {
             updateOrderStatus: vi.fn(),
         };
 
-        service = new OrderPlacementService(orderClient, orderRepository);
+        handleAgentExpired = {
+            handleAgentExpired: vi.fn().mockResolvedValue(undefined),
+        };
+
+        service = new OrderPlacementService(orderClient, orderRepository, handleAgentExpired);
     });
 
     describe('placeGridOrders', () => {
@@ -312,6 +318,32 @@ describe('OrderPlacementService', () => {
             expect(count).toBe(0);
             expect(orderRepository.createOrder).not.toHaveBeenCalled();
             expect(orderClient.placeSpotOrder).not.toHaveBeenCalled();
+        });
+
+        it('should call handleAgentExpired and return 0 when AgentNotApprovedError is thrown', async () => {
+            const mockGrid = makeGrid('BTC', 45000, 55000, 10);
+            const levels: GridLevel[] = [
+                {
+                    index: 0,
+                    price: Price.from(45000),
+                    side: OrderSide.Buy,
+                    amountUSDC: 2500,
+                    amountBase: 0.0555,
+                },
+            ];
+
+            orderClient.placeSpotOrder.mockRejectedValue(
+                new AgentNotApprovedError('0xabc', 'not approved'),
+            );
+
+            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+
+            expect(count).toBe(0);
+            expect(handleAgentExpired.handleAgentExpired).toHaveBeenCalledWith('0xabc');
+            expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                MOCK_ORDER_ID,
+                OrderStatus.Failed,
+            );
         });
     });
 });

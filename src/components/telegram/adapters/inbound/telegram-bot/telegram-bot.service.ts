@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Scenes, Telegraf } from 'telegraf';
+import { Scenes, Telegraf, Types } from 'telegraf';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { BotContext } from './types/bot-context';
@@ -90,6 +90,22 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         try {
             await this.bot.telegram.sendMessage(chatId, message, {
                 parse_mode: TelegramParseMode.HTML,
+            });
+        } catch (error) {
+            if (this.isIgnorableError(error)) return;
+            throw error;
+        }
+    }
+
+    async sendMessageWithKeyboard(
+        chatId: number,
+        message: string,
+        replyMarkup: NonNullable<Types.ExtraReplyMessage['reply_markup']>,
+    ): Promise<void> {
+        try {
+            await this.bot.telegram.sendMessage(chatId, message, {
+                parse_mode: TelegramParseMode.HTML,
+                reply_markup: replyMarkup,
             });
         } catch (error) {
             if (this.isIgnorableError(error)) return;

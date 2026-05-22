@@ -25,7 +25,10 @@ export class StartHandler implements Handler {
     }
 
     private async handle(ctx: BotContext): Promise<void> {
-        if (ctx.user?.status === UserStatus.PendingApproval) {
+        if (
+            ctx.user?.status === UserStatus.PendingApproval ||
+            ctx.user?.status === UserStatus.AgentExpired
+        ) {
             await enterConnectAccountScene(ctx, ctx.user);
             return;
         }

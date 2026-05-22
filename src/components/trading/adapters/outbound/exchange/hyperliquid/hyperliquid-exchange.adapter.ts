@@ -19,12 +19,15 @@ import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
 import { OrderSide } from '@domain/models/order/order-side';
+import { OrderStatus } from '@domain/models/order/order-status';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { PlaceSpotOrderInput } from '@/infra/hyperliquid/types/hyperliquid-place-spot-order-input';
 import { Tif } from '@/infra/hyperliquid/orders/wire/tif';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { TokenDescriptor } from '@components/trading/core/domain/models/token/token-descriptor';
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
+import { isAgentNotApprovedError } from './agent-approval-error-classifier';
 
 @Injectable()
 export class HyperliquidExchangeAdapter implements ExchangePort {
@@ -55,8 +58,17 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
 
             const response = await this.orders.placeSpotOrder(orderData);
             this.logger.info({ params, response }, 'Order placed');
-            return this.mapper.toExchangePlaceOrderResult(response);
+            const result = this.mapper.toExchangePlaceOrderResult(response);
+            if (
+                result.status === OrderStatus.Failed &&
+                result.error &&
+                isAgentNotApprovedError(result.error)
+            ) {
+                throw new AgentNotApprovedError(params.accountAddress, result.error);
+            }
+            return result;
         } catch (error) {
+            if (error instanceof AgentNotApprovedError) throw error;
             this.logger.error({ err: error, params }, 'Failed to place order');
             throw error;
         } finally {
@@ -81,8 +93,17 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             };
             const response = await this.orders.placeSpotOrder(orderData);
             this.logger.info({ params, response }, 'Market sell placed');
-            return this.mapper.toExchangePlaceOrderResult(response);
+            const result = this.mapper.toExchangePlaceOrderResult(response);
+            if (
+                result.status === OrderStatus.Failed &&
+                result.error &&
+                isAgentNotApprovedError(result.error)
+            ) {
+                throw new AgentNotApprovedError(params.accountAddress, result.error);
+            }
+            return result;
         } catch (error) {
+            if (error instanceof AgentNotApprovedError) throw error;
             this.logger.error({ err: error, params }, 'Failed to place market sell');
             throw error;
         } finally {
@@ -105,6 +126,9 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
                 success: response?.status === 'ok',
             };
         } catch (error) {
+            if (isAgentNotApprovedError(error)) {
+                throw new AgentNotApprovedError(params.accountAddress, String(error));
+            }
             this.logger.error({ err: error, params }, 'Failed to cancel order');
             return {
                 exchangeOrderId: params.exchangeOrderId,
@@ -237,8 +261,7 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             // Should never succeed for a non-existent order
             return { approved: true };
         } catch (err) {
-            const message = String(err).toLowerCase();
-            if (message.includes('not approved') || message.includes('agent not approved')) {
+            if (isAgentNotApprovedError(err)) {
                 return { approved: false };
             }
             // Any other error (e.g. "order not found") means the agent IS approved

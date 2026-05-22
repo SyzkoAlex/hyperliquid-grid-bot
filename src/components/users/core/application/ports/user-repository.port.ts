@@ -11,6 +11,12 @@ export interface SaveUserData {
     status: UserStatus;
 }
 
+export interface UpdateAgentKeyAndStatusData {
+    agentAddress: string;
+    agentPrivateKeyEncrypted: string;
+    status: UserStatus;
+}
+
 export interface UserRepositoryPort {
     save(user: SaveUserData): Promise<User>;
     findOneById(id: string): Promise<User | null>;
@@ -18,6 +24,7 @@ export interface UserRepositoryPort {
     findOneByAccountAddress(address: string): Promise<User | null>;
     updateStatus(id: string, status: UserStatus): Promise<void>;
     updateTradeNotificationsEnabled(id: string, enabled: boolean): Promise<void>;
+    updateAgentKeyAndStatus(id: string, data: UpdateAgentKeyAndStatusData): Promise<void>;
     findManyActive(): Promise<User[]>;
     findEncryptedAgentKey(userId: string): Promise<string>;
 }

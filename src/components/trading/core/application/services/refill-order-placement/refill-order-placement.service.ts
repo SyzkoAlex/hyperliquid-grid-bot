@@ -15,6 +15,11 @@ import { DuplicateActiveOrderError } from '@components/grids/api/errors/duplicat
 import { logger } from '@/infra/logger/logger';
 import { RefillParams } from '../order-refill/refill-params';
 import { PlaceRefillOrderResult } from './place-refill-order-result';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
+import {
+    AGENT_EXPIRATION_HANDLER_PORT,
+    AgentExpirationHandlerPort,
+} from '@components/trading/core/application/ports/agent-expiration-handler.port';
 
 @Injectable()
 export class RefillOrderPlacementService {
@@ -23,6 +28,8 @@ export class RefillOrderPlacementService {
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
+        @Inject(AGENT_EXPIRATION_HANDLER_PORT)
+        private readonly agentExpirationHandler: AgentExpirationHandlerPort,
     ) {}
 
     async placeRefillOrder(
@@ -48,6 +55,11 @@ export class RefillOrderPlacementService {
             await this.updateOrderAsPlaced(order, placeResult);
             return PlaceRefillOrderResult.success(order);
         } catch (error) {
+            if (error instanceof AgentNotApprovedError) {
+                await this.agentExpirationHandler.handleAgentExpired(error.accountAddress);
+                await this.cleanupPendingOrder(order);
+                return PlaceRefillOrderResult.failure('Agent approval expired');
+            }
             if (error instanceof DuplicateActiveOrderError) {
                 this.logger.warn(
                     { gridId: grid.id },
