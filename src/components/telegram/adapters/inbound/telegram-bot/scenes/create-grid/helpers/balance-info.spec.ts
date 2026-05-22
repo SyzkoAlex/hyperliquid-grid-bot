@@ -65,6 +65,7 @@ describe('fetchBalanceInfo', () => {
 
         expect(result.suggestedMaxRounded).toBe(1760);
         expect(mockTradingApi.calculateMaxInvestment).toHaveBeenCalledWith({
+            symbol: 'SOL',
             usdcBalance: 800,
             baseBalance: 10,
             currentPrice: 100,

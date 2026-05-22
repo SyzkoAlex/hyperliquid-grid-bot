@@ -9,6 +9,11 @@ function ceilToSzDecimals(value: number, szDecimals: number): number {
     return Math.ceil(value * multiplier) / multiplier;
 }
 
+function floorToSzDecimals(value: number, szDecimals: number): number {
+    const multiplier = Math.pow(10, szDecimals);
+    return Math.floor(value * multiplier) / multiplier;
+}
+
 /**
  * Capital Calculator Service
  *
@@ -106,21 +111,33 @@ export class CapitalCalculatorService {
             .mul(Decimal.from(sellRatio))
             .div(Decimal.from(params.currentPrice.toNumber()));
 
-        const basePerSellLevel = investmentBase
-            .div(Decimal.from(sellCount))
-            .mul(Decimal.from(1 + params.sellSizeBuffer))
-            .toNumber();
-
-        const effectivePerSellLevel = ceilToSzDecimals(basePerSellLevel, params.szDecimals);
-
-        const requiredBase = Decimal.from(effectivePerSellLevel).mul(Decimal.from(sellCount));
+        let requiredBase: Decimal;
+        if (sellCount === 0) {
+            requiredBase = Decimal.zero();
+        } else {
+            const basePerSellLevel = investmentBase
+                .div(Decimal.from(sellCount))
+                .mul(Decimal.from(1 + params.sellSizeBuffer))
+                .toNumber();
+            const effectivePerSellLevel = ceilToSzDecimals(basePerSellLevel, params.szDecimals);
+            requiredBase = Decimal.from(effectivePerSellLevel).mul(Decimal.from(sellCount));
+        }
 
         return { requiredUSDC, requiredBase, rawInvestmentBase: investmentBase };
     }
 
     /**
      * Calculate the maximum total investment given available balances.
-     * Accounts for sellSizeBuffer applied during order placement to prevent overshoot.
+     *
+     * Uses a tight analytical upper bound as starting point, then walks down by $1 until
+     * calculateDistribution confirms the candidate fits within both balances.
+     * This guarantees consistency with calculateDistribution regardless of any future
+     * transformations (buffer, ceil-rounding, fee adjustments, etc.).
+     *
+     * Starting bound derivation (base-constrained side):
+     *   max T such that ceil(T×sellRatio/price/sellCount×(1+buffer), szDecimals)×sellCount ≤ baseBalance
+     *   → T ≤ floor(baseBalance/sellCount, szDecimals) × price × totalLevels / (1+buffer)
+     * This bound is tight: the walk-down typically completes in 0–2 iterations regardless of szDecimals.
      *
      * @param params.levels - Number of grid levels; the grid creates levels+1 price points
      * @param params.usdcBalance - User's available USDC balance
@@ -129,6 +146,7 @@ export class CapitalCalculatorService {
      * @param params.lowerPrice - Grid lower price bound
      * @param params.upperPrice - Grid upper price bound
      * @param params.sellSizeBuffer - Buffer fraction added to each sell order (e.g. 0.005 = 0.5%)
+     * @param params.szDecimals - Exchange size-decimals for the base token
      * @returns Maximum safe investment in USDC, floored to whole dollars
      */
     calculateMaxInvestment(params: {
@@ -139,6 +157,7 @@ export class CapitalCalculatorService {
         upperPrice: number;
         levels: number;
         sellSizeBuffer: number;
+        szDecimals: number;
     }): number {
         const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
             params.levels,
@@ -148,17 +167,52 @@ export class CapitalCalculatorService {
         );
         const totalLevels = params.levels + 1;
         const buyRatio = buyCount / totalLevels;
-        const sellRatio = sellCount / totalLevels;
-        const baseInUsdc = params.baseBalance.mul(Decimal.from(params.currentPrice.toNumber()));
+        const price = params.currentPrice.toNumber();
 
         const maxFromUsdc =
             buyRatio > 0 ? params.usdcBalance.div(Decimal.from(buyRatio)).toNumber() : Infinity;
+
+        // Tight upper bound for the base-constrained side using floor per sell level,
+        // ensuring ceil-rounding in calculateDistribution cannot push requiredBase above baseBalance.
         const maxFromBase =
-            sellRatio > 0
-                ? baseInUsdc.div(Decimal.from(sellRatio * (1 + params.sellSizeBuffer))).toNumber()
+            sellCount > 0
+                ? (floorToSzDecimals(
+                      params.baseBalance.div(Decimal.from(sellCount)).toNumber(),
+                      params.szDecimals,
+                  ) *
+                      price *
+                      totalLevels) /
+                  (1 + params.sellSizeBuffer)
                 : Infinity;
 
-        return Math.floor(Math.min(maxFromUsdc, maxFromBase));
+        let candidate = Math.floor(Math.min(maxFromUsdc, maxFromBase));
+
+        // Walk down until calculateDistribution confirms the candidate fits both balances.
+        // The tight starting bound makes this converge in 0–2 iterations in practice.
+        // Guaranteed to terminate: candidate=0 always passes (requiredUSDC=0, requiredBase=0).
+        while (candidate > 0) {
+            const dist = this.calculateDistribution({
+                levels: params.levels,
+                totalInvestmentUSDC: candidate,
+                usdcBalance: params.usdcBalance,
+                baseBalance: params.baseBalance,
+                currentPrice: params.currentPrice,
+                lowerPrice: params.lowerPrice,
+                upperPrice: params.upperPrice,
+                sellSizeBuffer: params.sellSizeBuffer,
+                szDecimals: params.szDecimals,
+            });
+
+            if (
+                dist.requiredUSDC.lte(params.usdcBalance) &&
+                dist.requiredBase.lte(params.baseBalance)
+            ) {
+                return candidate;
+            }
+            candidate--;
+        }
+
+        return 0;
     }
 
     /**

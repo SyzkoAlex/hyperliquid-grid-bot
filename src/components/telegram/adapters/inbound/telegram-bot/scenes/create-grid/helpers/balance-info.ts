@@ -31,6 +31,7 @@ export async function fetchBalanceInfo(
     const totalBalance = usdcBalance.add(baseInUsdc);
 
     const suggestedMaxRounded = tradingApi.calculateMaxInvestment({
+        symbol,
         usdcBalance: userState.usdcBalance,
         baseBalance: userState.spotBalances[symbol] ?? 0,
         currentPrice,

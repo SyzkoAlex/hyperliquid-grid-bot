@@ -15,7 +15,7 @@ describe('CapitalCalculatorService', () => {
             // USDC=800, base=10 SOL @ $100, range $80-$120, 10 levels
             // buyCount=5, sellCount=6, totalLevels=11
             // maxFromUsdc = 800 / (5/11) = 1760
-            // maxFromBase = 1000 / (6/11 * 1.005) = 1824.5
+            // maxFromBase >> 1760 (base not constraining)
             // → floored min = 1760
             const result = service.calculateMaxInvestment({
                 usdcBalance: Decimal.from(800),
@@ -25,15 +25,16 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 120,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             expect(result).toBe(1760);
         });
 
         it('is constrained by base balance when base is the bottleneck', () => {
-            // USDC=5000, base=100 HYPE @ $10, range $8-$12, 10 levels
+            // USDC=5000, base=100 HYPE @ $10, range $8-$12, 10 levels, szDecimals=5
             // buyCount=5, sellCount=6, totalLevels=11
-            // maxFromUsdc = 5000 / (5/11) = 11000
-            // maxFromBase = 1000 / (6/11 * 1.005) = floor(1824.5) = 1824
+            // maxBasePerLevel = floor(100/6, 5) = 16.66666
+            // maxFromBase = 16.66666 * 10 * 11 / 1.005 = 1824.7 → floor = 1824
             const result = service.calculateMaxInvestment({
                 usdcBalance: Decimal.from(5000),
                 baseBalance: Decimal.from(100),
@@ -42,6 +43,7 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 12,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             expect(result).toBe(1824);
         });
@@ -58,12 +60,13 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 3300,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             expect(result).toBe(734);
         });
 
         it('reduces maxFromBase proportionally to sellSizeBuffer', () => {
-            // With no buffer the max is 1833 (original logic), with 0.5% buffer it shrinks
+            // With no buffer the max is 1833, with 0.5% buffer it shrinks
             const withBuffer = service.calculateMaxInvestment({
                 usdcBalance: Decimal.from(5000),
                 baseBalance: Decimal.from(100),
@@ -72,6 +75,7 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 12,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             const withoutBuffer = service.calculateMaxInvestment({
                 usdcBalance: Decimal.from(5000),
@@ -81,12 +85,13 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 12,
                 levels: 10,
                 sellSizeBuffer: 0,
+                szDecimals: 5,
             });
             expect(withBuffer).toBeLessThan(withoutBuffer);
             expect(withoutBuffer).toBe(1833);
         });
 
-        it('returns Infinity-bounded result when grid is entirely below current price (sellRatio = 0)', () => {
+        it('returns Infinity-bounded result when grid is entirely below current price (sellCount = 0)', () => {
             // All levels are buy orders → no sell orders needed → base balance is not a constraint
             // lowerPrice=80, upperPrice=90, currentPrice=100: all 11 level prices < 100 → sellCount=0
             // maxFromBase = Infinity, maxFromUsdc = 800 / (11/11) = 800
@@ -98,14 +103,16 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 90,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             expect(result).toBe(800);
         });
 
         it('returns Infinity-bounded result when grid is entirely above current price (buyRatio = 0)', () => {
             // All levels are sell orders → no buy orders needed → USDC balance is not a constraint
-            // lowerPrice=110, upperPrice=120, currentPrice=100: all 11 level prices >= 100 → buyCount=0
-            // maxFromUsdc = Infinity, maxFromBase = (50 * 100) / (11/11 * 1.005) = 5000 / 1.005 ≈ 4975.1 → floor = 4975
+            // lowerPrice=110, upperPrice=120, currentPrice=100: all 11 level prices >= 100 → sellCount=11
+            // maxBasePerLevel = floor(50/11, 5) = 4.54545
+            // maxFromBase = 4.54545 * 100 * 11 / 1.005 = 4975.1 → floor = 4975
             const result = service.calculateMaxInvestment({
                 usdcBalance: Decimal.from(0),
                 baseBalance: Decimal.from(50),
@@ -114,8 +121,79 @@ describe('CapitalCalculatorService', () => {
                 upperPrice: 120,
                 levels: 10,
                 sellSizeBuffer: 0.005,
+                szDecimals: 5,
             });
             expect(result).toBe(4975);
+        });
+
+        it('prevents overflow when per-level ceil rounding would push requiredBase above balance', () => {
+            // base=10 units, price=10, range $8-$12, 10 levels → sellCount=6, totalLevels=11
+            // szDecimals=1, sellSizeBuffer=0
+            // algebraic upper bound (ignoring ceil-rounding): floor(10*10 / (6/11)) = 183
+            // calculateDistribution(177): ceil(177*(6/11)/10/6, 1)*6 = ceil(1.609,1)*6 = 1.7*6 = 10.2 > 10 ✗
+            // calculateDistribution(176): ceil(176*(6/11)/10/6, 1)*6 = ceil(1.6,1)*6 = 1.6*6 = 9.6 ≤ 10 ✓
+            // walk-down finds 176 after ~7 iterations
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(5000),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(10),
+                lowerPrice: 8,
+                upperPrice: 12,
+                levels: 10,
+                sellSizeBuffer: 0,
+                szDecimals: 1,
+            });
+            expect(result).toBe(176);
+        });
+
+        it('result always satisfies both balance constraints when verified by calculateDistribution', () => {
+            // Regression invariant: the value returned must never produce "Insufficient balance"
+            const usdcBalance = Decimal.from(5697);
+            const baseBalance = Decimal.from(22.48);
+            const currentPrice = Price.from(60.77);
+            const lowerPrice = 60.77 * 0.8;
+            const upperPrice = 60.77 * 1.2;
+            const sharedParams = {
+                levels: 10,
+                sellSizeBuffer: 0.005,
+                szDecimals: 2,
+            };
+
+            const maxInvestment = service.calculateMaxInvestment({
+                usdcBalance,
+                baseBalance,
+                currentPrice,
+                lowerPrice,
+                upperPrice,
+                ...sharedParams,
+            });
+
+            const dist = service.calculateDistribution({
+                totalInvestmentUSDC: maxInvestment,
+                usdcBalance,
+                baseBalance,
+                currentPrice,
+                lowerPrice,
+                upperPrice,
+                ...sharedParams,
+            });
+
+            expect(dist.requiredUSDC.lte(usdcBalance)).toBe(true);
+            expect(dist.requiredBase.lte(baseBalance)).toBe(true);
+        });
+
+        it('returns 0 when both balances are zero', () => {
+            const result = service.calculateMaxInvestment({
+                usdcBalance: Decimal.from(0),
+                baseBalance: Decimal.from(0),
+                currentPrice: Price.from(100),
+                lowerPrice: 80,
+                upperPrice: 120,
+                levels: 10,
+                sellSizeBuffer: 0.005,
+                szDecimals: 5,
+            });
+            expect(result).toBe(0);
         });
     });
 
@@ -335,6 +413,25 @@ describe('CapitalCalculatorService', () => {
             expect(result.requiredBase.toNumber()).toBeGreaterThan(
                 result.rawInvestmentBase.toNumber(),
             );
+        });
+
+        it('returns requiredBase=0 when all levels are below current price (sellCount=0)', () => {
+            // lowerPrice=80, upperPrice=90, currentPrice=100: all 11 level prices < 100 → sellCount=0
+            // No sell orders → no base required; all capital goes to buy orders
+            const result = service.calculateDistribution({
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(0),
+                currentPrice: Price.from(100),
+                lowerPrice: 80,
+                upperPrice: 90,
+                sellSizeBuffer: 0.005,
+                szDecimals: 5,
+            });
+            expect(result.requiredBase.toNumber()).toBe(0);
+            expect(result.rawInvestmentBase.toNumber()).toBe(0);
+            expect(result.requiredUSDC.toNumber()).toBeCloseTo(1000, 6);
         });
     });
 });

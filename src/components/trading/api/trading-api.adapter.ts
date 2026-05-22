@@ -92,6 +92,7 @@ export class TradingApiAdapter implements TradingApiPort {
     }
 
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number {
+        const szDecimals = this.exchange.getSzDecimals(TradingSymbol.fromString(params.symbol));
         return this.capitalCalculator.calculateMaxInvestment({
             usdcBalance: Decimal.from(params.usdcBalance),
             baseBalance: Decimal.from(params.baseBalance),
@@ -100,6 +101,7 @@ export class TradingApiAdapter implements TradingApiPort {
             upperPrice: params.upperPrice,
             levels: params.levels,
             sellSizeBuffer: this.sellSizeBuffer,
+            szDecimals,
         });
     }
 
