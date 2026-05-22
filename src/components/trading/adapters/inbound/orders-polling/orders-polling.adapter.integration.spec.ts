@@ -317,6 +317,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
         // UsersApiPort is still required by other providers in TradingModule
         // (CreateAndStartGridUseCase, HyperliquidExchangeAdapter, OrdersRestoreAdapter)
         const mockUsersApi = {
+            findUserById: vi.fn().mockResolvedValue(null),
             findUserByChatId: vi.fn(),
             findUserByAccountAddress: vi.fn().mockResolvedValue({
                 id: TEST_USER_ID,
@@ -347,6 +348,8 @@ describe('OrdersPollingAdapter (Integration)', () => {
             createPendingUser: vi.fn(),
             activateUser: vi.fn(),
             disconnectUser: vi.fn(),
+            updateTradeNotificationsEnabled: vi.fn(),
+            markAgentExpired: vi.fn().mockResolvedValue({ agentAddress: '0xnewagent' }),
         };
 
         moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);

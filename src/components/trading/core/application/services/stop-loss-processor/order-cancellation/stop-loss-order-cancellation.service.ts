@@ -10,7 +10,10 @@ import {
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { CancelActiveOrdersResult } from './types/cancel-active-orders-result';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
-import { HandleAgentExpiredUseCase } from '@components/trading/core/application/use-cases/handle-agent-expired/handle-agent-expired.use-case';
+import {
+    AGENT_EXPIRATION_HANDLER_PORT,
+    AgentExpirationHandlerPort,
+} from '@components/trading/core/application/ports/agent-expiration-handler.port';
 
 @Injectable()
 export class StopLossOrderCancellationService {
@@ -19,7 +22,8 @@ export class StopLossOrderCancellationService {
     constructor(
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
-        private readonly handleAgentExpiredUseCase: HandleAgentExpiredUseCase,
+        @Inject(AGENT_EXPIRATION_HANDLER_PORT)
+        private readonly agentExpirationHandler: AgentExpirationHandlerPort,
     ) {}
 
     async cancelActiveOrders(
@@ -64,7 +68,7 @@ export class StopLossOrderCancellationService {
             return true;
         } catch (error) {
             if (error instanceof AgentNotApprovedError) {
-                await this.handleAgentExpiredUseCase.execute(error.accountAddress);
+                await this.agentExpirationHandler.handleAgentExpired(error.accountAddress);
                 this.logger.warn(
                     { orderId: order.id },
                     'Agent approval expired during stop-loss order cancellation',

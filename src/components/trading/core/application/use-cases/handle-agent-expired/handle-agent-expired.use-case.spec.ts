@@ -43,24 +43,24 @@ describe('HandleAgentExpiredUseCase', () => {
         );
     });
 
-    describe('execute — guard: skip if user not found', () => {
+    describe('handleAgentExpired — guard: skip if user not found', () => {
         it('does nothing when user is null', async () => {
             mockUsersApi.findUserByAccountAddress.mockResolvedValue(null);
 
-            await sut.execute(ACCOUNT_ADDRESS);
+            await sut.handleAgentExpired(ACCOUNT_ADDRESS);
 
             expect(mockUsersApi.markAgentExpired).not.toHaveBeenCalled();
             expect(mockPublisher.publish).not.toHaveBeenCalled();
         });
     });
 
-    describe('execute — guard: skip if status is not Active', () => {
+    describe('handleAgentExpired — guard: skip if status is not Active', () => {
         it.each([UserStatus.PendingApproval, UserStatus.Disconnected, UserStatus.AgentExpired])(
             'does nothing when status is %s',
             async (status) => {
                 mockUsersApi.findUserByAccountAddress.mockResolvedValue(makeUserDto(status));
 
-                await sut.execute(ACCOUNT_ADDRESS);
+                await sut.handleAgentExpired(ACCOUNT_ADDRESS);
 
                 expect(mockUsersApi.markAgentExpired).not.toHaveBeenCalled();
                 expect(mockPublisher.publish).not.toHaveBeenCalled();
@@ -68,15 +68,15 @@ describe('HandleAgentExpiredUseCase', () => {
         );
     });
 
-    describe('execute — happy path', () => {
+    describe('handleAgentExpired — happy path', () => {
         it('calls markAgentExpired with user id', async () => {
-            await sut.execute(ACCOUNT_ADDRESS);
+            await sut.handleAgentExpired(ACCOUNT_ADDRESS);
 
             expect(mockUsersApi.markAgentExpired).toHaveBeenCalledWith('user-1');
         });
 
         it('publishes AgentApprovalLostEvent with user id', async () => {
-            await sut.execute(ACCOUNT_ADDRESS);
+            await sut.handleAgentExpired(ACCOUNT_ADDRESS);
 
             expect(mockPublisher.publish).toHaveBeenCalledOnce();
             const event = mockPublisher.publish.mock.calls[0][0] as AgentApprovalLostEvent;
@@ -85,7 +85,7 @@ describe('HandleAgentExpiredUseCase', () => {
         });
 
         it('calls markAgentExpired before publishing event', async () => {
-            await sut.execute(ACCOUNT_ADDRESS);
+            await sut.handleAgentExpired(ACCOUNT_ADDRESS);
 
             const markOrder = mockUsersApi.markAgentExpired.mock.invocationCallOrder[0];
             const publishOrder = mockPublisher.publish.mock.invocationCallOrder[0];
@@ -93,11 +93,11 @@ describe('HandleAgentExpiredUseCase', () => {
         });
     });
 
-    describe('execute — error propagation', () => {
+    describe('handleAgentExpired — error propagation', () => {
         it('propagates error from markAgentExpired', async () => {
             mockUsersApi.markAgentExpired.mockRejectedValue(new Error('DB error'));
 
-            await expect(sut.execute(ACCOUNT_ADDRESS)).rejects.toThrow('DB error');
+            await expect(sut.handleAgentExpired(ACCOUNT_ADDRESS)).rejects.toThrow('DB error');
         });
     });
 });

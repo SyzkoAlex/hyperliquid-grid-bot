@@ -7,9 +7,10 @@ import {
     EventPublisherPort,
 } from '@/core/application/ports/outbound/event-publisher.port';
 import { AgentApprovalLostEvent } from '@domain/models/events/trading/agent-approval-lost.event';
+import { AgentExpirationHandlerPort } from '@components/trading/core/application/ports/agent-expiration-handler.port';
 
 @Injectable()
-export class HandleAgentExpiredUseCase {
+export class HandleAgentExpiredUseCase implements AgentExpirationHandlerPort {
     private readonly logger = logger.child({ context: HandleAgentExpiredUseCase.name });
 
     constructor(
@@ -17,7 +18,7 @@ export class HandleAgentExpiredUseCase {
         @Inject(EVENT_PUBLISHER_PORT) private readonly publisher: EventPublisherPort,
     ) {}
 
-    async execute(accountAddress: string): Promise<void> {
+    async handleAgentExpired(accountAddress: string): Promise<void> {
         const user = await this.usersApi.findUserByAccountAddress(accountAddress);
         if (!user || user.status !== UserStatus.Active) return;
 

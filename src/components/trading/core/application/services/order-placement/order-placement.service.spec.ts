@@ -68,7 +68,7 @@ describe('OrderPlacementService', () => {
         };
 
         handleAgentExpired = {
-            execute: vi.fn().mockResolvedValue(undefined),
+            handleAgentExpired: vi.fn().mockResolvedValue(undefined),
         };
 
         service = new OrderPlacementService(orderClient, orderRepository, handleAgentExpired);
@@ -339,7 +339,11 @@ describe('OrderPlacementService', () => {
             const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
 
             expect(count).toBe(0);
-            expect(handleAgentExpired.execute).toHaveBeenCalledWith('0xabc');
+            expect(handleAgentExpired.handleAgentExpired).toHaveBeenCalledWith('0xabc');
+            expect(orderRepository.updateOrderStatus).toHaveBeenCalledWith(
+                MOCK_ORDER_ID,
+                OrderStatus.Failed,
+            );
         });
     });
 });

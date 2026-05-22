@@ -552,6 +552,7 @@ async function setupTestEnvironment() {
     });
 
     const mockUsersApi = {
+        findUserById: vi.fn().mockResolvedValue(null),
         findUserByChatId: vi.fn(),
         findUserByAccountAddress: vi.fn().mockResolvedValue({
             id: TEST_USER_ID,
@@ -582,6 +583,8 @@ async function setupTestEnvironment() {
         createPendingUser: vi.fn(),
         activateUser: vi.fn(),
         disconnectUser: vi.fn(),
+        updateTradeNotificationsEnabled: vi.fn(),
+        markAgentExpired: vi.fn().mockResolvedValue({ agentAddress: '0xnewagent' }),
     };
 
     moduleBuilder.overrideProvider(DRIZZLE_DB).useValue(db);

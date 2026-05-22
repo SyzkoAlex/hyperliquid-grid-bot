@@ -14,9 +14,9 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
 import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserUseCase } from '@components/telegram/core/application/use-cases/notify-user/notify-user.use-case';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
+import { AgentApprovalLostMessage } from '@components/telegram/core/domain/models/messages/notifications/agent-approval-lost-message';
 import { TelegramBotService } from '@components/telegram/adapters/inbound/telegram-bot/telegram-bot.service';
 import { PendingCreationMessageStore } from '@components/telegram/adapters/inbound/telegram-bot/pending-creation-message.store';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { logger } from '@/infra/logger/logger';
@@ -90,19 +90,16 @@ export class TradingEventsAdapter implements OnModuleInit {
             return;
         }
 
-        const text = this.messageFactory.buildFromEvent(event).text;
-        await this.botService.bot.telegram.sendMessage(user.telegramChatId, text, {
-            parse_mode: TelegramParseMode.HTML,
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        {
-                            text: '🔗 Reconnect account',
-                            callback_data: TelegramAction.ConnectAccount,
-                        },
-                    ],
+        const message = AgentApprovalLostMessage.fromEvent(event);
+        await this.botService.sendMessageWithKeyboard(user.telegramChatId, message.text, {
+            inline_keyboard: [
+                [
+                    {
+                        text: message.buttonText,
+                        callback_data: TelegramAction.ConnectAccount,
+                    },
                 ],
-            },
+            ],
         });
     }
 

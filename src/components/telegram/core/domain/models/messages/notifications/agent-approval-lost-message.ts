@@ -8,6 +8,8 @@ export class AgentApprovalLostMessage implements TelegramMessage {
         'The bot cannot place or cancel orders for you until you re-approve.\n\n' +
         'Tap the button below to reconnect your account.';
 
+    readonly buttonText = '🔗 Reconnect account';
+
     static create(): AgentApprovalLostMessage {
         return new AgentApprovalLostMessage();
     }

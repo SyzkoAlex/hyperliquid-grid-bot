@@ -23,7 +23,7 @@ describe('RefillOrderPlacementService', () => {
         updateOrderExchangeId: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
     };
-    let handleAgentExpired: { execute: ReturnType<typeof vi.fn> };
+    let handleAgentExpired: { handleAgentExpired: ReturnType<typeof vi.fn> };
 
     const testGrid: GridDto = {
         id: GRID_ID,
@@ -74,7 +74,7 @@ describe('RefillOrderPlacementService', () => {
         };
 
         handleAgentExpired = {
-            execute: vi.fn().mockResolvedValue(undefined),
+            handleAgentExpired: vi.fn().mockResolvedValue(undefined),
         };
 
         service = new RefillOrderPlacementService(
@@ -164,7 +164,7 @@ describe('RefillOrderPlacementService', () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain('Agent approval expired');
-        expect(handleAgentExpired.execute).toHaveBeenCalledWith('0xabc');
+        expect(handleAgentExpired.handleAgentExpired).toHaveBeenCalledWith('0xabc');
         expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
             PENDING_ORDER_ID,
             OrderStatus.Failed,

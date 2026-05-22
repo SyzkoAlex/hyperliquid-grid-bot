@@ -26,7 +26,7 @@ describe('StopLossOrderCancellationService', () => {
     let mockExchange: {
         cancelSpotOrder: ReturnType<typeof vi.fn>;
     };
-    let mockHandleAgentExpired: { execute: ReturnType<typeof vi.fn> };
+    let mockHandleAgentExpired: { handleAgentExpired: ReturnType<typeof vi.fn> };
 
     beforeEach(() => {
         mockGrids = {
@@ -37,7 +37,7 @@ describe('StopLossOrderCancellationService', () => {
             cancelSpotOrder: vi.fn().mockResolvedValue({ success: true }),
         };
         mockHandleAgentExpired = {
-            execute: vi.fn().mockResolvedValue(undefined),
+            handleAgentExpired: vi.fn().mockResolvedValue(undefined),
         };
 
         sut = new StopLossOrderCancellationService(

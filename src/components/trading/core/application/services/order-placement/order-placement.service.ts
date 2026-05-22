@@ -14,7 +14,10 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
 import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
-import { HandleAgentExpiredUseCase } from '@components/trading/core/application/use-cases/handle-agent-expired/handle-agent-expired.use-case';
+import {
+    AGENT_EXPIRATION_HANDLER_PORT,
+    AgentExpirationHandlerPort,
+} from '@components/trading/core/application/ports/agent-expiration-handler.port';
 
 @Injectable()
 export class OrderPlacementService {
@@ -23,7 +26,8 @@ export class OrderPlacementService {
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
-        private readonly handleAgentExpiredUseCase: HandleAgentExpiredUseCase,
+        @Inject(AGENT_EXPIRATION_HANDLER_PORT)
+        private readonly agentExpirationHandler: AgentExpirationHandlerPort,
     ) {}
 
     async placeGridOrders(
@@ -65,10 +69,22 @@ export class OrderPlacementService {
             return await this.updateOrderStatus(order, level, result);
         } catch (error) {
             if (error instanceof AgentNotApprovedError) {
-                await this.handleAgentExpiredUseCase.execute(error.accountAddress);
+                await this.agentExpirationHandler.handleAgentExpired(error.accountAddress);
+                await this.cleanupPendingOrder(order);
                 return false;
             }
             throw error;
+        }
+    }
+
+    private async cleanupPendingOrder(order: OrderDto): Promise<void> {
+        try {
+            await this.grids.updateOrderStatus(order.id, OrderStatus.Failed);
+        } catch (cleanupError) {
+            this.logger.error(
+                { cleanupError, orderId: order.id },
+                'Failed to mark stuck pending order as failed',
+            );
         }
     }
 
