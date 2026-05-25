@@ -89,7 +89,7 @@ export class BoardRenderer {
         return stepTotal !== null ? `Step ${stepNumber} of ${stepTotal}` : `Step ${stepNumber}`;
     }
 
-    private buildSummaryFromSession(state: CreateGridWizardState | undefined): string {
+    buildSummaryFromSession(state: CreateGridWizardState | undefined): string {
         if (!state?.stepHistory || state.stepHistory.length === 0) return '';
 
         const rows: string[] = [];

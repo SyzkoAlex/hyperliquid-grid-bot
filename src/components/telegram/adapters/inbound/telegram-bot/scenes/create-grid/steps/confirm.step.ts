@@ -8,6 +8,7 @@ import { ValidationTexts } from '@components/telegram/core/domain/models/message
 import { logger } from '@/infra/logger/logger';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
+import { BoardRenderer } from '../wizard/board-renderer';
 
 @Injectable()
 export class ConfirmStep {
@@ -16,6 +17,7 @@ export class ConfirmStep {
     constructor(
         private readonly createGridUseCase: CreateGridUseCase,
         private readonly pendingCreationMessageStore: PendingCreationMessageStore,
+        private readonly boardRenderer: BoardRenderer,
     ) {}
 
     async execute(ctx: BotContext): Promise<void> {
@@ -27,13 +29,8 @@ export class ConfirmStep {
             return;
         }
 
-        const creatingText = GridCreatingMessage.create({
-            symbol: state!.symbol!,
-            lowerPrice: state!.lowerPrice!,
-            upperPrice: state!.upperPrice!,
-            levels: state!.levels!,
-            totalInvestment: state!.totalInvestmentUSDC,
-        }).text;
+        const summary = this.boardRenderer.buildSummaryFromSession(state);
+        const creatingText = GridCreatingMessage.create({ summary }).text;
 
         let chatId: number;
         let messageId: number;

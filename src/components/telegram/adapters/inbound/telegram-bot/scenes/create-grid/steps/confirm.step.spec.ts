@@ -5,11 +5,13 @@ import { PendingCreationMessageStore } from '../../../pending-creation-message.s
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
+import { BoardRenderer } from '../wizard/board-renderer';
 
 describe('ConfirmStep', () => {
     let step: ConfirmStep;
     let mockCreateGridUseCase: CreateGridUseCase;
     let pendingCreationMessageStore: PendingCreationMessageStore;
+    let mockBoardRenderer: Pick<BoardRenderer, 'buildSummaryFromSession'>;
 
     beforeEach(() => {
         mockCreateGridUseCase = {
@@ -18,7 +20,15 @@ describe('ConfirmStep', () => {
 
         pendingCreationMessageStore = new PendingCreationMessageStore();
 
-        step = new ConfirmStep(mockCreateGridUseCase, pendingCreationMessageStore);
+        mockBoardRenderer = {
+            buildSummaryFromSession: vi.fn().mockReturnValue('✓ Pair · BTC'),
+        };
+
+        step = new ConfirmStep(
+            mockCreateGridUseCase,
+            pendingCreationMessageStore,
+            mockBoardRenderer as BoardRenderer,
+        );
     });
 
     describe('execute — with board message (new-style)', () => {
