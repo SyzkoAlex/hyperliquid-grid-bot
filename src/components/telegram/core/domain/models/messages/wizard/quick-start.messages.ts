@@ -1,7 +1,8 @@
 import { EMOJI } from '../../constants/emoji';
-import { HYPERLIQUID_SPOT_FEE, WIZARD_CONFIG } from '../../constants/wizard-config';
+import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { formatFiat } from '../../formatters/format-fiat';
+import { FEE_HINT_LINE } from './fee-hint';
 
 interface QuickStartPromptParams {
     symbol: string;
@@ -21,7 +22,7 @@ export class QuickStartPromptMessage {
             this.text =
                 `How much USDC do you want to invest?\n\n` +
                 `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
-                `💸 Trading fee: ~${(HYPERLIQUID_SPOT_FEE.takerRate * 100).toFixed(2)}% taker / ~${(HYPERLIQUID_SPOT_FEE.makerRate * 100).toFixed(2)}% maker`;
+                FEE_HINT_LINE;
             return;
         }
 
@@ -44,7 +45,7 @@ export class QuickStartPromptMessage {
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
             `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels)\n` +
             `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})\n\n` +
-            `💸 Trading fee: ~${(HYPERLIQUID_SPOT_FEE.takerRate * 100).toFixed(2)}% taker / ~${(HYPERLIQUID_SPOT_FEE.makerRate * 100).toFixed(2)}% maker`;
+            FEE_HINT_LINE;
     }
 
     static create(params?: QuickStartPromptParams): QuickStartPromptMessage {

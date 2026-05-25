@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AdvancedPreviewMessage } from './advanced-preview.messages';
+import { GridFeeMetrics } from '../../grid-fee-calculator';
 
 describe('AdvancedPreviewMessage', () => {
     const defaultParams = {
@@ -38,34 +39,34 @@ describe('AdvancedPreviewMessage', () => {
         expect(result.text).toContain('per level');
     });
 
-    it('omits fee block when fee params not provided', () => {
+    it('omits fee block when feeMetrics not provided', () => {
         const result = AdvancedPreviewMessage.create(defaultParams);
         expect(result.text).not.toContain('Fee per grid cycle');
         expect(result.text).not.toContain('Profit per grid');
     });
 
-    it('shows fee block when fee params provided', () => {
-        const result = AdvancedPreviewMessage.create({
-            ...defaultParams,
-            feePerCycle: 0.7,
-            profitPerGridPct: 0.9153,
+    it('shows fee block when feeMetrics provided and profitable', () => {
+        const feeMetrics: GridFeeMetrics = {
+            feePerCycle: 0.4,
+            profitPerGridPct: 0.9753,
             gridStepPct: 1.0553,
-            breakEven: true,
-        });
+            isProfitable: true,
+        };
+        const result = AdvancedPreviewMessage.create({ ...defaultParams, feeMetrics });
         expect(result.text).toContain('Fee per grid cycle');
-        expect(result.text).toContain('0.70');
+        expect(result.text).toContain('0.40');
         expect(result.text).toContain('Profit per grid');
         expect(result.text).not.toContain('Break-even risk');
     });
 
-    it('shows break-even warning when profitPerGridPct <= 0', () => {
-        const result = AdvancedPreviewMessage.create({
-            ...defaultParams,
-            feePerCycle: 0.7,
+    it('shows break-even warning when not profitable', () => {
+        const feeMetrics: GridFeeMetrics = {
+            feePerCycle: 0.4,
             profitPerGridPct: -0.04,
-            gridStepPct: 0.1,
-            breakEven: false,
-        });
+            gridStepPct: 0.04,
+            isProfitable: false,
+        };
+        const result = AdvancedPreviewMessage.create({ ...defaultParams, feeMetrics });
         expect(result.text).toContain('Break-even risk');
         expect(result.text).toContain('< 2× fee rate');
     });

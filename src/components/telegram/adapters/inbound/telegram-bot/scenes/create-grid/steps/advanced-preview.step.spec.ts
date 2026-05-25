@@ -98,6 +98,23 @@ describe('AdvancedPreviewStep', () => {
             expect(view.body).toContain('Profit per grid');
         });
 
+        it('shows break-even warning when grid step is too tight', async () => {
+            const ctx = createMockContext();
+            // Very tight 10-level range: step ~0.001% << 2*makerRate
+            ctx.session.createGrid = {
+                symbol: 'BTC',
+                mode: CreateGridMode.Advanced,
+                upperPrice: 50001,
+                lowerPrice: 50000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+            };
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Break-even risk');
+        });
+
         it('includes Confirm, Back and Cancel buttons in keyboard', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
