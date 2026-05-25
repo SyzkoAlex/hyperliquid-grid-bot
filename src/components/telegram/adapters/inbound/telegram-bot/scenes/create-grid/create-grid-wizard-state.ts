@@ -2,8 +2,6 @@ import { CreateGridMode } from './create-grid-mode';
 import { SceneStep } from './create-grid-scene-step';
 import { BalanceSnapshot } from './balance-snapshot';
 
-export type { BalanceSnapshot };
-
 export interface CreateGridWizardState {
     symbol?: string;
     currentPrice?: number;
