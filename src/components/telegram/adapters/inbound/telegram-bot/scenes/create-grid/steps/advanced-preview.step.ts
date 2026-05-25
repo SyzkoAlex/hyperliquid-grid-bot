@@ -9,7 +9,6 @@ import { CreateGridMode } from '../create-grid-mode';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { AdvancedPreviewMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
-import { calculateGridFeeMetrics } from '@components/telegram/core/domain/models/grid-fee-calculator';
 
 @Injectable()
 export class AdvancedPreviewStep implements WizardStep {
@@ -42,14 +41,12 @@ export class AdvancedPreviewStep implements WizardStep {
             ],
         ];
 
-        const feeMetrics = calculateGridFeeMetrics({
+        const body = AdvancedPreviewMessage.create({
+            totalInvestment,
+            levels,
             lowerPrice,
             upperPrice,
-            levels,
-            totalInvestment,
-        });
-
-        const body = AdvancedPreviewMessage.create({ totalInvestment, feeMetrics }).text;
+        }).text;
 
         return { body, keyboard };
     }

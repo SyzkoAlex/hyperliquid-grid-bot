@@ -19,13 +19,14 @@ describe('AdvancedPreviewStep', () => {
             expect(view.body).toContain('Ready to create grid?');
         });
 
-        it('shows fee block in preview body', async () => {
+        it('shows per-order fee hint in preview body', async () => {
             const ctx = createMockContext();
-
+            // $1000 / 10 levels = $100/order
             const view = await step.buildView(ctx);
 
-            expect(view.body).toContain('Fee per grid cycle');
-            expect(view.body).toContain('Profit per grid');
+            expect(view.body).toContain('~$100/order');
+            expect(view.body).toContain('profit');
+            expect(view.body).toContain('fee');
         });
 
         it('shows break-even warning when grid step is too tight', async () => {
