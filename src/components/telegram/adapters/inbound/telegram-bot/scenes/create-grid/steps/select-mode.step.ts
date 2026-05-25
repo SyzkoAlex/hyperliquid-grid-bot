@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
@@ -8,15 +8,28 @@ import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SelectModeTexts } from '@components/telegram/core/domain/models/messages/wizard/select-mode.texts';
+import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
+import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
 
 @Injectable()
 export class SelectModeStep implements WizardStep {
     readonly id = SceneStep.Mode;
 
+    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
+
     async buildView(ctx: BotContext): Promise<StepView> {
         const symbol = ctx.session.createGrid?.symbol;
+        let pairValue = symbol ?? '';
+        if (symbol) {
+            try {
+                const price = await this.tradingApi.getCurrentPrice(symbol);
+                pairValue = `${symbol} ($${formatFiat(price)})`;
+            } catch {
+                pairValue = symbol;
+            }
+        }
         return {
-            summaryRows: symbol ? [{ label: 'Pair', value: symbol }] : undefined,
+            summaryRows: symbol ? [{ label: 'Pair', value: pairValue }] : undefined,
             body: SelectModeTexts.PROMPT,
             keyboard: [
                 [{ text: BUTTON_LABELS.MODE_QUICK, action: CREATE_GRID_ACTIONS.MODE_QUICK }],

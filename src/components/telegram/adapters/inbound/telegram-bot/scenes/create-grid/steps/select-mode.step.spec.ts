@@ -3,12 +3,17 @@ import { SelectModeStep } from './select-mode.step';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { SceneStep } from '../create-grid-scene-step';
+import { TradingApiPort } from '@components/trading/api/trading-api.port';
 
 describe('SelectModeStep', () => {
     let step: SelectModeStep;
+    let mockTradingApi: TradingApiPort;
 
     beforeEach(() => {
-        step = new SelectModeStep();
+        mockTradingApi = {
+            getCurrentPrice: vi.fn().mockResolvedValue(43.89),
+        } as unknown as TradingApiPort;
+        step = new SelectModeStep(mockTradingApi);
     });
 
     describe('buildView', () => {
@@ -50,13 +55,23 @@ describe('SelectModeStep', () => {
             expect(navRow).toBeDefined();
         });
 
-        it('includes pair summary row when symbol is set', async () => {
+        it('includes pair summary row with price when symbol is set', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
 
             const view = await step.buildView(ctx);
 
             expect(view.summaryRows).toBeDefined();
+            expect(view.summaryRows![0]).toEqual({ label: 'Pair', value: 'HYPE ($43.89)' });
+        });
+
+        it('falls back to symbol only when price fetch fails', async () => {
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValueOnce(new Error('network'));
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+
+            const view = await step.buildView(ctx);
+
             expect(view.summaryRows![0]).toEqual({ label: 'Pair', value: 'HYPE' });
         });
 
