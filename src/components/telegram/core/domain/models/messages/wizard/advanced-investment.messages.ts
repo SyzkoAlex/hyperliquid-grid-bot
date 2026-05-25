@@ -2,7 +2,7 @@ import { EMOJI } from '../../constants/emoji';
 import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { formatFiat } from '../../formatters/format-fiat';
-import { FEE_HINT_LINE } from './fee-hint';
+import { feeHintLine } from './fee-hint';
 
 interface InvestmentPromptParams {
     symbol: string;
@@ -13,6 +13,8 @@ interface InvestmentPromptParams {
     currentPrice: number;
     suggestedMax: number;
     levels: number;
+    lowerPrice: number;
+    upperPrice: number;
 }
 
 export class AdvancedInvestmentPromptMessage {
@@ -23,7 +25,7 @@ export class AdvancedInvestmentPromptMessage {
             this.text =
                 `How much USDC do you want to invest?\n\n` +
                 `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
-                FEE_HINT_LINE;
+                feeHintLine();
             return;
         }
 
@@ -36,7 +38,12 @@ export class AdvancedInvestmentPromptMessage {
             currentPrice,
             suggestedMax,
             levels,
+            lowerPrice,
+            upperPrice,
         } = params;
+
+        const feeHint = feeHintLine({ suggestedMax, levels, lowerPrice, upperPrice });
+
         this.text =
             `${EMOJI.MONEY} Your balance:\n` +
             `  • USDC: ${usdcBalance.toString()}\n` +
@@ -47,7 +54,7 @@ export class AdvancedInvestmentPromptMessage {
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
             `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels)\n` +
             `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})\n\n` +
-            FEE_HINT_LINE;
+            feeHint;
     }
 
     static create(params?: InvestmentPromptParams): AdvancedInvestmentPromptMessage {

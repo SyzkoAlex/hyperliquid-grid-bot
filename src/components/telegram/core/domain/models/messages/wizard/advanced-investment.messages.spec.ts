@@ -2,6 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { AdvancedInvestmentPromptMessage } from './advanced-investment.messages';
 import { Decimal } from '@domain/models/primitives/decimal';
 
+const balanceParams = {
+    symbol: 'BTC',
+    usdcBalance: Decimal.from(1000),
+    baseBalance: Decimal.from(0.01),
+    baseInUsdc: Decimal.from(950),
+    totalBalance: Decimal.from(1950),
+    currentPrice: 95000,
+    suggestedMax: 800,
+    levels: 10,
+    lowerPrice: 76000,
+    upperPrice: 114000,
+};
+
 describe('AdvancedInvestmentPromptMessage', () => {
     it('shows basic prompt without params', () => {
         const result = AdvancedInvestmentPromptMessage.create();
@@ -9,7 +22,7 @@ describe('AdvancedInvestmentPromptMessage', () => {
         expect(result.text).toContain('Minimum');
     });
 
-    it('shows fee hint without params', () => {
+    it('shows generic fee rates without params', () => {
         const result = AdvancedInvestmentPromptMessage.create();
         expect(result.text).toContain('Trading fee');
         expect(result.text).toContain('0.07%');
@@ -17,36 +30,19 @@ describe('AdvancedInvestmentPromptMessage', () => {
     });
 
     it('shows balance info when params provided', () => {
-        const result = AdvancedInvestmentPromptMessage.create({
-            symbol: 'BTC',
-            usdcBalance: Decimal.from(1000),
-            baseBalance: Decimal.from(0.01),
-            baseInUsdc: Decimal.from(950),
-            totalBalance: Decimal.from(1950),
-            currentPrice: 95000,
-            suggestedMax: 800,
-            levels: 10,
-        });
+        const result = AdvancedInvestmentPromptMessage.create(balanceParams);
         expect(result.text).toContain('Your balance');
         expect(result.text).toContain('BTC');
         expect(result.text).toContain('1000');
         expect(result.text).toContain('Suggested max');
     });
 
-    it('shows fee hint when params provided', () => {
-        const result = AdvancedInvestmentPromptMessage.create({
-            symbol: 'ETH',
-            usdcBalance: Decimal.from(500),
-            baseBalance: Decimal.from(1),
-            baseInUsdc: Decimal.from(3000),
-            totalBalance: Decimal.from(3500),
-            currentPrice: 3000,
-            suggestedMax: 400,
-            levels: 20,
-        });
-        expect(result.text).toContain('Trading fee');
-        expect(result.text).toContain('taker');
-        expect(result.text).toContain('maker');
+    it('shows per-order fee hint when params provided', () => {
+        const result = AdvancedInvestmentPromptMessage.create(balanceParams);
+        // $800 / 10 levels = $80/order
+        expect(result.text).toContain('$80/order');
+        expect(result.text).toContain('profit');
+        expect(result.text).toContain('fee');
     });
 
     it('shows suggested max for the specified levels', () => {
@@ -59,6 +55,8 @@ describe('AdvancedInvestmentPromptMessage', () => {
             currentPrice: 3000,
             suggestedMax: 400,
             levels: 20,
+            lowerPrice: 2400,
+            upperPrice: 3600,
         });
         expect(result.text).toContain('20 levels');
         expect(result.text).toContain('400');

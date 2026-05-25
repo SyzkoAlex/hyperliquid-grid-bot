@@ -63,6 +63,8 @@ export class AdvancedInvestmentStep implements WizardStep {
                                 currentPrice: info.currentPrice,
                                 suggestedMax: info.suggestedMax,
                                 levels,
+                                lowerPrice: info.lowerPrice,
+                                upperPrice: info.upperPrice,
                             }).text,
                     },
                 );

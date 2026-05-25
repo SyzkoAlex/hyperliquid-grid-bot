@@ -59,6 +59,8 @@ export class QuickStartStep implements WizardStep {
                                 totalBalance: info.totalBalance,
                                 currentPrice: info.currentPrice,
                                 suggestedMax: info.suggestedMax,
+                                lowerPrice: info.lowerPrice,
+                                upperPrice: info.upperPrice,
                             }).text,
                     },
                 );

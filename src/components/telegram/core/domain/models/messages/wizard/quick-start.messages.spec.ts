@@ -2,6 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { QuickStartPromptMessage } from './quick-start.messages';
 import { Decimal } from '@domain/models/primitives/decimal';
 
+const balanceParams = {
+    symbol: 'BTC',
+    usdcBalance: Decimal.from(2000),
+    baseBalance: Decimal.from(0.05),
+    baseInUsdc: Decimal.from(4750),
+    totalBalance: Decimal.from(6750),
+    currentPrice: 95000,
+    suggestedMax: 1200,
+    lowerPrice: 76000,
+    upperPrice: 114000,
+};
+
 describe('QuickStartPromptMessage', () => {
     it('shows basic prompt without params', () => {
         const result = QuickStartPromptMessage.create();
@@ -9,7 +21,7 @@ describe('QuickStartPromptMessage', () => {
         expect(result.text).toContain('Minimum');
     });
 
-    it('shows fee hint without params', () => {
+    it('shows generic fee rates without params', () => {
         const result = QuickStartPromptMessage.create();
         expect(result.text).toContain('Trading fee');
         expect(result.text).toContain('0.07%');
@@ -17,15 +29,7 @@ describe('QuickStartPromptMessage', () => {
     });
 
     it('shows balance info when params provided', () => {
-        const result = QuickStartPromptMessage.create({
-            symbol: 'BTC',
-            usdcBalance: Decimal.from(2000),
-            baseBalance: Decimal.from(0.05),
-            baseInUsdc: Decimal.from(4750),
-            totalBalance: Decimal.from(6750),
-            currentPrice: 95000,
-            suggestedMax: 1200,
-        });
+        const result = QuickStartPromptMessage.create(balanceParams);
         expect(result.text).toContain('Your balance');
         expect(result.text).toContain('BTC');
         expect(result.text).toContain('2000');
@@ -33,19 +37,12 @@ describe('QuickStartPromptMessage', () => {
         expect(result.text).toContain('1200');
     });
 
-    it('shows fee hint when params provided', () => {
-        const result = QuickStartPromptMessage.create({
-            symbol: 'BTC',
-            usdcBalance: Decimal.from(2000),
-            baseBalance: Decimal.from(0.05),
-            baseInUsdc: Decimal.from(4750),
-            totalBalance: Decimal.from(6750),
-            currentPrice: 95000,
-            suggestedMax: 1200,
-        });
-        expect(result.text).toContain('Trading fee');
-        expect(result.text).toContain('taker');
-        expect(result.text).toContain('maker');
+    it('shows per-order fee hint when params provided', () => {
+        const result = QuickStartPromptMessage.create(balanceParams);
+        // $1200 / 10 levels = $120/order
+        expect(result.text).toContain('$120/order');
+        expect(result.text).toContain('profit');
+        expect(result.text).toContain('fee');
     });
 
     it('uses default levels in suggested max text', () => {
@@ -57,6 +54,8 @@ describe('QuickStartPromptMessage', () => {
             totalBalance: Decimal.from(3500),
             currentPrice: 3000,
             suggestedMax: 400,
+            lowerPrice: 2400,
+            upperPrice: 3600,
         });
         expect(result.text).toContain('10 levels');
     });

@@ -14,6 +14,8 @@ interface InvestmentPromptFactory {
         totalBalance: BalanceInfo['totalBalance'];
         currentPrice: number;
         suggestedMax: number;
+        lowerPrice: number;
+        upperPrice: number;
     }): string;
 }
 
@@ -78,6 +80,8 @@ export async function buildInvestmentView(
                     totalBalance: balanceInfo.totalBalance,
                     currentPrice: balanceInfo.currentPrice,
                     suggestedMax,
+                    lowerPrice,
+                    upperPrice,
                 });
             }
         }
