@@ -17,18 +17,19 @@ export class AdvancedLowerStep implements WizardStep {
 
     async buildView(ctx: BotContext): Promise<StepView> {
         const state = ctx.session.createGrid;
-        const upperPrice = state?.upperPrice;
+        const symbol = state?.symbol;
+        const currentPrice = state?.currentPrice;
         return {
-            body: AdvancedLowerPromptMessage.create(upperPrice).text,
-            keyboard: this.buildKeyboard(upperPrice),
+            body: AdvancedLowerPromptMessage.create(symbol, currentPrice).text,
+            keyboard: this.buildKeyboard(currentPrice),
         };
     }
 
-    private buildKeyboard(upperPrice: number | undefined): InlineButton[][] {
+    private buildKeyboard(currentPrice: number | undefined): InlineButton[][] {
         const presets: InlineButton[] =
-            upperPrice !== undefined
+            currentPrice !== undefined
                 ? [10, 20, 30].map((pct) => ({
-                      text: `-${pct}% (${PriceFormatter.format(upperPrice * (1 - pct / 100))})`,
+                      text: `-${pct}% (${PriceFormatter.format(currentPrice * (1 - pct / 100))})`,
                       action: buildLowerPreset(pct),
                   }))
                 : [];
@@ -51,9 +52,10 @@ export class AdvancedLowerStep implements WizardStep {
             return null;
         }
         const pct = parseInt(raw, 10);
-        const upperPrice = ctx.session.createGrid?.upperPrice;
-        if (!upperPrice) return null;
-        const price = upperPrice * (1 - pct / 100);
+        const basePrice =
+            ctx.session.createGrid?.currentPrice ?? ctx.session.createGrid?.upperPrice;
+        if (!basePrice) return null;
+        const price = basePrice * (1 - pct / 100);
         ctx.session.createGrid!.lowerPrice = price;
         return { nextStep: SceneStep.Levels };
     }

@@ -11,7 +11,7 @@ describe('AdvancedLowerStep', () => {
     });
 
     describe('buildView', () => {
-        it('returns body with upper price info and Back/Cancel buttons', async () => {
+        it('returns keyboard with Back and Cancel buttons', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { upperPrice: 55000 };
 
@@ -25,9 +25,9 @@ describe('AdvancedLowerStep', () => {
             expect(navRow).toBeDefined();
         });
 
-        it('includes percentage presets when upperPrice is set', async () => {
+        it('includes percentage presets when currentPrice is set', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { upperPrice: 50000 };
+            ctx.session.createGrid = { upperPrice: 55000, currentPrice: 50000 };
 
             const view = await step.buildView(ctx);
 
@@ -35,6 +35,22 @@ describe('AdvancedLowerStep', () => {
                 r.some((b) => b.action?.startsWith('create_grid:lower:')),
             );
             expect(presetRow).toBeDefined();
+        });
+
+        it('shows no presets when currentPrice is absent', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { upperPrice: 55000 };
+
+            const view = await step.buildView(ctx);
+
+            const presetRow = view.keyboard.find((r) =>
+                r.some(
+                    (b) =>
+                        b.action?.startsWith('create_grid:lower:') &&
+                        b.action !== 'create_grid:lower:custom',
+                ),
+            );
+            expect(presetRow).toBeUndefined();
         });
 
         it('returns plain prompt body regardless of pendingError (error prepend is handled by BoardRenderer)', async () => {
@@ -69,7 +85,7 @@ describe('AdvancedLowerStep', () => {
     describe('handleLowerPreset', () => {
         it('returns null and sets pendingError when raw is "custom"', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { upperPrice: 50000 };
+            ctx.session.createGrid = { upperPrice: 50000, currentPrice: 45000 };
 
             const result = await step.handleLowerPreset(ctx, 'custom');
 
@@ -77,14 +93,35 @@ describe('AdvancedLowerStep', () => {
             expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('computes price from percentage and advances to Levels', async () => {
+        it('computes lower price from currentPrice percentage and advances to Levels', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { upperPrice: 55000, currentPrice: 50000 };
+
+            const result = await step.handleLowerPreset(ctx, '10');
+
+            expect(result).toEqual({ nextStep: SceneStep.Levels });
+            // -10% of currentPrice(50000) = 45000
+            expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
+        });
+
+        it('falls back to upperPrice when currentPrice is absent', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { upperPrice: 50000 };
 
             const result = await step.handleLowerPreset(ctx, '10');
 
             expect(result).toEqual({ nextStep: SceneStep.Levels });
+            // -10% of upperPrice(50000) = 45000
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
+        });
+
+        it('returns null when neither currentPrice nor upperPrice is set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+
+            const result = await step.handleLowerPreset(ctx, '10');
+
+            expect(result).toBeNull();
         });
     });
 
