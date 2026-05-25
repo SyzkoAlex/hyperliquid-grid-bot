@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdvancedPreviewStep } from './advanced-preview.step';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
+import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
@@ -49,6 +50,9 @@ describe('AdvancedPreviewStep', () => {
             const view = await step.buildView(ctx);
 
             expect(view.body).toContain('Invalid state');
+            expect(view.keyboard.flat().some((b) => b.action === CREATE_GRID_ACTIONS.BACK)).toBe(
+                true,
+            );
         });
 
         it('includes Confirm, Back and Cancel buttons in keyboard', async () => {
@@ -56,14 +60,10 @@ describe('AdvancedPreviewStep', () => {
 
             const view = await step.buildView(ctx);
 
-            const hasConfirm = view.keyboard.some((r) =>
-                r.some((b) => b.action === 'create_grid:confirm'),
-            );
-            const hasBack = view.keyboard.some((r) =>
-                r.some((b) => b.action === 'create_grid:back'),
-            );
-            expect(hasConfirm).toBe(true);
-            expect(hasBack).toBe(true);
+            const flat = view.keyboard.flat();
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.CONFIRM)).toBe(true);
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.BACK)).toBe(true);
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.CANCEL)).toBe(true);
         });
     });
 
@@ -91,6 +91,8 @@ describe('AdvancedPreviewStep', () => {
 
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
             expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.levels).toBeUndefined();
         });
 
         it('only clears investment for advanced mode', () => {
@@ -107,6 +109,8 @@ describe('AdvancedPreviewStep', () => {
 
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
             expect(ctx.session.createGrid?.upperPrice).toBe(55000);
+            expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
+            expect(ctx.session.createGrid?.levels).toBe(10);
         });
     });
 
