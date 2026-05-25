@@ -9,6 +9,13 @@ describe('AdvancedInvestmentPromptMessage', () => {
         expect(result.text).toContain('Minimum');
     });
 
+    it('shows fee hint without params', () => {
+        const result = AdvancedInvestmentPromptMessage.create();
+        expect(result.text).toContain('Trading fee');
+        expect(result.text).toContain('0.07%');
+        expect(result.text).toContain('0.04%');
+    });
+
     it('shows balance info when params provided', () => {
         const result = AdvancedInvestmentPromptMessage.create({
             symbol: 'BTC',
@@ -24,6 +31,22 @@ describe('AdvancedInvestmentPromptMessage', () => {
         expect(result.text).toContain('BTC');
         expect(result.text).toContain('1000');
         expect(result.text).toContain('Suggested max');
+    });
+
+    it('shows fee hint when params provided', () => {
+        const result = AdvancedInvestmentPromptMessage.create({
+            symbol: 'ETH',
+            usdcBalance: Decimal.from(500),
+            baseBalance: Decimal.from(1),
+            baseInUsdc: Decimal.from(3000),
+            totalBalance: Decimal.from(3500),
+            currentPrice: 3000,
+            suggestedMax: 400,
+            levels: 20,
+        });
+        expect(result.text).toContain('Trading fee');
+        expect(result.text).toContain('taker');
+        expect(result.text).toContain('maker');
     });
 
     it('shows suggested max for the specified levels', () => {

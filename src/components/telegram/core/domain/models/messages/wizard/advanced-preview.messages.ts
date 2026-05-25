@@ -11,6 +11,10 @@ interface AdvancedPreviewParams {
     orderSize: string;
     stopLossEnabled?: boolean;
     stopLossPrice?: number;
+    feePerCycle?: number;
+    profitPerGridPct?: number;
+    gridStepPct?: number;
+    breakEven?: boolean;
 }
 
 export class AdvancedPreviewMessage {
@@ -27,6 +31,10 @@ export class AdvancedPreviewMessage {
             orderSize,
             stopLossEnabled,
             stopLossPrice,
+            feePerCycle,
+            profitPerGridPct,
+            gridStepPct,
+            breakEven,
         } = params;
         const currentPriceText = currentPrice
             ? `${EMOJI.DIAMOND} Current Price: ${PriceFormatter.format(currentPrice)}\n`
@@ -35,6 +43,17 @@ export class AdvancedPreviewMessage {
             stopLossEnabled && stopLossPrice !== undefined
                 ? `${EMOJI.DIAMOND} Stop-Loss: ${PriceFormatter.format(stopLossPrice)}\n`
                 : `${EMOJI.DIAMOND} Stop-Loss: off\n`;
+
+        let feeText = '';
+        if (feePerCycle !== undefined && profitPerGridPct !== undefined) {
+            feeText =
+                `💸 Fee per grid cycle: ~${feePerCycle.toFixed(2)} USDC\n` +
+                `📈 Profit per grid: ${profitPerGridPct.toFixed(4)}%` +
+                ` (~${((profitPerGridPct / 100) * totalInvestment).toFixed(2)} USDC/cycle)\n`;
+            if (breakEven === false && gridStepPct !== undefined) {
+                feeText += `⚠️ Break-even risk: grid step (${gridStepPct.toFixed(4)}%) < 2× fee rate\n`;
+            }
+        }
 
         this.text =
             `<b>${EMOJI.CLIPBOARD} Grid Configuration Preview</b>\n\n` +
@@ -45,6 +64,7 @@ export class AdvancedPreviewMessage {
             `${EMOJI.DIAMOND} Investment: ${totalInvestment} USDC\n` +
             `${EMOJI.DIAMOND} Order Size: ~${orderSize} USDC per level\n` +
             stopLossText +
+            (feeText ? `\n${feeText}` : '') +
             `\nReady to create grid?`;
     }
 

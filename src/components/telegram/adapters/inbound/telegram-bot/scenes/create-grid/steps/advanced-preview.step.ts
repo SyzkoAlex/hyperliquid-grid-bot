@@ -8,6 +8,7 @@ import { StepView } from '../wizard/step-view';
 import { CreateGridMode } from '../create-grid-mode';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { HYPERLIQUID_SPOT_FEE } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { AdvancedPreviewMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
@@ -52,16 +53,40 @@ export class AdvancedPreviewStep implements WizardStep {
             // Ignore error — just don't show current price
         }
 
+        const lowerPrice = state.lowerPrice!;
+        const upperPrice = state.upperPrice!;
+        const levels = state.levels!;
+        const totalInvestment = state.totalInvestmentUSDC!;
+
+        let feePerCycle: number | undefined;
+        let profitPerGridPct: number | undefined;
+        let gridStepPct: number | undefined;
+        let breakEven: boolean | undefined;
+
+        if (lowerPrice && upperPrice && levels && totalInvestment) {
+            const midPrice = (upperPrice + lowerPrice) / 2;
+            const orderSizeNum = totalInvestment / levels;
+            const feePerOrder = orderSizeNum * HYPERLIQUID_SPOT_FEE.takerRate;
+            feePerCycle = feePerOrder * levels * 2;
+            gridStepPct = ((upperPrice - lowerPrice) / levels / midPrice) * 100;
+            profitPerGridPct = gridStepPct - 2 * HYPERLIQUID_SPOT_FEE.takerRate * 100;
+            breakEven = profitPerGridPct > 0;
+        }
+
         const body = AdvancedPreviewMessage.create({
             symbol: state.symbol!,
-            lowerPrice: state.lowerPrice!,
-            upperPrice: state.upperPrice!,
+            lowerPrice,
+            upperPrice,
             currentPrice,
-            levels: state.levels!,
-            totalInvestment: state.totalInvestmentUSDC!,
+            levels,
+            totalInvestment,
             orderSize,
             stopLossEnabled: state.stopLossEnabled,
             stopLossPrice: state.stopLossPrice,
+            feePerCycle,
+            profitPerGridPct,
+            gridStepPct,
+            breakEven,
         }).text;
 
         return { body, keyboard };

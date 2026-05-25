@@ -9,6 +9,13 @@ describe('QuickStartPromptMessage', () => {
         expect(result.text).toContain('Minimum');
     });
 
+    it('shows fee hint without params', () => {
+        const result = QuickStartPromptMessage.create();
+        expect(result.text).toContain('Trading fee');
+        expect(result.text).toContain('0.07%');
+        expect(result.text).toContain('0.04%');
+    });
+
     it('shows balance info when params provided', () => {
         const result = QuickStartPromptMessage.create({
             symbol: 'BTC',
@@ -24,6 +31,21 @@ describe('QuickStartPromptMessage', () => {
         expect(result.text).toContain('2000');
         expect(result.text).toContain('Suggested max');
         expect(result.text).toContain('1200');
+    });
+
+    it('shows fee hint when params provided', () => {
+        const result = QuickStartPromptMessage.create({
+            symbol: 'BTC',
+            usdcBalance: Decimal.from(2000),
+            baseBalance: Decimal.from(0.05),
+            baseInUsdc: Decimal.from(4750),
+            totalBalance: Decimal.from(6750),
+            currentPrice: 95000,
+            suggestedMax: 1200,
+        });
+        expect(result.text).toContain('Trading fee');
+        expect(result.text).toContain('taker');
+        expect(result.text).toContain('maker');
     });
 
     it('uses default levels in suggested max text', () => {

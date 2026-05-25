@@ -1,5 +1,5 @@
 import { EMOJI } from '../../constants/emoji';
-import { WIZARD_CONFIG } from '../../constants/wizard-config';
+import { HYPERLIQUID_SPOT_FEE, WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { formatFiat } from '../../formatters/format-fiat';
 
@@ -19,7 +19,10 @@ export class AdvancedInvestmentPromptMessage {
 
     private constructor(params?: InvestmentPromptParams) {
         if (!params) {
-            this.text = `How much USDC do you want to invest?\n\nMinimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order`;
+            this.text =
+                `How much USDC do you want to invest?\n\n` +
+                `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
+                `💸 Trading fee: ~${(HYPERLIQUID_SPOT_FEE.takerRate * 100).toFixed(2)}% taker / ~${(HYPERLIQUID_SPOT_FEE.makerRate * 100).toFixed(2)}% maker`;
             return;
         }
 
@@ -42,7 +45,8 @@ export class AdvancedInvestmentPromptMessage {
             `How much USDC do you want to invest?\n\n` +
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
             `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels)\n` +
-            `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})`;
+            `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})\n\n` +
+            `💸 Trading fee: ~${(HYPERLIQUID_SPOT_FEE.takerRate * 100).toFixed(2)}% taker / ~${(HYPERLIQUID_SPOT_FEE.makerRate * 100).toFixed(2)}% maker`;
     }
 
     static create(params?: InvestmentPromptParams): AdvancedInvestmentPromptMessage {

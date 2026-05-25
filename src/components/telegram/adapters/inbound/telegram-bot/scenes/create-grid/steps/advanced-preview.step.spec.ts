@@ -81,6 +81,23 @@ describe('AdvancedPreviewStep', () => {
             expect(view.body).toBeTruthy();
         });
 
+        it('shows fee block in preview body', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                symbol: 'BTC',
+                mode: CreateGridMode.Advanced,
+                upperPrice: 55000,
+                lowerPrice: 45000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+            };
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Fee per grid cycle');
+            expect(view.body).toContain('Profit per grid');
+        });
+
         it('includes Confirm, Back and Cancel buttons in keyboard', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
