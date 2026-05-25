@@ -87,28 +87,31 @@ export class QuickStartStep implements WizardStep {
     }
 
     private buildKeyboard(suggestedMax: number | null): InlineButton[][] {
-        const presets: InlineButton[] = [];
+        const rows: InlineButton[][] = [];
         if (suggestedMax !== null) {
-            presets.push(
-                {
-                    text: `25% ($${Math.round(suggestedMax * 0.25)})`,
-                    action: buildQuickInvestmentPreset(InvestmentPresetKey.P25),
-                },
-                {
-                    text: `50% ($${Math.round(suggestedMax * 0.5)})`,
-                    action: buildQuickInvestmentPreset(InvestmentPresetKey.P50),
-                },
-                {
-                    text: `75% ($${Math.round(suggestedMax * 0.75)})`,
-                    action: buildQuickInvestmentPreset(InvestmentPresetKey.P75),
-                },
-                {
-                    text: `Max ($${suggestedMax})`,
-                    action: buildQuickInvestmentPreset(InvestmentPresetKey.Max),
-                },
+            rows.push(
+                [
+                    {
+                        text: `25% ($${Math.round(suggestedMax * 0.25)})`,
+                        action: buildQuickInvestmentPreset(InvestmentPresetKey.P25),
+                    },
+                    {
+                        text: `50% ($${Math.round(suggestedMax * 0.5)})`,
+                        action: buildQuickInvestmentPreset(InvestmentPresetKey.P50),
+                    },
+                ],
+                [
+                    {
+                        text: `75% ($${Math.round(suggestedMax * 0.75)})`,
+                        action: buildQuickInvestmentPreset(InvestmentPresetKey.P75),
+                    },
+                    {
+                        text: `Max ($${suggestedMax})`,
+                        action: buildQuickInvestmentPreset(InvestmentPresetKey.Max),
+                    },
+                ],
             );
         }
-        const rows: InlineButton[][] = presets.length ? [presets] : [];
         rows.push([
             {
                 text: BUTTON_LABELS.CUSTOM,
