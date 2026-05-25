@@ -55,33 +55,32 @@ describe('SelectModeStep', () => {
             expect(navRow).toBeDefined();
         });
 
-        it('includes pair summary row with price when symbol is set', async () => {
+        it('stores currentPrice in session when symbol is set and price fetch succeeds', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
 
-            const view = await step.buildView(ctx);
+            await step.buildView(ctx);
 
-            expect(view.summaryRows).toBeDefined();
-            expect(view.summaryRows![0]).toEqual({ label: 'Pair', value: 'HYPE ($43.89)' });
+            expect(ctx.session.createGrid?.currentPrice).toBe(43.89);
         });
 
-        it('falls back to symbol only when price fetch fails', async () => {
+        it('does not store currentPrice when price fetch fails', async () => {
             vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValueOnce(new Error('network'));
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
 
-            const view = await step.buildView(ctx);
+            await step.buildView(ctx);
 
-            expect(view.summaryRows![0]).toEqual({ label: 'Pair', value: 'HYPE' });
+            expect(ctx.session.createGrid?.currentPrice).toBeUndefined();
         });
 
-        it('returns no summaryRows when symbol is not set', async () => {
+        it('does not call getCurrentPrice when symbol is not set', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            const view = await step.buildView(ctx);
+            await step.buildView(ctx);
 
-            expect(view.summaryRows).toBeUndefined();
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
     });
 

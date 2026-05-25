@@ -2,18 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BoardRenderer } from './board-renderer';
 import { BotContext } from '../../../types/bot-context';
 import { StepView } from './step-view';
+import { SceneStep } from '../create-grid-scene-step';
+import { CreateGridMode } from '../create-grid-mode';
 
 function createMockContext(
     overrides: {
         boardChatId?: number;
         boardMessageId?: number;
+        createGrid?: Record<string, unknown>;
     } = {},
 ): BotContext {
     return {
         session: {
             createGrid: overrides.boardChatId
-                ? { boardChatId: overrides.boardChatId, boardMessageId: overrides.boardMessageId }
-                : {},
+                ? {
+                      boardChatId: overrides.boardChatId,
+                      boardMessageId: overrides.boardMessageId,
+                      ...(overrides.createGrid ?? {}),
+                  }
+                : overrides.createGrid !== undefined
+                  ? overrides.createGrid
+                  : {},
         },
         reply: vi.fn().mockResolvedValue({ chat: { id: 100 }, message_id: 200 }),
         telegram: {
@@ -41,7 +50,7 @@ describe('BoardRenderer', () => {
             await sut.render(ctx, simpleView);
 
             expect(ctx.reply).toHaveBeenCalledWith(
-                simpleView.body,
+                expect.stringContaining(simpleView.body),
                 expect.objectContaining({ parse_mode: 'HTML' }),
             );
             expect(ctx.session.createGrid?.boardChatId).toBe(100);
@@ -67,7 +76,7 @@ describe('BoardRenderer', () => {
                 77,
                 88,
                 undefined,
-                simpleView.body,
+                expect.stringContaining(simpleView.body),
                 expect.objectContaining({ parse_mode: 'HTML' }),
             );
             expect(ctx.reply).not.toHaveBeenCalled();
@@ -89,7 +98,7 @@ describe('BoardRenderer', () => {
                 1,
                 2,
                 undefined,
-                'Choose mode',
+                expect.stringContaining('Choose mode'),
                 expect.objectContaining({ reply_markup: expect.any(Object) }),
             );
         });
@@ -105,7 +114,7 @@ describe('BoardRenderer', () => {
             await sut.render(ctx, simpleView);
 
             expect(ctx.reply).toHaveBeenCalledWith(
-                simpleView.body,
+                expect.stringContaining(simpleView.body),
                 expect.objectContaining({ parse_mode: 'HTML' }),
             );
             expect(ctx.session.createGrid?.boardChatId).toBe(100);
@@ -153,55 +162,250 @@ describe('BoardRenderer', () => {
             await sut.render(ctx, view);
 
             const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toBe('Select pair');
+            expect(text).toContain('Select pair');
+            expect(text).not.toContain('undefined');
         });
     });
 
-    describe('summary rows rendering', () => {
-        it('renders summary rows with checkmark, bold label and value', async () => {
+    describe('stepper — buildStepper', () => {
+        it('renders "Step 1" when stepHistory is empty and mode is unknown', async () => {
             const ctx = createMockContext();
-            const viewWithSummary: StepView = {
-                summaryRows: [
-                    { label: 'Pair', value: 'BTC/USDC' },
-                    { label: 'Mode', value: 'Quick' },
-                ],
-                body: 'Next step',
-                keyboard: [],
-            };
+            ctx.session.createGrid = { stepHistory: [] };
+            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, viewWithSummary);
+            await sut.render(ctx, view);
 
             const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toContain('✓ <b>Pair</b> · BTC/USDC');
+            expect(text).toMatch(/^Step 1\n\n/);
+        });
+
+        it('renders "Step N of 5" for Quick mode', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Quick,
+                stepHistory: [SceneStep.Pair],
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toMatch(/^Step 2 of 5\n\n/);
+        });
+
+        it('renders "Step N of 9" for Advanced mode', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Advanced,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toMatch(/^Step 3 of 9\n\n/);
+        });
+
+        it('renders "Step 1" without total when session is empty', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toMatch(/^Step 1\n\n/);
+        });
+    });
+
+    describe('session-based summary rows', () => {
+        it('renders Pair row with price from session', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair],
+                symbol: 'HYPE',
+                currentPrice: 43.89,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Pair</b> · HYPE ($43.89)');
+        });
+
+        it('renders Pair row without price when currentPrice is not in session', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair],
+                symbol: 'HYPE',
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Pair</b> · HYPE');
+            expect(text).not.toContain('($');
+        });
+
+        it('renders Mode row as "Quick"', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                symbol: 'HYPE',
+                mode: CreateGridMode.Quick,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
             expect(text).toContain('✓ <b>Mode</b> · Quick');
-            expect(text).toContain('\n\nNext step');
         });
 
-        it('renders empty summary when summaryRows is undefined', async () => {
+        it('renders Mode row as "Advanced"', async () => {
             const ctx = createMockContext();
-            const viewWithoutSummary: StepView = {
-                body: 'Just body',
-                keyboard: [],
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                symbol: 'HYPE',
+                mode: CreateGridMode.Advanced,
             };
+            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, viewWithoutSummary);
+            await sut.render(ctx, view);
 
             const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toBe('Just body');
+            expect(text).toContain('✓ <b>Mode</b> · Advanced');
         });
 
-        it('renders empty summary when summaryRows is an empty array', async () => {
+        it('renders Upper and Lower price rows', async () => {
             const ctx = createMockContext();
-            const viewEmptySummary: StepView = {
-                summaryRows: [],
-                body: 'Just body',
-                keyboard: [],
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Upper, SceneStep.Lower],
+                symbol: 'HYPE',
+                mode: CreateGridMode.Advanced,
+                upperPrice: 55000,
+                lowerPrice: 45000,
             };
+            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, viewEmptySummary);
+            await sut.render(ctx, view);
 
             const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toBe('Just body');
+            expect(text).toContain('✓ <b>Upper</b> · $55000');
+            expect(text).toContain('✓ <b>Lower</b> · $45000');
+        });
+
+        it('renders Levels row', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Levels],
+                levels: 10,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Levels</b> · 10');
+        });
+
+        it('renders Investment row from Quick step', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Quick],
+                totalInvestmentUSDC: 500,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Investment</b> · $500 USDC');
+        });
+
+        it('renders Investment row from Investment step', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Investment],
+                totalInvestmentUSDC: 1000,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Investment</b> · $1000 USDC');
+        });
+
+        it('renders Stop Loss row as disabled when stopLossEnabled is false', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.StopLoss],
+                stopLossEnabled: false,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Stop Loss</b> · Disabled');
+        });
+
+        it('renders Stop Loss row with price when stopLossEnabled is true', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.StopLoss],
+                stopLossEnabled: true,
+                stopLossPrice: 1980,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Stop Loss</b> · $1980');
+        });
+
+        it('renders no summary rows when stepHistory is empty', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { stepHistory: [] };
+            const view: StepView = { body: 'Just body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).not.toContain('✓');
+            expect(text).toContain('Just body');
+        });
+
+        it('renders no summary rows when stepHistory is absent', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+            const view: StepView = { body: 'Just body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).not.toContain('✓');
+        });
+
+        it('does not render rows for steps not in stepHistory', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                stepHistory: [SceneStep.Pair],
+                symbol: 'HYPE',
+                mode: CreateGridMode.Advanced,
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toContain('✓ <b>Pair</b>');
+            expect(text).not.toContain('✓ <b>Mode</b>');
         });
     });
 });

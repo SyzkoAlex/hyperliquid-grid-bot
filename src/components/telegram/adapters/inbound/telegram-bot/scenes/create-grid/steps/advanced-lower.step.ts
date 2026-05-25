@@ -19,15 +19,6 @@ export class AdvancedLowerStep implements WizardStep {
         const state = ctx.session.createGrid;
         const upperPrice = state?.upperPrice;
         return {
-            summaryRows: state?.symbol
-                ? [
-                      { label: 'Pair', value: state.symbol },
-                      {
-                          label: 'Upper',
-                          value: upperPrice ? PriceFormatter.format(upperPrice) : '–',
-                      },
-                  ]
-                : undefined,
             body: AdvancedLowerPromptMessage.create(upperPrice).text,
             keyboard: this.buildKeyboard(upperPrice),
         };

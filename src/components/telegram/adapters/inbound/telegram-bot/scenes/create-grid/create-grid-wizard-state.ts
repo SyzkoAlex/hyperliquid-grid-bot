@@ -6,6 +6,7 @@ export type { BalanceSnapshot };
 
 export interface CreateGridWizardState {
     symbol?: string;
+    currentPrice?: number;
     mode?: CreateGridMode;
     upperPrice?: number;
     lowerPrice?: number;

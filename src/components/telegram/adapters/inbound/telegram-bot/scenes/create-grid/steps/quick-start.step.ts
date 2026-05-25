@@ -75,12 +75,6 @@ export class QuickStartStep implements WizardStep {
         }
 
         return {
-            summaryRows: symbol
-                ? [
-                      { label: 'Pair', value: symbol },
-                      { label: 'Mode', value: 'Quick' },
-                  ]
-                : undefined,
             body,
             keyboard: this.buildKeyboard(suggestedMax),
         };

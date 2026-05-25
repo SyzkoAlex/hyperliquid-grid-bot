@@ -31,12 +31,6 @@ export class AdvancedUpperStep implements WizardStep {
         }
 
         return {
-            summaryRows: symbol
-                ? [
-                      { label: 'Pair', value: symbol },
-                      { label: 'Mode', value: 'Advanced' },
-                  ]
-                : undefined,
             body: AdvancedUpperPromptMessage.create(symbol, currentPrice ?? undefined).text,
             keyboard: this.buildKeyboard(currentPrice),
         };
