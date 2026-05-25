@@ -49,7 +49,17 @@ export class WizardSummaryBuilder {
                 if (state.levels === undefined) return null;
                 return `✓ <b>Levels</b> · ${state.levels}`;
             }
-            case SceneStep.Quick:
+            case SceneStep.Quick: {
+                if (state.totalInvestmentUSDC === undefined) return null;
+                const lines: string[] = [];
+                if (state.upperPrice !== undefined)
+                    lines.push(`✓ <b>Upper</b> · $${PriceFormatter.format(state.upperPrice)}`);
+                if (state.lowerPrice !== undefined)
+                    lines.push(`✓ <b>Lower</b> · $${PriceFormatter.format(state.lowerPrice)}`);
+                if (state.levels !== undefined) lines.push(`✓ <b>Levels</b> · ${state.levels}`);
+                lines.push(`✓ <b>Investment</b> · $${state.totalInvestmentUSDC} USDC`);
+                return lines.join('\n');
+            }
             case SceneStep.Investment: {
                 if (state.totalInvestmentUSDC === undefined) return null;
                 return `✓ <b>Investment</b> · $${state.totalInvestmentUSDC} USDC`;

@@ -67,11 +67,30 @@ describe('WizardSummaryBuilder', () => {
         expect(result).toContain('✓ <b>Levels</b> · 10');
     });
 
-    it('renders Investment row from Quick step', () => {
+    it('renders Investment row from Quick step when grid params absent', () => {
         const result = sut.buildSummaryFromSession(
             state({ stepHistory: [SceneStep.Quick], totalInvestmentUSDC: 500 }),
         );
         expect(result).toContain('✓ <b>Investment</b> · $500 USDC');
+        expect(result).not.toContain('<b>Upper</b>');
+    });
+
+    it('renders Upper, Lower, Levels and Investment from Quick step when grid params present', () => {
+        const result = sut.buildSummaryFromSession(
+            state({
+                stepHistory: [SceneStep.Quick],
+                totalInvestmentUSDC: 2828,
+                upperPrice: 52.38,
+                lowerPrice: 41.9,
+                levels: 20,
+            }),
+        );
+        expect(result).toContain('✓ <b>Upper</b>');
+        expect(result).toContain('✓ <b>Lower</b>');
+        expect(result).toContain('✓ <b>Levels</b> · 20');
+        expect(result).toContain('✓ <b>Investment</b> · $2828 USDC');
+        const lines = result.split('\n');
+        expect(lines.length).toBe(4);
     });
 
     it('renders Investment row from Investment step', () => {
