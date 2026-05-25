@@ -32,7 +32,7 @@ export class AdvancedLowerStep implements WizardStep {
                       action: buildLowerPreset(pct),
                   }))
                 : [];
-        const rows: InlineButton[][] = presets.length ? [presets] : [];
+        const rows: InlineButton[][] = presets.map((b) => [b]);
         rows.push([
             { text: BUTTON_LABELS.CUSTOM, action: buildLowerPreset(PricePresetKey.Custom) },
         ]);

@@ -44,7 +44,7 @@ export class AdvancedUpperStep implements WizardStep {
                       action: buildUpperPreset(pct),
                   }))
                 : [];
-        const rows: InlineButton[][] = presets.length ? [presets] : [];
+        const rows: InlineButton[][] = presets.map((b) => [b]);
         rows.push([
             { text: BUTTON_LABELS.CUSTOM, action: buildUpperPreset(PricePresetKey.Custom) },
         ]);
