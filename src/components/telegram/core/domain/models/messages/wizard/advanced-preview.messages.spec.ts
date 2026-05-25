@@ -3,44 +3,13 @@ import { AdvancedPreviewMessage } from './advanced-preview.messages';
 import { GridFeeMetrics } from '../../grid-fee-calculator';
 
 describe('AdvancedPreviewMessage', () => {
-    const defaultParams = {
-        symbol: 'BTC',
-        lowerPrice: 90000,
-        upperPrice: 100000,
-        currentPrice: 95000 as number | null,
-        levels: 10,
-        totalInvestment: 500,
-        orderSize: '50.00',
-    };
-
-    it('contains all key grid fields', () => {
-        const result = AdvancedPreviewMessage.create(defaultParams);
-        expect(result.text).toContain('BTC');
-        expect(result.text).toContain('90000');
-        expect(result.text).toContain('100000');
-        expect(result.text).toContain('10');
-        expect(result.text).toContain('500');
-    });
-
-    it('shows current price when provided', () => {
-        const result = AdvancedPreviewMessage.create(defaultParams);
-        expect(result.text).toContain('95000');
-        expect(result.text).toContain('Current Price');
-    });
-
-    it('omits current price line when null', () => {
-        const result = AdvancedPreviewMessage.create({ ...defaultParams, currentPrice: null });
-        expect(result.text).not.toContain('Current Price');
-    });
-
-    it('shows order size per level', () => {
-        const result = AdvancedPreviewMessage.create(defaultParams);
-        expect(result.text).toContain('50.00');
-        expect(result.text).toContain('per level');
+    it('shows "Ready to create grid?" prompt', () => {
+        const result = AdvancedPreviewMessage.create({ totalInvestment: 500 });
+        expect(result.text).toContain('Ready to create grid?');
     });
 
     it('omits fee block when feeMetrics not provided', () => {
-        const result = AdvancedPreviewMessage.create(defaultParams);
+        const result = AdvancedPreviewMessage.create({ totalInvestment: 500 });
         expect(result.text).not.toContain('Fee per grid cycle');
         expect(result.text).not.toContain('Profit per grid');
     });
@@ -52,7 +21,7 @@ describe('AdvancedPreviewMessage', () => {
             gridStepPct: 1.0553,
             isProfitable: true,
         };
-        const result = AdvancedPreviewMessage.create({ ...defaultParams, feeMetrics });
+        const result = AdvancedPreviewMessage.create({ totalInvestment: 500, feeMetrics });
         expect(result.text).toContain('Fee per grid cycle');
         expect(result.text).toContain('0.40');
         expect(result.text).toContain('Profit per grid');
@@ -66,7 +35,7 @@ describe('AdvancedPreviewMessage', () => {
             gridStepPct: 0.04,
             isProfitable: false,
         };
-        const result = AdvancedPreviewMessage.create({ ...defaultParams, feeMetrics });
+        const result = AdvancedPreviewMessage.create({ totalInvestment: 500, feeMetrics });
         expect(result.text).toContain('Break-even risk');
         expect(result.text).toContain('< 2× fee rate');
     });
