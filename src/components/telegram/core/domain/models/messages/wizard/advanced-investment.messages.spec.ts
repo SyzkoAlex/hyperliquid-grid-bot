@@ -18,8 +18,7 @@ const balanceParams = {
 describe('AdvancedInvestmentPromptMessage', () => {
     it('shows basic prompt without params', () => {
         const result = AdvancedInvestmentPromptMessage.create();
-        expect(result.text).toContain('How much USDC');
-        expect(result.text).toContain('Minimum');
+        expect(result.text).toContain('How much to invest?');
     });
 
     it('shows generic fee rates without params', () => {
@@ -29,12 +28,19 @@ describe('AdvancedInvestmentPromptMessage', () => {
         expect(result.text).toContain('0.04%');
     });
 
-    it('shows balance info when params provided', () => {
+    it('shows available total balance prominently', () => {
         const result = AdvancedInvestmentPromptMessage.create(balanceParams);
-        expect(result.text).toContain('Your balance');
-        expect(result.text).toContain('BTC');
-        expect(result.text).toContain('1000');
-        expect(result.text).toContain('Suggested max');
+        expect(result.text).toContain('Available: ~1,950 USDC');
+    });
+
+    it('shows USDC and base token breakdown', () => {
+        const result = AdvancedInvestmentPromptMessage.create(balanceParams);
+        expect(result.text).toContain('1,000 USDC + 0.01 BTC');
+    });
+
+    it('shows recommended amount and levels', () => {
+        const result = AdvancedInvestmentPromptMessage.create(balanceParams);
+        expect(result.text).toContain('Recommended: ~800 USDC for 10 levels');
     });
 
     it('shows per-order fee hint when params provided', () => {
@@ -60,5 +66,22 @@ describe('AdvancedInvestmentPromptMessage', () => {
         });
         expect(result.text).toContain('20 levels');
         expect(result.text).toContain('400');
+    });
+
+    it('does not repeat price info already shown in board summary', () => {
+        const result = AdvancedInvestmentPromptMessage.create(balanceParams);
+        expect(result.text).not.toContain('BTC price:');
+        expect(result.text).not.toContain('Your balance:');
+        expect(result.text).not.toContain('Total balance:');
+    });
+
+    it('rounds USDC balance to whole number', () => {
+        const result = AdvancedInvestmentPromptMessage.create({
+            ...balanceParams,
+            usdcBalance: Decimal.from(5219.994),
+            totalBalance: Decimal.from(6771.1),
+        });
+        expect(result.text).toContain('5,220 USDC');
+        expect(result.text).toContain('~6,771 USDC');
     });
 });
