@@ -41,7 +41,7 @@ export class AdvancedInvestmentPromptMessage {
             `Total balance: ${formatFiat(totalBalance.toNumber())} USDC\n\n` +
             `How much USDC do you want to invest?\n\n` +
             `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
-            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels, neutral mode)\n` +
+            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${levels} levels)\n` +
             `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})`;
     }
 
