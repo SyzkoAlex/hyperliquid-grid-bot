@@ -65,7 +65,7 @@ export class StopLossMarketSellService {
         if (result2 !== null) return result2;
 
         const errorMessage =
-            `IOC sell unfilled after 2 attempts. ` +
+            `Market sell failed: order didn't fill at the best available price after 2 attempts. ` +
             `mid: ${currentMid}, sell amount: ${amount.toNumber()} ${symbol}. ` +
             `Manual action required.`;
 
