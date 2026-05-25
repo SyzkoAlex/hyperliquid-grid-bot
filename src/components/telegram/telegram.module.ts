@@ -24,6 +24,7 @@ import { ApproveAgentStep } from './adapters/inbound/telegram-bot/scenes/connect
 import { VerifyApprovalStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/verify-approval.step';
 import { WizardNavigator } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
 import { BoardRenderer } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/board-renderer';
+import { WizardSummaryBuilder } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-summary-builder';
 import { GridsHandler } from './adapters/inbound/telegram-bot/handlers/grids/grids.handler';
 import { GridProfitTabHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/grid-profit-tab.handler';
 import { GridOrdersTabHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/grid-orders-tab.handler';
@@ -68,6 +69,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         TradingEventsAdapter,
         EventDeserializer,
         WizardNavigator,
+        WizardSummaryBuilder,
         BoardRenderer,
         CreateGridSceneHandler,
         ConnectAccountSceneHandler,

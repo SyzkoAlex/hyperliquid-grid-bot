@@ -5,13 +5,15 @@ import { PendingCreationMessageStore } from '../../../pending-creation-message.s
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
-import { BoardRenderer } from '../wizard/board-renderer';
+import { WizardSummaryBuilder } from '../wizard/wizard-summary-builder';
+
+const MOCK_SUMMARY = '✓ Pair · BTC';
 
 describe('ConfirmStep', () => {
     let step: ConfirmStep;
     let mockCreateGridUseCase: CreateGridUseCase;
     let pendingCreationMessageStore: PendingCreationMessageStore;
-    let mockBoardRenderer: Pick<BoardRenderer, 'buildSummaryFromSession'>;
+    let mockSummaryBuilder: Pick<WizardSummaryBuilder, 'buildSummaryFromSession'>;
 
     beforeEach(() => {
         mockCreateGridUseCase = {
@@ -20,30 +22,20 @@ describe('ConfirmStep', () => {
 
         pendingCreationMessageStore = new PendingCreationMessageStore();
 
-        mockBoardRenderer = {
-            buildSummaryFromSession: vi.fn().mockReturnValue('✓ Pair · BTC'),
+        mockSummaryBuilder = {
+            buildSummaryFromSession: vi.fn().mockReturnValue(MOCK_SUMMARY),
         };
 
         step = new ConfirmStep(
             mockCreateGridUseCase,
             pendingCreationMessageStore,
-            mockBoardRenderer as BoardRenderer,
+            mockSummaryBuilder as WizardSummaryBuilder,
         );
     });
 
     describe('execute — with board message (new-style)', () => {
         it('should edit the board message to "Creating grid..." and store the id', async () => {
-            const ctx = createMockContextWithBoard();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-                mode: CreateGridMode.Advanced,
-                boardChatId: 77,
-                boardMessageId: 88,
-            };
+            const ctx = createMockContext({ boardChatId: 77, boardMessageId: 88 });
 
             await step.execute(ctx);
 
@@ -58,18 +50,22 @@ describe('ConfirmStep', () => {
             expect(pending).toEqual({ chatId: 77, messageId: 88 });
         });
 
+        it('embeds the WizardSummaryBuilder result in the Creating grid message', async () => {
+            const ctx = createMockContext({ boardChatId: 77, boardMessageId: 88 });
+
+            await step.execute(ctx);
+
+            expect(ctx.telegram.editMessageText).toHaveBeenCalledWith(
+                77,
+                88,
+                undefined,
+                expect.stringContaining(MOCK_SUMMARY),
+                expect.anything(),
+            );
+        });
+
         it('should call CreateGridUseCase with valid state', async () => {
-            const ctx = createMockContextWithBoard();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-                mode: CreateGridMode.Advanced,
-                boardChatId: 77,
-                boardMessageId: 88,
-            };
+            const ctx = createMockContext({ boardChatId: 77, boardMessageId: 88 });
 
             await step.execute(ctx);
 
@@ -87,17 +83,7 @@ describe('ConfirmStep', () => {
         });
 
         it('falls back to reply when editMessageText fails', async () => {
-            const ctx = createMockContextWithBoard();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-                mode: CreateGridMode.Advanced,
-                boardChatId: 77,
-                boardMessageId: 88,
-            };
+            const ctx = createMockContext({ boardChatId: 77, boardMessageId: 88 });
             vi.mocked(ctx.telegram.editMessageText).mockRejectedValue(new Error('edit failed'));
 
             await step.execute(ctx);
@@ -109,14 +95,6 @@ describe('ConfirmStep', () => {
     describe('execute — without board message (old-style fallback)', () => {
         it('should call CreateGridUseCase and store reply message id', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-                mode: CreateGridMode.Advanced,
-            };
 
             await step.execute(ctx);
 
@@ -139,14 +117,6 @@ describe('ConfirmStep', () => {
         it('should reply with ACCOUNT_NOT_CONNECTED and not call CreateGridUseCase', async () => {
             const ctx = createMockContext();
             ctx.user = { id: 42 } as unknown as typeof ctx.user;
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-                mode: CreateGridMode.Advanced,
-            };
 
             await step.execute(ctx);
 
@@ -158,10 +128,7 @@ describe('ConfirmStep', () => {
     describe('execute — invalid state', () => {
         it('should handle invalid state gracefully', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                // Missing required fields
-            };
+            ctx.session.createGrid = { symbol: 'BTC' };
 
             await step.execute(ctx);
 
@@ -172,21 +139,20 @@ describe('ConfirmStep', () => {
         });
     });
 
-    function createMockContext(): BotContext {
-        const session = { createGrid: {} };
-        return {
-            reply: vi.fn().mockResolvedValue({ chat: { id: 123 }, message_id: 456 }),
-            session,
-            scene: { leave: vi.fn() },
-            user: { id: 42, accountAddress: '0xtest' },
-            telegram: {
-                editMessageText: vi.fn().mockResolvedValue(undefined),
+    function createMockContext(
+        boardCoords: { boardChatId?: number; boardMessageId?: number } = {},
+    ): BotContext {
+        const session = {
+            createGrid: {
+                symbol: 'BTC',
+                upperPrice: 55000,
+                lowerPrice: 45000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+                mode: CreateGridMode.Advanced,
+                ...boardCoords,
             },
-        } as unknown as BotContext;
-    }
-
-    function createMockContextWithBoard(): BotContext {
-        const session = { createGrid: {} };
+        };
         return {
             reply: vi.fn().mockResolvedValue({ chat: { id: 123 }, message_id: 456 }),
             session,

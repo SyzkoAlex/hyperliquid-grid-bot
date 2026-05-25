@@ -40,9 +40,9 @@ describe('QuickStartPromptMessage', () => {
     it('shows per-order fee hint when params provided', () => {
         const result = QuickStartPromptMessage.create(balanceParams);
         // $1200 / 10 levels = $120/order
-        expect(result.text).toContain('$120/order');
-        expect(result.text).toContain('profit');
-        expect(result.text).toContain('fee');
+        // gridStep = (114000-76000)/10/95000*100 = 4.00%
+        // profit/cycle = $120 * 4% = $4.80; fee/cycle = $120 * 0.04% * 2 = $0.10
+        expect(result.text).toContain('~$120/order → profit ~$4.80/cycle, fee ~$0.10');
     });
 
     it('uses default levels in suggested max text', () => {

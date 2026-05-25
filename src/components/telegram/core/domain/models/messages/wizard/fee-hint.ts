@@ -1,5 +1,6 @@
 import { HYPERLIQUID_SPOT_FEE } from '../../constants/hyperliquid-fees';
 import { EMOJI } from '../../constants/emoji';
+import { calculateGridFeeMetrics } from '../../grid-fee-calculator';
 
 interface FeeHintParams {
     suggestedMax: number;
@@ -16,14 +17,20 @@ export function feeHintLine(params?: FeeHintParams): string {
         );
     }
     const { suggestedMax, levels, lowerPrice, upperPrice } = params;
+    const metrics = calculateGridFeeMetrics({
+        lowerPrice,
+        upperPrice,
+        levels,
+        totalInvestment: suggestedMax,
+    });
     const orderSize = suggestedMax / levels;
-    const midPrice = (lowerPrice + upperPrice) / 2;
-    const gridStepFraction = (upperPrice - lowerPrice) / levels / midPrice;
-    const profitPerFill = orderSize * gridStepFraction;
-    const feePerFill = orderSize * HYPERLIQUID_SPOT_FEE.makerRate;
+    // profitPerCycle: gross profit per order per completed grid step (buy + sell round-trip)
+    const profitPerCycle = (orderSize * metrics.gridStepPct) / 100;
+    // feePerCycle: maker fee for both fills (buy fill + sell fill) for one order
+    const feePerCycle = metrics.feePerCycle / levels;
     return (
         `${EMOJI.MONEY_WINGS} ~$${Math.round(orderSize)}/order` +
-        ` → profit ~$${profitPerFill.toFixed(2)}/sell` +
-        `, fee ~$${feePerFill.toFixed(2)}`
+        ` → profit ~$${profitPerCycle.toFixed(2)}/cycle` +
+        `, fee ~$${feePerCycle.toFixed(2)}`
     );
 }

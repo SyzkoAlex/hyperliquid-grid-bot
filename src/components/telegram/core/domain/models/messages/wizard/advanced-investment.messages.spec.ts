@@ -40,9 +40,9 @@ describe('AdvancedInvestmentPromptMessage', () => {
     it('shows per-order fee hint when params provided', () => {
         const result = AdvancedInvestmentPromptMessage.create(balanceParams);
         // $800 / 10 levels = $80/order
-        expect(result.text).toContain('$80/order');
-        expect(result.text).toContain('profit');
-        expect(result.text).toContain('fee');
+        // gridStep = (114000-76000)/10/95000*100 = 4.00%
+        // profit/cycle = $80 * 4% = $3.20; fee/cycle = $80 * 0.04% * 2 = $0.06
+        expect(result.text).toContain('~$80/order → profit ~$3.20/cycle, fee ~$0.06');
     });
 
     it('shows suggested max for the specified levels', () => {
