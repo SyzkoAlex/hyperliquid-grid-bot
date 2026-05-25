@@ -21,8 +21,7 @@ export class ConfirmStep {
     ) {}
 
     async execute(ctx: BotContext): Promise<void> {
-        const session = ctx.session;
-        const state = session.createGrid;
+        const state = ctx.session.createGrid;
 
         if (!this.validateState(state)) {
             await ctx.reply(ValidationTexts.invalidGridConfig());

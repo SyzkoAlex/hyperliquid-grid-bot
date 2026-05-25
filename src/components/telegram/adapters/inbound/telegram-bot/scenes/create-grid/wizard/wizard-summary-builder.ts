@@ -29,12 +29,7 @@ export class WizardSummaryBuilder {
             }
             case SceneStep.Mode: {
                 if (!state.mode) return null;
-                const modeLabel =
-                    state.mode === CreateGridMode.Quick
-                        ? 'Quick'
-                        : state.mode === CreateGridMode.Advanced
-                          ? 'Advanced'
-                          : state.mode;
+                const modeLabel = state.mode === CreateGridMode.Quick ? 'Quick' : 'Advanced';
                 return `✓ <b>Mode</b> · ${modeLabel}`;
             }
             case SceneStep.Upper: {

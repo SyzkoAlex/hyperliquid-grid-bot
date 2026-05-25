@@ -10,7 +10,7 @@ import { logger } from '@/infra/logger/logger';
 @Injectable()
 export class WizardNavigator {
     private readonly logger = logger.child({ context: WizardNavigator.name });
-    private steps: Map<SceneStep, WizardStep> = new Map();
+    private readonly steps = new Map<SceneStep, WizardStep>();
 
     constructor(private readonly boardRenderer: BoardRenderer) {}
 

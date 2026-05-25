@@ -105,7 +105,6 @@ export class AdvancedStopLossStep implements WizardStep {
         return { nextStep: SceneStep.Preview };
     }
 
-    /** Called when the user taps Skip — disable SL and advance to preview. */
     async handleSkip(ctx: BotContext): Promise<StepResult> {
         const session = ctx.session;
         if (session.createGrid) {

@@ -1,8 +1,7 @@
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
-import { fetchBalanceInfo } from './balance-info';
-import { BalanceInfo } from './balance-info';
+import { fetchBalanceInfo, BalanceInfo } from './balance-info';
 
 interface InvestmentPromptFactory {
     fallback(): string;

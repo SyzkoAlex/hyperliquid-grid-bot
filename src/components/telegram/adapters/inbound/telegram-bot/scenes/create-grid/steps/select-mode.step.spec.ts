@@ -54,34 +54,6 @@ describe('SelectModeStep', () => {
 
             expect(navRow).toBeDefined();
         });
-
-        it('stores currentPrice in session when symbol is set and price fetch succeeds', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE' };
-
-            await step.buildView(ctx);
-
-            expect(ctx.session.createGrid?.currentPrice).toBe(43.89);
-        });
-
-        it('does not store currentPrice when price fetch fails', async () => {
-            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValueOnce(new Error('network'));
-            const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE' };
-
-            await step.buildView(ctx);
-
-            expect(ctx.session.createGrid?.currentPrice).toBeUndefined();
-        });
-
-        it('does not call getCurrentPrice when symbol is not set', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = {};
-
-            await step.buildView(ctx);
-
-            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
-        });
     });
 
     describe('rollbackState', () => {
@@ -130,6 +102,34 @@ describe('SelectModeStep', () => {
 
             expect(ctx.session.createGrid).toBeDefined();
             expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Advanced);
+        });
+
+        it('stores currentPrice in session when symbol is set and price fetch succeeds', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+
+            await step.handleModeSelection(ctx, CreateGridMode.Quick);
+
+            expect(ctx.session.createGrid?.currentPrice).toBe(43.89);
+        });
+
+        it('does not store currentPrice when price fetch fails', async () => {
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValueOnce(new Error('network'));
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+
+            await step.handleModeSelection(ctx, CreateGridMode.Quick);
+
+            expect(ctx.session.createGrid?.currentPrice).toBeUndefined();
+        });
+
+        it('does not call getCurrentPrice when symbol is not set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { mode: CreateGridMode.Quick };
+
+            await step.handleModeSelection(ctx, CreateGridMode.Quick);
+
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
     });
 

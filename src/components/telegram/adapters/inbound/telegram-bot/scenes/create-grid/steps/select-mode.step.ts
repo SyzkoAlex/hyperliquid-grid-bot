@@ -16,18 +16,7 @@ export class SelectModeStep implements WizardStep {
 
     constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
 
-    async buildView(ctx: BotContext): Promise<StepView> {
-        const symbol = ctx.session.createGrid?.symbol;
-        if (symbol) {
-            try {
-                const price = await this.tradingApi.getCurrentPrice(symbol);
-                if (ctx.session.createGrid) {
-                    ctx.session.createGrid.currentPrice = price;
-                }
-            } catch {
-                // price not critical — summary will fall back to symbol only
-            }
-        }
+    async buildView(_ctx: BotContext): Promise<StepView> {
         return {
             body: SelectModeTexts.PROMPT,
             keyboard: [
@@ -48,8 +37,16 @@ export class SelectModeStep implements WizardStep {
         }
         session.createGrid.mode = mode;
 
-        const nextStep = mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Upper;
+        const symbol = session.createGrid.symbol;
+        if (symbol) {
+            try {
+                session.createGrid.currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+            } catch {
+                // price not critical — summary will fall back to symbol only
+            }
+        }
 
+        const nextStep = mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Upper;
         return { nextStep };
     }
 
