@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { QuickStartPromptMessage, QuickStartConfirmationMessage } from './quick-start.messages';
+import { QuickStartPromptMessage } from './quick-start.messages';
 import { Decimal } from '@domain/models/primitives/decimal';
 
 describe('QuickStartPromptMessage', () => {
@@ -37,17 +37,5 @@ describe('QuickStartPromptMessage', () => {
             suggestedMax: 400,
         });
         expect(result.text).toContain('10 levels');
-    });
-});
-
-describe('QuickStartConfirmationMessage', () => {
-    it('contains the investment amount', () => {
-        const result = QuickStartConfirmationMessage.create(300);
-        expect(result.text).toContain('300');
-    });
-
-    it('shows USDC denomination', () => {
-        const result = QuickStartConfirmationMessage.create(100);
-        expect(result.text).toContain('USDC');
     });
 });

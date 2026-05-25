@@ -49,15 +49,3 @@ export class AdvancedInvestmentPromptMessage {
         return new AdvancedInvestmentPromptMessage(params);
     }
 }
-
-export class AdvancedInvestmentConfirmationMessage {
-    readonly text: string;
-
-    private constructor(investment: number) {
-        this.text = `${EMOJI.SUCCESS} Investment set: ${investment} USDC`;
-    }
-
-    static create(investment: number): AdvancedInvestmentConfirmationMessage {
-        return new AdvancedInvestmentConfirmationMessage(investment);
-    }
-}

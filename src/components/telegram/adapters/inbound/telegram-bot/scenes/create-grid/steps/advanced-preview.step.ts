@@ -4,33 +4,34 @@ import { InlineButton } from '@components/telegram/core/domain/models/inline-but
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
+import { StepView } from '../wizard/step-view';
 import { CreateGridMode } from '../create-grid-mode';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { AdvancedPreviewMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-preview.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
-import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 
 @Injectable()
 export class AdvancedPreviewStep implements WizardStep {
     readonly id = SceneStep.Preview;
 
-    constructor(
-        private readonly messageManager: WizardMessageManager,
-        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
-    ) {}
+    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
 
-    async enter(ctx: BotContext): Promise<void> {
+    async buildView(ctx: BotContext): Promise<StepView> {
         if (!this.validateState(ctx)) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidState());
-            await ctx.scene.leave();
-            return;
+            return {
+                body: ValidationTexts.invalidState(),
+                keyboard: [
+                    [
+                        { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                        { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
+                    ],
+                ],
+            };
         }
 
-        const session = ctx.session;
-        const state = session.createGrid!;
+        const state = ctx.session.createGrid!;
         const orderSize =
             state.totalInvestmentUSDC && state.levels
                 ? formatFiat(state.totalInvestmentUSDC / state.levels)
@@ -48,10 +49,10 @@ export class AdvancedPreviewStep implements WizardStep {
         try {
             currentPrice = await this.tradingApi.getCurrentPrice(state.symbol!);
         } catch {
-            // Ignore error, just don't show current price
+            // Ignore error — just don't show current price
         }
 
-        const message = AdvancedPreviewMessage.create({
+        const body = AdvancedPreviewMessage.create({
             symbol: state.symbol!,
             lowerPrice: state.lowerPrice!,
             upperPrice: state.upperPrice!,
@@ -63,12 +64,11 @@ export class AdvancedPreviewStep implements WizardStep {
             stopLossPrice: state.stopLossPrice,
         }).text;
 
-        await this.messageManager.sendEnterMessage(ctx, message, keyboard, TelegramParseMode.HTML);
+        return { body, keyboard };
     }
 
     private validateState(ctx: BotContext): boolean {
-        const session = ctx.session;
-        const state = session.createGrid;
+        const state = ctx.session.createGrid;
         return !!(
             state?.symbol &&
             state?.mode &&

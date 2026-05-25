@@ -1,38 +1,45 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WizardNavigator } from './wizard-navigator';
-import { WizardMessageManager } from './wizard-message-manager';
+import { BoardRenderer } from './board-renderer';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 import { WizardStep } from './wizard-step';
+import { StepView } from './step-view';
 
 describe('WizardNavigator', () => {
     let navigator: WizardNavigator;
-    let mockMessageManager: WizardMessageManager;
+    let mockBoardRenderer: BoardRenderer;
     let mockPairStep: WizardStep;
     let mockModeStep: WizardStep;
 
+    const pairView: StepView = {
+        body: 'Select pair',
+        keyboard: [[{ text: 'Cancel', action: 'create_grid:cancel' }]],
+    };
+
+    const modeView: StepView = {
+        body: 'Select mode',
+        keyboard: [[{ text: 'Quick', action: 'create_grid:mode:quick' }]],
+    };
+
     beforeEach(() => {
-        mockMessageManager = {
-            initStep: vi.fn(),
-            deleteEnterMessages: vi.fn().mockResolvedValue(undefined),
-            deleteConfirmationMessages: vi.fn().mockResolvedValue(undefined),
-            sendConfirmation: vi.fn().mockResolvedValue(undefined),
-            deleteAllMessages: vi.fn().mockResolvedValue(undefined),
-        } as unknown as WizardMessageManager;
+        mockBoardRenderer = {
+            render: vi.fn().mockResolvedValue(undefined),
+        } as unknown as BoardRenderer;
 
         mockPairStep = {
             id: SceneStep.Pair,
-            enter: vi.fn().mockResolvedValue(undefined),
+            buildView: vi.fn().mockResolvedValue(pairView),
             rollbackState: vi.fn(),
         } as unknown as WizardStep;
 
         mockModeStep = {
             id: SceneStep.Mode,
-            enter: vi.fn().mockResolvedValue(undefined),
+            buildView: vi.fn().mockResolvedValue(modeView),
             rollbackState: vi.fn(),
         } as unknown as WizardStep;
 
-        navigator = new WizardNavigator(mockMessageManager);
+        navigator = new WizardNavigator(mockBoardRenderer);
         navigator.registerStep(mockPairStep);
         navigator.registerStep(mockModeStep);
     });
@@ -42,11 +49,14 @@ describe('WizardNavigator', () => {
             session: {},
             scene: { leave: vi.fn() },
             reply: vi.fn().mockResolvedValue({}),
+            telegram: {
+                deleteMessage: vi.fn().mockResolvedValue(undefined),
+            },
         } as unknown as BotContext;
     }
 
     describe('start', () => {
-        it('initializes session and calls first step enter', async () => {
+        it('initializes session and renders first step via boardRenderer', async () => {
             const ctx = createMockContext();
 
             await navigator.start(ctx);
@@ -54,80 +64,46 @@ describe('WizardNavigator', () => {
             expect(ctx.session.createGrid).toMatchObject({
                 currentStep: SceneStep.Pair,
                 stepHistory: [],
-                stepMessages: {},
             });
-            expect(mockMessageManager.initStep).toHaveBeenCalledWith(ctx, SceneStep.Pair);
-            expect(mockPairStep.enter).toHaveBeenCalledWith(ctx);
+            expect(mockPairStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, pairView);
         });
     });
 
     describe('completeStep', () => {
         it('returns early when currentStep is falsy', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { stepHistory: [], stepMessages: {} };
+            ctx.session.createGrid = { stepHistory: [] };
 
-            await navigator.completeStep(ctx, {
-                nextStep: SceneStep.Mode,
-            });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Mode });
 
-            expect(mockMessageManager.deleteEnterMessages).not.toHaveBeenCalled();
-            expect(mockModeStep.enter).not.toHaveBeenCalled();
+            expect(mockBoardRenderer.render).not.toHaveBeenCalled();
         });
 
-        it('does not call sendConfirmation when confirmations is empty', async () => {
+        it('advances step, pushes history, and renders next step', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 currentStep: SceneStep.Pair,
                 stepHistory: [],
-                stepMessages: {},
             };
 
-            await navigator.completeStep(ctx, {
-                nextStep: SceneStep.Mode,
-                confirmations: [],
-            });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Mode });
 
-            expect(mockMessageManager.sendConfirmation).not.toHaveBeenCalled();
-            expect(mockModeStep.enter).toHaveBeenCalledWith(ctx);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Mode);
+            expect(ctx.session.createGrid?.stepHistory).toContain(SceneStep.Pair);
+            expect(mockModeStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, modeView);
         });
 
         it('initializes stepHistory if undefined', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 currentStep: SceneStep.Pair,
-                stepMessages: {},
             };
 
             await navigator.completeStep(ctx, { nextStep: SceneStep.Mode });
 
             expect(ctx.session.createGrid?.stepHistory).toContain(SceneStep.Pair);
-        });
-
-        it('deletes enter messages, sends confirmations, and navigates to next step', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = {
-                currentStep: SceneStep.Pair,
-                stepHistory: [],
-                stepMessages: {},
-            };
-
-            await navigator.completeStep(ctx, {
-                nextStep: SceneStep.Mode,
-                confirmations: ['Pair selected!'],
-            });
-
-            expect(mockMessageManager.deleteEnterMessages).toHaveBeenCalledWith(
-                ctx,
-                SceneStep.Pair,
-            );
-            expect(mockMessageManager.sendConfirmation).toHaveBeenCalledWith(
-                ctx,
-                SceneStep.Pair,
-                'Pair selected!',
-            );
-            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Mode);
-            expect(ctx.session.createGrid?.stepHistory).toContain(SceneStep.Pair);
-            expect(mockModeStep.enter).toHaveBeenCalledWith(ctx);
         });
     });
 
@@ -137,71 +113,78 @@ describe('WizardNavigator', () => {
             ctx.session.createGrid = {
                 currentStep: SceneStep.Mode,
                 stepHistory: [SceneStep.Pair],
-                stepMessages: {
-                    [SceneStep.Mode]: { enterMessageIds: [], confirmationMessageIds: [] },
-                },
             };
 
             await navigator.handleBack(ctx);
 
-            expect(mockMessageManager.deleteEnterMessages).toHaveBeenCalledWith(
-                ctx,
-                SceneStep.Mode,
-            );
-            expect(mockMessageManager.deleteConfirmationMessages).toHaveBeenCalledWith(
-                ctx,
-                SceneStep.Pair,
-            );
             expect(mockPairStep.rollbackState).toHaveBeenCalledWith(ctx);
             expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Pair);
-            expect(mockPairStep.enter).toHaveBeenCalledWith(ctx);
+            expect(mockPairStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, pairView);
         });
 
-        it('re-enters current step when showingValidationError is true', async () => {
+        it('clears pendingError on back navigation', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                currentStep: SceneStep.Pair,
-                stepHistory: [],
-                stepMessages: {},
-                showingValidationError: true,
+                currentStep: SceneStep.Mode,
+                stepHistory: [SceneStep.Pair],
+                pendingError: 'Some error',
             };
 
             await navigator.handleBack(ctx);
 
-            expect(ctx.session.createGrid?.showingValidationError).toBe(false);
-            expect(mockPairStep.enter).toHaveBeenCalledWith(ctx);
-            expect(mockMessageManager.deleteConfirmationMessages).not.toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeUndefined();
         });
 
-        it('does nothing when stepHistory is empty and no validation error', async () => {
+        it('does nothing when stepHistory is empty', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 currentStep: SceneStep.Pair,
                 stepHistory: [],
-                stepMessages: {},
             };
 
             await navigator.handleBack(ctx);
 
-            expect(mockPairStep.enter).not.toHaveBeenCalled();
-            expect(mockModeStep.enter).not.toHaveBeenCalled();
+            expect(mockBoardRenderer.render).not.toHaveBeenCalled();
+        });
+
+        it('does nothing when createGrid is missing', async () => {
+            const ctx = createMockContext();
+
+            await navigator.handleBack(ctx);
+
+            expect(mockBoardRenderer.render).not.toHaveBeenCalled();
         });
     });
 
     describe('handleCancel', () => {
-        it('deletes all messages, clears session, and leaves scene', async () => {
+        it('deletes board message, clears session, and leaves scene', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 currentStep: SceneStep.Pair,
                 stepHistory: [],
-                stepMessages: {},
+                boardChatId: 10,
+                boardMessageId: 20,
             };
 
             await navigator.handleCancel(ctx);
 
-            expect(mockMessageManager.deleteAllMessages).toHaveBeenCalledWith(ctx);
+            expect(ctx.telegram.deleteMessage).toHaveBeenCalledWith(10, 20);
             expect(ctx.session.createGrid).toBeUndefined();
             expect(ctx.scene.leave).toHaveBeenCalled();
+        });
+
+        it('skips board delete when boardMessageId is not set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+            };
+
+            await navigator.handleCancel(ctx);
+
+            expect(ctx.telegram.deleteMessage).not.toHaveBeenCalled();
+            expect(ctx.session.createGrid).toBeUndefined();
         });
 
         it('sends cancellation message when stepHistory is non-empty', async () => {
@@ -209,7 +192,6 @@ describe('WizardNavigator', () => {
             ctx.session.createGrid = {
                 currentStep: SceneStep.Mode,
                 stepHistory: [SceneStep.Pair],
-                stepMessages: {},
             };
 
             await navigator.handleCancel(ctx);
@@ -223,12 +205,73 @@ describe('WizardNavigator', () => {
             ctx.session.createGrid = {
                 currentStep: SceneStep.Pair,
                 stepHistory: [],
-                stepMessages: {},
             };
 
             await navigator.handleCancel(ctx);
 
             expect(ctx.reply).not.toHaveBeenCalled();
+        });
+
+        it('handles board delete failure gracefully', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+                boardChatId: 10,
+                boardMessageId: 20,
+            };
+            vi.mocked(ctx.telegram.deleteMessage).mockRejectedValue(new Error('message not found'));
+
+            await expect(navigator.handleCancel(ctx)).resolves.not.toThrow();
+        });
+    });
+
+    describe('renderCurrentStep', () => {
+        it('calls buildView and boardRenderer.render when step has buildView', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+            };
+
+            await navigator.renderCurrentStep(ctx);
+
+            expect(mockPairStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, pairView);
+        });
+
+        it('clears pendingError after rendering', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Pair,
+                stepHistory: [],
+                pendingError: 'some error',
+            };
+
+            await navigator.renderCurrentStep(ctx);
+
+            expect(ctx.session.createGrid?.pendingError).toBeUndefined();
+        });
+
+        it('does nothing when currentStep is not set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { stepHistory: [] };
+
+            await navigator.renderCurrentStep(ctx);
+
+            expect(mockBoardRenderer.render).not.toHaveBeenCalled();
+        });
+
+        it('does nothing when step is not registered', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Quick,
+                stepHistory: [],
+            };
+
+            await navigator.renderCurrentStep(ctx);
+
+            expect(mockBoardRenderer.render).not.toHaveBeenCalled();
         });
     });
 

@@ -20,4 +20,6 @@ export const BUTTON_LABELS = {
     SETTINGS: `${EMOJI.SETTINGS} Settings`,
     HELP: `${EMOJI.HELP} Help`,
     REFRESH: `${EMOJI.REFRESH} Refresh`,
+    CUSTOM: '✏️ Custom',
+    SKIP_NO_SL: '⏭ Skip (No SL)',
 } as const;

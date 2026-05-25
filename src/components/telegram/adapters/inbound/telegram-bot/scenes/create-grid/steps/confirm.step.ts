@@ -27,18 +27,44 @@ export class ConfirmStep {
             return;
         }
 
-        const sentMessage = await ctx.reply(
-            GridCreatingMessage.create({
-                symbol: state!.symbol!,
-                lowerPrice: state!.lowerPrice!,
-                upperPrice: state!.upperPrice!,
-                levels: state!.levels!,
-                totalInvestment: state!.totalInvestmentUSDC,
-            }).text,
-            { parse_mode: TelegramParseMode.HTML },
-        );
+        const creatingText = GridCreatingMessage.create({
+            symbol: state!.symbol!,
+            lowerPrice: state!.lowerPrice!,
+            upperPrice: state!.upperPrice!,
+            levels: state!.levels!,
+            totalInvestment: state!.totalInvestmentUSDC,
+        }).text;
 
-        this.pendingCreationMessageStore.save(sentMessage.chat.id, sentMessage.message_id);
+        let chatId: number;
+        let messageId: number;
+
+        if (state?.boardChatId && state?.boardMessageId) {
+            try {
+                await ctx.telegram.editMessageText(
+                    state.boardChatId,
+                    state.boardMessageId,
+                    undefined,
+                    creatingText,
+                    { parse_mode: TelegramParseMode.HTML },
+                );
+                chatId = state.boardChatId;
+                messageId = state.boardMessageId;
+            } catch {
+                const sentMessage = await ctx.reply(creatingText, {
+                    parse_mode: TelegramParseMode.HTML,
+                });
+                chatId = sentMessage.chat.id;
+                messageId = sentMessage.message_id;
+            }
+        } else {
+            const sentMessage = await ctx.reply(creatingText, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+            chatId = sentMessage.chat.id;
+            messageId = sentMessage.message_id;
+        }
+
+        this.pendingCreationMessageStore.save(chatId, messageId);
 
         const accountAddress = ctx.user?.accountAddress;
         if (!accountAddress) {

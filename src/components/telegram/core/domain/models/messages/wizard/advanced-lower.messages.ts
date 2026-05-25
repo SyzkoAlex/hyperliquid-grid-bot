@@ -1,4 +1,3 @@
-import { EMOJI } from '../../constants/emoji';
 import { PriceFormatter } from '../../formatters/price.formatter';
 
 export class AdvancedLowerPromptMessage {
@@ -16,17 +15,5 @@ export class AdvancedLowerPromptMessage {
 
     static create(upperPrice?: number): AdvancedLowerPromptMessage {
         return new AdvancedLowerPromptMessage(upperPrice);
-    }
-}
-
-export class AdvancedLowerConfirmationMessage {
-    readonly text: string;
-
-    private constructor(price: number) {
-        this.text = `${EMOJI.SUCCESS} Lower price set: ${PriceFormatter.format(price)}`;
-    }
-
-    static create(price: number): AdvancedLowerConfirmationMessage {
-        return new AdvancedLowerConfirmationMessage(price);
     }
 }

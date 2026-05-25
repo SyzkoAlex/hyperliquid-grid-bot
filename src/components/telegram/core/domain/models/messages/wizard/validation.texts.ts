@@ -163,6 +163,22 @@ export class ValidationTexts {
         );
     }
 
+    static enterCustomInvestment(): string {
+        return 'Send a number to set your investment amount.';
+    }
+
+    static enterCustomUpperPrice(): string {
+        return 'Send a number to set upper price.';
+    }
+
+    static enterCustomLowerPrice(): string {
+        return 'Send a number to set lower price.';
+    }
+
+    static enterCustomStopLoss(): string {
+        return 'Send a number to set stop-loss price.';
+    }
+
     static zeroUsdcBalance(symbol: string, baseBalance: Decimal): string {
         return (
             `${EMOJI.WARNING} You have no USDC!\n\n` +

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SelectPairStep } from './select-pair.step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 import { buildPairAction } from '../create-grid-actions';
@@ -9,7 +8,6 @@ import { buildPairAction } from '../create-grid-actions';
 describe('SelectPairStep', () => {
     let step: SelectPairStep;
     let mockTradingApi: TradingApiPort;
-    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
         mockTradingApi = {
@@ -24,47 +22,42 @@ describe('SelectPairStep', () => {
             ]),
         } as unknown as TradingApiPort;
 
-        mockMessageManager = {
-            sendEnterMessage: vi.fn(),
-        } as unknown as WizardMessageManager;
-
-        step = new SelectPairStep(mockTradingApi, mockMessageManager);
+        step = new SelectPairStep(mockTradingApi);
     });
 
-    describe('enter', () => {
-        it('sends prompt with HYPE button (same-symbol, no parens) and cancel', async () => {
+    describe('buildView', () => {
+        it('returns body with PROMPT text', async () => {
             const ctx = createMockContext();
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
-                ctx,
-                expect.any(String),
-                expect.arrayContaining([
-                    expect.arrayContaining([expect.objectContaining({ text: 'HYPE' })]),
-                ]),
-            );
+            expect(view.body).toContain('Select token');
+        });
+
+        it('renders HYPE button (same-symbol, no parens)', async () => {
+            const ctx = createMockContext();
+
+            const view = await step.buildView(ctx);
+
+            const hypeRow = view.keyboard.find((r) => r[0]?.text === 'HYPE');
+            expect(hypeRow).toBeDefined();
         });
 
         it('renders BTC (UBTC) for a token where displayName differs from symbol', async () => {
             const ctx = createMockContext();
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
-            const rows = keyboard as { text: string; action: string }[][];
-            const btcRow = rows.find((r) => r[0].text === 'BTC (UBTC)');
+            const btcRow = view.keyboard.find((r) => r[0]?.text === 'BTC (UBTC)');
             expect(btcRow).toBeDefined();
         });
 
-        it('uses on-chain symbol (UBTC) as callback_data for the BTC button', async () => {
+        it('uses on-chain symbol (UBTC) as callback_data for BTC button', async () => {
             const ctx = createMockContext();
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
-            const rows = keyboard as { text: string; action: string }[][];
-            const btcRow = rows.find((r) => r[0].text === 'BTC (UBTC)');
+            const btcRow = view.keyboard.find((r) => r[0]?.text === 'BTC (UBTC)');
             expect(btcRow![0].action).toBe(buildPairAction('UBTC'));
         });
 
@@ -74,14 +67,12 @@ describe('SelectPairStep', () => {
             );
             const ctx = createMockContext();
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
-            const rows = keyboard as { text: string; action: string }[][];
-            expect(rows).toHaveLength(2);
+            expect(view.keyboard).toHaveLength(2);
         });
 
-        it('calls tradingApi.getTopSymbolsByVolume and renders all returned tokens as buttons', async () => {
+        it('calls tradingApi.getTopSymbolsByVolume and renders all returned tokens', async () => {
             const dynamicTokens = [
                 { symbol: 'TOKEN1', displayName: 'TOKEN1' },
                 { symbol: 'TOKEN2', displayName: 'TOKEN2' },
@@ -90,28 +81,33 @@ describe('SelectPairStep', () => {
             vi.mocked(mockTradingApi.getTopSymbolsByVolume).mockResolvedValue(dynamicTokens);
             const ctx = createMockContext();
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            expect(mockTradingApi.getTopSymbolsByVolume).toHaveBeenCalledOnce();
-
-            const [, , keyboard] = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0];
-            const tokenButtons = (keyboard as { text: string; action: string }[][]).filter((row) =>
-                dynamicTokens.some((t) => t.symbol === row[0].text),
+            const tokenRows = view.keyboard.filter((row) =>
+                dynamicTokens.some((t) => t.symbol === row[0]?.text),
             );
-            expect(tokenButtons).toHaveLength(dynamicTokens.length);
+            expect(tokenRows).toHaveLength(dynamicTokens.length);
+        });
+
+        it('returns plain PROMPT body regardless of pendingError (error prepend is handled by BoardRenderer)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { pendingError: '❌ Token not found' };
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Select token');
+            expect(view.body).not.toContain('❌ Token not found');
         });
     });
 
     describe('handleOtherPair', () => {
-        it('sends other token prompt message', async () => {
+        it('sets OTHER_TOKEN_PROMPT as pendingError in session', async () => {
             const ctx = createMockContext();
+            ctx.session.createGrid = {};
 
             await step.handleOtherPair(ctx);
 
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalledWith(
-                ctx,
-                expect.any(String),
-            );
+            expect(ctx.session.createGrid.pendingError).toBeTruthy();
         });
     });
 
@@ -140,56 +136,39 @@ describe('SelectPairStep', () => {
 
             const result = await step.handlePairSelection(ctx, 'BTC');
 
-            expect(result).toEqual({
-                nextStep: SceneStep.Mode,
-                confirmations: ['✅ Selected: BTC/USDC'],
-            });
-            expect(ctx.session.createGrid).toEqual({ symbol: 'BTC' });
+            expect(result).toEqual({ nextStep: SceneStep.Mode });
+            expect(ctx.session.createGrid?.symbol).toBe('BTC');
             expect(mockTradingApi.pairExists).toHaveBeenCalledWith('BTC');
         });
 
-        it('should accept HYPE token and set in session', async () => {
-            const ctx = createMockContext();
-            vi.mocked(mockTradingApi.pairExists).mockResolvedValue(true);
-
-            const result = await step.handlePairSelection(ctx, 'HYPE');
-
-            expect(result).toEqual({
-                nextStep: SceneStep.Mode,
-                confirmations: ['✅ Selected: HYPE/USDC'],
-            });
-            expect(ctx.session.createGrid).toEqual(expect.objectContaining({ symbol: 'HYPE' }));
-            expect(mockTradingApi.pairExists).toHaveBeenCalledWith('HYPE');
-        });
-
-        it('should reject invalid symbol', async () => {
+        it('should reject invalid symbol by setting pendingError and returning null', async () => {
             const ctx = createMockContext();
             vi.mocked(mockTradingApi.pairExists).mockResolvedValue(false);
 
             const result = await step.handlePairSelection(ctx, 'INVALID');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should handle TradingSymbol creation error', async () => {
+        it('should handle TradingApi error by setting pendingError and returning null', async () => {
             const ctx = createMockContext();
             vi.mocked(mockTradingApi.pairExists).mockRejectedValue(new Error('Invalid symbol'));
 
             const result = await step.handlePairSelection(ctx, '');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should handle empty symbol string', async () => {
+        it('should handle empty symbol string gracefully', async () => {
             const ctx = createMockContext();
             vi.mocked(mockTradingApi.pairExists).mockResolvedValue(false);
 
             const result = await step.handlePairSelection(ctx, '');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
     });
 
@@ -201,10 +180,7 @@ describe('SelectPairStep', () => {
 
             const result = await step.handleTextInput(ctx, 'btc');
 
-            expect(result).toEqual({
-                nextStep: SceneStep.Mode,
-                confirmations: ['✅ Selected: BTC/USDC'],
-            });
+            expect(result).toEqual({ nextStep: SceneStep.Mode });
             expect(ctx.session.createGrid?.symbol).toBe('BTC');
         });
 
@@ -219,7 +195,9 @@ describe('SelectPairStep', () => {
     });
 
     function createMockContext(): BotContext {
-        const session = { createGrid: {} };
+        const session: { createGrid: Record<string, unknown> | undefined } = {
+            createGrid: {},
+        };
         return {
             session,
             scene: { leave: vi.fn() },

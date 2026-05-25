@@ -14,7 +14,7 @@ import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
 import { WizardNavigator } from './wizard/wizard-navigator';
-import { WizardMessageManager } from './wizard/wizard-message-manager';
+import { StepResult } from './wizard/step-result';
 import { isReplyMenuText } from '../../handlers/main-menu.keyboard';
 import { SceneHandler } from '../scene-handler';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
@@ -29,7 +29,6 @@ export class CreateGridSceneHandler implements SceneHandler {
 
     constructor(
         private readonly navigator: WizardNavigator,
-        private readonly messageManager: WizardMessageManager,
         private readonly selectPairStep: SelectPairStep,
         private readonly selectModeStep: SelectModeStep,
         private readonly quickStartStep: QuickStartStep,
@@ -69,6 +68,18 @@ export class CreateGridSceneHandler implements SceneHandler {
 
         scene.action(CREATE_GRID_PATTERNS.LEVELS, (ctx) => this.handleLevelsAction(ctx));
 
+        scene.action(CREATE_GRID_PATTERNS.UPPER_PRESET, (ctx) => this.handleUpperPresetAction(ctx));
+        scene.action(CREATE_GRID_PATTERNS.LOWER_PRESET, (ctx) => this.handleLowerPresetAction(ctx));
+        scene.action(CREATE_GRID_PATTERNS.QUICK_INVESTMENT_PRESET, (ctx) =>
+            this.handleQuickInvestmentPresetAction(ctx),
+        );
+        scene.action(CREATE_GRID_PATTERNS.ADV_INVESTMENT_PRESET, (ctx) =>
+            this.handleAdvInvestmentPresetAction(ctx),
+        );
+        scene.action(CREATE_GRID_PATTERNS.STOP_LOSS_PRESET, (ctx) =>
+            this.handleStopLossPresetAction(ctx),
+        );
+
         scene.action(CREATE_GRID_ACTIONS.STOP_LOSS_OFF, (ctx) => this.handleStopLossOffAction(ctx));
 
         scene.action(CREATE_GRID_ACTIONS.CONFIRM, (ctx) => this.handleConfirmAction(ctx));
@@ -80,63 +91,84 @@ export class CreateGridSceneHandler implements SceneHandler {
         return scene;
     }
 
-    private async handlePairAction(ctx: BotContext): Promise<void> {
+    private async runStepAction(
+        ctx: BotContext,
+        handlerFn: () => Promise<StepResult>,
+    ): Promise<void> {
         try {
-            const symbol = ctx.match![1];
-            const result = await this.selectPairStep.handlePairSelection(ctx, symbol);
+            const result = await handlerFn();
             if (result) {
                 await this.navigator.completeStep(ctx, result);
+            } else if (ctx.session.createGrid?.pendingError) {
+                await this.navigator.renderCurrentStep(ctx);
             }
         } finally {
             await ctx.answerCbQuery();
         }
     }
 
+    private async handlePairAction(ctx: BotContext): Promise<void> {
+        const symbol = ctx.match![1];
+        return this.runStepAction(ctx, () => this.selectPairStep.handlePairSelection(ctx, symbol));
+    }
+
     private async handleOtherPairAction(ctx: BotContext): Promise<void> {
         try {
             await this.selectPairStep.handleOtherPair(ctx);
+            if (ctx.session.createGrid?.pendingError) {
+                await this.navigator.renderCurrentStep(ctx);
+            }
         } finally {
             await ctx.answerCbQuery();
         }
     }
 
     private async handleModeAction(ctx: BotContext, mode: CreateGridMode): Promise<void> {
-        try {
-            const result = await this.selectModeStep.handleModeSelection(ctx, mode);
-            if (result) {
-                await this.navigator.completeStep(ctx, result);
-            }
-        } finally {
-            await ctx.answerCbQuery();
-        }
+        return this.runStepAction(ctx, () => this.selectModeStep.handleModeSelection(ctx, mode));
     }
 
     private async handleLevelsAction(ctx: BotContext): Promise<void> {
-        try {
-            const levels = parseInt(ctx.match![1], 10);
-            const result = await this.advancedLevelsStep.handleLevelsSelection(ctx, levels);
-            if (result) {
-                await this.navigator.completeStep(ctx, result);
-            }
-        } finally {
-            await ctx.answerCbQuery();
-        }
+        const levels = parseInt(ctx.match![1], 10);
+        return this.runStepAction(ctx, () =>
+            this.advancedLevelsStep.handleLevelsSelection(ctx, levels),
+        );
+    }
+
+    private async handleUpperPresetAction(ctx: BotContext): Promise<void> {
+        const raw = ctx.match![1];
+        return this.runStepAction(ctx, () => this.advancedUpperStep.handleUpperPreset(ctx, raw));
+    }
+
+    private async handleLowerPresetAction(ctx: BotContext): Promise<void> {
+        const raw = ctx.match![1];
+        return this.runStepAction(ctx, () => this.advancedLowerStep.handleLowerPreset(ctx, raw));
+    }
+
+    private async handleQuickInvestmentPresetAction(ctx: BotContext): Promise<void> {
+        const key = ctx.match![1];
+        return this.runStepAction(ctx, () => this.quickStartStep.handleInvestmentPreset(ctx, key));
+    }
+
+    private async handleAdvInvestmentPresetAction(ctx: BotContext): Promise<void> {
+        const key = ctx.match![1];
+        return this.runStepAction(ctx, () =>
+            this.advancedInvestmentStep.handleInvestmentPreset(ctx, key),
+        );
+    }
+
+    private async handleStopLossPresetAction(ctx: BotContext): Promise<void> {
+        const key = ctx.match![1];
+        return this.runStepAction(ctx, () =>
+            this.advancedStopLossStep.handleStopLossPreset(ctx, key),
+        );
     }
 
     private async handleStopLossOffAction(ctx: BotContext): Promise<void> {
-        try {
-            const result = await this.advancedStopLossStep.handleSkip(ctx);
-            if (result) {
-                await this.navigator.completeStep(ctx, result);
-            }
-        } finally {
-            await ctx.answerCbQuery();
-        }
+        return this.runStepAction(ctx, () => this.advancedStopLossStep.handleSkip(ctx));
     }
 
     private async handleConfirmAction(ctx: BotContext): Promise<void> {
         try {
-            await this.messageManager.deleteAllMessages(ctx);
             try {
                 await this.confirmStep.execute(ctx);
             } catch (error) {
@@ -178,6 +210,14 @@ export class CreateGridSceneHandler implements SceneHandler {
             return;
         }
 
+        if ('message_id' in ctx.message) {
+            try {
+                await ctx.deleteMessage(ctx.message.message_id);
+            } catch (error) {
+                this.logger.warn({ error }, 'Failed to delete user text message');
+            }
+        }
+
         const currentStepId = this.navigator.getCurrentStep(ctx);
         if (!currentStepId) {
             return;
@@ -191,6 +231,8 @@ export class CreateGridSceneHandler implements SceneHandler {
         const result = await currentStep.handleTextInput(ctx, text);
         if (result) {
             await this.navigator.completeStep(ctx, result);
+        } else if (ctx.session.createGrid?.pendingError) {
+            await this.navigator.renderCurrentStep(ctx);
         }
     }
 }

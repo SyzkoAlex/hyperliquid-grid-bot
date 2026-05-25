@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-    AdvancedInvestmentPromptMessage,
-    AdvancedInvestmentConfirmationMessage,
-} from './advanced-investment.messages';
+import { AdvancedInvestmentPromptMessage } from './advanced-investment.messages';
 import { Decimal } from '@domain/models/primitives/decimal';
 
 describe('AdvancedInvestmentPromptMessage', () => {
@@ -42,17 +39,5 @@ describe('AdvancedInvestmentPromptMessage', () => {
         });
         expect(result.text).toContain('20 levels');
         expect(result.text).toContain('400');
-    });
-});
-
-describe('AdvancedInvestmentConfirmationMessage', () => {
-    it('contains the investment amount', () => {
-        const result = AdvancedInvestmentConfirmationMessage.create(500);
-        expect(result.text).toContain('500');
-    });
-
-    it('shows USDC denomination', () => {
-        const result = AdvancedInvestmentConfirmationMessage.create(250);
-        expect(result.text).toContain('USDC');
     });
 });

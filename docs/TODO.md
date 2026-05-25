@@ -12,6 +12,19 @@ In `OrderRestoreService.restoreOrders()`, after restoring pending orders:
 - [ ] If grid is stopped/not found — cancel the order on the exchange
 - [ ] Log cancelled orphaned orders with grid/order details
 
+### Grid Wizard UX: AI Features (in development in external service)
+
+The following wizard improvements depend on the external AI/analytics service currently in development.
+Once the service is ready, integrate its output into the wizard UI:
+
+- [ ] **AI-suggested range** — display AI-recommended Upper/Lower bounds (based on 7/30/90-day volatility) as preset buttons on the Range step
+- [ ] **AI-suggested grid count** — show AI-recommended number of levels alongside the profit-per-grid estimate
+- [ ] **Historical backtest preview** — show simulated 30-day PnL, number of cycles, max drawdown, and time-in-range % on the Preview step (`GridBacktestService` consumer)
+- [ ] **Annualized projected return** — show APR estimate in Preview based on backtest output with disclaimer
+- [ ] **AI chat entry point** — `/grid_ai <natural language>` command: parse intent → pre-fill wizard state → jump to Preview (LLM integration, separate scope)
+
+---
+
 ### Token Swap
 
 Swap tokens directly in the Telegram bot (e.g. USDC → BTC). Useful when user has USDC but needs base token for grid creation.

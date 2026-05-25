@@ -5,22 +5,17 @@ import { CREATE_GRID_ACTIONS, buildLevelsAction } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
+import { StepView } from '../wizard/step-view';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import {
-    AdvancedLevelsTexts,
-    AdvancedLevelsConfirmationMessage,
-} from '@components/telegram/core/domain/models/messages/wizard/advanced-levels.messages';
+import { AdvancedLevelsTexts } from '@components/telegram/core/domain/models/messages/wizard/advanced-levels.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
 export class AdvancedLevelsStep implements WizardStep {
     readonly id = SceneStep.Levels;
 
-    constructor(private readonly messageManager: WizardMessageManager) {}
-
-    async enter(ctx: BotContext): Promise<void> {
+    async buildView(_ctx: BotContext): Promise<StepView> {
         const keyboard: InlineButton[][] = [
             ...WIZARD_CONFIG.PRESET_LEVELS.map((level) => [
                 { text: level.toString(), action: buildLevelsAction(level) },
@@ -31,7 +26,7 @@ export class AdvancedLevelsStep implements WizardStep {
             ],
         ];
 
-        await this.messageManager.sendEnterMessage(ctx, AdvancedLevelsTexts.PROMPT, keyboard);
+        return { body: AdvancedLevelsTexts.PROMPT, keyboard };
     }
 
     async handleLevelsSelection(ctx: BotContext, levels: number): Promise<StepResult> {
@@ -41,21 +36,15 @@ export class AdvancedLevelsStep implements WizardStep {
         }
 
         if (levels < WIZARD_CONFIG.MIN_LEVELS || levels > WIZARD_CONFIG.MAX_LEVELS) {
-            await this.messageManager.sendEnterMessage(
-                ctx,
-                ValidationTexts.invalidLevelsRange(
-                    WIZARD_CONFIG.MIN_LEVELS,
-                    WIZARD_CONFIG.MAX_LEVELS,
-                ),
+            session.createGrid.pendingError = ValidationTexts.invalidLevelsRange(
+                WIZARD_CONFIG.MIN_LEVELS,
+                WIZARD_CONFIG.MAX_LEVELS,
             );
             return null;
         }
 
         session.createGrid.levels = levels;
-        return {
-            nextStep: SceneStep.Investment,
-            confirmations: [AdvancedLevelsConfirmationMessage.create(levels).text],
-        };
+        return { nextStep: SceneStep.Investment };
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
@@ -67,11 +56,11 @@ export class AdvancedLevelsStep implements WizardStep {
         const levels = parseInt(text, 10);
 
         if (isNaN(levels)) {
-            await this.messageManager.sendEnterMessage(ctx, ValidationTexts.invalidNumber());
+            session.createGrid.pendingError = ValidationTexts.invalidNumber();
             return null;
         }
 
-        return await this.handleLevelsSelection(ctx, levels);
+        return this.handleLevelsSelection(ctx, levels);
     }
 
     rollbackState(ctx: BotContext): void {

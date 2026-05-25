@@ -1,10 +1,8 @@
 import { CreateGridMode } from './create-grid-mode';
 import { SceneStep } from './create-grid-scene-step';
+import { BalanceSnapshot } from './balance-snapshot';
 
-export interface StepMessages {
-    enterMessageIds: number[];
-    confirmationMessageIds: number[];
-}
+export type { BalanceSnapshot };
 
 export interface CreateGridWizardState {
     symbol?: string;
@@ -15,9 +13,10 @@ export interface CreateGridWizardState {
     totalInvestmentUSDC?: number;
     currentStep?: SceneStep;
     stepHistory?: SceneStep[];
-    stepMessages?: Record<string, StepMessages>;
-    messageIds?: number[];
-    showingValidationError?: boolean;
+    boardChatId?: number;
+    boardMessageId?: number;
+    pendingError?: string;
+    balanceSnapshot?: BalanceSnapshot;
     stopLossEnabled?: boolean;
     stopLossPrice?: number;
 }

@@ -47,15 +47,3 @@ export class QuickStartPromptMessage {
         return new QuickStartPromptMessage(params);
     }
 }
-
-export class QuickStartConfirmationMessage {
-    readonly text: string;
-
-    private constructor(investment: number) {
-        this.text = `${EMOJI.SUCCESS} Investment set: ${investment} USDC`;
-    }
-
-    static create(investment: number): QuickStartConfirmationMessage {
-        return new QuickStartConfirmationMessage(investment);
-    }
-}
