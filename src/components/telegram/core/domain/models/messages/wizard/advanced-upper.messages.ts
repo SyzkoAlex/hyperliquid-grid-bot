@@ -20,15 +20,3 @@ export class AdvancedUpperPromptMessage {
         return new AdvancedUpperPromptMessage(symbol, currentPrice);
     }
 }
-
-export class AdvancedUpperConfirmationMessage {
-    readonly text: string;
-
-    private constructor(price: number) {
-        this.text = `${EMOJI.SUCCESS} Upper price set: ${PriceFormatter.format(price)}`;
-    }
-
-    static create(price: number): AdvancedUpperConfirmationMessage {
-        return new AdvancedUpperConfirmationMessage(price);
-    }
-}

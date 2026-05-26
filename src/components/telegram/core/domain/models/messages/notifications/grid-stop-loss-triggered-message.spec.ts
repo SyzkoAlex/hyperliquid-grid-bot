@@ -100,14 +100,14 @@ describe('GridStopLossTriggeredMessage', () => {
                 0,
                 0,
                 false,
-                'IOC sell unfilled after 2 attempts',
+                'Market sell failed',
             );
 
             const message = GridStopLossTriggeredMessage.fromEvent(event);
 
             expect(message.text).toContain('Stop-Loss Triggered');
             expect(message.text).toContain('Manual action needed');
-            expect(message.text).toContain('IOC sell unfilled after 2 attempts');
+            expect(message.text).toContain('Market sell failed');
         });
     });
 });

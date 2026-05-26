@@ -23,7 +23,8 @@ import { EnterAddressStep } from './adapters/inbound/telegram-bot/scenes/connect
 import { ApproveAgentStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/approve-agent.step';
 import { VerifyApprovalStep } from './adapters/inbound/telegram-bot/scenes/connect-account/steps/verify-approval.step';
 import { WizardNavigator } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-navigator';
-import { WizardMessageManager } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-message-manager';
+import { BoardRenderer } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/board-renderer';
+import { WizardSummaryBuilder } from './adapters/inbound/telegram-bot/scenes/create-grid/wizard/wizard-summary-builder';
 import { GridsHandler } from './adapters/inbound/telegram-bot/handlers/grids/grids.handler';
 import { GridProfitTabHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/grid-profit-tab.handler';
 import { GridOrdersTabHandler } from './adapters/inbound/telegram-bot/handlers/grid-view/grid-orders-tab.handler';
@@ -68,7 +69,8 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         TradingEventsAdapter,
         EventDeserializer,
         WizardNavigator,
-        WizardMessageManager,
+        WizardSummaryBuilder,
+        BoardRenderer,
         CreateGridSceneHandler,
         ConnectAccountSceneHandler,
         GetGridsWithPnlUseCase,

@@ -1,7 +1,7 @@
 import { EMOJI } from '../../constants/emoji';
 import { WIZARD_CONFIG } from '../../constants/wizard-config';
 import { Decimal } from '@domain/models/primitives/decimal';
-import { formatFiat } from '../../formatters/format-fiat';
+import { feeHintLine } from './fee-hint';
 
 interface QuickStartPromptParams {
     symbol: string;
@@ -11,6 +11,8 @@ interface QuickStartPromptParams {
     totalBalance: Decimal;
     currentPrice: number;
     suggestedMax: number;
+    lowerPrice: number;
+    upperPrice: number;
 }
 
 export class QuickStartPromptMessage {
@@ -18,7 +20,7 @@ export class QuickStartPromptMessage {
 
     private constructor(params?: QuickStartPromptParams) {
         if (!params) {
-            this.text = `How much USDC do you want to invest?\n\nMinimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order`;
+            this.text = `How much to invest?\n\n` + feeHintLine();
             return;
         }
 
@@ -26,36 +28,32 @@ export class QuickStartPromptMessage {
             symbol,
             usdcBalance,
             baseBalance,
-            baseInUsdc,
             totalBalance,
-            currentPrice,
             suggestedMax,
+            lowerPrice,
+            upperPrice,
         } = params;
+
+        const feeHint = feeHintLine({
+            suggestedMax,
+            levels: WIZARD_CONFIG.DEFAULT_LEVELS,
+            lowerPrice,
+            upperPrice,
+        });
+
+        const totalRounded = Math.round(totalBalance.toNumber()).toLocaleString('en-US');
+        const usdcRounded = Math.round(usdcBalance.toNumber()).toLocaleString('en-US');
+        const baseFormatted = parseFloat(baseBalance.toNumber().toFixed(2)).toLocaleString('en-US');
+
         this.text =
-            `${EMOJI.MONEY} Your balance:\n` +
-            `  • USDC: ${usdcBalance.toString()}\n` +
-            `  • ${symbol}: ${baseBalance.toString()} (${formatFiat(baseInUsdc.toNumber())} USDC)\n\n` +
-            `${symbol} price: $${formatFiat(currentPrice)}\n\n` +
-            `Total balance: ${formatFiat(totalBalance.toNumber())} USDC\n\n` +
-            `How much USDC do you want to invest?\n\n` +
-            `Minimum: ${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order\n\n` +
-            `${EMOJI.BULB} Suggested max: ~${suggestedMax} USDC (for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels)\n` +
-            `  (~${Math.floor(suggestedMax / 2)} USDC + ~${(suggestedMax / 2 / currentPrice).toFixed(4)} ${symbol})`;
+            `How much to invest?\n\n` +
+            `${EMOJI.MONEY} Available: ~${totalRounded} USDC\n` +
+            `   (${usdcRounded} USDC + ${baseFormatted} ${symbol})\n\n` +
+            `${EMOJI.BULB} Recommended: ~${suggestedMax} USDC for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels\n` +
+            feeHint;
     }
 
     static create(params?: QuickStartPromptParams): QuickStartPromptMessage {
         return new QuickStartPromptMessage(params);
-    }
-}
-
-export class QuickStartConfirmationMessage {
-    readonly text: string;
-
-    private constructor(investment: number) {
-        this.text = `${EMOJI.SUCCESS} Investment set: ${investment} USDC`;
-    }
-
-    static create(investment: number): QuickStartConfirmationMessage {
-        return new QuickStartConfirmationMessage(investment);
     }
 }

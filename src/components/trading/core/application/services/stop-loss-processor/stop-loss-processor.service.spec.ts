@@ -165,13 +165,14 @@ describe('StopLossProcessorService', () => {
                 success: false,
                 soldBaseAmount: 0,
                 receivedUSDC: 0,
-                errorMessage: 'IOC sell unfilled after 2 attempts.',
+                errorMessage:
+                    "Market sell failed: order didn't fill at the best available price after 2 attempts.",
             });
             const grid = makeGrid();
             await sut.process(grid as any, accountAddress, deepBelow, NOW);
             const event = mockEventPublisher.publish.mock.calls[0][0] as GridStopLossTriggeredEvent;
             expect(event.success).toBe(false);
-            expect(event.errorMessage).toContain('IOC sell unfilled');
+            expect(event.errorMessage).toContain('Market sell failed');
         });
 
         it('publishes failure event when teardown throws after marking grid stopped', async () => {

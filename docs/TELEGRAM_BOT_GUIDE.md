@@ -31,8 +31,9 @@ telegram/adapters/inbound/telegram-bot/
 │       ├── wizard/
 │       │   ├── wizard-step.ts           # Step interface
 │       │   ├── step-result.ts
+│       │   ├── step-view.ts
 │       │   ├── wizard-navigator.ts
-│       │   └── wizard-message-manager.ts
+│       │   └── board-renderer.ts
 │       └── helpers/                     # (optional)
 │           └── {helper-name}.ts
 ├── types/
@@ -296,7 +297,7 @@ Scenes handle multi-step interactive flows (e.g. grid creation wizard).
 ```
 Scene Handler ─── creates BaseScene, registers actions, routes text input
     ├── WizardNavigator ─── manages step transitions, back/cancel, state
-    ├── WizardMessageManager ─── sends/deletes enter & confirmation messages
+    ├── BoardRenderer ─── renders/edits the persistent wizard board message
     └── Steps (WizardStep[]) ─── individual step logic
 ```
 
@@ -375,29 +376,24 @@ Example step:
 export class AdvancedUpperStep implements WizardStep {
     readonly id = SceneStep.Upper;
 
-    constructor(
-        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
-        private readonly messageManager: WizardMessageManager,
-    ) {}
+    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
 
-    async enter(ctx: BotContext): Promise<void> {
-        const keyboard: InlineButton[][] = [
-            [
-                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-            ],
-        ];
-        await this.messageManager.sendEnterMessage(ctx, 'Enter upper price:', keyboard);
+    async buildView(ctx: BotContext): Promise<StepView> {
+        const symbol = ctx.session.createGrid?.symbol;
+        return {
+            body: AdvancedUpperPromptMessage.create(symbol).text,
+            keyboard: this.buildKeyboard(),
+        };
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
         const price = parseFloat(text);
         if (isNaN(price) || price <= 0) {
-            await this.messageManager.sendEnterMessage(ctx, 'Invalid price');
+            ctx.session.createGrid!.pendingError = ValidationTexts.invalidPrice();
             return null;
         }
         ctx.session.createGrid!.upperPrice = price;
-        return { nextStep: SceneStep.Lower, confirmations: ['✅ Upper: $' + price] };
+        return { nextStep: SceneStep.Lower };
     }
 
     rollbackState(ctx: BotContext): void {
@@ -417,7 +413,6 @@ export class CreateGridSceneHandler {
 
     constructor(
         private readonly navigator: WizardNavigator,
-        private readonly messageManager: WizardMessageManager,
         private readonly selectPairStep: SelectPairStep,
         // ... other steps
     ) {
@@ -498,16 +493,16 @@ private async handleTextInput(ctx: BotContext): Promise<void> {
 }
 ```
 
-### Message Lifecycle
+### Board Message Lifecycle
 
-The `WizardMessageManager` tracks message IDs per step to enable clean transitions:
+The `BoardRenderer` manages a single persistent board message per wizard session:
 
-| Message type | Sent when | Deleted when |
-|--------------|-----------|--------------|
-| Enter message | `step.enter()` | Step completes or Back pressed |
-| Confirmation message | Step completes | Back pressed (previous step) |
-
-On Cancel — all messages from all steps are deleted.
+| Event | Behaviour |
+|-------|-----------|
+| First step enters | `ctx.reply()` — creates board message, saves `boardChatId`/`boardMessageId` in session |
+| Step transitions / errors | `ctx.telegram.editMessageText()` — updates board in place |
+| Board message not found | Falls back to a new `ctx.reply()` |
+| Confirm / Cancel | Board message is edited to the final status text |
 
 ---
 
@@ -572,15 +567,15 @@ Notification message text is built by `NotificationMessageFactory` in domain lay
 - [ ] Create scene handler with `createScene()` method
 - [ ] Add wizard state to `SessionData`
 - [ ] Register scene in `TelegramCommandsAdapter.registerScenes()`
-- [ ] Reuse `WizardNavigator` and `WizardMessageManager` for step transitions
+- [ ] Reuse `WizardNavigator` and `BoardRenderer` for step transitions and board rendering
 - [ ] Prefix all scene actions with `{scene_name}:` to avoid collisions
 
 ### New Wizard Step
 
 - [ ] Create `steps/{step-name}.step.ts` implementing `WizardStep`
 - [ ] Add step to `SceneStep` enum
-- [ ] Implement `enter()`, `rollbackState()`, and optionally `handleTextInput()`
-- [ ] Return `StepResult` — `null` to stay, `{ nextStep, confirmations }` to proceed
+- [ ] Implement `buildView()`, `rollbackState()`, and optionally `handleTextInput()`
+- [ ] Return `StepResult` — `null` to stay, `{ nextStep }` to proceed
 - [ ] Register step in scene handler constructor via `navigator.registerStep()`
 - [ ] Add action handlers in `createScene()` if step uses inline buttons
 - [ ] Create message class in `core/domain/models/messages/wizard/`

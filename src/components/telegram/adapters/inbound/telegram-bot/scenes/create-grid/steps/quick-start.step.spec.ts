@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuickStartStep } from './quick-start.step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 
 describe('QuickStartStep', () => {
     let step: QuickStartStep;
     let mockTradingApi: TradingApiPort;
-    let mockMessageManager: WizardMessageManager;
 
     beforeEach(() => {
         mockTradingApi = {
@@ -22,14 +20,10 @@ describe('QuickStartStep', () => {
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
 
-        mockMessageManager = {
-            sendEnterMessage: vi.fn(),
-        } as unknown as WizardMessageManager;
-
-        step = new QuickStartStep(mockTradingApi, mockMessageManager);
+        step = new QuickStartStep(mockTradingApi);
     });
 
-    describe('enter', () => {
+    describe('buildView', () => {
         it('should show zero base balance warning when base token is zero', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
@@ -41,14 +35,13 @@ describe('QuickStartStep', () => {
                 spotPositions: {},
             });
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('You have no BTC tokens');
-            expect(message).toContain('USDC: 1000');
+            expect(view.body).toContain('You have no BTC tokens');
+            expect(view.body).toContain('USDC: 1000');
         });
 
-        it('should show locked-in-orders warning when all base is in orders (available = 0)', async () => {
+        it('should show locked-in-orders warning when all base is in orders', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
@@ -60,11 +53,10 @@ describe('QuickStartStep', () => {
             });
             vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('locked in existing orders');
-            expect(message).toContain('HYPE');
+            expect(view.body).toContain('locked in existing orders');
+            expect(view.body).toContain('HYPE');
         });
 
         it('should show locked-in-orders warning when partial base is locked and max-investment is too low', async () => {
@@ -79,11 +71,10 @@ describe('QuickStartStep', () => {
             });
             vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('locked in existing orders');
-            expect(message).not.toContain('Insufficient balance');
+            expect(view.body).toContain('locked in existing orders');
+            expect(view.body).not.toContain('Insufficient balance');
         });
 
         it('should show zero USDC balance warning when USDC is zero', async () => {
@@ -97,11 +88,65 @@ describe('QuickStartStep', () => {
                 spotPositions: { BTC: { available: 0.5, total: 0.5, hold: 0 } },
             });
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('You have no USDC');
-            expect(message).toContain('BTC: 0.5');
+            expect(view.body).toContain('You have no USDC');
+            expect(view.body).toContain('BTC: 0.5');
+        });
+
+        it('should show balance info when both balances are non-zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { BTC: 0.1 },
+                spotPositions: { BTC: { available: 0.1, total: 0.1, hold: 0 } },
+            });
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toBeTruthy();
+        });
+
+        it('should show fallback message when symbol is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+
+            const view = await step.buildView(ctx);
+
+            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
+            expect(view.body).toBeTruthy();
+        });
+
+        it('should show fallback message when balance fetch fails', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toBeTruthy();
+        });
+
+        it('includes Custom button in keyboard', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { BTC: 0.1 },
+                spotPositions: { BTC: { available: 0.1, total: 0.1, hold: 0 } },
+            });
+
+            const view = await step.buildView(ctx);
+
+            const customRow = view.keyboard.find((r) =>
+                r.some((b) => b.action === 'create_grid:quick_invest:custom'),
+            );
+            expect(customRow).toBeDefined();
         });
     });
 
@@ -119,37 +164,34 @@ describe('QuickStartStep', () => {
 
             const result = await step.handleTextInput(ctx, '1000');
 
-            expect(result).toEqual({
-                nextStep: SceneStep.Preview,
-                confirmations: ['✅ Investment set: 1000 USDC'],
-            });
+            expect(result).toEqual({ nextStep: SceneStep.Preview });
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBe(1000);
-            expect(ctx.session.createGrid?.upperPrice).toBe(60000); // 50000 + 20%
-            expect(ctx.session.createGrid?.lowerPrice).toBe(40000); // 50000 - 20%
+            expect(ctx.session.createGrid?.upperPrice).toBe(60000);
+            expect(ctx.session.createGrid?.lowerPrice).toBe(40000);
             expect(ctx.session.createGrid?.levels).toBe(10);
         });
 
-        it('should reject investment below minimum', async () => {
+        it('should set pendingError and return null for investment below minimum', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
 
             const result = await step.handleTextInput(ctx, '5');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should reject invalid number', async () => {
+        it('should set pendingError for invalid number', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
 
             const result = await step.handleTextInput(ctx, 'invalid');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should handle API error gracefully', async () => {
+        it('should set pendingError on API error', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'BTC' };
             vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API error'));
@@ -157,7 +199,7 @@ describe('QuickStartStep', () => {
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
         it('should return null if no symbol in session', async () => {
@@ -187,45 +229,28 @@ describe('QuickStartStep', () => {
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
     });
 
-    describe('enter (additional paths)', () => {
-        it('should show balance info when symbol exists and both balances are non-zero', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
-            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
-                usdcBalance: 5000,
-                usdc: { available: 5000, total: 5000, hold: 0 },
-                spotBalances: { BTC: 0.1 },
-                spotPositions: { BTC: { available: 0.1, total: 0.1, hold: 0 } },
-            });
-
-            await step.enter(ctx);
-
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
-        });
-
-        it('should show fallback message when symbol is missing', async () => {
+    describe('handleInvestmentPreset', () => {
+        it('sets pendingError and returns null when key is "custom"', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            await step.enter(ctx);
+            const result = await step.handleInvestmentPreset(ctx, 'custom');
 
-            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(result).toBeNull();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should show fallback message when balance fetch fails', async () => {
+        it('returns null when balanceSnapshot is missing', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'BTC' };
-            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+            ctx.session.createGrid = {};
 
-            await step.enter(ctx);
+            const result = await step.handleInvestmentPreset(ctx, '50');
 
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(result).toBeNull();
         });
     });
 
@@ -237,6 +262,7 @@ describe('QuickStartStep', () => {
                 upperPrice: 60000,
                 lowerPrice: 40000,
                 levels: 10,
+                balanceSnapshot: { suggestedMax: 5000 },
             };
 
             step.rollbackState(ctx);
@@ -245,6 +271,7 @@ describe('QuickStartStep', () => {
             expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
             expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
             expect(ctx.session.createGrid?.levels).toBeUndefined();
+            expect(ctx.session.createGrid?.balanceSnapshot).toBeUndefined();
         });
 
         it('does nothing when createGrid is undefined', () => {

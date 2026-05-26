@@ -1,91 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdvancedPreviewStep } from './advanced-preview.step';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
-import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
-    let mockMessageManager: WizardMessageManager;
-    let mockTradingApi: TradingApiPort;
 
     beforeEach(() => {
-        mockMessageManager = {
-            sendEnterMessage: vi.fn(),
-        } as unknown as WizardMessageManager;
-
-        mockTradingApi = {
-            getCurrentPrice: vi.fn().mockResolvedValue(50000),
-            getUserSpotState: vi.fn(),
-            pairExists: vi.fn(),
-        } as unknown as TradingApiPort;
-
-        step = new AdvancedPreviewStep(mockMessageManager, mockTradingApi);
+        step = new AdvancedPreviewStep();
     });
 
-    describe('enter', () => {
-        it('should display complete grid configuration', async () => {
+    describe('buildView', () => {
+        it('shows "Ready to create grid?" prompt', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                mode: CreateGridMode.Advanced,
-                upperPrice: 55000,
-                lowerPrice: 45000,
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Ready to create grid?');
+        });
+
+        it('shows per-order fee hint in preview body', async () => {
+            const ctx = createMockContext();
+            // $1000 / 10 levels = $100/order
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('~$100/order');
+            expect(view.body).toContain('profit');
+            expect(view.body).toContain('fee');
+        });
+
+        it('shows break-even warning when grid step is too tight', async () => {
+            const ctx = createMockContext({
+                upperPrice: 50001,
+                lowerPrice: 50000,
                 levels: 10,
                 totalInvestmentUSDC: 1000,
-            };
+            });
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(view.body).toContain('Break-even risk');
         });
 
-        it('should calculate order size correctly', async () => {
+        it('returns error body when state is invalid', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'ETH',
-                mode: CreateGridMode.Quick,
-                upperPrice: 3500,
-                lowerPrice: 2500,
-                levels: 5,
-                totalInvestmentUSDC: 500,
-            };
+            ctx.session.createGrid = { symbol: 'BTC' };
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(view.body).toContain('Invalid state');
+            expect(view.keyboard.flat().some((b) => b.action === CREATE_GRID_ACTIONS.BACK)).toBe(
+                true,
+            );
         });
 
-        it('should exit scene if state is invalid', async () => {
+        it('includes Confirm, Back and Cancel buttons in keyboard', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                // Missing required fields
-            };
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            expect(ctx.scene.leave).toHaveBeenCalled();
-        });
-    });
-
-    describe('enter (additional paths)', () => {
-        it('should build preview with null price when getCurrentPrice throws', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = {
-                symbol: 'BTC',
-                mode: CreateGridMode.Advanced,
-                upperPrice: 55000,
-                lowerPrice: 45000,
-                levels: 10,
-                totalInvestmentUSDC: 1000,
-            };
-            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API error'));
-
-            await step.enter(ctx);
-
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            const flat = view.keyboard.flat();
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.CONFIRM)).toBe(true);
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.BACK)).toBe(true);
+            expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.CANCEL)).toBe(true);
         });
     });
 
@@ -99,7 +77,7 @@ describe('AdvancedPreviewStep', () => {
             expect(ctx.session.createGrid).toBeUndefined();
         });
 
-        it('should clear quick mode fields', () => {
+        it('clears quick mode fields', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 mode: CreateGridMode.Quick,
@@ -117,7 +95,7 @@ describe('AdvancedPreviewStep', () => {
             expect(ctx.session.createGrid?.levels).toBeUndefined();
         });
 
-        it('should only clear investment for advanced mode', () => {
+        it('only clears investment for advanced mode', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 mode: CreateGridMode.Advanced,
@@ -136,8 +114,25 @@ describe('AdvancedPreviewStep', () => {
         });
     });
 
-    function createMockContext(): BotContext {
-        const session = { createGrid: {} };
+    function createMockContext(
+        overrides: Partial<{
+            upperPrice: number;
+            lowerPrice: number;
+            levels: number;
+            totalInvestmentUSDC: number;
+        }> = {},
+    ): BotContext {
+        const session = {
+            createGrid: {
+                symbol: 'BTC',
+                mode: CreateGridMode.Advanced,
+                upperPrice: 55000,
+                lowerPrice: 45000,
+                levels: 10,
+                totalInvestmentUSDC: 1000,
+                ...overrides,
+            },
+        };
         return {
             session,
             scene: { leave: vi.fn() },

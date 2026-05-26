@@ -1,20 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdvancedInvestmentStep } from './advanced-investment.step';
-import { WizardMessageManager } from '../wizard/wizard-message-manager';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 
 describe('AdvancedInvestmentStep', () => {
     let step: AdvancedInvestmentStep;
-    let mockMessageManager: WizardMessageManager;
     let mockTradingApi: TradingApiPort;
 
     beforeEach(() => {
-        mockMessageManager = {
-            sendEnterMessage: vi.fn(),
-        } as unknown as WizardMessageManager;
-
         mockTradingApi = {
             getCurrentPrice: vi.fn().mockResolvedValue(10),
             getUserSpotState: vi.fn().mockResolvedValue({
@@ -29,10 +23,10 @@ describe('AdvancedInvestmentStep', () => {
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
         } as unknown as TradingApiPort;
 
-        step = new AdvancedInvestmentStep(mockMessageManager, mockTradingApi);
+        step = new AdvancedInvestmentStep(mockTradingApi);
     });
 
-    describe('enter', () => {
+    describe('buildView', () => {
         it('should show zero base balance warning when base token is zero', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
@@ -44,14 +38,13 @@ describe('AdvancedInvestmentStep', () => {
                 spotPositions: {},
             });
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('You have no HYPE tokens');
-            expect(message).toContain('USDC: 5000');
+            expect(view.body).toContain('You have no HYPE tokens');
+            expect(view.body).toContain('USDC: 5000');
         });
 
-        it('should show locked-in-orders warning when all base is in orders (available = 0)', async () => {
+        it('should show locked-in-orders warning when all base is in orders', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
@@ -63,11 +56,10 @@ describe('AdvancedInvestmentStep', () => {
             });
             vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('locked in existing orders');
-            expect(message).toContain('HYPE');
+            expect(view.body).toContain('locked in existing orders');
+            expect(view.body).toContain('HYPE');
         });
 
         it('should show locked-in-orders warning when partial base is locked and max-investment is too low', async () => {
@@ -82,11 +74,10 @@ describe('AdvancedInvestmentStep', () => {
             });
             vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(0);
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('locked in existing orders');
-            expect(message).not.toContain('Insufficient balance');
+            expect(view.body).toContain('locked in existing orders');
+            expect(view.body).not.toContain('Insufficient balance');
         });
 
         it('should show zero USDC balance warning when USDC is zero', async () => {
@@ -100,11 +91,58 @@ describe('AdvancedInvestmentStep', () => {
                 spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
             });
 
-            await step.enter(ctx);
+            const view = await step.buildView(ctx);
 
-            const message = vi.mocked(mockMessageManager.sendEnterMessage).mock.calls[0][1];
-            expect(message).toContain('You have no USDC');
-            expect(message).toContain('HYPE: 500');
+            expect(view.body).toContain('You have no USDC');
+            expect(view.body).toContain('HYPE: 500');
+        });
+
+        it('should show balance info when both balances are non-zero', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { HYPE: 500 },
+                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
+            });
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toBeTruthy();
+        });
+
+        it('should show fallback message when symbol is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { levels: 10 };
+
+            const view = await step.buildView(ctx);
+
+            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
+            expect(view.body).toBeTruthy();
+        });
+
+        it('should show fallback message when balance fetch fails', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toBeTruthy();
+        });
+
+        it('includes Custom button in keyboard', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { levels: 10 };
+
+            const view = await step.buildView(ctx);
+
+            const customRow = view.keyboard.find((r) =>
+                r.some((b) => b.action === 'create_grid:adv_invest:custom'),
+            );
+            expect(customRow).toBeDefined();
         });
     });
 
@@ -120,14 +158,11 @@ describe('AdvancedInvestmentStep', () => {
 
             const result = await step.handleTextInput(ctx, '1000');
 
-            expect(result).toEqual({
-                nextStep: SceneStep.StopLoss,
-                confirmations: ['✅ Investment set: 1000 USDC'],
-            });
+            expect(result).toEqual({ nextStep: SceneStep.StopLoss });
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBe(1000);
         });
 
-        it('should reject investment below minimum', async () => {
+        it('should set pendingError and return null for investment below minimum', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 levels: 10,
@@ -139,7 +174,7 @@ describe('AdvancedInvestmentStep', () => {
             const result = await step.handleTextInput(ctx, '5');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
         it('should reject when per-order amount is too small', async () => {
@@ -151,10 +186,10 @@ describe('AdvancedInvestmentStep', () => {
                 lowerPrice: 9,
             };
 
-            const result = await step.handleTextInput(ctx, '50'); // 50/20 = 2.5 < 10
+            const result = await step.handleTextInput(ctx, '50');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
         it('should reject when balance is insufficient', async () => {
@@ -167,17 +202,17 @@ describe('AdvancedInvestmentStep', () => {
             };
 
             vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
-                requiredUSDC: 15000, // More than available balance
+                requiredUSDC: 15000,
                 requiredBase: 50.25,
             });
 
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should reject non-numeric input', async () => {
+        it('should set pendingError for non-numeric input', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 levels: 10,
@@ -189,58 +224,18 @@ describe('AdvancedInvestmentStep', () => {
             const result = await step.handleTextInput(ctx, 'abc');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
         it('should return null if required state not set', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 }; // Missing symbol, upperPrice, lowerPrice
+            ctx.session.createGrid = { levels: 10 };
 
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toBeNull();
         });
-    });
 
-    describe('enter (additional paths)', () => {
-        it('should show balance info when symbol exists and both balances are non-zero', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
-            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
-            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
-                usdcBalance: 5000,
-                usdc: { available: 5000, total: 5000, hold: 0 },
-                spotBalances: { HYPE: 500 },
-                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
-            });
-
-            await step.enter(ctx);
-
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
-        });
-
-        it('should show fallback message when symbol is missing', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 };
-
-            await step.enter(ctx);
-
-            expect(mockTradingApi.getUserSpotState).not.toHaveBeenCalled();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
-        });
-
-        it('should show fallback message when balance fetch fails', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
-            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
-
-            await step.enter(ctx);
-
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
-        });
-    });
-
-    describe('handleTextInput (additional paths)', () => {
         it('should handle validateInvestment throwing an error', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
@@ -256,18 +251,48 @@ describe('AdvancedInvestmentStep', () => {
             const result = await step.handleTextInput(ctx, '1000');
 
             expect(result).toBeNull();
-            expect(mockMessageManager.sendEnterMessage).toHaveBeenCalled();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
+        });
+    });
+
+    describe('handleInvestmentPreset', () => {
+        it('sets pendingError and returns null when key is "custom"', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {};
+
+            const result = await step.handleInvestmentPreset(ctx, 'custom');
+
+            expect(result).toBeNull();
+            expect(ctx.session.createGrid?.pendingError).toBeTruthy();
+        });
+
+        it('returns null when balanceSnapshot is missing', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                levels: 10,
+                symbol: 'HYPE',
+                upperPrice: 11,
+                lowerPrice: 9,
+            };
+
+            const result = await step.handleInvestmentPreset(ctx, '50');
+
+            expect(result).toBeNull();
         });
     });
 
     describe('rollbackState', () => {
-        it('deletes totalInvestmentUSDC from session', () => {
+        it('deletes totalInvestmentUSDC and balanceSnapshot from session', () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { totalInvestmentUSDC: 1000 };
+            ctx.session.createGrid = {
+                totalInvestmentUSDC: 1000,
+                balanceSnapshot: { suggestedMax: 5000 },
+            };
 
             step.rollbackState(ctx);
 
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
+            expect(ctx.session.createGrid?.balanceSnapshot).toBeUndefined();
         });
 
         it('does nothing when createGrid is undefined', () => {

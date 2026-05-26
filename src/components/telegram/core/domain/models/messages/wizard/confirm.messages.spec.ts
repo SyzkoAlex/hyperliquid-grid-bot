@@ -2,33 +2,27 @@ import { describe, it, expect } from 'vitest';
 import { GridCreatingMessage } from './confirm.messages';
 
 describe('GridCreatingMessage', () => {
-    const defaultParams = {
-        symbol: 'BTC',
-        lowerPrice: 90000,
-        upperPrice: 100000,
-        levels: 10,
-        totalInvestment: 500 as number | undefined,
-    };
-
-    it('contains the symbol', () => {
-        const result = GridCreatingMessage.create(defaultParams);
-        expect(result.text).toContain('BTC');
-    });
-
-    it('contains price range', () => {
-        const result = GridCreatingMessage.create(defaultParams);
-        expect(result.text).toContain('90000');
-        expect(result.text).toContain('100000');
-    });
-
-    it('contains levels and investment', () => {
-        const result = GridCreatingMessage.create(defaultParams);
-        expect(result.text).toContain('10');
-        expect(result.text).toContain('500');
-    });
-
     it('indicates grid is being created', () => {
-        const result = GridCreatingMessage.create(defaultParams);
+        const result = GridCreatingMessage.create({ summary: '' });
         expect(result.text).toContain('Creating grid');
+    });
+
+    it('includes notification text', () => {
+        const result = GridCreatingMessage.create({ summary: '' });
+        expect(result.text).toContain("We'll notify you");
+    });
+
+    it('includes the summary when provided', () => {
+        const summary = '✓ <b>Pair</b> · BTC\n✓ <b>Levels</b> · 10';
+        const result = GridCreatingMessage.create({ summary });
+        expect(result.text).toContain('BTC');
+        expect(result.text).toContain('10');
+    });
+
+    it('renders cleanly when summary is empty', () => {
+        const result = GridCreatingMessage.create({ summary: '' });
+        expect(result.text).not.toContain('undefined');
+        expect(result.text).toContain('Creating grid');
+        expect(result.text).toContain("We'll notify you");
     });
 });

@@ -34,4 +34,5 @@ export const EMOJI = {
     KEY: '🔑',
     BELL_ON: '🔔',
     BELL_OFF: '🔕',
+    MONEY_WINGS: '💸',
 } as const;

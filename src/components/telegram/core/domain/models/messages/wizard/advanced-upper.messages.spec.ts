@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-    AdvancedUpperPromptMessage,
-    AdvancedUpperConfirmationMessage,
-} from './advanced-upper.messages';
+import { AdvancedUpperPromptMessage } from './advanced-upper.messages';
 
 describe('AdvancedUpperPromptMessage', () => {
     it('shows basic prompt without params', () => {
@@ -19,17 +16,5 @@ describe('AdvancedUpperPromptMessage', () => {
     it('shows warning when symbol provided but no price', () => {
         const result = AdvancedUpperPromptMessage.create('BTC');
         expect(result.text).toContain('Could not fetch current price');
-    });
-});
-
-describe('AdvancedUpperConfirmationMessage', () => {
-    it('contains the price', () => {
-        const result = AdvancedUpperConfirmationMessage.create(100000);
-        expect(result.text).toContain('100000');
-    });
-
-    it('indicates upper price was set', () => {
-        const result = AdvancedUpperConfirmationMessage.create(50000);
-        expect(result.text).toContain('Upper price set');
     });
 });
