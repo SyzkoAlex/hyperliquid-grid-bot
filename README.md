@@ -69,6 +69,38 @@ By using this software you acknowledge that you have read this disclaimer, under
 
 ---
 
+## Contributing
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add new feature
+fix: correct a bug
+refactor: restructure without behaviour change
+docs: documentation only
+chore: tooling, deps, config
+test: add or update tests
+```
+
+Every PR must pass `pnpm qa:check` before merge. See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
+
+---
+
+## Releasing
+
+Releases are cut entirely from GitHub — no local commands needed.
+
+1. Go to **Actions → Release → Run workflow**
+2. Choose `patch`, `minor`, or `major`
+3. Click **Run workflow**
+
+The action will:
+- bump the version in `package.json`
+- regenerate `CHANGELOG.md`
+- create a git tag and a GitHub Release with auto-generated release notes
+
+---
+
 ## License
 
 MIT
