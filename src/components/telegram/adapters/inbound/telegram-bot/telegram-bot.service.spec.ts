@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { TelegramBotService } from './telegram-bot.service';
+import { BOT_COMMANDS } from '@components/telegram/core/domain/models/constants/bot-commands.constants';
 
 /**
  * Minimal stub of Telegraf that exposes only the surface used by stopAndWait/launch.
@@ -10,6 +11,7 @@ function makeTelegrafStub(launchBehavior: () => Promise<void>) {
         stop: vi.fn(),
         catch: vi.fn(),
         use: vi.fn(),
+        telegram: { setMyCommands: vi.fn().mockResolvedValue(undefined) },
     };
 }
 
@@ -29,6 +31,31 @@ function makeService(): TelegramBotService {
 }
 
 describe('TelegramBotService', () => {
+    describe('registerBotCommands', () => {
+        it('calls setMyCommands with the full BOT_COMMANDS list', async () => {
+            const sut = makeService();
+            const setMyCommands = vi.fn().mockResolvedValue(undefined);
+            (sut as unknown as { _bot: unknown })._bot = { telegram: { setMyCommands } };
+
+            await (
+                sut as unknown as { registerBotCommands(): Promise<void> }
+            ).registerBotCommands();
+
+            expect(setMyCommands).toHaveBeenCalledOnce();
+            expect(setMyCommands).toHaveBeenCalledWith([...BOT_COMMANDS]);
+        });
+
+        it('logs a warning and does not throw when setMyCommands rejects', async () => {
+            const sut = makeService();
+            const setMyCommands = vi.fn().mockRejectedValue(new Error('Telegram unreachable'));
+            (sut as unknown as { _bot: unknown })._bot = { telegram: { setMyCommands } };
+
+            await expect(
+                (sut as unknown as { registerBotCommands(): Promise<void> }).registerBotCommands(),
+            ).resolves.toBeUndefined();
+        });
+    });
+
     describe('stopAndWait', () => {
         it('should resolve immediately when bot is not initialized', async () => {
             const sut = makeService();

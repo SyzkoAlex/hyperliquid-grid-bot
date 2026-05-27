@@ -8,6 +8,7 @@ import { CacheSessionStore } from './cache-session-store';
 import { SceneHandler } from './scenes/scene-handler';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
+import { BOT_COMMANDS } from '@components/telegram/core/domain/models/constants/bot-commands.constants';
 import { createErrorHandlerMiddleware } from './middleware/error-handler.middleware';
 import { createCallbackDedupMiddleware } from './middleware/callback-dedup.middleware';
 import { createSessionMiddleware } from './middleware/session.middleware';
@@ -65,6 +66,8 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         this._bot.use(createErrorHandlerMiddleware());
         this._bot.use(createCallbackDedupMiddleware());
         this._bot.use(this.stage.middleware());
+
+        await this.registerBotCommands();
 
         this.logger.info('Telegram bot service initialized');
     }
@@ -167,6 +170,14 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
             this.launchPromise = null;
         }
         this.logger.info('Telegram bot launched');
+    }
+
+    private async registerBotCommands(): Promise<void> {
+        try {
+            await this.bot.telegram.setMyCommands([...BOT_COMMANDS]);
+        } catch (error) {
+            this.logger.warn({ error }, 'Failed to register bot commands menu; continuing startup');
+        }
     }
 
     async stopAndWait(): Promise<void> {

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SettingsMessage } from '@components/telegram/core/domain/models/messages/settings-message';
 import { Handler } from '../handler';
@@ -22,6 +23,7 @@ export class SettingsHandler implements Handler {
     ) {}
 
     register(): void {
+        this.telegramBotService.onCommand(TelegramCommand.Settings, (ctx) => this.handle(ctx));
         this.telegramBotService.onHears(BUTTON_LABELS.SETTINGS, (ctx) => this.handle(ctx));
         this.telegramBotService.onAction(TelegramAction.ShowSettings, (ctx) =>
             this.handleShow(ctx),

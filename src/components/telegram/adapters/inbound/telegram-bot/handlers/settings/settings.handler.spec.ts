@@ -3,6 +3,7 @@ import { SettingsHandler } from './settings.handler';
 import { TelegramBotService } from '../../telegram-bot.service';
 import { BotContext } from '../../types/bot-context';
 import { TelegramAction } from '@components/telegram/core/domain/models/telegram-action';
+import { TelegramCommand } from '@components/telegram/core/domain/models/telegram-command';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { UsersApiPort } from '@components/users/api/users-api.port';
@@ -25,12 +26,17 @@ describe('SettingsHandler', () => {
     let usersApi: UsersApiPort;
     let hearsCallbacks: Map<string, (ctx: BotContext) => Promise<void>>;
     let actionCallbacks: Map<string, (ctx: BotContext) => Promise<void>>;
+    let commandCallbacks: Map<string, (ctx: BotContext) => Promise<void>>;
 
     beforeEach(() => {
         hearsCallbacks = new Map();
         actionCallbacks = new Map();
+        commandCallbacks = new Map();
 
         botService = {
+            onCommand: vi.fn((command: string, cb: (ctx: BotContext) => Promise<void>) => {
+                commandCallbacks.set(command, cb);
+            }),
             onHears: vi.fn((text: string, cb: (ctx: BotContext) => Promise<void>) => {
                 hearsCallbacks.set(text, cb);
             }),
@@ -47,9 +53,13 @@ describe('SettingsHandler', () => {
     });
 
     describe('register', () => {
-        it('registers hears, ShowSettings action, and ToggleTradeNotifications action', () => {
+        it('registers command, hears, ShowSettings action, and ToggleTradeNotifications action', () => {
             handler.register();
 
+            expect(botService.onCommand).toHaveBeenCalledWith(
+                TelegramCommand.Settings,
+                expect.any(Function),
+            );
             expect(botService.onHears).toHaveBeenCalledWith(
                 BUTTON_LABELS.SETTINGS,
                 expect.any(Function),

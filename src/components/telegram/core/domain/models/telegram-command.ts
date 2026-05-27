@@ -3,4 +3,5 @@ export enum TelegramCommand {
     Help = 'help',
     Grids = 'grids',
     Balance = 'balance',
+    Settings = 'settings',
 }
