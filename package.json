@@ -27,6 +27,8 @@
         "typecheck": "tsc --noEmit",
         "audit:pnpm": "pnpm audit --audit-level high",
         "qa:check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build && pnpm test:unit && pnpm audit:pnpm",
+        "changelog": "npx git-cliff -o CHANGELOG.md",
+        "changelog:preview": "npx git-cliff --latest --strip header",
         "prepare": "husky"
     },
     "dependencies": {
