@@ -14,6 +14,12 @@ export const grids = pgTable('grids', {
     investmentUSDC: decimal('investment_quote', { precision: 20, scale: 8 }).notNull(), // USD for buys
     investmentBase: decimal('investment_base', { precision: 20, scale: 8 }).notNull(), // Tokens for sells
     creationPrice: decimal('creation_price', { precision: 20, scale: 8 }),
+    /**
+     * Reserved — trailing-grid execution logic is not yet implemented.
+     * See docs/TODO.md ("Trailing (Bull Market Feature)"). These columns
+     * are persisted but never read by application code. Do not remove
+     * without a migration.
+     */
     trailingEnabled: boolean('trailing_enabled').notNull().default(false),
     trailingTriggerPercent: decimal('trailing_trigger_percent', { precision: 5, scale: 2 }).default(
         '5',

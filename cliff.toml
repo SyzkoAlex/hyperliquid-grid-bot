@@ -1,0 +1,66 @@
+# git-cliff configuration
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!-- next-release -->
+"""
+
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+{{ commit.message | upper_first }} \
+{% if commit.github.pr_number %}([#{{ commit.github.pr_number }}]({{ commit.github.pr_url }})){% endif %}\
+{% endfor %}
+{% endfor %}\n
+"""
+
+trim = true
+
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+
+# Map conventional commit types to changelog sections
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^perf", group = "Performance" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^chore", group = "Chore" },
+  { message = "^test", group = "Testing" },
+  { message = "^ci", group = "CI/CD" },
+  # Skip dependency-only bumps from the main body (they show up under Chore anyway)
+  { message = "^chore\\(deps\\)", skip = true },
+]
+
+# Only include commits since the last tag when generating release notes
+filter_commits = false
+tag_pattern = "v[0-9].*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "newest"
+
+[remote.github]
+owner = "alekseysyzko"
+repo = "hyperliquid-grid-bot"
