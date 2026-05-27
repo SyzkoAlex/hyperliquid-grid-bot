@@ -1,17 +1,23 @@
 name: Release
 
-# Trigger: push a semver tag, e.g. `git tag v1.0.1 && git push --tags`
 on:
-  push:
-    tags:
-      - 'v[0-9]*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
-  contents: write   # needed to create a GitHub Release
+  contents: write
 
 jobs:
   release:
-    name: Create GitHub Release
+    name: Create Release
     runs-on: ubuntu-latest
 
     steps:
@@ -19,43 +25,73 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Generate release body from commits since the previous tag
-      - name: Generate release notes with git-cliff
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version in package.json
+        id: bump
+        run: |
+          NEW_VERSION=$(node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const [major, minor, patch] = pkg.version.split('.').map(Number);
+            const bump = '${{ inputs.bump }}';
+            let next;
+            if (bump === 'major') next = (major + 1) + '.0.0';
+            else if (bump === 'minor') next = major + '.' + (minor + 1) + '.0';
+            else next = major + '.' + minor + '.' + (patch + 1);
+            pkg.version = next;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4) + '\n');
+            console.log(next);
+          ")
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped to: $NEW_VERSION"
+
+      - name: Generate CHANGELOG.md
         uses: orhun/git-cliff-action@v4
-        id: cliff
         with:
           config: cliff.toml
-          args: --latest --strip header
-        env:
-          OUTPUT: RELEASE_BODY.md
-          GITHUB_REPO: ${{ github.repository }}
-
-      # Update CHANGELOG.md in the repo and commit it back to main
-      - name: Update CHANGELOG.md
-        uses: orhun/git-cliff-action@v4
-        with:
-          config: cliff.toml
-          args: --output CHANGELOG.md
+          args: --tag ${{ steps.bump.outputs.tag }} --output CHANGELOG.md
         env:
           OUTPUT: CHANGELOG.md
           GITHUB_REPO: ${{ github.repository }}
 
-      - name: Commit updated CHANGELOG.md
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git diff --cached --quiet || \
-            git commit -m "chore(release): update CHANGELOG.md for ${{ github.ref_name }}"
-          git push origin HEAD:main
+      - name: Generate release notes (this release only)
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --tag ${{ steps.bump.outputs.tag }} --latest --strip header
+        env:
+          OUTPUT: RELEASE_BODY.md
+          GITHUB_REPO: ${{ github.repository }}
 
-      # Create the GitHub Release with the generated body
+      - name: Commit package.json + CHANGELOG.md and push tag
+        run: |
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): v${{ steps.bump.outputs.version }}"
+          git tag "${{ steps.bump.outputs.tag }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.bump.outputs.tag }}"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.bump.outputs.tag }}
+          name: ${{ steps.bump.outputs.tag }}
           body_path: RELEASE_BODY.md
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: false
