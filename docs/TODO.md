@@ -88,6 +88,8 @@ Required changes:
 
 ### Trailing (Bull Market Feature)
 
+> **Schema status:** columns exist in `src/infra/database/schema/grids.schema.ts` but are unused. They are marked reserved in the schema JSDoc.
+
 Data model exists in DB (`trailing_enabled`, `trailing_trigger_percent`, etc.) but execution logic is missing.
 
 - [ ] GridMonitor — continuous loop checking trailing conditions
