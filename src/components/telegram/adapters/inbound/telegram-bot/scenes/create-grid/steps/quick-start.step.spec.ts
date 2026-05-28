@@ -18,6 +18,8 @@ describe('QuickStartStep', () => {
                 requiredBase: 0.01005,
             }),
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
+            calculateOptimalSwap: vi.fn().mockReturnValue(null),
+            getMinOrderNotional: vi.fn().mockReturnValue(10),
         } as unknown as TradingApiPort;
 
         step = new QuickStartStep(mockTradingApi);

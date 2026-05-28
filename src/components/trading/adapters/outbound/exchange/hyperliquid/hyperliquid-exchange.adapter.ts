@@ -18,6 +18,7 @@ import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
+import { ExchangePlaceMarketBuyParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-buy-params';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
@@ -108,6 +109,41 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             throw error;
         } finally {
             this.metrics.observeExchangeApiDuration('placeSpotMarketSell', stop());
+        }
+    }
+
+    async placeSpotMarketBuy(
+        params: ExchangePlaceMarketBuyParams,
+    ): Promise<ExchangePlaceOrderResult> {
+        const stop = startTimer();
+        try {
+            const agentPrivateKey = await this.resolveAgentKey(params.accountAddress);
+            const orderData: PlaceSpotOrderInput = {
+                symbol: params.symbol.toString(),
+                isBuy: true,
+                amount: params.amount.toNumber(),
+                price: params.limitPrice.toNumber(),
+                cloid: ExchangeCloid.create(params.orderId).toString(),
+                agentPrivateKey,
+                tif: Tif.Ioc,
+            };
+            const response = await this.orders.placeSpotOrder(orderData);
+            this.logger.info({ params, response }, 'Market buy placed');
+            const result = this.mapper.toExchangePlaceOrderResult(response);
+            if (
+                result.status === OrderStatus.Failed &&
+                result.error &&
+                isAgentNotApprovedError(result.error)
+            ) {
+                throw new AgentNotApprovedError(params.accountAddress, result.error);
+            }
+            return result;
+        } catch (error) {
+            if (error instanceof AgentNotApprovedError) throw error;
+            this.logger.error({ err: error, params }, 'Failed to place market buy');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('placeSpotMarketBuy', stop());
         }
     }
 

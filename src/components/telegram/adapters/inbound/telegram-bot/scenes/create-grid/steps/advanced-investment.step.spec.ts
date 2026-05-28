@@ -3,6 +3,7 @@ import { AdvancedInvestmentStep } from './advanced-investment.step';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 
 describe('AdvancedInvestmentStep', () => {
     let step: AdvancedInvestmentStep;
@@ -21,6 +22,8 @@ describe('AdvancedInvestmentStep', () => {
                 requiredBase: 50.25,
             }),
             calculateMaxInvestment: vi.fn().mockReturnValue(5000),
+            calculateOptimalSwap: vi.fn().mockReturnValue(null),
+            getMinOrderNotional: vi.fn().mockReturnValue(10),
         } as unknown as TradingApiPort;
 
         step = new AdvancedInvestmentStep(mockTradingApi);
@@ -143,6 +146,54 @@ describe('AdvancedInvestmentStep', () => {
                 r.some((b) => b.action === 'create_grid:adv_invest:custom'),
             );
             expect(customRow).toBeDefined();
+        });
+
+        it('renders swap offer button when result.swapOffer is non-null', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: {},
+                spotPositions: {},
+            });
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
+                side: SwapSide.UsdcToBase,
+                amountUsdc: 100,
+                expectedReceived: 10,
+            });
+
+            const view = await step.buildView(ctx);
+
+            const hasSwapButton = view.keyboard.some((r) =>
+                r.some((b) => b.action === 'create_grid:swap_offer'),
+            );
+            expect(hasSwapButton).toBe(true);
+        });
+
+        it('prepends swapFeedback to body when set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                symbol: 'HYPE',
+                levels: 10,
+                swapFeedback: '✅ Swap complete!\n\nBought ~6.5 HYPE',
+            };
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { HYPE: 500 },
+                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
+            });
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Swap complete');
+            expect(view.body.indexOf('Swap complete')).toBeLessThan(
+                view.body.indexOf('How much to invest'),
+            );
+            // swapFeedback should be cleared from session after consumption
+            expect(ctx.session.createGrid?.swapFeedback).toBeUndefined();
         });
     });
 

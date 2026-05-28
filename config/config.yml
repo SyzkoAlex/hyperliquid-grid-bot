@@ -59,6 +59,10 @@ stopLoss:
     penetrationPct: ${STOP_LOSS_PENETRATION_PCT:0.002} # 0.2%
     breachTtlSeconds: ${STOP_LOSS_BREACH_TTL_SECONDS:300} # 5 minutes
 
+swap:
+    initialSlippageCapPct: ${SWAP_INITIAL_SLIPPAGE_CAP_PCT:0.005}
+    retrySlippageCapPct: ${SWAP_RETRY_SLIPPAGE_CAP_PCT:0.015}
+
 logging:
     level: ${LOG_LEVEL:trace}
     pretty: ${LOG_PRETTY:true}

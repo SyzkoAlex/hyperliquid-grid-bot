@@ -19,6 +19,7 @@ import { loadConfiguration } from '@/config/configuration';
 import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 import { EXCLUDED_STABLECOIN_BASES } from '@components/trading/core/domain/models/constants/excluded-stablecoin-bases';
+import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 
 loadEnv({ path: resolve(process.cwd(), '.env.test') });
 
@@ -207,6 +208,79 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
             const orderStatus = await adapter.getOrderStatus(testWalletAddress, unknownNumericOid);
 
             expect(orderStatus).toBeNull();
+        });
+    });
+
+    describe.skip('placeSpotMarketSell', () => {
+        it('should place an IOC market sell order on testnet', async () => {
+            const currentPrice = await adapter.getCurrentPrice(TradingSymbol.create('HYPE'));
+            // Set limit well below mid so the IOC is unlikely to fill (safe test)
+            const limitPrice = Price.from(currentPrice.toNumber() * 0.5);
+
+            const result = await adapter.placeSpotMarketSell({
+                symbol: TradingSymbol.create('HYPE'),
+                amount: Decimal.from(0.01),
+                limitPrice,
+                orderId: crypto.randomUUID(),
+                accountAddress: testWalletAddress,
+            });
+
+            expect(result).toBeDefined();
+            // IOC at 50% of mid will not fill, so status is either Placed (cancelled by IOC) or Failed
+            expect([OrderStatus.Placed, OrderStatus.Failed, OrderStatus.Filled]).toContain(
+                result.status,
+            );
+        });
+
+        it('throws AgentNotApprovedError when agent key is not approved', async () => {
+            const unapprovedAddress = '0x0000000000000000000000000000000000000001';
+
+            await expect(
+                adapter.placeSpotMarketSell({
+                    symbol: TradingSymbol.create('HYPE'),
+                    amount: Decimal.from(0.01),
+                    limitPrice: Price.from(1),
+                    orderId: crypto.randomUUID(),
+                    accountAddress: unapprovedAddress,
+                }),
+            ).rejects.toThrow(AgentNotApprovedError);
+        });
+    });
+
+    describe.skip('placeSpotMarketBuy', () => {
+        it('should place an IOC market buy order on testnet', async () => {
+            const currentPrice = await adapter.getCurrentPrice(TradingSymbol.create('HYPE'));
+            // Set limit well above mid so the IOC is unlikely to partially fill beyond dust
+            const limitPrice = Price.from(currentPrice.toNumber() * 1.5);
+            // baseAmount = spentUsdc / limitPrice — spend ~$1 at 1.5x price
+            const baseAmount = Decimal.from(1 / limitPrice.toNumber());
+
+            const result = await adapter.placeSpotMarketBuy({
+                symbol: TradingSymbol.create('HYPE'),
+                amount: baseAmount,
+                limitPrice,
+                orderId: crypto.randomUUID(),
+                accountAddress: testWalletAddress,
+            });
+
+            expect(result).toBeDefined();
+            expect([OrderStatus.Placed, OrderStatus.Failed, OrderStatus.Filled]).toContain(
+                result.status,
+            );
+        });
+
+        it('throws AgentNotApprovedError when agent key is not approved', async () => {
+            const unapprovedAddress = '0x0000000000000000000000000000000000000001';
+
+            await expect(
+                adapter.placeSpotMarketBuy({
+                    symbol: TradingSymbol.create('HYPE'),
+                    amount: Decimal.from(0.001),
+                    limitPrice: Price.from(100000),
+                    orderId: crypto.randomUUID(),
+                    accountAddress: unapprovedAddress,
+                }),
+            ).rejects.toThrow(AgentNotApprovedError);
         });
     });
 

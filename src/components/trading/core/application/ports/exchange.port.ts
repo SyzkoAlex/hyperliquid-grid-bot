@@ -9,6 +9,7 @@ import { ExchangeOrderInfo } from '@components/trading/core/domain/models/exchan
 import { ExchangeOrderFill } from '@components/trading/core/domain/models/exchange-order/exchange-order-fill';
 import { UserState } from '@components/trading/core/domain/models/user-state/user-state';
 import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
+import { ExchangePlaceMarketBuyParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-buy-params';
 import { TokenDescriptor } from '@components/trading/core/domain/models/token/token-descriptor';
 
 export const EXCHANGE_PORT = Symbol('EXCHANGE_PORT');
@@ -16,6 +17,7 @@ export const EXCHANGE_PORT = Symbol('EXCHANGE_PORT');
 export interface ExchangePort {
     placeSpotOrder(params: ExchangePlaceOrderParams): Promise<ExchangePlaceOrderResult>;
     placeSpotMarketSell(params: ExchangePlaceMarketSellParams): Promise<ExchangePlaceOrderResult>;
+    placeSpotMarketBuy(params: ExchangePlaceMarketBuyParams): Promise<ExchangePlaceOrderResult>;
     cancelSpotOrder(params: ExchangeCancelOrderParams): Promise<ExchangeCancelOrderResult>;
     getCurrentPrice(symbol: TradingSymbol): Promise<Price>;
     getOpenSpotOrders(user: string): Promise<ExchangeOpenOrder[]>;

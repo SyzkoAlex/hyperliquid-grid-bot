@@ -8,11 +8,13 @@ import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedLevelsStep } from './steps/advanced-levels.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
+import { SwapStep } from './steps/swap.step';
 import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
 import { AdvancedPreviewStep } from './steps/advanced-preview.step';
 import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
+import { SceneStep } from './create-grid-scene-step';
 import { WizardNavigator } from './wizard/wizard-navigator';
 import { StepResult } from './wizard/step-result';
 import { isReplyMenuText } from '../../handlers/main-menu.keyboard';
@@ -36,6 +38,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         private readonly advancedLowerStep: AdvancedLowerStep,
         private readonly advancedLevelsStep: AdvancedLevelsStep,
         private readonly advancedInvestmentStep: AdvancedInvestmentStep,
+        private readonly swapStep: SwapStep,
         private readonly advancedStopLossStep: AdvancedStopLossStep,
         private readonly advancedPreviewStep: AdvancedPreviewStep,
         private readonly confirmStep: ConfirmStep,
@@ -47,6 +50,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         this.navigator.registerStep(advancedLowerStep);
         this.navigator.registerStep(advancedLevelsStep);
         this.navigator.registerStep(advancedInvestmentStep);
+        this.navigator.registerStep(swapStep);
         this.navigator.registerStep(advancedStopLossStep);
         this.navigator.registerStep(advancedPreviewStep);
     }
@@ -81,6 +85,10 @@ export class CreateGridSceneHandler implements SceneHandler {
         );
 
         scene.action(CREATE_GRID_ACTIONS.STOP_LOSS_OFF, (ctx) => this.handleStopLossOffAction(ctx));
+
+        scene.action(CREATE_GRID_ACTIONS.SWAP_OFFER, (ctx) => this.handleSwapOfferAction(ctx));
+        scene.action(CREATE_GRID_ACTIONS.SWAP_CONFIRM, (ctx) => this.handleSwapConfirmAction(ctx));
+        scene.action(CREATE_GRID_ACTIONS.SWAP_SKIP, (ctx) => this.handleSwapSkipAction(ctx));
 
         scene.action(CREATE_GRID_ACTIONS.CONFIRM, (ctx) => this.handleConfirmAction(ctx));
         scene.action(CREATE_GRID_ACTIONS.BACK, (ctx) => this.handleBackAction(ctx));
@@ -165,6 +173,18 @@ export class CreateGridSceneHandler implements SceneHandler {
 
     private async handleStopLossOffAction(ctx: BotContext): Promise<void> {
         return this.runStepAction(ctx, () => this.advancedStopLossStep.handleSkip(ctx));
+    }
+
+    private async handleSwapOfferAction(ctx: BotContext): Promise<void> {
+        return this.runStepAction(ctx, async () => ({ nextStep: SceneStep.Swap }));
+    }
+
+    private async handleSwapConfirmAction(ctx: BotContext): Promise<void> {
+        return this.runStepAction(ctx, () => this.swapStep.handleConfirm(ctx));
+    }
+
+    private async handleSwapSkipAction(ctx: BotContext): Promise<void> {
+        return this.runStepAction(ctx, () => this.swapStep.handleSkip(ctx));
     }
 
     private async handleConfirmAction(ctx: BotContext): Promise<void> {

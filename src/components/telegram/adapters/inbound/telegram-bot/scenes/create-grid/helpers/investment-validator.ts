@@ -1,9 +1,12 @@
 import { Decimal } from '@domain/models/primitives/decimal';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
+import { swapHintLine } from '@components/telegram/core/domain/models/messages/wizard/swap-hint';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { OptimalSwapDto } from '@components/trading/api/dto/optimal-swap.dto';
 import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
 import { roundToCents } from './round-to-cents';
+import { buildEligibleSwapOffer } from './build-eligible-swap-offer';
 
 interface ValidatedDistribution {
     requiredUSDC: Decimal;
@@ -24,6 +27,7 @@ export interface InvestmentValidationResult {
     errorMessage?: string;
     showBackButton?: boolean;
     distribution?: ValidatedDistribution;
+    swapOffer?: OptimalSwapDto | null;
 }
 
 export async function validateInvestment(
@@ -115,6 +119,17 @@ export async function validateInvestment(
         const baseInUsdc = baseBalance.mul(Decimal.from(currentPriceNum));
         const totalBalance = usdcBalance.add(baseInUsdc);
 
+        const eligibleSwapOffer = buildEligibleSwapOffer(tradingApi, {
+            symbol,
+            usdcBalance: userState.usdcBalance,
+            baseBalance: userState.spotBalances[symbol] ?? 0,
+            currentPrice: currentPriceNum,
+            lowerPrice,
+            upperPrice,
+            levels,
+        });
+        const hint = swapHintLine(symbol, eligibleSwapOffer);
+
         return {
             valid: false,
             errorMessage: ValidationTexts.insufficientBalance(
@@ -128,8 +143,10 @@ export async function validateInvestment(
                 requiredBase,
                 usdcShortfall.gt(Decimal.zero()) ? usdcShortfall : null,
                 baseShortfall.gt(Decimal.zero()) ? baseShortfall : null,
+                hint,
             ),
             showBackButton: true,
+            swapOffer: eligibleSwapOffer,
         };
     }
 

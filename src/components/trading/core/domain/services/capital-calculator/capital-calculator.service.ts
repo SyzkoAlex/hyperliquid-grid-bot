@@ -3,6 +3,8 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { CapitalDistribution } from '../../models/capital-distribution';
 import { Price } from '@domain/models/primitives/price';
 import { countBuySellLevels } from '../../utils/count-buy-sell-levels';
+import { OptimalSwap } from './types/optimal-swap';
+import { SwapSide } from '@components/trading/core/domain/models/swap/swap-side';
 
 function ceilToSzDecimals(value: number, szDecimals: number): number {
     const multiplier = Math.pow(10, szDecimals);
@@ -58,6 +60,7 @@ function floorToSzDecimals(value: number, szDecimals: number): number {
  */
 @Injectable()
 export class CapitalCalculatorService {
+    private static readonly SWAP_DEAD_BAND_USDC = 1;
     /**
      * Calculate capital distribution for grid trading
      *
@@ -213,6 +216,64 @@ export class CapitalCalculatorService {
         }
 
         return 0;
+    }
+
+    /**
+     * Calculate the optimal one-leg swap that rebalances the portfolio for the given grid.
+     *
+     * Returns null when the portfolio is already balanced enough that no swap would improve it
+     * (within a $1 dead-band) or when one of the two ratios is 0 (a single-leg grid needs no rebalance).
+     *
+     * Pure math: ignores slippage, fees, szDecimals rounding, and minOrderNotional.
+     * Phase 2 callers must validate the returned amount against minOrderNotional before executing.
+     */
+    calculateOptimalSwap(params: {
+        usdcBalance: Decimal;
+        baseBalance: Decimal;
+        currentPrice: Price;
+        lowerPrice: number;
+        upperPrice: number;
+        levels: number;
+    }): OptimalSwap | null {
+        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
+            params.levels,
+            params.lowerPrice,
+            params.upperPrice,
+            params.currentPrice.toNumber(),
+        );
+
+        if (buyCount === 0 || sellCount === 0) {
+            return null;
+        }
+
+        const totalLevels = params.levels + 1;
+        const buyRatio = buyCount / totalLevels;
+        const price = params.currentPrice.toNumber();
+        const totalValueUsdc =
+            params.usdcBalance.toNumber() + params.baseBalance.toNumber() * price;
+        const optimalUsdc = totalValueUsdc * buyRatio;
+        const diff = params.usdcBalance.toNumber() - optimalUsdc;
+
+        if (Math.abs(diff) < CapitalCalculatorService.SWAP_DEAD_BAND_USDC) {
+            return null;
+        }
+
+        if (diff > 0) {
+            // Too much USDC — swap USDC into base
+            return {
+                side: SwapSide.UsdcToBase,
+                amountUsdc: diff,
+                expectedReceived: diff / price,
+            };
+        }
+
+        // Too little USDC — swap base into USDC
+        const amountUsdc = Math.abs(diff);
+        return {
+            side: SwapSide.BaseToUsdc,
+            amountUsdc,
+            expectedReceived: amountUsdc,
+        };
     }
 
     /**

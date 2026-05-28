@@ -42,6 +42,8 @@ describe('validateInvestment', () => {
                 requiredUSDC: 500,
                 requiredBase: 50.25,
             }),
+            calculateOptimalSwap: vi.fn().mockReturnValue(null),
+            getMinOrderNotional: vi.fn().mockReturnValue(10),
         } as unknown as TradingApiPort;
     });
 

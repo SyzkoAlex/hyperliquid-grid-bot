@@ -2,6 +2,10 @@ import { UserStateDto } from './dto/user-state.dto';
 import { CapitalDistributionDto } from './dto/capital-distribution.dto';
 import { CalculateCapitalDistributionDto } from './dto/calculate-capital-distribution.dto';
 import { CalculateMaxInvestmentDto } from './dto/calculate-max-investment.dto';
+import { CalculateOptimalSwapDto } from './dto/calculate-optimal-swap.dto';
+import { OptimalSwapDto } from './dto/optimal-swap.dto';
+import { ExecuteSpotSwapDto } from './dto/execute-spot-swap.dto';
+import { SpotSwapResultDto } from './dto/spot-swap-result.dto';
 import { TokenDescriptorDto } from './dto/token-descriptor.dto';
 
 export type { TokenDescriptorDto };
@@ -21,6 +25,14 @@ export interface TradingApiPort {
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto;
     /** Calculate the maximum investable amount given account balance and grid parameters. */
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number;
+    /** Calculate the swap that would rebalance the user's portfolio to optimally fit the given grid.
+     *  Returns null when no rebalance is needed (already balanced or single-leg grid). */
+    calculateOptimalSwap(params: CalculateOptimalSwapDto): OptimalSwapDto | null;
+    /** Execute a marketable IOC spot swap. Returns whatever filled — caller must re-fetch balance
+     *  to determine the post-swap state. First sync write through this port. */
+    executeSpotSwap(params: ExecuteSpotSwapDto): Promise<SpotSwapResultDto>;
+    /** Return the minimum notional (in USDC) required to place any spot order. */
+    getMinOrderNotional(): number;
     /** Check whether the agent wallet has been approved on-chain for the given account. */
     probeAgentApproval(accountAddress: string): Promise<{ approved: boolean }>;
     /** Return the top tokens by 24h volume with both on-chain symbol and display name. */
