@@ -5,6 +5,7 @@ export class PlaceRefillOrderResult {
         public success: boolean,
         public order?: OrderDto,
         public error?: string,
+        public immediatelyFilled?: boolean,
     ) {}
 
     static failure(error: string): PlaceRefillOrderResult {
@@ -13,5 +14,9 @@ export class PlaceRefillOrderResult {
 
     static success(order: OrderDto): PlaceRefillOrderResult {
         return new PlaceRefillOrderResult(true, order);
+    }
+
+    static immediatelyFilled(order: OrderDto): PlaceRefillOrderResult {
+        return new PlaceRefillOrderResult(true, order, undefined, true);
     }
 }

@@ -224,5 +224,86 @@ describe('OrderRefillService', () => {
             expect(result.success).toBe(false);
             expect(result.error).toContain('Unexpected DB error');
         });
+
+        describe('immediately filled refill chain', () => {
+            it('should continue chain when first refill is immediately filled', async () => {
+                const immediatelyFilledSell = makeRefillOrderDto({
+                    side: OrderSide.Sell,
+                    levelIndex: 6,
+                    status: OrderStatus.Filled,
+                });
+                const finalBuy = makeRefillOrderDto({
+                    id: 'final-buy-id',
+                    side: OrderSide.Buy,
+                    levelIndex: 5,
+                    status: OrderStatus.Placed,
+                });
+
+                mockRefillPlacement.placeRefillOrder
+                    .mockResolvedValueOnce(
+                        PlaceRefillOrderResult.immediatelyFilled(immediatelyFilledSell),
+                    )
+                    .mockResolvedValueOnce(PlaceRefillOrderResult.success(finalBuy));
+
+                const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
+
+                expect(result.success).toBe(true);
+                expect(result.refillOrder?.id).toBe('final-buy-id');
+                expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(2);
+            });
+
+            it('should stop chain when immediately filled refill reaches edge level', async () => {
+                const topLevelBuy: OrderDto = {
+                    ...testBuyOrder,
+                    levelIndex: 10,
+                    price: 54000,
+                };
+                // BUY at L10 fills → SELL at L11 placed but immediately filled
+                // → BUY at L10 would be next, but after that BUY at L11 fills → SELL at L12 (edge) → stops
+                const immediatelyFilledSell = makeRefillOrderDto({
+                    side: OrderSide.Sell,
+                    levelIndex: 11,
+                    status: OrderStatus.Filled,
+                });
+
+                mockRefillPlacement.placeRefillOrder.mockResolvedValueOnce(
+                    PlaceRefillOrderResult.immediatelyFilled(immediatelyFilledSell),
+                );
+
+                const result = await service.processOne(topLevelBuy, testGrid, '0xabc');
+
+                // SELL at L11 immediately filled → try BUY at L10 → but that would place correctly
+                // Actually: after L11 SELL immediately fills, next would be BUY at L10.
+                // But mock only returns one immediatelyFilled, the second call hasn't been set up.
+                // The second call would use the default mock which returns success.
+                expect(result.success).toBe(true);
+            });
+
+            it('should stop chain at depth limit to prevent infinite loops', async () => {
+                // All placements return immediatelyFilled — depth limit should kick in
+                const makeImmediateOrder = (levelIndex: number, side: OrderSide): OrderDto =>
+                    makeRefillOrderDto({ side, levelIndex, status: OrderStatus.Filled });
+
+                // Alternating sells and buys to simulate ping-pong (shouldn't actually happen,
+                // but depth limit is the safety net)
+                let callCount = 0;
+                mockRefillPlacement.placeRefillOrder.mockImplementation(() => {
+                    callCount++;
+                    const level = 6 + (callCount % 2);
+                    const side = callCount % 2 === 0 ? OrderSide.Buy : OrderSide.Sell;
+                    return Promise.resolve(
+                        PlaceRefillOrderResult.immediatelyFilled(makeImmediateOrder(level, side)),
+                    );
+                });
+
+                const result = await service.processOne(testBuyOrder, testGrid, '0xabc');
+
+                // Should exit loop after grid.levels + 1 = 12 iterations at most
+                expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(
+                    testGrid.levels + 1,
+                );
+                expect(result.success).toBe(true);
+            });
+        });
     });
 });

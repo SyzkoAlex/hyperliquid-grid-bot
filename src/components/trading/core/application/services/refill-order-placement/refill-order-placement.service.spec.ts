@@ -170,4 +170,23 @@ describe('RefillOrderPlacementService', () => {
             OrderStatus.Failed,
         );
     });
+
+    it('should persist Filled status and return immediatelyFilled when exchange fills order at placement', async () => {
+        mockExchange.placeSpotOrder.mockResolvedValue({
+            exchangeOrderId: 'exchange-filled-222',
+            status: OrderStatus.Filled,
+        });
+
+        const result = await service.placeRefillOrder(testGrid, testParams, '0xabc');
+
+        expect(result.success).toBe(true);
+        expect(result.immediatelyFilled).toBe(true);
+
+        expect(mockGrids.updateOrderExchangeId).toHaveBeenCalledWith(
+            PENDING_ORDER_ID,
+            'exchange-filled-222',
+            OrderStatus.Filled,
+            expect.any(Date),
+        );
+    });
 });
