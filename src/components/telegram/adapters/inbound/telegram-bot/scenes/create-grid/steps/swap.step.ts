@@ -94,7 +94,7 @@ export class SwapStep implements WizardStep {
                 delete ctx.session.createGrid.totalInvestmentUSDC;
                 ctx.session.createGrid.swapFeedback = feedback;
             }
-            return { nextStep: SceneStep.Investment };
+            return { nextStep: this.investmentReturnStep(ctx) };
         }
 
         this.logger.warn({ errorMessage: result.errorMessage }, 'executeSpotSwap returned failure');
@@ -110,7 +110,13 @@ export class SwapStep implements WizardStep {
         if (ctx.session.createGrid) {
             delete ctx.session.createGrid.swapOffer;
         }
-        return { nextStep: SceneStep.Investment };
+        return { nextStep: this.investmentReturnStep(ctx) };
+    }
+
+    private investmentReturnStep(ctx: BotContext): SceneStep {
+        const history = ctx.session.createGrid?.stepHistory;
+        const previousStep = history?.[history.length - 1];
+        return previousStep === SceneStep.Quick ? SceneStep.Quick : SceneStep.Investment;
     }
 
     rollbackState(ctx: BotContext): void {

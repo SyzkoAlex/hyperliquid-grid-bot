@@ -44,6 +44,7 @@ function createMockContext(
         swapOffer?: typeof DEFAULT_OFFER | null;
         swapFeedback?: string;
         accountAddress?: string;
+        stepHistory?: SceneStep[];
     } = {},
 ): BotContext {
     return {
@@ -56,6 +57,7 @@ function createMockContext(
                         : (overrides.swapOffer ?? DEFAULT_OFFER),
                 swapFeedback: overrides.swapFeedback,
                 totalInvestmentUSDC: 500,
+                stepHistory: overrides.stepHistory,
             },
         },
         user: {
@@ -166,13 +168,15 @@ describe('SwapStep', () => {
             expect(renderedView.body).toContain('please wait');
         });
 
-        it('executes swap and returns Investment step on success', async () => {
+        it('executes swap and returns Investment step on success (advanced mode)', async () => {
             mockTradingApi.executeSpotSwap.mockResolvedValue({
                 success: true,
                 filledBase: 6.5,
                 notionalUsdc: 200,
             });
-            const ctx = createMockContext();
+            const ctx = createMockContext({
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Investment],
+            });
 
             const result = await sut.handleConfirm(ctx);
 
@@ -183,6 +187,21 @@ describe('SwapStep', () => {
                 amountUsdc: 200,
                 accountAddress: '0xabc',
             });
+        });
+
+        it('returns Quick step on success when reached from Quick mode', async () => {
+            mockTradingApi.executeSpotSwap.mockResolvedValue({
+                success: true,
+                filledBase: 6.5,
+                notionalUsdc: 200,
+            });
+            const ctx = createMockContext({
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Quick],
+            });
+
+            const result = await sut.handleConfirm(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Quick });
         });
 
         it('clears swapOffer and totalInvestmentUSDC on success', async () => {
@@ -281,13 +300,34 @@ describe('SwapStep', () => {
     });
 
     describe('handleSkip', () => {
-        it('clears swapOffer and returns Investment step', async () => {
-            const ctx = createMockContext();
+        it('clears swapOffer and returns Investment step (advanced mode)', async () => {
+            const ctx = createMockContext({
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Investment],
+            });
 
             const result = await sut.handleSkip(ctx);
 
             expect(result).toEqual({ nextStep: SceneStep.Investment });
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+        });
+
+        it('returns Quick step when reached from Quick mode', async () => {
+            const ctx = createMockContext({
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Quick],
+            });
+
+            const result = await sut.handleSkip(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Quick });
+            expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+        });
+
+        it('defaults to Investment step when stepHistory is empty', async () => {
+            const ctx = createMockContext({ stepHistory: [] });
+
+            const result = await sut.handleSkip(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Investment });
         });
     });
 
