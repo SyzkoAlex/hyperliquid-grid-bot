@@ -3,6 +3,7 @@ import { QuickStartStep } from './quick-start.step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
+import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 
 describe('QuickStartStep', () => {
     let step: QuickStartStep;
@@ -150,6 +151,32 @@ describe('QuickStartStep', () => {
             );
             expect(customRow).toBeDefined();
         });
+
+        it('renders Swap to maximize button when proactive hint is shown', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 6550,
+                usdc: { available: 6550, total: 6550, hold: 0 },
+                spotBalances: { HYPE: 17.59 },
+                spotPositions: { HYPE: { available: 17.59, total: 17.59, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1896);
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
+                side: SwapSide.UsdcToBase,
+                amountUsdc: 2801,
+                expectedReceived: 52,
+            });
+
+            const view = await step.buildView(ctx);
+
+            const swapButton = view.keyboard
+                .flat()
+                .find((b) => b.action === 'create_grid:swap_offer');
+            expect(swapButton).toBeDefined();
+            expect(swapButton?.text).toContain('Swap to maximize');
+        });
     });
 
     describe('handleTextInput', () => {
@@ -274,6 +301,18 @@ describe('QuickStartStep', () => {
             expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
             expect(ctx.session.createGrid?.levels).toBeUndefined();
             expect(ctx.session.createGrid?.balanceSnapshot).toBeUndefined();
+        });
+
+        it('clears session.createGrid.swapOffer on rollback', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                swapOffer: { side: SwapSide.UsdcToBase, amountUsdc: 100, expectedReceived: 10 },
+                balanceSnapshot: { suggestedMax: 5000 },
+            };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
         });
 
         it('does nothing when createGrid is undefined', () => {

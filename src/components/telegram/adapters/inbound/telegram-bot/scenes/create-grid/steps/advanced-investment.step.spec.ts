@@ -148,7 +148,7 @@ describe('AdvancedInvestmentStep', () => {
             expect(customRow).toBeDefined();
         });
 
-        it('renders swap offer button when result.swapOffer is non-null', async () => {
+        it('renders swap offer button when result.swapOffer is non-null (error path)', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
@@ -170,6 +170,100 @@ describe('AdvancedInvestmentStep', () => {
                 r.some((b) => b.action === 'create_grid:swap_offer'),
             );
             expect(hasSwapButton).toBe(true);
+        });
+
+        it('renders "Swap to maximize" button when proactive hint is shown (normal balance with imbalance)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 6550,
+                usdc: { available: 6550, total: 6550, hold: 0 },
+                spotBalances: { HYPE: 17.59 },
+                spotPositions: { HYPE: { available: 17.59, total: 17.59, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1896);
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
+                side: SwapSide.UsdcToBase,
+                amountUsdc: 2801,
+                expectedReceived: 52,
+            });
+
+            const view = await step.buildView(ctx);
+
+            const swapButton = view.keyboard
+                .flat()
+                .find((b) => b.action === 'create_grid:swap_offer');
+            expect(swapButton).toBeDefined();
+            expect(swapButton?.text).toContain('Swap to maximize');
+        });
+
+        it('renders "Swap to fit grid" button on error path (zero base balance)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: {},
+                spotPositions: {},
+            });
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
+                side: SwapSide.UsdcToBase,
+                amountUsdc: 100,
+                expectedReceived: 10,
+            });
+
+            const view = await step.buildView(ctx);
+
+            const swapButton = view.keyboard
+                .flat()
+                .find((b) => b.action === 'create_grid:swap_offer');
+            expect(swapButton).toBeDefined();
+            expect(swapButton?.text).toContain('Swap to fit grid');
+        });
+
+        it('shows proactive hint text in body when imbalanced portfolio is present', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 6550,
+                usdc: { available: 6550, total: 6550, hold: 0 },
+                spotBalances: { HYPE: 17.59 },
+                spotPositions: { HYPE: { available: 17.59, total: 17.59, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1896);
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
+                side: SwapSide.UsdcToBase,
+                amountUsdc: 2801,
+                expectedReceived: 52,
+            });
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('Max without swap: ~1,896 USDC');
+        });
+
+        it('does not show proactive hint when balances are perfectly balanced', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { HYPE: 500 },
+                spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue(null);
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).not.toContain('Max without swap');
+            const hasSwapButton = view.keyboard.some((r) =>
+                r.some((b) => b.action === 'create_grid:swap_offer'),
+            );
+            expect(hasSwapButton).toBe(false);
         });
 
         it('prepends swapFeedback to body when set', async () => {
@@ -333,6 +427,30 @@ describe('AdvancedInvestmentStep', () => {
     });
 
     describe('rollbackState', () => {
+        it('clears swapOffer from session when result.swapOffer becomes null on re-render', async () => {
+            const ctx = createMockContext();
+            // Pre-load a stale swapOffer from a previous render
+            ctx.session.createGrid = {
+                symbol: 'HYPE',
+                levels: 10,
+                swapOffer: { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
+            };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 6550,
+                usdc: { available: 6550, total: 6550, hold: 0 },
+                spotBalances: { HYPE: 17.59 },
+                spotPositions: { HYPE: { available: 17.59, total: 17.59, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1896);
+            // Swap no longer offered on re-render
+            vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue(null);
+
+            await step.buildView(ctx);
+
+            expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+        });
+
         it('deletes totalInvestmentUSDC and balanceSnapshot from session', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {

@@ -2,6 +2,7 @@ import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { swapHintLine } from '@components/telegram/core/domain/models/messages/wizard/swap-hint';
+import { SwapMessages } from '@components/telegram/core/domain/models/messages/wizard/swap.messages';
 import { OptimalSwapDto } from '@components/trading/api/dto/optimal-swap.dto';
 import { fetchBalanceInfo, BalanceInfo } from './balance-info';
 import { buildEligibleSwapOffer } from './build-eligible-swap-offer';
@@ -106,6 +107,17 @@ export async function buildInvestmentView(
                     lowerPrice,
                     upperPrice,
                 });
+                // Proactive (maximize-mode) hint: show when balances are available but asymmetric.
+                if (eligibleSwap) {
+                    const proactiveHint = SwapMessages.proactiveHint(
+                        symbol,
+                        eligibleSwap,
+                        balanceInfo.suggestedMaxRounded,
+                        balanceInfo.totalBalance.toNumber(),
+                    );
+                    body = `${body}\n\n${proactiveHint}`;
+                    swapOffer = eligibleSwap;
+                }
             }
         }
     } catch {

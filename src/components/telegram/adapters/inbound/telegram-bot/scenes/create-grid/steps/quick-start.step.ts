@@ -14,6 +14,7 @@ import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { QuickStartPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
@@ -33,6 +34,7 @@ export class QuickStartStep implements WizardStep {
 
         let suggestedMax: number | null = null;
         let body = QuickStartPromptMessage.create().text;
+        let hasSwapOffer = false;
 
         if (symbol && accountAddress) {
             try {
@@ -71,6 +73,15 @@ export class QuickStartStep implements WizardStep {
                 if (suggestedMax !== null && session.createGrid) {
                     session.createGrid.balanceSnapshot = { suggestedMax };
                 }
+
+                if (session.createGrid) {
+                    if (result.swapOffer) {
+                        session.createGrid.swapOffer = result.swapOffer;
+                        hasSwapOffer = true;
+                    } else {
+                        delete session.createGrid.swapOffer;
+                    }
+                }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
@@ -78,11 +89,12 @@ export class QuickStartStep implements WizardStep {
 
         return {
             body,
-            keyboard: this.buildKeyboard(suggestedMax),
+            keyboard: this.buildKeyboard(suggestedMax, hasSwapOffer),
         };
     }
 
-    private buildKeyboard(suggestedMax: number | null): InlineButton[][] {
+    private buildKeyboard(suggestedMax: number | null, hasSwapOffer = false): InlineButton[][] {
+        const isProactiveSwap = suggestedMax !== null && hasSwapOffer;
         const rows: InlineButton[][] = [];
         if (suggestedMax !== null) {
             rows.push(
@@ -107,6 +119,12 @@ export class QuickStartStep implements WizardStep {
                     },
                 ],
             );
+        }
+        if (hasSwapOffer) {
+            const swapLabel = isProactiveSwap
+                ? `${EMOJI.REFRESH} Swap to maximize`
+                : `${EMOJI.REFRESH} Swap to fit grid`;
+            rows.push([{ text: swapLabel, action: CREATE_GRID_ACTIONS.SWAP_OFFER }]);
         }
         rows.push([
             {
@@ -209,6 +227,7 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.lowerPrice;
             delete ctx.session.createGrid.levels;
             delete ctx.session.createGrid.balanceSnapshot;
+            delete ctx.session.createGrid.swapOffer;
         }
     }
 }

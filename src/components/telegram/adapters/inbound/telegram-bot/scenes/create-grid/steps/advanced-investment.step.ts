@@ -85,6 +85,12 @@ export class AdvancedInvestmentStep implements WizardStep {
                 }
 
                 if (session.createGrid) {
+                    // Persist the offer so the swap_offer action handler can read it from session.
+                    // swapOffer is set from both buildView (proactive hint on normal balance screen)
+                    // and applyTextInput (validation error path when investment doesn't fit balances).
+                    // Confirmed: session.createGrid.swapOffer is written here, before buildView()
+                    // returns its StepView — so the swap button is only shown after the offer is
+                    // already stored and available for the handler.
                     if (result.swapOffer) {
                         session.createGrid.swapOffer = result.swapOffer;
                         hasSwapOffer = true;
@@ -108,6 +114,7 @@ export class AdvancedInvestmentStep implements WizardStep {
     }
 
     private buildKeyboard(suggestedMax: number | null, hasSwapOffer = false): InlineButton[][] {
+        const isProactiveSwap = suggestedMax !== null && hasSwapOffer;
         const rows: InlineButton[][] = [];
         if (suggestedMax !== null) {
             rows.push(
@@ -134,12 +141,10 @@ export class AdvancedInvestmentStep implements WizardStep {
             );
         }
         if (hasSwapOffer) {
-            rows.push([
-                {
-                    text: `${EMOJI.REFRESH} Swap to fit grid`,
-                    action: CREATE_GRID_ACTIONS.SWAP_OFFER,
-                },
-            ]);
+            const swapLabel = isProactiveSwap
+                ? `${EMOJI.REFRESH} Swap to maximize`
+                : `${EMOJI.REFRESH} Swap to fit grid`;
+            rows.push([{ text: swapLabel, action: CREATE_GRID_ACTIONS.SWAP_OFFER }]);
         }
         rows.push([
             {

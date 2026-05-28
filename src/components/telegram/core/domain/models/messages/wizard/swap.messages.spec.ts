@@ -121,4 +121,66 @@ describe('SwapMessages', () => {
             expect(result).toContain('Order rejected by exchange');
         });
     });
+
+    describe('proactiveHint', () => {
+        it('includes max without swap line for UsdcToBase offer', () => {
+            const result = SwapMessages.proactiveHint(
+                'HYPE',
+                { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
+                1896,
+                7498,
+            );
+
+            expect(result).toContain('Max without swap: ~1,896 USDC');
+        });
+
+        it('shows swap direction USDC to base token with up-to total', () => {
+            const result = SwapMessages.proactiveHint(
+                'HYPE',
+                { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
+                1896,
+                7498,
+            );
+
+            expect(result).toContain('2,801.00 USDC');
+            expect(result).toContain('52.00 HYPE');
+            expect(result).toContain('7,498 USDC');
+        });
+
+        it('shows swap direction base to USDC for BaseToUsdc offer', () => {
+            const result = SwapMessages.proactiveHint(
+                'HYPE',
+                { side: SwapSide.BaseToUsdc, amountUsdc: 5.5, expectedReceived: 110 },
+                900,
+                2000,
+            );
+
+            expect(result).toContain('5.50 HYPE');
+            expect(result).toContain('110.00 USDC');
+            expect(result).toContain('~2,000 USDC');
+        });
+
+        it('escapes HTML special characters in symbol', () => {
+            const result = SwapMessages.proactiveHint(
+                '<b>',
+                { side: SwapSide.UsdcToBase, amountUsdc: 100, expectedReceived: 5 },
+                500,
+                1000,
+            );
+
+            expect(result).not.toContain('<b>');
+            expect(result).toContain('&lt;b&gt;');
+        });
+
+        it('includes max without swap line for BaseToUsdc offer', () => {
+            const result = SwapMessages.proactiveHint(
+                'HYPE',
+                { side: SwapSide.BaseToUsdc, amountUsdc: 5.5, expectedReceived: 110 },
+                900,
+                2000,
+            );
+
+            expect(result).toContain('Max without swap: ~900 USDC');
+        });
+    });
 });
