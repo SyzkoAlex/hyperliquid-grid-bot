@@ -116,7 +116,7 @@ describe('SpotSwapExecutorService', () => {
             expect(secondLimitPrice).toBeCloseTo(BEST_ASK * (1 + RETRY_L2_BUFFER));
         });
 
-        it('uses same CLOID for both IOC buy attempts', async () => {
+        it('uses a different CLOID for each buy attempt', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
                 .mockResolvedValueOnce({
@@ -130,7 +130,7 @@ describe('SpotSwapExecutorService', () => {
 
             const firstCloid = mockExchange.placeSpotMarketBuy.mock.calls[0][0].orderId;
             const secondCloid = mockExchange.placeSpotMarketBuy.mock.calls[1][0].orderId;
-            expect(firstCloid).toBe(secondCloid);
+            expect(firstCloid).not.toBe(secondCloid);
         });
 
         it('retries with wider buffer when first buy attempt is not filled', async () => {
@@ -219,7 +219,7 @@ describe('SpotSwapExecutorService', () => {
             expect(secondLimitPrice).toBeCloseTo(BEST_BID * (1 - RETRY_L2_BUFFER));
         });
 
-        it('uses same CLOID for both IOC sell attempts', async () => {
+        it('uses a different CLOID for each sell attempt', async () => {
             mockExchange.placeSpotMarketSell
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
                 .mockResolvedValueOnce({
@@ -233,7 +233,7 @@ describe('SpotSwapExecutorService', () => {
 
             const firstCloid = mockExchange.placeSpotMarketSell.mock.calls[0][0].orderId;
             const secondCloid = mockExchange.placeSpotMarketSell.mock.calls[1][0].orderId;
-            expect(firstCloid).toBe(secondCloid);
+            expect(firstCloid).not.toBe(secondCloid);
         });
 
         it('returns failure when both sell attempts fail to fill', async () => {
@@ -313,6 +313,115 @@ describe('SpotSwapExecutorService', () => {
 
             expect(result.success).toBe(false);
             expect(result.errorMessage).toBeDefined();
+        });
+    });
+
+    describe('execute — dust fill handling (< minFillRatio)', () => {
+        // baseParamsBuy: 200 USDC → ~9.985 HYPE requested
+        // dust threshold: 5% of 9.985 ≈ 0.499 HYPE
+
+        it('treats dust buy fill as not-filled and retries with wider buffer', async () => {
+            const dustFill = 0.28; // << 5% of 9.985
+            mockExchange.placeSpotMarketBuy
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-1',
+                    status: OrderStatus.Filled,
+                    filledSize: dustFill,
+                    avgPrice: 20.03,
+                })
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 9.985,
+                    avgPrice: 20.1,
+                });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(true);
+            expect(result.filledBase).toBeCloseTo(9.985);
+            expect(mockExchange.placeSpotMarketBuy).toHaveBeenCalledTimes(2);
+        });
+
+        it('treats dust sell fill as not-filled and retries with wider buffer', async () => {
+            const dustFill = 0.05; // << 5% of 5 HYPE
+            mockExchange.placeSpotMarketSell
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-1',
+                    status: OrderStatus.Filled,
+                    filledSize: dustFill,
+                    avgPrice: 19.97,
+                })
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 19.9,
+                });
+
+            const result = await sut.execute(baseParamsSell);
+
+            expect(result.success).toBe(true);
+            expect(result.filledBase).toBeCloseTo(5);
+            expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
+        });
+
+        it('uses a different CLOID on the dust-fill retry', async () => {
+            const dustFill = 0.28;
+            mockExchange.placeSpotMarketBuy
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-1',
+                    status: OrderStatus.Filled,
+                    filledSize: dustFill,
+                    avgPrice: 20.03,
+                })
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 9.985,
+                    avgPrice: 20.1,
+                });
+
+            await sut.execute(baseParamsBuy);
+
+            const firstCloid = mockExchange.placeSpotMarketBuy.mock.calls[0][0].orderId;
+            const secondCloid = mockExchange.placeSpotMarketBuy.mock.calls[1][0].orderId;
+            expect(firstCloid).not.toBe(secondCloid);
+        });
+
+        it('returns failure when both attempts produce dust fills for buy', async () => {
+            const dustFill = 0.1; // << 5%
+            mockExchange.placeSpotMarketBuy.mockResolvedValue({
+                exchangeOrderId: 'ex-1',
+                status: OrderStatus.Filled,
+                filledSize: dustFill,
+                avgPrice: 20.03,
+            });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(false);
+            expect(mockExchange.placeSpotMarketBuy).toHaveBeenCalledTimes(2);
+        });
+
+        it('accepts a fill at exactly the minFillRatio boundary (>= 5%)', async () => {
+            const buyLimitPrice = BEST_ASK * (1 + INITIAL_L2_BUFFER);
+            const requestedBase = 200 / buyLimitPrice; // ~9.985
+            const atBoundary = requestedBase * 0.05; // exactly 5%
+            // fillRatio === 0.05; condition is `< minFillRatio` so the boundary is inclusive
+
+            mockExchange.placeSpotMarketBuy.mockResolvedValueOnce({
+                exchangeOrderId: 'ex-1',
+                status: OrderStatus.Filled,
+                filledSize: atBoundary,
+                avgPrice: buyLimitPrice,
+            });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(true);
+            expect(result.filledBase).toBeCloseTo(atBoundary);
+            expect(mockExchange.placeSpotMarketBuy).toHaveBeenCalledTimes(1);
         });
     });
 

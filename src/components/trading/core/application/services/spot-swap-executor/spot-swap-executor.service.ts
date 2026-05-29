@@ -25,6 +25,17 @@ export class SpotSwapExecutorService {
     private readonly initialL2Buffer: number;
     private readonly retryL2Buffer: number;
 
+    /**
+     * Minimum fraction of the requested amount that must be filled for the
+     * attempt to count as a success. Below this threshold the fill is treated
+     * as a "dust fill" (order book too thin at this price level) and a retry
+     * with a wider buffer is attempted.
+     *
+     * Example: 0.05 means a fill of less than 5 % of the requested size is
+     * discarded and the wider-buffer retry is triggered.
+     */
+    private readonly minFillRatio = 0.05;
+
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         config: ConfigService<Config, true>,
@@ -37,23 +48,21 @@ export class SpotSwapExecutorService {
     async execute(params: SpotSwapParams): Promise<SpotSwapResult> {
         const symbol = TradingSymbol.create(params.symbol);
 
-        // Single CLOID for both IOC attempts — Hyperliquid deduplicates by CLOID,
-        // so a lost response on attempt 1 won't result in a second live order on attempt 2.
-        const cloid = uuidv4();
-
         // Two-attempt L2-pegged price escalation:
-        //   Attempt 1 — tight buffer (e.g. 0.1%). Limit price hugs the touch;
-        //               fills only if the book hasn't moved between fetch and
-        //               order.
-        //   Attempt 2 — wider buffer (e.g. 0.5%). Absorbs a small adverse
-        //               move after the first attempt missed.
+        //   Attempt 1 — tight buffer (e.g. 0.1%). Limit price hugs the touch.
+        //   Attempt 2 — wider buffer (e.g. 0.5%). Reaches deeper into the book
+        //               when attempt 1 produced no fill or a dust fill.
         //
-        // Both attempts share the same CLOID — Hyperliquid deduplicates by
-        // CLOID, so if attempt 1 actually filled but the response was lost,
-        // attempt 2 is rejected instead of opening a second position.
+        // Each attempt uses its own CLOID. A dust fill on attempt 1 (< minFillRatio)
+        // returns null so attempt 2 can run with the wider buffer. Because a dust fill
+        // means the exchange response was received and the CLOID is already consumed,
+        // reusing it for attempt 2 would be rejected — hence a fresh CLOID per attempt.
+        // The trade-off: a lost response on a full fill could theoretically lead to a
+        // duplicate buy or sell on attempt 2, but for IOC spot swaps this is acceptable
+        // and far less harmful than silently accepting a ~0.6 % fill on a large order.
         const buffers = [this.initialL2Buffer, this.retryL2Buffer];
         for (const buffer of buffers) {
-            const result = await this.attemptIocSwap(params, symbol, buffer, cloid);
+            const result = await this.attemptIocSwap(params, symbol, buffer, uuidv4());
             if (result !== null) return result;
         }
 
@@ -124,13 +133,35 @@ export class SpotSwapExecutorService {
         const filledBase = result.filledSize ?? 0;
         if (filledBase <= 0) return null;
 
+        // Reject dust fills: if the exchange filled less than minFillRatio of
+        // the requested amount the order book is too thin at this price level.
+        // Return null so the caller retries with a wider buffer.
+        const fillRatio = filledBase / baseAmount.toNumber();
+        if (fillRatio < this.minFillRatio) {
+            this.logger.warn(
+                {
+                    requested: baseAmount.toNumber(),
+                    filledBase,
+                    fillRatio,
+                    buffer: bufferLabel,
+                },
+                `IOC buy dust fill (<${this.minFillRatio * 100}% of requested) — retrying with wider buffer`,
+            );
+            return null;
+        }
+
         const avgPx =
             result.avgPrice != null && result.avgPrice > 0
                 ? result.avgPrice
                 : limitPrice.toNumber();
         const notionalUsdc = filledBase * avgPx;
         this.logger.info(
-            { requested: baseAmount.toNumber(), filledBase, notionalUsdc },
+            {
+                requested: baseAmount.toNumber(),
+                filledBase,
+                fillRatio,
+                notionalUsdc,
+            },
             `IOC buy filled (${bufferLabel})`,
         );
 
@@ -173,13 +204,33 @@ export class SpotSwapExecutorService {
         const filledBase = result.filledSize ?? 0;
         if (filledBase <= 0) return null;
 
+        // Reject dust fills — same rationale as the buy branch.
+        const fillRatio = filledBase / params.amount.toNumber();
+        if (fillRatio < this.minFillRatio) {
+            this.logger.warn(
+                {
+                    requested: params.amount.toNumber(),
+                    filledBase,
+                    fillRatio,
+                    buffer: bufferLabel,
+                },
+                `IOC sell dust fill (<${this.minFillRatio * 100}% of requested) — retrying with wider buffer`,
+            );
+            return null;
+        }
+
         const avgPx =
             result.avgPrice != null && result.avgPrice > 0
                 ? result.avgPrice
                 : limitPrice.toNumber();
         const notionalUsdc = filledBase * avgPx;
         this.logger.info(
-            { requested: params.amount.toNumber(), filledBase, notionalUsdc },
+            {
+                requested: params.amount.toNumber(),
+                filledBase,
+                fillRatio,
+                notionalUsdc,
+            },
             `IOC sell filled (${bufferLabel})`,
         );
 
