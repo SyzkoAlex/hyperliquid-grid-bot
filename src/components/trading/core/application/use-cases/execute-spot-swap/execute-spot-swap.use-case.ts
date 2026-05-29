@@ -31,22 +31,22 @@ export class ExecuteSpotSwapUseCase {
         }
 
         const symbol = TradingSymbol.create(params.symbol);
-        const currentMid = await this.exchange.getCurrentPrice(symbol);
-        const mid = currentMid.toNumber();
+        const l2Touch = await this.exchange.getL2Touch(symbol);
 
         // Convert USDC notional to executor amount:
-        // - UsdcToBase: executor expects the USDC to spend (Decimal)
-        // - BaseToUsdc: executor expects the BASE amount to sell (Decimal), derived from USDC notional / mid
+        // - UsdcToBase: executor expects the USDC to spend
+        // - BaseToUsdc: executor expects the BASE amount to sell, sized from
+        //   bestBid (the executable price for a market sell)
         const amount =
             params.side === SwapSide.UsdcToBase
                 ? Decimal.from(params.amountUsdc)
-                : Decimal.from(params.amountUsdc / mid);
+                : Decimal.from(params.amountUsdc / l2Touch.bestBid.toNumber());
 
         const result = await this.executor.execute({
             symbol: params.symbol,
             side: params.side,
             amount,
-            currentMid: mid,
+            l2Touch,
             accountAddress: params.accountAddress,
         });
 

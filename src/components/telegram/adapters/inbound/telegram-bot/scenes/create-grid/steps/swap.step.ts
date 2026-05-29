@@ -7,7 +7,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
-import { SwapSide } from '@components/trading/core/domain/models/swap/swap-side';
+import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 import { SpotSwapResultDto } from '@components/trading/api/dto/spot-swap-result.dto';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SwapMessages } from '@components/telegram/core/domain/models/messages/wizard/swap.messages';

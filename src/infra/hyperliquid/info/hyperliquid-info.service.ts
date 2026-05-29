@@ -7,6 +7,7 @@ import { HyperliquidOrderStatusResponse } from '../types/hyperliquid-order-statu
 import { HyperliquidUserStateResponse } from '../types/hyperliquid-user-state-response';
 import { UserFills } from '../types/hyperliquid-user-fills';
 import { HyperliquidSpotMetaAndAssetCtxs } from '../types/hyperliquid-spot-meta-and-asset-ctxs';
+import { HyperliquidL2BookResponse } from '../types/hyperliquid-l2-book-response';
 
 @Injectable()
 export class HyperliquidInfoService {
@@ -58,6 +59,14 @@ export class HyperliquidInfoService {
     async getSpotMetaAndAssetCtxs(): Promise<HyperliquidSpotMetaAndAssetCtxs> {
         return this.http.postInfo<HyperliquidSpotMetaAndAssetCtxs>({
             type: 'spotMetaAndAssetCtxs',
+        });
+    }
+
+    async getL2Book(coin: string): Promise<HyperliquidL2BookResponse> {
+        return this.http.postInfo<HyperliquidL2BookResponse>({
+            type: 'l2Book',
+            coin,
+            nSigFigs: null,
         });
     }
 }

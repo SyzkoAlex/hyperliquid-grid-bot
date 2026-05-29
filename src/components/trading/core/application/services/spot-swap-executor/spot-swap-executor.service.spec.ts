@@ -3,12 +3,16 @@ import { SpotSwapExecutorService } from './spot-swap-executor.service';
 import { SwapSide } from '@components/trading/core/domain/models/swap/swap-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { Decimal } from '@domain/models/primitives/decimal';
+import { Price } from '@domain/models/primitives/price';
 import { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { ConfigService } from '@nestjs/config';
 import { Config } from '@/config/config.schema';
+import { L2Touch } from '@components/trading/core/domain/models/swap/l2-touch';
 
-const INITIAL_SLIPPAGE_CAP = 0.005;
-const RETRY_SLIPPAGE_CAP = 0.015;
+const INITIAL_L2_BUFFER = 0.001;
+const RETRY_L2_BUFFER = 0.005;
+const BEST_BID = 19.99;
+const BEST_ASK = 20.01;
 
 describe('SpotSwapExecutorService', () => {
     let sut: SpotSwapExecutorService;
@@ -22,7 +26,7 @@ describe('SpotSwapExecutorService', () => {
         symbol: 'HYPE',
         side: SwapSide.UsdcToBase,
         amount: Decimal.from(200), // 200 USDC to spend
-        currentMid: 20,
+        l2Touch: L2Touch.from(Price.from(BEST_BID), Price.from(BEST_ASK)),
         accountAddress: '0xabc',
     };
 
@@ -30,7 +34,7 @@ describe('SpotSwapExecutorService', () => {
         symbol: 'HYPE',
         side: SwapSide.BaseToUsdc,
         amount: Decimal.from(5), // 5 HYPE to sell
-        currentMid: 20,
+        l2Touch: L2Touch.from(Price.from(BEST_BID), Price.from(BEST_ASK)),
         accountAddress: '0xabc',
     };
 
@@ -48,8 +52,8 @@ describe('SpotSwapExecutorService', () => {
             get: vi.fn((key: string) => {
                 if (key === 'swap') {
                     return {
-                        initialSlippageCapPct: INITIAL_SLIPPAGE_CAP,
-                        retrySlippageCapPct: RETRY_SLIPPAGE_CAP,
+                        initialL2BufferPct: INITIAL_L2_BUFFER,
+                        retryL2BufferPct: RETRY_L2_BUFFER,
                     };
                 }
                 return undefined;
@@ -78,7 +82,7 @@ describe('SpotSwapExecutorService', () => {
             expect(result.notionalUsdc).toBeGreaterThan(0);
         });
 
-        it('uses 0.5% slippage cap on first attempt and 1.5% on retry for buy', async () => {
+        it('uses 0.1% L2 buffer on first attempt and 0.5% on retry for buy', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
@@ -90,10 +94,8 @@ describe('SpotSwapExecutorService', () => {
             const secondLimitPrice =
                 mockExchange.placeSpotMarketBuy.mock.calls[1][0].limitPrice.toNumber();
 
-            // 0.5% cap: 20 * (1 + 0.005) = 20.1
-            expect(firstLimitPrice).toBeCloseTo(20 * (1 + INITIAL_SLIPPAGE_CAP));
-            // 1.5% cap: 20 * (1 + 0.015) = 20.3
-            expect(secondLimitPrice).toBeCloseTo(20 * (1 + RETRY_SLIPPAGE_CAP));
+            expect(firstLimitPrice).toBeCloseTo(BEST_ASK * (1 + INITIAL_L2_BUFFER));
+            expect(secondLimitPrice).toBeCloseTo(BEST_ASK * (1 + RETRY_L2_BUFFER));
         });
 
         it('uses same CLOID for both IOC buy attempts', async () => {
@@ -108,7 +110,7 @@ describe('SpotSwapExecutorService', () => {
             expect(firstCloid).toBe(secondCloid);
         });
 
-        it('retries with wider slippage when first buy attempt is not filled', async () => {
+        it('retries with wider buffer when first buy attempt is not filled', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
@@ -168,7 +170,7 @@ describe('SpotSwapExecutorService', () => {
             expect(result.notionalUsdc).toBeGreaterThan(0);
         });
 
-        it('uses 0.5% slippage cap on first attempt and 1.5% on retry for sell', async () => {
+        it('uses 0.1% L2 buffer on first attempt and 0.5% on retry for sell', async () => {
             mockExchange.placeSpotMarketSell
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
@@ -180,10 +182,8 @@ describe('SpotSwapExecutorService', () => {
             const secondLimitPrice =
                 mockExchange.placeSpotMarketSell.mock.calls[1][0].limitPrice.toNumber();
 
-            // 0.5% cap: 20 * (1 - 0.005) = 19.9
-            expect(firstLimitPrice).toBeCloseTo(20 * (1 - INITIAL_SLIPPAGE_CAP));
-            // 1.5% cap: 20 * (1 - 0.015) = 19.7
-            expect(secondLimitPrice).toBeCloseTo(20 * (1 - RETRY_SLIPPAGE_CAP));
+            expect(firstLimitPrice).toBeCloseTo(BEST_BID * (1 - INITIAL_L2_BUFFER));
+            expect(secondLimitPrice).toBeCloseTo(BEST_BID * (1 - RETRY_L2_BUFFER));
         });
 
         it('uses same CLOID for both IOC sell attempts', async () => {
@@ -215,7 +215,7 @@ describe('SpotSwapExecutorService', () => {
         it('computes notionalUsdc as amount * limitPrice for sell', async () => {
             const result = await sut.execute(baseParamsSell);
 
-            const expectedLimitPrice = 20 * (1 - INITIAL_SLIPPAGE_CAP);
+            const expectedLimitPrice = BEST_BID * (1 - INITIAL_L2_BUFFER);
             expect(result.notionalUsdc).toBeCloseTo(5 * expectedLimitPrice);
         });
 

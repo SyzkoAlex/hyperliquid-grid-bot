@@ -15,50 +15,51 @@ import {
 import { SpotSwapParams } from './types/spot-swap-params';
 import { SpotSwapResult } from './types/spot-swap-result';
 
-function formatCapPct(cap: number): string {
-    return `${cap * 100}%`;
+function formatBufferPct(buffer: number): string {
+    return `${buffer * 100}%`;
 }
 
 @Injectable()
 export class SpotSwapExecutorService {
     private readonly logger = logger.child({ context: SpotSwapExecutorService.name });
-    private readonly initialSlippageCap: number;
-    private readonly retrySlippageCap: number;
+    private readonly initialL2Buffer: number;
+    private readonly retryL2Buffer: number;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         config: ConfigService<Config, true>,
     ) {
-        const { initialSlippageCapPct, retrySlippageCapPct } = config.get('swap', { infer: true });
-        this.initialSlippageCap = initialSlippageCapPct;
-        this.retrySlippageCap = retrySlippageCapPct;
+        const { initialL2BufferPct, retryL2BufferPct } = config.get('swap', { infer: true });
+        this.initialL2Buffer = initialL2BufferPct;
+        this.retryL2Buffer = retryL2BufferPct;
     }
 
     async execute(params: SpotSwapParams): Promise<SpotSwapResult> {
         const symbol = TradingSymbol.create(params.symbol);
-        const midPrice = Price.from(params.currentMid);
 
         // Single CLOID for both IOC attempts — Hyperliquid deduplicates by CLOID,
         // so a lost response on attempt 1 won't result in a second live order on attempt 2.
         const cloid = uuidv4();
 
-        // Two-attempt IOC price escalation strategy:
-        //   Attempt 1 — tight slippage cap (e.g. 0.5%). The limit price is close to mid,
-        //               so we only fill if the market is already there. Cheap when it works.
-        //   Attempt 2 — wider slippage cap (e.g. 1.5%). If the spread or a brief move
-        //               caused the first attempt to miss, we accept a slightly worse price.
+        // Two-attempt L2-pegged price escalation:
+        //   Attempt 1 — tight buffer (e.g. 0.1%). Limit price hugs the touch;
+        //               fills only if the book hasn't moved between fetch and
+        //               order.
+        //   Attempt 2 — wider buffer (e.g. 0.5%). Absorbs a small adverse
+        //               move after the first attempt missed.
         //
-        // Both attempts share the same CLOID. Hyperliquid deduplicates orders by CLOID,
-        // so if attempt 1 actually filled but the response was lost in transit, attempt 2
-        // will be rejected as a duplicate instead of opening a second position.
-        const slippageCaps = [this.initialSlippageCap, this.retrySlippageCap];
-        for (const cap of slippageCaps) {
-            const result = await this.attemptIocSwap(params, symbol, midPrice, cap, cloid);
+        // Both attempts share the same CLOID — Hyperliquid deduplicates by
+        // CLOID, so if attempt 1 actually filled but the response was lost,
+        // attempt 2 is rejected instead of opening a second position.
+        const buffers = [this.initialL2Buffer, this.retryL2Buffer];
+        for (const buffer of buffers) {
+            const result = await this.attemptIocSwap(params, symbol, buffer, cloid);
             if (result !== null) return result;
         }
 
         const diagnostics = {
-            mid: params.currentMid,
+            bestBid: params.l2Touch.bestBid.toNumber(),
+            bestAsk: params.l2Touch.bestAsk.toNumber(),
             side: params.side,
             amount: params.amount.toNumber(),
             symbol: params.symbol,
@@ -66,7 +67,7 @@ export class SpotSwapExecutorService {
         this.logger.warn({ ...diagnostics }, 'IOC swap failed — aborting, notifying user');
 
         const errorMessage =
-            `Order didn't fill at the best available price after 2 attempts. ` +
+            `Order didn't fill at the best available L2 price after 2 attempts. ` +
             `Manual action may be required.`;
 
         return {
@@ -80,33 +81,33 @@ export class SpotSwapExecutorService {
     private async attemptIocSwap(
         params: SpotSwapParams,
         symbol: TradingSymbol,
-        midPrice: Price,
-        slippageCap: number,
+        l2Buffer: number,
         orderId: string,
     ): Promise<SpotSwapResult | null> {
         if (params.side === SwapSide.UsdcToBase) {
-            return this.attemptIocBuy(params, symbol, midPrice, slippageCap, orderId);
+            return this.attemptIocBuy(params, symbol, l2Buffer, orderId);
         }
-        return this.attemptIocSell(params, symbol, midPrice, slippageCap, orderId);
+        return this.attemptIocSell(params, symbol, l2Buffer, orderId);
     }
 
     private async attemptIocBuy(
         params: SpotSwapParams,
         symbol: TradingSymbol,
-        midPrice: Price,
-        slippageCap: number,
+        l2Buffer: number,
         orderId: string,
     ): Promise<SpotSwapResult | null> {
-        // Buy: pay up to mid * (1 + slippageCap); baseAmount = spentUsdc / limitPrice
-        const limitPrice = Price.from(midPrice.toNumber() * (1 + slippageCap));
+        // Buy: pay up to bestAsk * (1 + l2Buffer); baseAmount = spentUsdc / limitPrice
+        const limitPrice = Price.from(params.l2Touch.bestAsk.toNumber() * (1 + l2Buffer));
         const baseAmount = Decimal.from(params.amount.toNumber() / limitPrice.toNumber());
-        const capLabel = formatCapPct(slippageCap);
+        const bufferLabel = formatBufferPct(l2Buffer);
 
         this.logger.info(
-            { limitPrice: limitPrice.toNumber(), cap: capLabel },
-            `Attempting IOC market buy (${capLabel})`,
+            { limitPrice: limitPrice.toNumber(), buffer: bufferLabel },
+            `Attempting IOC market buy (${bufferLabel})`,
         );
 
+        // Exceptions (e.g. AgentNotApprovedError, network) propagate to the caller —
+        // they indicate a non-retriable condition and must surface above this loop.
         const result = await this.exchange.placeSpotMarketBuy({
             symbol,
             amount: baseAmount,
@@ -115,12 +116,10 @@ export class SpotSwapExecutorService {
             accountAddress: params.accountAddress,
         });
 
-        if (result.status !== OrderStatus.Filled) {
-            return null;
-        }
+        if (result.status !== OrderStatus.Filled) return null;
 
         const notionalUsdc = baseAmount.toNumber() * limitPrice.toNumber();
-        this.logger.info({ notionalUsdc }, `IOC buy filled (${capLabel})`);
+        this.logger.info({ notionalUsdc }, `IOC buy filled (${bufferLabel})`);
 
         return {
             success: true,
@@ -132,19 +131,19 @@ export class SpotSwapExecutorService {
     private async attemptIocSell(
         params: SpotSwapParams,
         symbol: TradingSymbol,
-        midPrice: Price,
-        slippageCap: number,
+        l2Buffer: number,
         orderId: string,
     ): Promise<SpotSwapResult | null> {
-        // Sell: accept down to mid * (1 - slippageCap)
-        const limitPrice = Price.from(midPrice.toNumber() * (1 - slippageCap));
-        const capLabel = formatCapPct(slippageCap);
+        // Sell: accept down to bestBid * (1 - l2Buffer)
+        const limitPrice = Price.from(params.l2Touch.bestBid.toNumber() * (1 - l2Buffer));
+        const bufferLabel = formatBufferPct(l2Buffer);
 
         this.logger.info(
-            { limitPrice: limitPrice.toNumber(), cap: capLabel },
-            `Attempting IOC market sell (${capLabel})`,
+            { limitPrice: limitPrice.toNumber(), buffer: bufferLabel },
+            `Attempting IOC market sell (${bufferLabel})`,
         );
 
+        // Exceptions propagate to the caller — see buy branch comment above.
         const result = await this.exchange.placeSpotMarketSell({
             symbol,
             amount: params.amount,
@@ -153,12 +152,10 @@ export class SpotSwapExecutorService {
             accountAddress: params.accountAddress,
         });
 
-        if (result.status !== OrderStatus.Filled) {
-            return null;
-        }
+        if (result.status !== OrderStatus.Filled) return null;
 
         const notionalUsdc = params.amount.toNumber() * limitPrice.toNumber();
-        this.logger.info({ notionalUsdc }, `IOC sell filled (${capLabel})`);
+        this.logger.info({ notionalUsdc }, `IOC sell filled (${bufferLabel})`);
 
         return {
             success: true,

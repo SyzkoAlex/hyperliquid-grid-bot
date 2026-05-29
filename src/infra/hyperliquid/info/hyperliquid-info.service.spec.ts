@@ -146,4 +146,24 @@ describe('HyperliquidInfoService', () => {
             expect(result).toEqual(state);
         });
     });
+
+    describe('getL2Book', () => {
+        it('should delegate to postInfo with type l2Book, coin, nSigFigs null', async () => {
+            const response = {
+                coin: '@107',
+                time: 1717000000000,
+                levels: [[{ px: '20.05', sz: '5.0', n: 1 }], [{ px: '20.10', sz: '4.0', n: 2 }]],
+            };
+            http.postInfo.mockResolvedValue(response);
+
+            const result = await sut.getL2Book('@107');
+
+            expect(http.postInfo).toHaveBeenCalledWith({
+                type: 'l2Book',
+                coin: '@107',
+                nSigFigs: null,
+            });
+            expect(result).toEqual(response);
+        });
+    });
 });

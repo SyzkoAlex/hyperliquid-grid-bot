@@ -60,8 +60,8 @@ stopLoss:
     breachTtlSeconds: ${STOP_LOSS_BREACH_TTL_SECONDS:300} # 5 minutes
 
 swap:
-    initialSlippageCapPct: ${SWAP_INITIAL_SLIPPAGE_CAP_PCT:0.005}
-    retrySlippageCapPct: ${SWAP_RETRY_SLIPPAGE_CAP_PCT:0.015}
+    initialL2BufferPct: ${SWAP_INITIAL_L2_BUFFER_PCT:0.001}
+    retryL2BufferPct: ${SWAP_RETRY_L2_BUFFER_PCT:0.005}
 
 logging:
     level: ${LOG_LEVEL:trace}

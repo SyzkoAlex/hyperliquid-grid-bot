@@ -14,13 +14,13 @@ export class SwapMessages {
             return (
                 `${EMOJI.REFRESH} Swap ~${formatFiat(offer.amountUsdc)} USDC → ~${offer.expectedReceived.toFixed(6)} ${s}?\n\n` +
                 `This converts part of your USDC balance to ${s} to fit the grid.\n\n` +
-                `${EMOJI.WARNING} Price may move during execution; the order uses a marketable IOC with a slippage cap.`
+                `${EMOJI.WARNING} Price may move during execution; the order fills at the current market price.`
             );
         }
         return (
             `${EMOJI.REFRESH} Swap ~${offer.amountUsdc.toFixed(6)} ${s} → ~${formatFiat(offer.expectedReceived)} USDC?\n\n` +
             `This converts part of your ${s} balance to USDC to fit the grid.\n\n` +
-            `${EMOJI.WARNING} Price may move during execution; the order uses a marketable IOC with a slippage cap.`
+            `${EMOJI.WARNING} Price may move during execution; the order fills at the current market price.`
         );
     }
 

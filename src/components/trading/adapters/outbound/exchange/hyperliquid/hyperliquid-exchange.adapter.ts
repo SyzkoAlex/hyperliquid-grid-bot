@@ -29,6 +29,7 @@ import { TokenDescriptor } from '@components/trading/core/domain/models/token/to
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 import { isAgentNotApprovedError } from './agent-approval-error-classifier';
+import { L2Touch } from '@components/trading/core/domain/models/swap/l2-touch';
 
 @Injectable()
 export class HyperliquidExchangeAdapter implements ExchangePort {
@@ -188,6 +189,27 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             return Price.from(parseFloat(priceStr));
         } finally {
             this.metrics.observeExchangeApiDuration('getCurrentPrice', stop());
+        }
+    }
+
+    async getL2Touch(symbol: TradingSymbol): Promise<L2Touch> {
+        const stop = startTimer();
+        try {
+            const spotKey = this.meta.lookupSpotKey(symbol.toString());
+            const book = await this.info.getL2Book(spotKey);
+            const bids = book.levels[0];
+            const asks = book.levels[1];
+            if (!bids?.length || !asks?.length) {
+                throw new Error(`L2 book empty for ${symbol.toString()}`);
+            }
+            const bestBid = Price.from(parseFloat(bids[0].px));
+            const bestAsk = Price.from(parseFloat(asks[0].px));
+            return L2Touch.from(bestBid, bestAsk);
+        } catch (error) {
+            this.logger.error({ err: error, symbol: symbol.toString() }, 'Failed to get L2 touch');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('getL2Touch', stop());
         }
     }
 

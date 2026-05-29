@@ -85,6 +85,14 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
         });
     });
 
+    describe('getL2Touch', () => {
+        it('returns positive bestBid <= bestAsk for HYPE', async () => {
+            const touch = await adapter.getL2Touch(TradingSymbol.create('HYPE'));
+            expect(touch.bestBid.toNumber()).toBeGreaterThan(0);
+            expect(touch.bestAsk.toNumber()).toBeGreaterThanOrEqual(touch.bestBid.toNumber());
+        });
+    });
+
     describe.skip('getOpenOrders', () => {
         it('should retrieve open orders array', async () => {
             const openOrders = await adapter.getOpenSpotOrders(testWalletAddress);

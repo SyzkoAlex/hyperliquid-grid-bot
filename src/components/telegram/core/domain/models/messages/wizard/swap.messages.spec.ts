@@ -43,24 +43,26 @@ describe('SwapMessages', () => {
             expect(result).toContain('→');
         });
 
-        it('includes slippage warning for UsdcToBase offer', () => {
+        it('includes price-movement warning for UsdcToBase offer', () => {
             const result = SwapMessages.offer('HYPE', {
                 side: SwapSide.UsdcToBase,
                 amountUsdc: 100,
                 expectedReceived: 5,
             });
 
-            expect(result).toContain('slippage');
+            expect(result).toContain('Price may move');
+            expect(result).toContain('market price');
         });
 
-        it('includes slippage warning for BaseToUsdc offer', () => {
+        it('includes price-movement warning for BaseToUsdc offer', () => {
             const result = SwapMessages.offer('HYPE', {
                 side: SwapSide.BaseToUsdc,
                 amountUsdc: 100,
                 expectedReceived: 5,
             });
 
-            expect(result).toContain('slippage');
+            expect(result).toContain('Price may move');
+            expect(result).toContain('market price');
         });
     });
 
