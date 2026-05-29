@@ -118,12 +118,25 @@ export class SpotSwapExecutorService {
 
         if (result.status !== OrderStatus.Filled) return null;
 
-        const notionalUsdc = baseAmount.toNumber() * limitPrice.toNumber();
-        this.logger.info({ notionalUsdc }, `IOC buy filled (${bufferLabel})`);
+        // Use actual fill data from the exchange — IOC orders can be partially
+        // filled. If the exchange reports zero filled size, treat as a miss and
+        // allow the retry loop to escalate to the next buffer tier.
+        const filledBase = result.filledSize ?? 0;
+        if (filledBase <= 0) return null;
+
+        const avgPx =
+            result.avgPrice != null && result.avgPrice > 0
+                ? result.avgPrice
+                : limitPrice.toNumber();
+        const notionalUsdc = filledBase * avgPx;
+        this.logger.info(
+            { requested: baseAmount.toNumber(), filledBase, notionalUsdc },
+            `IOC buy filled (${bufferLabel})`,
+        );
 
         return {
             success: true,
-            filledBase: baseAmount.toNumber(),
+            filledBase,
             notionalUsdc,
         };
     }
@@ -154,12 +167,25 @@ export class SpotSwapExecutorService {
 
         if (result.status !== OrderStatus.Filled) return null;
 
-        const notionalUsdc = params.amount.toNumber() * limitPrice.toNumber();
-        this.logger.info({ notionalUsdc }, `IOC sell filled (${bufferLabel})`);
+        // Use actual fill data from the exchange — IOC orders can be partially
+        // filled. If the exchange reports zero filled size, treat as a miss and
+        // allow the retry loop to escalate to the next buffer tier.
+        const filledBase = result.filledSize ?? 0;
+        if (filledBase <= 0) return null;
+
+        const avgPx =
+            result.avgPrice != null && result.avgPrice > 0
+                ? result.avgPrice
+                : limitPrice.toNumber();
+        const notionalUsdc = filledBase * avgPx;
+        this.logger.info(
+            { requested: params.amount.toNumber(), filledBase, notionalUsdc },
+            `IOC sell filled (${bufferLabel})`,
+        );
 
         return {
             success: true,
-            filledBase: params.amount.toNumber(),
+            filledBase,
             notionalUsdc,
         };
     }

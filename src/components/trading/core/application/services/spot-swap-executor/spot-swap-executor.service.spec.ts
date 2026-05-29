@@ -39,13 +39,26 @@ describe('SpotSwapExecutorService', () => {
     };
 
     beforeEach(() => {
+        // Default mocks simulate a full fill at the limit price — filledSize
+        // matches the requested base amount so existing assertions stay valid.
+        const buyLimitPrice = BEST_ASK * (1 + INITIAL_L2_BUFFER);
+        const defaultBuyFilledSize = 200 / buyLimitPrice; // baseAmount = usdc / limitPrice
+
+        const sellLimitPrice = BEST_BID * (1 - INITIAL_L2_BUFFER);
+
         mockExchange = {
-            placeSpotMarketBuy: vi
-                .fn()
-                .mockResolvedValue({ exchangeOrderId: 'ex-buy', status: OrderStatus.Filled }),
-            placeSpotMarketSell: vi
-                .fn()
-                .mockResolvedValue({ exchangeOrderId: 'ex-sell', status: OrderStatus.Filled }),
+            placeSpotMarketBuy: vi.fn().mockResolvedValue({
+                exchangeOrderId: 'ex-buy',
+                status: OrderStatus.Filled,
+                filledSize: defaultBuyFilledSize,
+                avgPrice: buyLimitPrice,
+            }),
+            placeSpotMarketSell: vi.fn().mockResolvedValue({
+                exchangeOrderId: 'ex-sell',
+                status: OrderStatus.Filled,
+                filledSize: 5, // matches baseParamsSell.amount
+                avgPrice: sellLimitPrice,
+            }),
         };
 
         mockConfig = {
@@ -85,7 +98,12 @@ describe('SpotSwapExecutorService', () => {
         it('uses 0.1% L2 buffer on first attempt and 0.5% on retry for buy', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             await sut.execute(baseParamsBuy);
 
@@ -101,7 +119,12 @@ describe('SpotSwapExecutorService', () => {
         it('uses same CLOID for both IOC buy attempts', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             await sut.execute(baseParamsBuy);
 
@@ -113,7 +136,12 @@ describe('SpotSwapExecutorService', () => {
         it('retries with wider buffer when first buy attempt is not filled', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             const result = await sut.execute(baseParamsBuy);
 
@@ -173,7 +201,12 @@ describe('SpotSwapExecutorService', () => {
         it('uses 0.1% L2 buffer on first attempt and 0.5% on retry for sell', async () => {
             mockExchange.placeSpotMarketSell
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             await sut.execute(baseParamsSell);
 
@@ -189,7 +222,12 @@ describe('SpotSwapExecutorService', () => {
         it('uses same CLOID for both IOC sell attempts', async () => {
             mockExchange.placeSpotMarketSell
                 .mockResolvedValueOnce({ exchangeOrderId: 'ex-1', status: OrderStatus.Placed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             await sut.execute(baseParamsSell);
 
@@ -222,7 +260,12 @@ describe('SpotSwapExecutorService', () => {
         it('treats OrderStatus.Failed sell response as not-filled, triggers retry', async () => {
             mockExchange.placeSpotMarketSell
                 .mockResolvedValueOnce({ exchangeOrderId: '', status: OrderStatus.Failed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             const result = await sut.execute(baseParamsSell);
 
@@ -235,7 +278,12 @@ describe('SpotSwapExecutorService', () => {
         it('treats OrderStatus.Failed buy response as not-filled, triggers retry', async () => {
             mockExchange.placeSpotMarketBuy
                 .mockResolvedValueOnce({ exchangeOrderId: '', status: OrderStatus.Failed })
-                .mockResolvedValueOnce({ exchangeOrderId: 'ex-2', status: OrderStatus.Filled });
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 20,
+                });
 
             const result = await sut.execute(baseParamsBuy);
 
@@ -265,6 +313,116 @@ describe('SpotSwapExecutorService', () => {
 
             expect(result.success).toBe(false);
             expect(result.errorMessage).toBeDefined();
+        });
+    });
+
+    describe('execute — partial / zero fill handling', () => {
+        it('returns actual filledBase and notionalUsdc from exchange for buy', async () => {
+            const partialFilledSize = 6.36;
+            const partialAvgPrice = 53.609;
+            mockExchange.placeSpotMarketBuy.mockResolvedValueOnce({
+                exchangeOrderId: 'ex-partial',
+                status: OrderStatus.Filled,
+                filledSize: partialFilledSize,
+                avgPrice: partialAvgPrice,
+            });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(true);
+            expect(result.filledBase).toBeCloseTo(partialFilledSize);
+            expect(result.notionalUsdc).toBeCloseTo(partialFilledSize * partialAvgPrice);
+        });
+
+        it('returns actual filledBase and notionalUsdc from exchange for sell', async () => {
+            const partialFilledSize = 2.5;
+            const partialAvgPrice = 19.88;
+            mockExchange.placeSpotMarketSell.mockResolvedValueOnce({
+                exchangeOrderId: 'ex-partial',
+                status: OrderStatus.Filled,
+                filledSize: partialFilledSize,
+                avgPrice: partialAvgPrice,
+            });
+
+            const result = await sut.execute(baseParamsSell);
+
+            expect(result.success).toBe(true);
+            expect(result.filledBase).toBeCloseTo(partialFilledSize);
+            expect(result.notionalUsdc).toBeCloseTo(partialFilledSize * partialAvgPrice);
+        });
+
+        it('treats zero filledSize as not-filled and retries for buy', async () => {
+            mockExchange.placeSpotMarketBuy
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-1',
+                    status: OrderStatus.Filled,
+                    filledSize: 0,
+                    avgPrice: 0,
+                })
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 9.985,
+                    avgPrice: 20.03,
+                });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(true);
+            expect(mockExchange.placeSpotMarketBuy).toHaveBeenCalledTimes(2);
+        });
+
+        it('treats zero filledSize as not-filled and retries for sell', async () => {
+            mockExchange.placeSpotMarketSell
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-1',
+                    status: OrderStatus.Filled,
+                    filledSize: 0,
+                    avgPrice: 0,
+                })
+                .mockResolvedValueOnce({
+                    exchangeOrderId: 'ex-2',
+                    status: OrderStatus.Filled,
+                    filledSize: 5,
+                    avgPrice: 19.97,
+                });
+
+            const result = await sut.execute(baseParamsSell);
+
+            expect(result.success).toBe(true);
+            expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
+        });
+
+        it('returns failure when both buy attempts return zero filledSize', async () => {
+            mockExchange.placeSpotMarketBuy.mockResolvedValue({
+                exchangeOrderId: 'ex-1',
+                status: OrderStatus.Filled,
+                filledSize: 0,
+                avgPrice: 0,
+            });
+
+            const result = await sut.execute(baseParamsBuy);
+
+            expect(result.success).toBe(false);
+            expect(result.filledBase).toBe(0);
+            expect(result.errorMessage).toBeDefined();
+            expect(mockExchange.placeSpotMarketBuy).toHaveBeenCalledTimes(2);
+        });
+
+        it('returns failure when both sell attempts return zero filledSize', async () => {
+            mockExchange.placeSpotMarketSell.mockResolvedValue({
+                exchangeOrderId: 'ex-1',
+                status: OrderStatus.Filled,
+                filledSize: 0,
+                avgPrice: 0,
+            });
+
+            const result = await sut.execute(baseParamsSell);
+
+            expect(result.success).toBe(false);
+            expect(result.filledBase).toBe(0);
+            expect(result.errorMessage).toBeDefined();
+            expect(mockExchange.placeSpotMarketSell).toHaveBeenCalledTimes(2);
         });
     });
 });
