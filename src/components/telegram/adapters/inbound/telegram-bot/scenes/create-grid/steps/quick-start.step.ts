@@ -32,6 +32,12 @@ export class QuickStartStep implements WizardStep {
         const symbol = session.createGrid?.symbol;
         const accountAddress = ctx.user?.accountAddress;
 
+        // Consume and clear the post-swap success banner set by SwapStep
+        const swapFeedback = session.createGrid?.swapFeedback;
+        if (swapFeedback && session.createGrid) {
+            delete session.createGrid.swapFeedback;
+        }
+
         let suggestedMax: number | null = null;
         let body = QuickStartPromptMessage.create().text;
         let hasSwapOffer = false;
@@ -85,6 +91,10 @@ export class QuickStartStep implements WizardStep {
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
+        }
+
+        if (swapFeedback) {
+            body = `${swapFeedback}\n\n${body}`;
         }
 
         return {
@@ -228,6 +238,7 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.levels;
             delete ctx.session.createGrid.balanceSnapshot;
             delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapFeedback;
         }
     }
 }

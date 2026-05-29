@@ -152,6 +152,31 @@ describe('QuickStartStep', () => {
             expect(customRow).toBeDefined();
         });
 
+        it('prepends swapFeedback when set and clears it from session', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                symbol: 'HYPE',
+                swapFeedback: '✅ Swap complete!\n\nBought ~10.5 HYPE',
+            };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('✅ Swap complete!');
+            expect(view.body).toContain('Bought ~10.5 HYPE');
+            expect(ctx.session.createGrid?.swapFeedback).toBeUndefined();
+        });
+
+        it('does not prepend swapFeedback when not set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).not.toContain('Swap complete');
+        });
+
         it('renders Swap to maximize button when proactive hint is shown', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
@@ -313,6 +338,17 @@ describe('QuickStartStep', () => {
             step.rollbackState(ctx);
 
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+        });
+
+        it('clears swapFeedback on rollback', () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                swapFeedback: '✅ Swap complete!\n\nBought ~10 HYPE',
+            };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.swapFeedback).toBeUndefined();
         });
 
         it('does nothing when createGrid is undefined', () => {

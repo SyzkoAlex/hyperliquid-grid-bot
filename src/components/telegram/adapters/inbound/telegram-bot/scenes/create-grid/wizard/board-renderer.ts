@@ -79,13 +79,16 @@ export class BoardRenderer {
 
     private buildStepper(state: CreateGridWizardState | undefined): string | null {
         if (!state) return null;
-        const stepNumber = (state.stepHistory?.length ?? 0) + 1;
+        const rawStepNumber = (state.stepHistory?.length ?? 0) + 1;
         let stepTotal: number | null = null;
         if (state.mode === CreateGridMode.Quick) {
             stepTotal = QUICK_STEP_TOTAL;
         } else if (state.mode === CreateGridMode.Advanced) {
             stepTotal = ADVANCED_STEP_TOTAL;
         }
+        // Cap stepNumber so detour steps (e.g. Swap round-trips) never push the
+        // counter above the declared total (prevents "Step 7 of 5" displays).
+        const stepNumber = stepTotal !== null ? Math.min(rawStepNumber, stepTotal) : rawStepNumber;
         return stepTotal !== null ? `Step ${stepNumber} of ${stepTotal}` : `Step ${stepNumber}`;
     }
 }

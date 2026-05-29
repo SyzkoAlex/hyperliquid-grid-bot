@@ -235,5 +235,27 @@ describe('BoardRenderer', () => {
             const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
             expect(text).toMatch(/^Step 1\n\n/);
         });
+
+        it('caps stepNumber at stepTotal when swap detour inflates history past total', async () => {
+            const ctx = createMockContext();
+            // Swap round-trip adds 2 extra entries: Quick→Swap→Quick
+            // Without cap: stepNumber = 6 → "Step 6 of 5"
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Quick,
+                stepHistory: [
+                    SceneStep.Pair,
+                    SceneStep.Mode,
+                    SceneStep.Quick,
+                    SceneStep.Swap,
+                    SceneStep.Quick,
+                ],
+            };
+            const view: StepView = { body: 'body', keyboard: [] };
+
+            await sut.render(ctx, view);
+
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            expect(text).toMatch(/^Step 5 of 5\n\n/);
+        });
     });
 });
