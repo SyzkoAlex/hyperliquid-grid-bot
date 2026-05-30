@@ -126,6 +126,33 @@ describe('WizardSummaryBuilder', () => {
         expect(result).not.toContain('✓ <b>Mode</b>');
     });
 
+    it('does not duplicate rows when a step appears twice in history (swap round-trip)', () => {
+        // After a swap detour: [Pair, Mode, Quick, Swap, Quick]
+        // Quick must appear only once in the summary
+        const result = sut.buildSummaryFromSession(
+            state({
+                stepHistory: [
+                    SceneStep.Pair,
+                    SceneStep.Mode,
+                    SceneStep.Quick,
+                    SceneStep.Swap,
+                    SceneStep.Quick,
+                ],
+                symbol: 'HYPE',
+                mode: CreateGridMode.Quick,
+                totalInvestmentUSDC: 2000,
+                upperPrice: 70,
+                lowerPrice: 50,
+                levels: 10,
+            }),
+        );
+        const lines = result.split('\n');
+        const investmentLines = lines.filter((l) => l.includes('<b>Investment</b>'));
+        expect(investmentLines).toHaveLength(1);
+        const upperLines = lines.filter((l) => l.includes('<b>Upper</b>'));
+        expect(upperLines).toHaveLength(1);
+    });
+
     it('joins multiple rows with newlines', () => {
         const result = sut.buildSummaryFromSession(
             state({
