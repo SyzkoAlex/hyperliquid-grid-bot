@@ -267,6 +267,7 @@ describe('AdvancedInvestmentStep', () => {
         });
 
         it('prepends swapFeedback to body when set', async () => {
+            vi.useFakeTimers();
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 symbol: 'HYPE',
@@ -280,7 +281,10 @@ describe('AdvancedInvestmentStep', () => {
                 spotPositions: { HYPE: { available: 500, total: 500, hold: 0 } },
             });
 
-            const view = await step.buildView(ctx);
+            const promise = step.buildView(ctx);
+            await vi.runAllTimersAsync();
+            const view = await promise;
+            vi.useRealTimers();
 
             expect(view.body).toContain('Swap complete');
             expect(view.body.indexOf('Swap complete')).toBeLessThan(

@@ -8,7 +8,9 @@ import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { CreateGridMode } from '../create-grid-mode';
 import { WizardSummaryBuilder } from './wizard-summary-builder';
 
+// Quick mode steps: Pair → Mode → Quick → Preview → Confirm
 const QUICK_STEP_TOTAL = 5;
+// Advanced mode steps: Pair → Mode → Upper → Lower → Levels → Investment → StopLoss → Preview → Confirm
 const ADVANCED_STEP_TOTAL = 9;
 
 @Injectable()

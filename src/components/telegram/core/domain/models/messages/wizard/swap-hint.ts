@@ -1,14 +1,8 @@
 import { EMOJI } from '../../constants/emoji';
 import { formatFiat } from '../../formatters/format-fiat';
-import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
+import { OptimalSwapDto, SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 
-export interface SwapHintOffer {
-    side: SwapSide;
-    amountUsdc: number;
-    expectedReceived: number;
-}
-
-export function swapHintLine(symbol: string, swap: SwapHintOffer | null): string | null {
+export function swapHintLine(symbol: string, swap: OptimalSwapDto | null): string | null {
     if (!swap) return null;
     const amount = formatFiat(swap.amountUsdc);
     if (swap.side === SwapSide.UsdcToBase) {

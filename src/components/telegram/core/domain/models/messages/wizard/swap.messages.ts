@@ -45,7 +45,7 @@ export class SwapMessages {
     }
 
     static failed(errorMessage: string): string {
-        return `${EMOJI.ERROR} Swap failed: ${errorMessage}`;
+        return `${EMOJI.ERROR} Swap failed: ${escapeHtml(errorMessage)}`;
     }
 
     static sessionExpired(): string {

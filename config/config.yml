@@ -62,6 +62,7 @@ stopLoss:
 swap:
     initialL2BufferPct: ${SWAP_INITIAL_L2_BUFFER_PCT:0.001}
     retryL2BufferPct: ${SWAP_RETRY_L2_BUFFER_PCT:0.005}
+    minFillRatioPct: ${SWAP_MIN_FILL_RATIO_PCT:0.05}
 
 logging:
     level: ${LOG_LEVEL:trace}

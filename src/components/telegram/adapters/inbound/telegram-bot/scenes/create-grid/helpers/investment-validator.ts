@@ -3,32 +3,11 @@ import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { swapHintLine } from '@components/telegram/core/domain/models/messages/wizard/swap-hint';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
-import { OptimalSwapDto } from '@components/trading/api/dto/optimal-swap.dto';
 import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
 import { roundToCents } from './round-to-cents';
 import { buildEligibleSwapOffer } from './build-eligible-swap-offer';
-
-interface ValidatedDistribution {
-    requiredUSDC: Decimal;
-    requiredBase: Decimal;
-}
-
-export interface InvestmentValidationParams {
-    investment: number;
-    levels: number;
-    symbol: string;
-    upperPrice: number;
-    lowerPrice: number;
-    accountAddress: string;
-}
-
-export interface InvestmentValidationResult {
-    valid: boolean;
-    errorMessage?: string;
-    showBackButton?: boolean;
-    distribution?: ValidatedDistribution;
-    swapOffer?: OptimalSwapDto | null;
-}
+import { InvestmentValidationParams } from './investment-validation-params';
+import { InvestmentValidationResult } from './investment-validation-result';
 
 export async function validateInvestment(
     params: InvestmentValidationParams,

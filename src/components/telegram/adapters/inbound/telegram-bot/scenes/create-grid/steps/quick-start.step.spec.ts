@@ -153,6 +153,7 @@ describe('QuickStartStep', () => {
         });
 
         it('prepends swapFeedback when set and clears it from session', async () => {
+            vi.useFakeTimers();
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 symbol: 'HYPE',
@@ -160,7 +161,10 @@ describe('QuickStartStep', () => {
             };
             vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
 
-            const view = await step.buildView(ctx);
+            const promise = step.buildView(ctx);
+            await vi.runAllTimersAsync();
+            const view = await promise;
+            vi.useRealTimers();
 
             expect(view.body).toContain('✅ Swap complete!');
             expect(view.body).toContain('Bought ~10.5 HYPE');

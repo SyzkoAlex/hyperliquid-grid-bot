@@ -67,6 +67,7 @@ describe('SpotSwapExecutorService', () => {
                     return {
                         initialL2BufferPct: INITIAL_L2_BUFFER,
                         retryL2BufferPct: RETRY_L2_BUFFER,
+                        minFillRatioPct: 0.05,
                     };
                 }
                 return undefined;

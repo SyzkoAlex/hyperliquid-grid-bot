@@ -121,7 +121,9 @@ export async function buildInvestmentView(
             }
         }
     } catch {
-        // Return fallback body on error; caller logs the error
+        // Silent fallback — callers render a generic prompt; the error itself
+        // is not actionable here, so we swallow it and let the step re-try on
+        // the next render cycle.
     }
 
     return { body, suggestedMax, swapOffer };

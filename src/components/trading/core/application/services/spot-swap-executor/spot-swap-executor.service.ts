@@ -24,25 +24,23 @@ export class SpotSwapExecutorService {
     private readonly logger = logger.child({ context: SpotSwapExecutorService.name });
     private readonly initialL2Buffer: number;
     private readonly retryL2Buffer: number;
-
     /**
-     * Minimum fraction of the requested amount that must be filled for the
-     * attempt to count as a success. Below this threshold the fill is treated
-     * as a "dust fill" (order book too thin at this price level) and a retry
-     * with a wider buffer is attempted.
-     *
-     * Example: 0.05 means a fill of less than 5 % of the requested size is
-     * discarded and the wider-buffer retry is triggered.
+     * Minimum fill ratio — fills below this fraction of the requested amount
+     * are treated as dust fills (thin order book) and retried with a wider
+     * price buffer.
      */
-    private readonly minFillRatio = 0.05;
+    private readonly minFillRatio: number;
 
     constructor(
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         config: ConfigService<Config, true>,
     ) {
-        const { initialL2BufferPct, retryL2BufferPct } = config.get('swap', { infer: true });
+        const { initialL2BufferPct, retryL2BufferPct, minFillRatioPct } = config.get('swap', {
+            infer: true,
+        });
         this.initialL2Buffer = initialL2BufferPct;
         this.retryL2Buffer = retryL2BufferPct;
+        this.minFillRatio = minFillRatioPct;
     }
 
     async execute(params: SpotSwapParams): Promise<SpotSwapResult> {

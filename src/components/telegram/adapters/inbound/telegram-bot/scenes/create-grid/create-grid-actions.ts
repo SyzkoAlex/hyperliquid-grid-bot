@@ -1,5 +1,3 @@
-// Callback action constants for create grid scene
-
 export enum InvestmentPresetKey {
     P25 = '25',
     P50 = '50',

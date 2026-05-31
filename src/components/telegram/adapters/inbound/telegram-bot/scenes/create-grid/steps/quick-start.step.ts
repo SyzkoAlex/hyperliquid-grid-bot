@@ -44,6 +44,15 @@ export class QuickStartStep implements WizardStep {
 
         if (symbol && accountAddress) {
             try {
+                // After a swap, the exchange balance endpoint may lag behind the
+                // fill settlement — wait briefly so preset buttons reflect the
+                // post-swap state.
+                if (swapFeedback) {
+                    await new Promise<void>((resolve) =>
+                        setTimeout(resolve, WIZARD_CONFIG.SWAP_BALANCE_SETTLE_DELAY_MS),
+                    );
+                }
+
                 const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
                 const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
                 const upperPrice = currentPrice + priceOffset;

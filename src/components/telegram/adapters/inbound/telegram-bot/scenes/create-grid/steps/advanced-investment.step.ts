@@ -11,6 +11,7 @@ import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
+import { OptimalSwapDto } from '@components/trading/api/dto/optimal-swap.dto';
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
@@ -45,6 +46,14 @@ export class AdvancedInvestmentStep implements WizardStep {
 
         if (symbol && accountAddress) {
             try {
+                // After a swap, the exchange balance endpoint may lag behind the
+                // fill settlement — wait briefly so preset buttons reflect the
+                // post-swap state.
+                if (swapFeedback) {
+                    await new Promise<void>((resolve) =>
+                        setTimeout(resolve, WIZARD_CONFIG.SWAP_BALANCE_SETTLE_DELAY_MS),
+                    );
+                }
                 const storedUpper = session.createGrid?.upperPrice;
                 const storedLower = session.createGrid?.lowerPrice;
                 const [lowerPrice, upperPrice] =
@@ -85,18 +94,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                 }
 
                 if (session.createGrid) {
-                    // Persist the offer so the swap_offer action handler can read it from session.
-                    // swapOffer is set from both buildView (proactive hint on normal balance screen)
-                    // and applyTextInput (validation error path when investment doesn't fit balances).
-                    // Confirmed: session.createGrid.swapOffer is written here, before buildView()
-                    // returns its StepView — so the swap button is only shown after the offer is
-                    // already stored and available for the handler.
-                    if (result.swapOffer) {
-                        session.createGrid.swapOffer = result.swapOffer;
-                        hasSwapOffer = true;
-                    } else {
-                        delete session.createGrid.swapOffer;
-                    }
+                    hasSwapOffer = this.persistSwapOffer(session.createGrid, result.swapOffer);
                 }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in advanced investment step');
@@ -223,11 +221,7 @@ export class AdvancedInvestmentStep implements WizardStep {
 
             if (!result.valid) {
                 session.createGrid.pendingError = result.errorMessage ?? undefined;
-                if (result.swapOffer) {
-                    session.createGrid.swapOffer = result.swapOffer;
-                } else {
-                    delete session.createGrid.swapOffer;
-                }
+                this.persistSwapOffer(session.createGrid, result.swapOffer);
                 return null;
             }
 
@@ -240,6 +234,22 @@ export class AdvancedInvestmentStep implements WizardStep {
             );
             return null;
         }
+    }
+
+    /**
+     * Stores or clears the swap offer in session state.
+     * Returns true when an offer was stored (used to toggle the swap button).
+     */
+    private persistSwapOffer(
+        state: NonNullable<BotContext['session']['createGrid']>,
+        swapOffer: OptimalSwapDto | null | undefined,
+    ): boolean {
+        if (swapOffer) {
+            state.swapOffer = swapOffer;
+            return true;
+        }
+        delete state.swapOffer;
+        return false;
     }
 
     private async computePriceRange(symbol: string): Promise<[number, number]> {

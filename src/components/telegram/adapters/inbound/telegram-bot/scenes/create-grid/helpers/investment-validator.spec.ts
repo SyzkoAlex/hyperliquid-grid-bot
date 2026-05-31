@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { InvestmentValidationParams, validateInvestment } from './investment-validator';
+import { InvestmentValidationParams } from './investment-validation-params';
+import { validateInvestment } from './investment-validator';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 
