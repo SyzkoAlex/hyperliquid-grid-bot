@@ -8,6 +8,9 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { PlaceRefillOrderResult } from '../refill-order-placement/place-refill-order-result';
+import { GridsApiPort } from '@components/grids/api/grids-api.port';
+import { RefillOrderPlacementService } from '../refill-order-placement/refill-order-placement.service';
+import { TradeEventPublisher } from '../trade-event-publisher/trade-event-publisher.service';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const REFILL_ORDER_ID = '880e8400-e29b-41d4-a716-446655440003';
@@ -101,9 +104,9 @@ describe('OrderRefillService', () => {
         };
 
         service = new OrderRefillService(
-            mockGrids as any,
-            mockRefillPlacement as any,
-            mockTradeEventPublisher as any,
+            mockGrids as unknown as GridsApiPort,
+            mockRefillPlacement as unknown as RefillOrderPlacementService,
+            mockTradeEventPublisher as unknown as TradeEventPublisher,
         );
     });
 

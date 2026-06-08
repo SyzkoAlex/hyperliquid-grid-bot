@@ -19,6 +19,7 @@ import { QuickStartPromptMessage } from '@components/telegram/core/domain/models
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
 import { validateInvestment } from '../helpers/investment-validator';
+import { awaitSwapBalanceSettle, persistSwapOffer } from '../helpers/swap-session.helpers';
 
 @Injectable()
 export class QuickStartStep implements WizardStep {
@@ -47,11 +48,7 @@ export class QuickStartStep implements WizardStep {
                 // After a swap, the exchange balance endpoint may lag behind the
                 // fill settlement — wait briefly so preset buttons reflect the
                 // post-swap state.
-                if (swapFeedback) {
-                    await new Promise<void>((resolve) =>
-                        setTimeout(resolve, WIZARD_CONFIG.SWAP_BALANCE_SETTLE_DELAY_MS),
-                    );
-                }
+                await awaitSwapBalanceSettle(swapFeedback);
 
                 const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
                 const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
@@ -90,12 +87,7 @@ export class QuickStartStep implements WizardStep {
                 }
 
                 if (session.createGrid) {
-                    if (result.swapOffer) {
-                        session.createGrid.swapOffer = result.swapOffer;
-                        hasSwapOffer = true;
-                    } else {
-                        delete session.createGrid.swapOffer;
-                    }
+                    hasSwapOffer = persistSwapOffer(session.createGrid, result.swapOffer);
                 }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in quick start step');

@@ -11,6 +11,9 @@ import { Price } from '@domain/models/primitives/price';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { DuplicateActiveOrderError } from '@components/grids/api/errors/duplicate-active-order.error';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
+import { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
+import { GridsApiPort } from '@components/grids/api/grids-api.port';
+import { AgentExpirationHandlerPort } from '@components/trading/core/application/ports/agent-expiration-handler.port';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
 const PENDING_ORDER_ID = '880e8400-e29b-41d4-a716-446655440003';
@@ -78,9 +81,9 @@ describe('RefillOrderPlacementService', () => {
         };
 
         service = new RefillOrderPlacementService(
-            mockExchange as any,
-            mockGrids as any,
-            handleAgentExpired as any,
+            mockExchange as unknown as ExchangePort,
+            mockGrids as unknown as GridsApiPort,
+            handleAgentExpired as unknown as AgentExpirationHandlerPort,
         );
     });
 

@@ -12,6 +12,7 @@ import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
+import { ExchangePlaceOrderResult } from '@components/trading/core/domain/models/exchange-order/exchange-place-order-result';
 import { SpotSwapParams } from './types/spot-swap-params';
 import { SpotSwapResult } from './types/spot-swap-result';
 
@@ -74,7 +75,7 @@ export class SpotSwapExecutorService {
         this.logger.warn({ ...diagnostics }, 'IOC swap failed — aborting, notifying user');
 
         const errorMessage =
-            `Order didn't fill at the best available L2 price after 2 attempts. ` +
+            `Order didn't fill at the best available L2 price after ${buffers.length} attempts. ` +
             `Manual action may be required.`;
 
         return {
@@ -123,51 +124,7 @@ export class SpotSwapExecutorService {
             accountAddress: params.accountAddress,
         });
 
-        if (result.status !== OrderStatus.Filled) return null;
-
-        // Use actual fill data from the exchange — IOC orders can be partially
-        // filled. If the exchange reports zero filled size, treat as a miss and
-        // allow the retry loop to escalate to the next buffer tier.
-        const filledBase = result.filledSize ?? 0;
-        if (filledBase <= 0) return null;
-
-        // Reject dust fills: if the exchange filled less than minFillRatio of
-        // the requested amount the order book is too thin at this price level.
-        // Return null so the caller retries with a wider buffer.
-        const fillRatio = filledBase / baseAmount.toNumber();
-        if (fillRatio < this.minFillRatio) {
-            this.logger.warn(
-                {
-                    requested: baseAmount.toNumber(),
-                    filledBase,
-                    fillRatio,
-                    buffer: bufferLabel,
-                },
-                `IOC buy dust fill (<${this.minFillRatio * 100}% of requested) — retrying with wider buffer`,
-            );
-            return null;
-        }
-
-        const avgPx =
-            result.avgPrice != null && result.avgPrice > 0
-                ? result.avgPrice
-                : limitPrice.toNumber();
-        const notionalUsdc = filledBase * avgPx;
-        this.logger.info(
-            {
-                requested: baseAmount.toNumber(),
-                filledBase,
-                fillRatio,
-                notionalUsdc,
-            },
-            `IOC buy filled (${bufferLabel})`,
-        );
-
-        return {
-            success: true,
-            filledBase,
-            notionalUsdc,
-        };
+        return this.handleFillResult(result, baseAmount, limitPrice, bufferLabel, 'buy');
     }
 
     private async attemptIocSell(
@@ -194,6 +151,25 @@ export class SpotSwapExecutorService {
             accountAddress: params.accountAddress,
         });
 
+        return this.handleFillResult(result, params.amount, limitPrice, bufferLabel, 'sell');
+    }
+
+    /**
+     * Interprets an IOC exchange result and returns a `SpotSwapResult` on
+     * success, or `null` when the caller should retry with a wider buffer.
+     *
+     * Returns `null` for:
+     *  - Unfilled / not-Filled status
+     *  - Zero-filled size (treat as a miss)
+     *  - Dust fills (< minFillRatio of requestedAmount)
+     */
+    private handleFillResult(
+        result: ExchangePlaceOrderResult,
+        requestedAmount: Decimal,
+        limitPrice: Price,
+        bufferLabel: string,
+        side: 'buy' | 'sell',
+    ): SpotSwapResult | null {
         if (result.status !== OrderStatus.Filled) return null;
 
         // Use actual fill data from the exchange — IOC orders can be partially
@@ -202,17 +178,19 @@ export class SpotSwapExecutorService {
         const filledBase = result.filledSize ?? 0;
         if (filledBase <= 0) return null;
 
-        // Reject dust fills — same rationale as the buy branch.
-        const fillRatio = filledBase / params.amount.toNumber();
+        // Reject dust fills: if the exchange filled less than minFillRatio of
+        // the requested amount the order book is too thin at this price level.
+        // Return null so the caller retries with a wider buffer.
+        const fillRatio = filledBase / requestedAmount.toNumber();
         if (fillRatio < this.minFillRatio) {
             this.logger.warn(
                 {
-                    requested: params.amount.toNumber(),
+                    requested: requestedAmount.toNumber(),
                     filledBase,
                     fillRatio,
                     buffer: bufferLabel,
                 },
-                `IOC sell dust fill (<${this.minFillRatio * 100}% of requested) — retrying with wider buffer`,
+                `IOC ${side} dust fill (<${this.minFillRatio * 100}% of requested) — retrying with wider buffer`,
             );
             return null;
         }
@@ -224,18 +202,14 @@ export class SpotSwapExecutorService {
         const notionalUsdc = filledBase * avgPx;
         this.logger.info(
             {
-                requested: params.amount.toNumber(),
+                requested: requestedAmount.toNumber(),
                 filledBase,
                 fillRatio,
                 notionalUsdc,
             },
-            `IOC sell filled (${bufferLabel})`,
+            `IOC ${side} filled (${bufferLabel})`,
         );
 
-        return {
-            success: true,
-            filledBase,
-            notionalUsdc,
-        };
+        return { success: true, filledBase, notionalUsdc };
     }
 }

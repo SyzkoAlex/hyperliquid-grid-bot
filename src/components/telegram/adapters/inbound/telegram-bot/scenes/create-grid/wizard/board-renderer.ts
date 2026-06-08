@@ -6,12 +6,31 @@ import { TelegramParseMode } from '@components/telegram/core/domain/models/teleg
 import { logger } from '@/infra/logger/logger';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { CreateGridMode } from '../create-grid-mode';
+import { SceneStep } from '../create-grid-scene-step';
 import { WizardSummaryBuilder } from './wizard-summary-builder';
 
-// Quick mode steps: Pair → Mode → Quick → Preview → Confirm
-const QUICK_STEP_TOTAL = 5;
-// Advanced mode steps: Pair → Mode → Upper → Lower → Levels → Investment → StopLoss → Preview → Confirm
-const ADVANCED_STEP_TOTAL = 9;
+// Canonical step sequences (Swap is a detour, not counted in the total).
+const QUICK_STEPS: readonly SceneStep[] = [
+    SceneStep.Pair,
+    SceneStep.Mode,
+    SceneStep.Quick,
+    SceneStep.Preview,
+    SceneStep.Confirm,
+];
+const ADVANCED_STEPS: readonly SceneStep[] = [
+    SceneStep.Pair,
+    SceneStep.Mode,
+    SceneStep.Upper,
+    SceneStep.Lower,
+    SceneStep.Levels,
+    SceneStep.Investment,
+    SceneStep.StopLoss,
+    SceneStep.Preview,
+    SceneStep.Confirm,
+];
+
+const QUICK_STEP_TOTAL = QUICK_STEPS.length;
+const ADVANCED_STEP_TOTAL = ADVANCED_STEPS.length;
 
 @Injectable()
 export class BoardRenderer {

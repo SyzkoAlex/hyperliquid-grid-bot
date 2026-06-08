@@ -37,6 +37,8 @@ export class TradingApiAdapter implements TradingApiPort {
     ) {
         this.sellSizeBuffer = configService.get('hyperliquid.sellSizeBuffer', { infer: true });
         this.defaultTopSize = configService.get('tokens', { infer: true }).topSize;
+        // minOrderNotional is used only to expose it via getMinOrderNotional() for
+        // the Telegram layer; the execute use case reads it directly from config.
         this.minOrderNotional = configService.get('hyperliquid', { infer: true }).minOrderNotional;
     }
 
@@ -131,15 +133,12 @@ export class TradingApiAdapter implements TradingApiPort {
     }
 
     async executeSpotSwap(params: ExecuteSpotSwapDto): Promise<SpotSwapResultDto> {
-        return this.executeSpotSwapUseCase.execute(
-            {
-                symbol: params.symbol,
-                side: params.side,
-                amountUsdc: params.amountUsdc,
-                accountAddress: params.accountAddress,
-            },
-            this.minOrderNotional,
-        );
+        return this.executeSpotSwapUseCase.execute({
+            symbol: params.symbol,
+            side: params.side,
+            amountUsdc: params.amountUsdc,
+            accountAddress: params.accountAddress,
+        });
     }
 
     async getTopSymbolsByVolume(limit?: number): Promise<TokenDescriptorDto[]> {
