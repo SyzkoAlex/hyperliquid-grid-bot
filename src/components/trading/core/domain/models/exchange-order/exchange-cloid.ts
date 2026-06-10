@@ -55,7 +55,7 @@ export class ExchangeCloid {
             if (hex.length !== 32) return undefined;
             if (!/^[0-9a-fA-F]+$/.test(hex)) return undefined;
             return uuidStr;
-        } catch (error) {
+        } catch (_error) {
             return undefined;
         }
     }
