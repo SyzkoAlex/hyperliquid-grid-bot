@@ -64,7 +64,15 @@ export class HyperliquidExchangeMapper {
         }
 
         if (firstStatus?.filled) {
-            return { exchangeOrderId, status: OrderStatus.Filled };
+            const filledSize = parseFloat(firstStatus.filled.totalSz);
+            const avgPrice = parseFloat(firstStatus.filled.avgPx);
+            return {
+                exchangeOrderId,
+                status: OrderStatus.Filled,
+                // Guard against non-numeric SDK strings — callers treat undefined as miss
+                filledSize: Number.isFinite(filledSize) ? filledSize : undefined,
+                avgPrice: Number.isFinite(avgPrice) ? avgPrice : undefined,
+            };
         }
 
         return { exchangeOrderId, status: OrderStatus.Placed };

@@ -59,6 +59,11 @@ stopLoss:
     penetrationPct: ${STOP_LOSS_PENETRATION_PCT:0.002} # 0.2%
     breachTtlSeconds: ${STOP_LOSS_BREACH_TTL_SECONDS:300} # 5 minutes
 
+swap:
+    initialL2BufferPct: ${SWAP_INITIAL_L2_BUFFER_PCT:0.001}
+    retryL2BufferPct: ${SWAP_RETRY_L2_BUFFER_PCT:0.005}
+    minFillRatioPct: ${SWAP_MIN_FILL_RATIO_PCT:0.05}
+
 logging:
     level: ${LOG_LEVEL:trace}
     pretty: ${LOG_PRETTY:true}

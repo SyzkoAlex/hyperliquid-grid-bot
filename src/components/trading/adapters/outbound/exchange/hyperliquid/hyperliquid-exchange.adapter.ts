@@ -18,6 +18,7 @@ import { Price } from '@domain/models/primitives/price';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-order/exchange-cloid';
 import { ExchangePlaceMarketSellParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-sell-params';
+import { ExchangePlaceMarketBuyParams } from '@components/trading/core/domain/models/exchange-order/exchange-place-market-buy-params';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
@@ -28,6 +29,7 @@ import { TokenDescriptor } from '@components/trading/core/domain/models/token/to
 import { TopSymbolsSelectorService } from '@components/trading/core/domain/services/top-symbols-selector/top-symbols-selector.service';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 import { isAgentNotApprovedError } from './agent-approval-error-classifier';
+import { L2Touch } from '@components/trading/core/domain/models/swap/l2-touch';
 
 @Injectable()
 export class HyperliquidExchangeAdapter implements ExchangePort {
@@ -111,6 +113,41 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
         }
     }
 
+    async placeSpotMarketBuy(
+        params: ExchangePlaceMarketBuyParams,
+    ): Promise<ExchangePlaceOrderResult> {
+        const stop = startTimer();
+        try {
+            const agentPrivateKey = await this.resolveAgentKey(params.accountAddress);
+            const orderData: PlaceSpotOrderInput = {
+                symbol: params.symbol.toString(),
+                isBuy: true,
+                amount: params.amount.toNumber(),
+                price: params.limitPrice.toNumber(),
+                cloid: ExchangeCloid.create(params.orderId).toString(),
+                agentPrivateKey,
+                tif: Tif.Ioc,
+            };
+            const response = await this.orders.placeSpotOrder(orderData);
+            this.logger.info({ params, response }, 'Market buy placed');
+            const result = this.mapper.toExchangePlaceOrderResult(response);
+            if (
+                result.status === OrderStatus.Failed &&
+                result.error &&
+                isAgentNotApprovedError(result.error)
+            ) {
+                throw new AgentNotApprovedError(params.accountAddress, result.error);
+            }
+            return result;
+        } catch (error) {
+            if (error instanceof AgentNotApprovedError) throw error;
+            this.logger.error({ err: error, params }, 'Failed to place market buy');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('placeSpotMarketBuy', stop());
+        }
+    }
+
     async cancelSpotOrder(params: ExchangeCancelOrderParams): Promise<ExchangeCancelOrderResult> {
         const stop = startTimer();
         try {
@@ -152,6 +189,27 @@ export class HyperliquidExchangeAdapter implements ExchangePort {
             return Price.from(parseFloat(priceStr));
         } finally {
             this.metrics.observeExchangeApiDuration('getCurrentPrice', stop());
+        }
+    }
+
+    async getL2Touch(symbol: TradingSymbol): Promise<L2Touch> {
+        const stop = startTimer();
+        try {
+            const spotKey = this.meta.lookupSpotKey(symbol.toString());
+            const book = await this.info.getL2Book(spotKey);
+            const bids = book.levels[0];
+            const asks = book.levels[1];
+            if (!bids?.length || !asks?.length) {
+                throw new Error(`L2 book empty for ${symbol.toString()}`);
+            }
+            const bestBid = Price.from(parseFloat(bids[0].px));
+            const bestAsk = Price.from(parseFloat(asks[0].px));
+            return L2Touch.from(bestBid, bestAsk);
+        } catch (error) {
+            this.logger.error({ err: error, symbol: symbol.toString() }, 'Failed to get L2 touch');
+            throw error;
+        } finally {
+            this.metrics.observeExchangeApiDuration('getL2Touch', stop());
         }
     }
 

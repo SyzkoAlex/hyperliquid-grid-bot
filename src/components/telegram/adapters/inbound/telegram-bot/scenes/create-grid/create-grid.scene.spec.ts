@@ -10,6 +10,7 @@ import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedLevelsStep } from './steps/advanced-levels.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
+import { SwapStep } from './steps/swap.step';
 import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
 import { AdvancedPreviewStep } from './steps/advanced-preview.step';
 import { ConfirmStep } from './steps/confirm.step';
@@ -29,6 +30,7 @@ describe('CreateGridSceneHandler', () => {
     let mockAdvancedStopLossStep: AdvancedStopLossStep;
     let mockQuickStartStep: QuickStartStep;
     let mockAdvancedInvestmentStep: AdvancedInvestmentStep;
+    let mockSwapStep: SwapStep;
 
     beforeEach(() => {
         mockNavigator = {
@@ -110,6 +112,14 @@ describe('CreateGridSceneHandler', () => {
             handleTextInput: vi.fn().mockResolvedValue(null),
         } as unknown as AdvancedInvestmentStep;
 
+        mockSwapStep = {
+            id: SceneStep.Swap,
+            buildView: vi.fn().mockResolvedValue({ body: '', keyboard: [] }),
+            rollbackState: vi.fn(),
+            handleConfirm: vi.fn().mockResolvedValue(null),
+            handleSkip: vi.fn().mockResolvedValue(null),
+        } as unknown as SwapStep;
+
         const makeStep = (id: SceneStep) =>
             ({
                 id,
@@ -127,6 +137,7 @@ describe('CreateGridSceneHandler', () => {
             mockAdvancedLowerStep,
             mockAdvancedLevelsStep,
             mockAdvancedInvestmentStep,
+            mockSwapStep,
             mockAdvancedStopLossStep,
             makeStep(SceneStep.Preview) as unknown as AdvancedPreviewStep,
             mockConfirmStep,

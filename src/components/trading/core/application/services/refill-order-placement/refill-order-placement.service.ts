@@ -53,6 +53,9 @@ export class RefillOrderPlacementService {
             }
 
             await this.updateOrderAsPlaced(order, placeResult);
+            if (placeResult.status === OrderStatus.Filled) {
+                return PlaceRefillOrderResult.immediatelyFilled(order);
+            }
             return PlaceRefillOrderResult.success(order);
         } catch (error) {
             if (error instanceof AgentNotApprovedError) {
@@ -137,7 +140,7 @@ export class RefillOrderPlacementService {
         await this.grids.updateOrderExchangeId(
             order.id,
             placeResult.exchangeOrderId,
-            OrderStatus.Placed,
+            placeResult.status,
             new Date(),
         );
 

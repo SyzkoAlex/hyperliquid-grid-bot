@@ -11,7 +11,11 @@ export class WizardSummaryBuilder {
         if (!state?.stepHistory || state.stepHistory.length === 0) return '';
 
         const rows: string[] = [];
+        const seen = new Set<SceneStep>();
         for (const step of state.stepHistory) {
+            // Skip duplicate steps (e.g. Quick appears twice after a swap round-trip)
+            if (seen.has(step)) continue;
+            seen.add(step);
             const row = this.buildRowForStep(step, state);
             if (row !== null) rows.push(row);
         }

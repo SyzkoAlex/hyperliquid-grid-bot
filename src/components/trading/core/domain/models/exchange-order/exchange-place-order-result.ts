@@ -12,6 +12,19 @@ export interface ExchangePlaceOrderResult {
     /** Order status after placement */
     status: OrderStatus;
 
+    /**
+     * Actual filled base-asset quantity reported by the exchange.
+     * Present when status === Filled. For IOC orders this may be less
+     * than the requested size (partial fill).
+     */
+    filledSize?: number;
+
+    /**
+     * Volume-weighted average fill price reported by the exchange.
+     * Present when status === Filled.
+     */
+    avgPrice?: number;
+
     /** Error message if placement failed */
     error?: string;
 }

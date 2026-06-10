@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { CapitalCalculatorService } from './capital-calculator.service';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { Price } from '@domain/models/primitives/price';
+import { SwapSide } from '@components/trading/core/domain/models/swap/swap-side';
 
 describe('CapitalCalculatorService', () => {
     let service: CapitalCalculatorService;
@@ -194,6 +195,91 @@ describe('CapitalCalculatorService', () => {
                 szDecimals: 5,
             });
             expect(result).toBe(0);
+        });
+    });
+
+    describe('calculateOptimalSwap', () => {
+        // Grid: price=$10, range=$8-$12, 10 levels
+        // buyCount=5, sellCount=6, totalLevels=11
+        // buyRatio=5/11, sellRatio=6/11
+        const baseParams = {
+            currentPrice: Price.from(10),
+            lowerPrice: 8,
+            upperPrice: 12,
+            levels: 10,
+        };
+
+        it('returns UsdcToBase when USDC balance is heavier than optimal', () => {
+            // totalValueUsdc = 7300 + 0*10 = 7300
+            // optimalUsdc = 7300 * 5/11 = 3318.18...
+            // diff = 7300 - 3318.18 = 3981.81... → swap USDC to base
+            const result = service.calculateOptimalSwap({
+                ...baseParams,
+                usdcBalance: Decimal.from(7300),
+                baseBalance: Decimal.from(0),
+            });
+
+            expect(result).not.toBeNull();
+            expect(result!.side).toBe(SwapSide.UsdcToBase);
+            expect(result!.amountUsdc).toBeCloseTo(7300 - 7300 * (5 / 11), 4);
+            expect(result!.expectedReceived).toBeCloseTo(result!.amountUsdc / 10, 6);
+        });
+
+        it('returns BaseToUsdc when base balance is heavier than optimal', () => {
+            // totalValueUsdc = 0 + 1*10 = 10 (all in base)
+            // optimalUsdc = 10 * 5/11 = 4.545...
+            // diff = 0 - 4.545 = -4.545 → swap base to USDC
+            const result = service.calculateOptimalSwap({
+                ...baseParams,
+                usdcBalance: Decimal.from(0),
+                baseBalance: Decimal.from(1),
+            });
+
+            expect(result).not.toBeNull();
+            expect(result!.side).toBe(SwapSide.BaseToUsdc);
+            expect(result!.amountUsdc).toBeCloseTo(10 * (5 / 11), 4);
+            expect(result!.expectedReceived).toBeCloseTo(10 * (5 / 11), 4);
+        });
+
+        it('returns null when portfolio is balanced within $1 dead-band', () => {
+            // totalValueUsdc = 5 + 0.6*10 = 11
+            // optimalUsdc = 11 * 5/11 = 5
+            // diff = 5 - 5 = 0 → within dead-band
+            const result = service.calculateOptimalSwap({
+                ...baseParams,
+                usdcBalance: Decimal.from(5),
+                baseBalance: Decimal.from(0.6),
+            });
+
+            expect(result).toBeNull();
+        });
+
+        it('returns null when sellCount is 0 (all-buy grid)', () => {
+            // lowerPrice=80, upperPrice=90, currentPrice=100: all levels < 100 → sellCount=0
+            const result = service.calculateOptimalSwap({
+                usdcBalance: Decimal.from(1000),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(100),
+                lowerPrice: 80,
+                upperPrice: 90,
+                levels: 10,
+            });
+
+            expect(result).toBeNull();
+        });
+
+        it('returns null when buyCount is 0 (all-sell grid)', () => {
+            // lowerPrice=110, upperPrice=120, currentPrice=100: all levels >= 100 → buyCount=0
+            const result = service.calculateOptimalSwap({
+                usdcBalance: Decimal.from(0),
+                baseBalance: Decimal.from(10),
+                currentPrice: Price.from(100),
+                lowerPrice: 110,
+                upperPrice: 120,
+                levels: 10,
+            });
+
+            expect(result).toBeNull();
         });
     });
 

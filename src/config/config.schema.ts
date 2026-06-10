@@ -11,6 +11,7 @@ export { loggingSchema, type LoggingConfig } from './schemas/logging.schema';
 export { metricsSchema, type MetricsConfig } from './schemas/metrics.schema';
 export { stopLossSchema, type StopLossConfig } from './schemas/stop-loss.schema';
 export { tokensSchema, type TokensConfig } from './schemas/tokens.schema';
+export { swapSchema, type SwapConfig } from './schemas/swap.schema';
 
 // Import for combined schema
 import { appSchema } from './schemas/app.schema';
@@ -23,6 +24,7 @@ import { loggingSchema } from './schemas/logging.schema';
 import { metricsSchema } from './schemas/metrics.schema';
 import { stopLossSchema } from './schemas/stop-loss.schema';
 import { tokensSchema } from './schemas/tokens.schema';
+import { swapSchema } from './schemas/swap.schema';
 
 // Combined schema
 export const configSchema = z.object({
@@ -36,6 +38,7 @@ export const configSchema = z.object({
     metrics: metricsSchema,
     stopLoss: stopLossSchema,
     tokens: tokensSchema,
+    swap: swapSchema,
 });
 
 export type Config = z.infer<typeof configSchema>;

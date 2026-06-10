@@ -14,10 +14,12 @@ import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/tradin
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { AdvancedInvestmentPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
 import { validateInvestment } from '../helpers/investment-validator';
+import { awaitSwapBalanceSettle, persistSwapOffer } from '../helpers/swap-session.helpers';
 
 @Injectable()
 export class AdvancedInvestmentStep implements WizardStep {
@@ -32,11 +34,22 @@ export class AdvancedInvestmentStep implements WizardStep {
         const levels = session.createGrid?.levels ?? WIZARD_CONFIG.DEFAULT_LEVELS;
         const accountAddress = ctx.user?.accountAddress;
 
+        // Consume and clear the post-swap success banner set by SwapStep
+        const swapFeedback = session.createGrid?.swapFeedback;
+        if (swapFeedback && session.createGrid) {
+            delete session.createGrid.swapFeedback;
+        }
+
         let suggestedMax: number | null = null;
         let body = AdvancedInvestmentPromptMessage.create().text;
+        let hasSwapOffer = false;
 
         if (symbol && accountAddress) {
             try {
+                // After a swap, the exchange balance endpoint may lag behind the
+                // fill settlement — wait briefly so preset buttons reflect the
+                // post-swap state.
+                await awaitSwapBalanceSettle(swapFeedback);
                 const storedUpper = session.createGrid?.upperPrice;
                 const storedLower = session.createGrid?.lowerPrice;
                 const [lowerPrice, upperPrice] =
@@ -75,18 +88,27 @@ export class AdvancedInvestmentStep implements WizardStep {
                 if (suggestedMax !== null && session.createGrid) {
                     session.createGrid.balanceSnapshot = { suggestedMax };
                 }
+
+                if (session.createGrid) {
+                    hasSwapOffer = persistSwapOffer(session.createGrid, result.swapOffer);
+                }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in advanced investment step');
             }
         }
 
+        if (swapFeedback) {
+            body = `${swapFeedback}\n\n${body}`;
+        }
+
         return {
             body,
-            keyboard: this.buildKeyboard(suggestedMax),
+            keyboard: this.buildKeyboard(suggestedMax, hasSwapOffer),
         };
     }
 
-    private buildKeyboard(suggestedMax: number | null): InlineButton[][] {
+    private buildKeyboard(suggestedMax: number | null, hasSwapOffer = false): InlineButton[][] {
+        const isProactiveSwap = suggestedMax !== null && hasSwapOffer;
         const rows: InlineButton[][] = [];
         if (suggestedMax !== null) {
             rows.push(
@@ -111,6 +133,12 @@ export class AdvancedInvestmentStep implements WizardStep {
                     },
                 ],
             );
+        }
+        if (hasSwapOffer) {
+            const swapLabel = isProactiveSwap
+                ? `${EMOJI.REFRESH} Swap to maximize`
+                : `${EMOJI.REFRESH} Swap to fit grid`;
+            rows.push([{ text: swapLabel, action: CREATE_GRID_ACTIONS.SWAP_OFFER }]);
         }
         rows.push([
             {
@@ -189,6 +217,7 @@ export class AdvancedInvestmentStep implements WizardStep {
 
             if (!result.valid) {
                 session.createGrid.pendingError = result.errorMessage ?? undefined;
+                persistSwapOffer(session.createGrid, result.swapOffer);
                 return null;
             }
 
@@ -213,6 +242,8 @@ export class AdvancedInvestmentStep implements WizardStep {
         if (ctx.session.createGrid) {
             delete ctx.session.createGrid.totalInvestmentUSDC;
             delete ctx.session.createGrid.balanceSnapshot;
+            delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapFeedback;
         }
     }
 }

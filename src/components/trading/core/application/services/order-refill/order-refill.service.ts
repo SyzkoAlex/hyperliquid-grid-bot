@@ -45,36 +45,63 @@ export class OrderRefillService {
         const profit = await this.publishFillEventSafe(filledOrder, grid);
 
         try {
-            const refillParams = RefillParams.calc(filledOrder, grid);
-            if (!refillParams) {
-                return this.handleEdgeLevel(filledOrder);
-            }
+            let currentOrder = filledOrder;
+            let lastPlacedOrder: OrderDto | undefined;
 
-            if (
-                await this.hasActiveOrderAtLevel(
-                    grid.id,
-                    refillParams.levelIndex,
-                    refillParams.side,
-                )
-            ) {
-                return this.handleDuplicateActiveOrder(
-                    grid.id,
-                    refillParams.levelIndex,
-                    refillParams.side,
+            for (let depth = 0; depth <= grid.levels; depth++) {
+                const refillParams = RefillParams.calc(currentOrder, grid);
+                if (!refillParams) {
+                    if (!lastPlacedOrder) return this.handleEdgeLevel(filledOrder);
+                    break;
+                }
+
+                if (
+                    await this.hasActiveOrderAtLevel(
+                        grid.id,
+                        refillParams.levelIndex,
+                        refillParams.side,
+                    )
+                ) {
+                    if (!lastPlacedOrder)
+                        return this.handleDuplicateActiveOrder(
+                            grid.id,
+                            refillParams.levelIndex,
+                            refillParams.side,
+                        );
+                    break;
+                }
+
+                const placeResult = await this.refillPlacement.placeRefillOrder(
+                    grid,
+                    refillParams,
+                    accountAddress,
                 );
+                if (!placeResult.success) {
+                    if (!lastPlacedOrder) return OrderRefillResult.failure(placeResult.error!);
+                    break;
+                }
+
+                lastPlacedOrder = placeResult.order!;
+
+                if (!placeResult.immediatelyFilled) break;
+
+                this.logger.info(
+                    {
+                        gridId: grid.id,
+                        levelIndex: refillParams.levelIndex,
+                        side: refillParams.side,
+                    },
+                    'Refill order was immediately filled, continuing chain',
+                );
+                currentOrder = lastPlacedOrder;
             }
 
-            const placeResult = await this.refillPlacement.placeRefillOrder(
-                grid,
-                refillParams,
-                accountAddress,
-            );
-            if (!placeResult.success) {
-                return OrderRefillResult.failure(placeResult.error!);
+            if (!lastPlacedOrder) {
+                return OrderRefillResult.failure('No refill placed');
             }
 
-            this.logSuccess(grid, filledOrder, placeResult.order!, refillParams, profit);
-            return OrderRefillResult.success(placeResult.order!, profit?.toNumber());
+            this.logSuccess(grid, filledOrder, lastPlacedOrder, profit);
+            return OrderRefillResult.success(lastPlacedOrder, profit?.toNumber());
         } catch (error) {
             return this.handleError(error, filledOrder);
         }
@@ -133,7 +160,6 @@ export class OrderRefillService {
         grid: GridDto,
         filledOrder: OrderDto,
         refillOrder: OrderDto,
-        refillParams: RefillParams,
         profit: Decimal | null,
     ): void {
         this.logger.info(
@@ -141,8 +167,8 @@ export class OrderRefillService {
                 gridId: grid.id,
                 filledOrderId: filledOrder.id,
                 refillOrderId: refillOrder.id,
-                refillSide: refillParams.side,
-                refillLevel: refillParams.levelIndex,
+                refillSide: refillOrder.side,
+                refillLevel: refillOrder.levelIndex,
                 profit: profit?.toNumber() ?? null,
             },
             'Refill order placed successfully',

@@ -16,6 +16,7 @@ import { AdvancedUpperStep } from './adapters/inbound/telegram-bot/scenes/create
 import { AdvancedLowerStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-lower.step';
 import { AdvancedLevelsStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-levels.step';
 import { AdvancedInvestmentStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-investment.step';
+import { SwapStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/swap.step';
 import { AdvancedStopLossStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-stop-loss.step';
 import { AdvancedPreviewStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-preview.step';
 import { ConfirmStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/confirm.step';
@@ -98,6 +99,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         AdvancedLowerStep,
         AdvancedLevelsStep,
         AdvancedInvestmentStep,
+        SwapStep,
         AdvancedStopLossStep,
         AdvancedPreviewStep,
         ConfirmStep,

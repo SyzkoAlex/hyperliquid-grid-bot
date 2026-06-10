@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { InvestmentValidationParams, validateInvestment } from './investment-validator';
+import { InvestmentValidationParams } from './investment-validation-params';
+import { validateInvestment } from './investment-validator';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 
@@ -42,6 +43,8 @@ describe('validateInvestment', () => {
                 requiredUSDC: 500,
                 requiredBase: 50.25,
             }),
+            calculateOptimalSwap: vi.fn().mockReturnValue(null),
+            getMinOrderNotional: vi.fn().mockReturnValue(10),
         } as unknown as TradingApiPort;
     });
 

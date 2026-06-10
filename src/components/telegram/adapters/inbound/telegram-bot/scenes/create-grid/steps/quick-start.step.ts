@@ -14,10 +14,12 @@ import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
+import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { QuickStartPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
 import { validateInvestment } from '../helpers/investment-validator';
+import { awaitSwapBalanceSettle, persistSwapOffer } from '../helpers/swap-session.helpers';
 
 @Injectable()
 export class QuickStartStep implements WizardStep {
@@ -31,11 +33,23 @@ export class QuickStartStep implements WizardStep {
         const symbol = session.createGrid?.symbol;
         const accountAddress = ctx.user?.accountAddress;
 
+        // Consume and clear the post-swap success banner set by SwapStep
+        const swapFeedback = session.createGrid?.swapFeedback;
+        if (swapFeedback && session.createGrid) {
+            delete session.createGrid.swapFeedback;
+        }
+
         let suggestedMax: number | null = null;
         let body = QuickStartPromptMessage.create().text;
+        let hasSwapOffer = false;
 
         if (symbol && accountAddress) {
             try {
+                // After a swap, the exchange balance endpoint may lag behind the
+                // fill settlement — wait briefly so preset buttons reflect the
+                // post-swap state.
+                await awaitSwapBalanceSettle(swapFeedback);
+
                 const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
                 const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
                 const upperPrice = currentPrice + priceOffset;
@@ -71,18 +85,27 @@ export class QuickStartStep implements WizardStep {
                 if (suggestedMax !== null && session.createGrid) {
                     session.createGrid.balanceSnapshot = { suggestedMax };
                 }
+
+                if (session.createGrid) {
+                    hasSwapOffer = persistSwapOffer(session.createGrid, result.swapOffer);
+                }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in quick start step');
             }
         }
 
+        if (swapFeedback) {
+            body = `${swapFeedback}\n\n${body}`;
+        }
+
         return {
             body,
-            keyboard: this.buildKeyboard(suggestedMax),
+            keyboard: this.buildKeyboard(suggestedMax, hasSwapOffer),
         };
     }
 
-    private buildKeyboard(suggestedMax: number | null): InlineButton[][] {
+    private buildKeyboard(suggestedMax: number | null, hasSwapOffer = false): InlineButton[][] {
+        const isProactiveSwap = suggestedMax !== null && hasSwapOffer;
         const rows: InlineButton[][] = [];
         if (suggestedMax !== null) {
             rows.push(
@@ -107,6 +130,12 @@ export class QuickStartStep implements WizardStep {
                     },
                 ],
             );
+        }
+        if (hasSwapOffer) {
+            const swapLabel = isProactiveSwap
+                ? `${EMOJI.REFRESH} Swap to maximize`
+                : `${EMOJI.REFRESH} Swap to fit grid`;
+            rows.push([{ text: swapLabel, action: CREATE_GRID_ACTIONS.SWAP_OFFER }]);
         }
         rows.push([
             {
@@ -209,6 +238,8 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.lowerPrice;
             delete ctx.session.createGrid.levels;
             delete ctx.session.createGrid.balanceSnapshot;
+            delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapFeedback;
         }
     }
 }

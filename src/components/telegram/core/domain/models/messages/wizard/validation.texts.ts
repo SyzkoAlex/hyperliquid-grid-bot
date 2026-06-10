@@ -54,6 +54,7 @@ export class ValidationTexts {
         requiredBase: Decimal,
         usdcShortfall: Decimal | null,
         baseShortfall: Decimal | null,
+        swapHint?: string | null,
     ): string {
         let message = `${EMOJI.ERROR} Insufficient balance!\n\n`;
         message += `${EMOJI.MONEY} Your balance:\n`;
@@ -73,6 +74,7 @@ export class ValidationTexts {
             message += `${EMOJI.WARNING} ${symbol} shortfall: ${baseShortfall.toFixed(6)} (~${formatFiat(baseShortfallUsdc.toNumber())} USDC)\n`;
         }
 
+        if (swapHint) message += `\n${swapHint}\n`;
         message += `\nPlease reduce your investment or add more funds.`;
         return message;
     }
@@ -101,6 +103,7 @@ export class ValidationTexts {
         levels: number,
         minRequired: number,
         suggestedMax: number,
+        swapHint?: string | null,
     ): string {
         const ordersCount = levels + 1;
         const shortfall = Math.ceil(minRequired - suggestedMax);
@@ -112,25 +115,27 @@ export class ValidationTexts {
             options = `  • Reduce to ${maxAffordableLevels} levels or fewer\n` + options;
         }
 
-        return (
+        let message =
             `${EMOJI.WARNING} Insufficient balance for grid creation!\n\n` +
             `With ${levels} levels, minimum investment is ${minRequired} USDC ` +
             `(${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order × ${ordersCount} orders).\n` +
             `Your balance supports at most ~${suggestedMax} USDC for this grid configuration.\n\n` +
             `Options:\n` +
-            options
-        );
+            options;
+        if (swapHint) message += `\n\n${swapHint}`;
+        return message;
     }
 
-    static zeroBaseBalance(symbol: string, usdcBalance: Decimal): string {
-        return (
+    static zeroBaseBalance(symbol: string, usdcBalance: Decimal, swapHint?: string | null): string {
+        let message =
             `${EMOJI.WARNING} You have no ${symbol} tokens!\n\n` +
             `${EMOJI.MONEY} Your balance:\n` +
             `  • USDC: ${usdcBalance.toString()}\n` +
             `  • ${symbol}: 0\n\n` +
             `Grid requires both USDC and ${symbol}.\n` +
-            `Please buy some ${symbol} first, then create the grid.`
-        );
+            `Please buy some ${symbol} first, then create the grid.`;
+        if (swapHint) message += `\n\n${swapHint}`;
+        return message;
     }
 
     static baseLockedInOrders(symbol: string, available: Decimal, hold: Decimal): string {
@@ -179,14 +184,15 @@ export class ValidationTexts {
         return 'Send a number to set stop-loss price.';
     }
 
-    static zeroUsdcBalance(symbol: string, baseBalance: Decimal): string {
-        return (
+    static zeroUsdcBalance(symbol: string, baseBalance: Decimal, swapHint?: string | null): string {
+        let message =
             `${EMOJI.WARNING} You have no USDC!\n\n` +
             `${EMOJI.MONEY} Your balance:\n` +
             `  • USDC: 0\n` +
             `  • ${symbol}: ${baseBalance.toString()}\n\n` +
             `Grid requires both USDC and ${symbol}.\n` +
-            `Please add USDC first, then create the grid.`
-        );
+            `Please add USDC first, then create the grid.`;
+        if (swapHint) message += `\n\n${swapHint}`;
+        return message;
     }
 }
