@@ -1,6 +1,5 @@
 export type HyperliquidOrderStatusResponse =
-    | HyperliquidOrderStatusFound
-    | HyperliquidOrderStatusUnknown;
+    HyperliquidOrderStatusFound | HyperliquidOrderStatusUnknown;
 
 export interface HyperliquidOrderStatusFound {
     status: 'order';
