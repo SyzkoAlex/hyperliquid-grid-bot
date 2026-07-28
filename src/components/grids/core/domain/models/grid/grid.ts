@@ -14,7 +14,7 @@ export class Grid {
     private _status: GridStatus;
     private readonly _lowerPrice: Price;
     private readonly _upperPrice: Price;
-    private readonly _levels: number;
+    private readonly _orderCount: number;
     private readonly _investmentUSDC: Decimal;
     private readonly _investmentBase: Decimal;
     private readonly _creationPrice: Price | null;
@@ -39,7 +39,7 @@ export class Grid {
         this._status = params.status ?? GridStatus.Idle;
         this._lowerPrice = params.lowerPrice;
         this._upperPrice = params.upperPrice;
-        this._levels = params.levels;
+        this._orderCount = params.orderCount;
         this._investmentUSDC = params.investmentUSDC;
         this._investmentBase = params.investmentBase;
         this._creationPrice = params.creationPrice ?? null;
@@ -68,8 +68,8 @@ export class Grid {
         if (this._lowerPrice.gte(this._upperPrice)) {
             throw new Error('Lower price must be less than upper price');
         }
-        if (this._levels < 5 || this._levels > 100) {
-            throw new Error('Levels must be between 5 and 100');
+        if (this._orderCount < 5 || this._orderCount > 100) {
+            throw new Error('Order count must be between 5 and 100');
         }
         if (this._investmentUSDC.lte(Decimal.zero())) {
             throw new Error('Investment USDC must be positive');
@@ -135,8 +135,8 @@ export class Grid {
         return this._upperPrice;
     }
 
-    get levels(): number {
-        return this._levels;
+    get orderCount(): number {
+        return this._orderCount;
     }
 
     get investmentUSDC(): Decimal {

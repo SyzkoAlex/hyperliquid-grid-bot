@@ -90,7 +90,7 @@ The bot exposes a health endpoint at `http://localhost:3000/health/live`.
 3. Press **Create Grid** (or send `/grid`) and follow the wizard:
    - Choose a token (e.g. `HYPE`)
    - Set a lower and upper price bound
-   - Set the number of grid levels
+   - Set the number of grid orders
    - Enter the capital to deploy
    - Review the summary and confirm
 4. The bot places orders on Hyperliquid and begins managing the grid automatically.

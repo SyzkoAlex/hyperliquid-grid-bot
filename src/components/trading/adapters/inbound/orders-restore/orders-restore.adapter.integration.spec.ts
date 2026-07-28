@@ -47,7 +47,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         testGrid1 = await createGridHelper('BTC', {
             lowerPrice: 45000,
             upperPrice: 55000,
-            levels: 11,
+            orderCount: 11,
             investmentUSDC: 5000,
             investmentBase: 0.1,
         });
@@ -55,7 +55,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         testGrid2 = await createGridHelper('ETH', {
             lowerPrice: 2500,
             upperPrice: 3500,
-            levels: 11,
+            orderCount: 11,
             investmentUSDC: 3000,
             investmentBase: 1,
         });
@@ -90,7 +90,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             symbol,
             lowerPrice: 45000,
             upperPrice: 55000,
-            levels: 11,
+            orderCount: 11,
             investmentUSDC: 5000,
             investmentBase: 0.1,
             trailingEnabled: false,
@@ -110,7 +110,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         overrides: Partial<{
             side: OrderSide;
             price: number;
-            levelIndex: number;
+            orderIndex: number;
             placedAt: number;
         }> = {},
     ): Promise<OrderDto> {
@@ -120,7 +120,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             symbol,
             side: overrides.side ?? OrderSide.Buy,
             type: OrderType.Limit,
-            levelIndex: overrides.levelIndex ?? 5,
+            orderIndex: overrides.orderIndex ?? 5,
             price: overrides.price ?? 50000,
             amount: 0.01,
         });
@@ -164,12 +164,12 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         it('should restore multiple pending orders with different cloids', async () => {
             const pendingOrder1 = await createPendingOrder(testGrid1.id, 'BTC', {
                 price: 49000,
-                levelIndex: 4,
+                orderIndex: 4,
             });
             const pendingOrder2 = await createPendingOrder(testGrid2.id, 'ETH', {
                 side: OrderSide.Sell,
                 price: 3000,
-                levelIndex: 6,
+                orderIndex: 6,
             });
 
             const cloid1 = ExchangeCloid.create(pendingOrder1.id);
@@ -227,7 +227,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
             // This test verifies the behavior when no exchange match found and no placedAt → order stays pending.
             const pendingOrder = await createPendingOrder(testGrid1.id, 'SOL', {
                 price: 120,
-                levelIndex: 3,
+                orderIndex: 3,
             });
 
             vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([]);

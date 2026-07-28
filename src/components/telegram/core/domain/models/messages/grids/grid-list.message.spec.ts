@@ -14,7 +14,7 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
         creationPrice: 95000,

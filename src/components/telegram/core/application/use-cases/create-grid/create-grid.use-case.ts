@@ -16,7 +16,7 @@ export class CreateGridUseCase {
             symbol: params.symbol,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
-            levels: params.levels,
+            orderCount: params.orderCount,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             accountAddress: params.accountAddress,
             stopLossEnabled: params.stopLossEnabled,

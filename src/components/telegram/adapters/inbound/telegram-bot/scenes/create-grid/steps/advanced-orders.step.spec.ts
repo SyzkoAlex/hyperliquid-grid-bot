@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AdvancedLevelsStep } from './advanced-levels.step';
+import { AdvancedOrdersStep } from './advanced-orders.step';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 
-describe('AdvancedLevelsStep', () => {
-    let step: AdvancedLevelsStep;
+describe('AdvancedOrdersStep', () => {
+    let step: AdvancedOrdersStep;
 
     beforeEach(() => {
-        step = new AdvancedLevelsStep();
+        step = new AdvancedOrdersStep();
     });
 
     describe('buildView', () => {
@@ -16,16 +16,16 @@ describe('AdvancedLevelsStep', () => {
 
             const view = await step.buildView(ctx);
 
-            expect(view.body).toContain('grid levels');
+            expect(view.body).toContain('grid orders');
         });
 
-        it('returns keyboard with preset levels and navigation buttons', async () => {
+        it('returns keyboard with preset orders and navigation buttons', async () => {
             const ctx = createMockContext();
 
             const view = await step.buildView(ctx);
 
             const hasPreset = view.keyboard.some((r) =>
-                r.some((b) => b.action?.startsWith('create_grid:levels:')),
+                r.some((b) => b.action?.startsWith('create_grid:orders:')),
             );
             const hasNav = view.keyboard.some(
                 (r) =>
@@ -41,29 +41,29 @@ describe('AdvancedLevelsStep', () => {
 
             const view = await step.buildView(ctx);
 
-            const hasLevel5 = view.keyboard.some((r) => r.some((b) => b.text === '5'));
-            expect(hasLevel5).toBe(true);
+            const hasOrders5 = view.keyboard.some((r) => r.some((b) => b.text === '5'));
+            expect(hasOrders5).toBe(true);
         });
 
         it('returns plain prompt body regardless of pendingError (error prepend is handled by BoardRenderer)', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { pendingError: '❌ Invalid levels' };
+            ctx.session.createGrid = { pendingError: '❌ Invalid orders' };
 
             const view = await step.buildView(ctx);
 
-            expect(view.body).toContain('grid levels');
-            expect(view.body).not.toContain('❌ Invalid levels');
+            expect(view.body).toContain('grid orders');
+            expect(view.body).not.toContain('❌ Invalid orders');
         });
     });
 
     describe('rollbackState', () => {
-        it('deletes levels from session', () => {
+        it('deletes orderCount from session', () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 };
+            ctx.session.createGrid = { orderCount: 10 };
 
             step.rollbackState(ctx);
 
-            expect(ctx.session.createGrid?.levels).toBeUndefined();
+            expect(ctx.session.createGrid?.orderCount).toBeUndefined();
         });
 
         it('does nothing when createGrid is undefined', () => {
@@ -74,32 +74,32 @@ describe('AdvancedLevelsStep', () => {
         });
     });
 
-    describe('handleLevelsSelection', () => {
-        it('should accept valid level count', async () => {
+    describe('handleOrdersSelection', () => {
+        it('should accept valid order count', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { lowerPrice: 45000 };
 
-            const result = await step.handleLevelsSelection(ctx, 10);
+            const result = await step.handleOrdersSelection(ctx, 10);
 
             expect(result).toEqual({ nextStep: SceneStep.Investment });
-            expect(ctx.session.createGrid?.levels).toBe(10);
+            expect(ctx.session.createGrid?.orderCount).toBe(10);
         });
 
-        it('should set pendingError and return null for levels below minimum', async () => {
+        it('should set pendingError and return null for orders below minimum', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { lowerPrice: 45000 };
 
-            const result = await step.handleLevelsSelection(ctx, 2);
+            const result = await step.handleOrdersSelection(ctx, 4);
 
             expect(result).toBeNull();
             expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('should set pendingError and return null for levels above maximum', async () => {
+        it('should set pendingError and return null for orders above maximum', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { lowerPrice: 45000 };
 
-            const result = await step.handleLevelsSelection(ctx, 101);
+            const result = await step.handleOrdersSelection(ctx, 101);
 
             expect(result).toBeNull();
             expect(ctx.session.createGrid?.pendingError).toBeTruthy();
@@ -109,7 +109,7 @@ describe('AdvancedLevelsStep', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
 
-            const result = await step.handleLevelsSelection(ctx, 10);
+            const result = await step.handleOrdersSelection(ctx, 10);
 
             expect(result).toBeNull();
         });
@@ -123,7 +123,7 @@ describe('AdvancedLevelsStep', () => {
             const result = await step.handleTextInput(ctx, '15');
 
             expect(result).toEqual({ nextStep: SceneStep.Investment });
-            expect(ctx.session.createGrid?.levels).toBe(15);
+            expect(ctx.session.createGrid?.orderCount).toBe(15);
         });
 
         it('should set pendingError for non-numeric input', async () => {

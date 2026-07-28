@@ -21,7 +21,7 @@ export interface TradingApiPort {
     getUserSpotState(user: string): Promise<UserStateDto>;
     /** Return true if the given trading pair exists on the exchange. */
     pairExists(symbol: string): Promise<boolean>;
-    /** Calculate how capital should be distributed across grid levels. */
+    /** Calculate how capital should be distributed across grid orders. */
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto;
     /** Calculate the maximum investable amount given account balance and grid parameters. */
     calculateMaxInvestment(params: CalculateMaxInvestmentDto): number;

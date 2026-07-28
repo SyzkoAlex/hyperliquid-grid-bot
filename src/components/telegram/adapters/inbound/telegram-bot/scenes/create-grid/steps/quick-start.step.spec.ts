@@ -226,7 +226,7 @@ describe('QuickStartStep', () => {
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBe(1000);
             expect(ctx.session.createGrid?.upperPrice).toBe(60000);
             expect(ctx.session.createGrid?.lowerPrice).toBe(40000);
-            expect(ctx.session.createGrid?.levels).toBe(10);
+            expect(ctx.session.createGrid?.orderCount).toBe(10);
         });
 
         it('should set pendingError and return null for investment below minimum', async () => {
@@ -319,7 +319,7 @@ describe('QuickStartStep', () => {
                 totalInvestmentUSDC: 1000,
                 upperPrice: 60000,
                 lowerPrice: 40000,
-                levels: 10,
+                orderCount: 10,
                 balanceSnapshot: { suggestedMax: 5000 },
             };
 
@@ -328,7 +328,7 @@ describe('QuickStartStep', () => {
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
             expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
             expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
-            expect(ctx.session.createGrid?.levels).toBeUndefined();
+            expect(ctx.session.createGrid?.orderCount).toBeUndefined();
             expect(ctx.session.createGrid?.balanceSnapshot).toBeUndefined();
         });
 

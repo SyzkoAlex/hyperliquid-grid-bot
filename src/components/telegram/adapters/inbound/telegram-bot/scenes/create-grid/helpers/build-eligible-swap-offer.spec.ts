@@ -15,7 +15,7 @@ const BASE_PARAMS = {
     currentPrice: 20,
     lowerPrice: 15,
     upperPrice: 25,
-    levels: 10,
+    orderCount: 10,
 };
 
 const MIN_ORDER_NOTIONAL = 10;

@@ -20,7 +20,7 @@ function createGrid(
         status: GridStatus;
         lowerPrice: number;
         upperPrice: number;
-        levels: number;
+        orderCount: number;
         investmentUSDC: number;
         investmentBase: number;
         trailingEnabled: boolean;
@@ -35,7 +35,7 @@ function createGrid(
         status: overrides.status,
         lowerPrice: Price.from(overrides.lowerPrice ?? 100),
         upperPrice: Price.from(overrides.upperPrice ?? 200),
-        levels: overrides.levels ?? 10,
+        orderCount: overrides.orderCount ?? 10,
         investmentUSDC: Decimal.from(overrides.investmentUSDC ?? 1000),
         investmentBase: Decimal.from(overrides.investmentBase ?? 5),
         trailingEnabled: overrides.trailingEnabled ?? false,
@@ -76,7 +76,7 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             expect(found!.id.toString()).toBe(grid.id.toString());
             expect(found!.symbol.toString()).toBe('HYPE');
             expect(found!.status).toBe(GridStatus.Idle);
-            expect(found!.levels).toBe(10);
+            expect(found!.orderCount).toBe(10);
         });
 
         it('should upsert an existing grid', async () => {
@@ -101,7 +101,7 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             const grid = createGrid({
                 lowerPrice: 50.5,
                 upperPrice: 150.75,
-                levels: 20,
+                orderCount: 20,
                 investmentUSDC: 5000,
                 investmentBase: 10,
                 trailingEnabled: true,
@@ -112,7 +112,7 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
 
             expect(found!.lowerPrice.toNumber()).toBeCloseTo(50.5, 4);
             expect(found!.upperPrice.toNumber()).toBeCloseTo(150.75, 4);
-            expect(found!.levels).toBe(20);
+            expect(found!.orderCount).toBe(20);
             expect(found!.investmentUSDC.toString()).toBe('5000');
             expect(found!.investmentBase.toString()).toBe('10');
             expect(found!.trailingEnabled).toBe(true);

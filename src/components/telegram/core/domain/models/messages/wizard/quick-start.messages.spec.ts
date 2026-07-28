@@ -37,20 +37,20 @@ describe('QuickStartPromptMessage', () => {
         expect(result.text).toContain('2,000 USDC + 0.05 BTC');
     });
 
-    it('shows recommended amount and levels', () => {
+    it('shows recommended amount and orders', () => {
         const result = QuickStartPromptMessage.create(balanceParams);
-        expect(result.text).toContain('Recommended: ~1200 USDC for 10 levels');
+        expect(result.text).toContain('Recommended: ~1200 USDC for 10 orders');
     });
 
     it('shows per-order fee hint when params provided', () => {
         const result = QuickStartPromptMessage.create(balanceParams);
-        // $1200 / 10 levels = $120/order
-        // gridStep = (114000-76000)/10/95000*100 = 4.00%
-        // profit/cycle = $120 * 4% = $4.80; fee/cycle = $120 * 0.04% * 2 = $0.10
-        expect(result.text).toContain('~$120/order → profit ~$4.80/cycle, fee ~$0.10');
+        // $1200 / 10 orders = $120/order
+        // gridStep = (114000-76000)/9/95000*100 ≈ 4.4444%
+        // profit/cycle = $120 * 4.4444% ≈ $5.33; fee/cycle = $120 * 0.04% * 2 = $0.10
+        expect(result.text).toContain('~$120/order → profit ~$5.33/cycle, fee ~$0.10');
     });
 
-    it('uses default levels in recommended text', () => {
+    it('uses default orders in recommended text', () => {
         const result = QuickStartPromptMessage.create({
             symbol: 'ETH',
             usdcBalance: Decimal.from(500),
@@ -62,7 +62,7 @@ describe('QuickStartPromptMessage', () => {
             lowerPrice: 2400,
             upperPrice: 3600,
         });
-        expect(result.text).toContain('10 levels');
+        expect(result.text).toContain('10 orders');
     });
 
     it('does not repeat price info already shown in board summary', () => {

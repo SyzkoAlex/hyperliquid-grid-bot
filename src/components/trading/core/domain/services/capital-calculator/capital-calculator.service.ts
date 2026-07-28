@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { CapitalDistribution } from '../../models/capital-distribution';
 import { Price } from '@domain/models/primitives/price';
-import { countBuySellLevels } from '../../utils/count-buy-sell-levels';
+import { countBuySellOrders } from '../../utils/count-buy-sell-orders';
 import { OptimalSwap } from './types/optimal-swap';
 import { SwapSide } from '@components/trading/core/domain/models/swap/swap-side';
 
@@ -31,24 +31,24 @@ function floorToSzDecimals(value: number, szDecimals: number): number {
  *
  * ### 2. Geometry-Based Distribution
  *
- * The grid produces N+1 price levels across [lowerPrice, upperPrice].
- * Each level is classified as a buy (price < currentPrice) or sell (price >= currentPrice).
+ * The grid places `orderCount` orders across [lowerPrice, upperPrice], inclusive of both bounds.
+ * Each order is classified as a buy (price < currentPrice) or sell (price >= currentPrice).
  * Capital is allocated proportionally so every order has equal USDC notional at current price:
  *
  * ```
- * priceStep = (upperPrice - lowerPrice) / levels
- * buyCount  = count of levelPrices < currentPrice
- * sellCount = count of levelPrices >= currentPrice
- * totalLevels = levels + 1
+ * priceStep = (upperPrice - lowerPrice) / (orderCount - 1)
+ * buyCount  = count of orderPrices < currentPrice
+ * sellCount = count of orderPrices >= currentPrice
+ * totalOrders = orderCount
  *
- * investmentUSDC = totalInvestment * buyCount / totalLevels
- * investmentBase = totalInvestment * sellCount / totalLevels / currentPrice
+ * investmentUSDC = totalInvestment * buyCount / totalOrders
+ * investmentBase = totalInvestment * sellCount / totalOrders / currentPrice
  * ```
  *
- * ### Example (BTC, price $50,000, range $45,000-$55,000, 10 levels):
+ * ### Example (BTC, price $50,000, range $45,000-$55,000, 11 orders):
  * ```
  * priceStep = 1000
- * levelPrices: 45k, 46k, 47k, 48k, 49k, 50k, 51k, 52k, 53k, 54k, 55k (11 total)
+ * orderPrices: 45k, 46k, 47k, 48k, 49k, 50k, 51k, 52k, 53k, 54k, 55k (11 total)
  * buyCount = 5 (45k..49k < 50000), sellCount = 6 (50k..55k >= 50000)
  *
  * investmentUSDC = 10,000 * 5/11 ~= 4,545.45 USDC (for buy orders)
@@ -64,7 +64,7 @@ export class CapitalCalculatorService {
     /**
      * Calculate capital distribution for grid trading
      *
-     * @param params.levels - Number of grid levels; the grid creates levels+1 price points
+     * @param params.orderCount - Number of grid orders placed inclusively from lower to upper price
      * @param params.totalInvestmentUSDC - Optional total investment amount in USDC. If not provided, calculated from balance
      * @param params.usdcBalance - User's available USDC balance
      * @param params.baseBalance - User's available base token balance
@@ -80,7 +80,7 @@ export class CapitalCalculatorService {
      *            stripped at the API adapter boundary so external consumers never see it
      */
     calculateDistribution(params: {
-        levels: number;
+        orderCount: number;
         totalInvestmentUSDC?: number;
         usdcBalance: Decimal;
         baseBalance: Decimal;
@@ -98,16 +98,16 @@ export class CapitalCalculatorService {
                   params.currentPrice,
               );
 
-        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
-            params.levels,
+        const { buyOrders: buyCount, sellOrders: sellCount } = countBuySellOrders(
+            params.orderCount,
             params.lowerPrice,
             params.upperPrice,
             params.currentPrice.toNumber(),
         );
 
-        const totalLevels = params.levels + 1;
-        const buyRatio = buyCount / totalLevels;
-        const sellRatio = sellCount / totalLevels;
+        const totalOrders = params.orderCount;
+        const buyRatio = buyCount / totalOrders;
+        const sellRatio = sellCount / totalOrders;
 
         const requiredUSDC = capital.mul(Decimal.from(buyRatio));
         const investmentBase = capital
@@ -118,12 +118,12 @@ export class CapitalCalculatorService {
         if (sellCount === 0) {
             requiredBase = Decimal.zero();
         } else {
-            const basePerSellLevel = investmentBase
+            const basePerSellOrder = investmentBase
                 .div(Decimal.from(sellCount))
                 .mul(Decimal.from(1 + params.sellSizeBuffer))
                 .toNumber();
-            const effectivePerSellLevel = ceilToSzDecimals(basePerSellLevel, params.szDecimals);
-            requiredBase = Decimal.from(effectivePerSellLevel).mul(Decimal.from(sellCount));
+            const effectivePerSellOrder = ceilToSzDecimals(basePerSellOrder, params.szDecimals);
+            requiredBase = Decimal.from(effectivePerSellOrder).mul(Decimal.from(sellCount));
         }
 
         return { requiredUSDC, requiredBase, rawInvestmentBase: investmentBase };
@@ -139,10 +139,10 @@ export class CapitalCalculatorService {
      *
      * Starting bound derivation (base-constrained side):
      *   max T such that ceil(T×sellRatio/price/sellCount×(1+buffer), szDecimals)×sellCount ≤ baseBalance
-     *   → T ≤ floor(baseBalance/sellCount, szDecimals) × price × totalLevels / (1+buffer)
+     *   → T ≤ floor(baseBalance/sellCount, szDecimals) × price × totalOrders / (1+buffer)
      * This bound is tight: the walk-down typically completes in 0–2 iterations regardless of szDecimals.
      *
-     * @param params.levels - Number of grid levels; the grid creates levels+1 price points
+     * @param params.orderCount - Number of grid orders placed inclusively from lower to upper price
      * @param params.usdcBalance - User's available USDC balance
      * @param params.baseBalance - User's available base token balance
      * @param params.currentPrice - Current market price
@@ -158,24 +158,24 @@ export class CapitalCalculatorService {
         currentPrice: Price;
         lowerPrice: number;
         upperPrice: number;
-        levels: number;
+        orderCount: number;
         sellSizeBuffer: number;
         szDecimals: number;
     }): number {
-        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
-            params.levels,
+        const { buyOrders: buyCount, sellOrders: sellCount } = countBuySellOrders(
+            params.orderCount,
             params.lowerPrice,
             params.upperPrice,
             params.currentPrice.toNumber(),
         );
-        const totalLevels = params.levels + 1;
-        const buyRatio = buyCount / totalLevels;
+        const totalOrders = params.orderCount;
+        const buyRatio = buyCount / totalOrders;
         const price = params.currentPrice.toNumber();
 
         const maxFromUsdc =
             buyRatio > 0 ? params.usdcBalance.div(Decimal.from(buyRatio)).toNumber() : Infinity;
 
-        // Tight upper bound for the base-constrained side using floor per sell level,
+        // Tight upper bound for the base-constrained side using floor per sell order,
         // ensuring ceil-rounding in calculateDistribution cannot push requiredBase above baseBalance.
         const maxFromBase =
             sellCount > 0
@@ -184,7 +184,7 @@ export class CapitalCalculatorService {
                       params.szDecimals,
                   ) *
                       price *
-                      totalLevels) /
+                      totalOrders) /
                   (1 + params.sellSizeBuffer)
                 : Infinity;
 
@@ -195,7 +195,7 @@ export class CapitalCalculatorService {
         // Guaranteed to terminate: candidate=0 always passes (requiredUSDC=0, requiredBase=0).
         while (candidate > 0) {
             const dist = this.calculateDistribution({
-                levels: params.levels,
+                orderCount: params.orderCount,
                 totalInvestmentUSDC: candidate,
                 usdcBalance: params.usdcBalance,
                 baseBalance: params.baseBalance,
@@ -233,10 +233,10 @@ export class CapitalCalculatorService {
         currentPrice: Price;
         lowerPrice: number;
         upperPrice: number;
-        levels: number;
+        orderCount: number;
     }): OptimalSwap | null {
-        const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
-            params.levels,
+        const { buyOrders: buyCount, sellOrders: sellCount } = countBuySellOrders(
+            params.orderCount,
             params.lowerPrice,
             params.upperPrice,
             params.currentPrice.toNumber(),
@@ -246,8 +246,8 @@ export class CapitalCalculatorService {
             return null;
         }
 
-        const totalLevels = params.levels + 1;
-        const buyRatio = buyCount / totalLevels;
+        const totalOrders = params.orderCount;
+        const buyRatio = buyCount / totalOrders;
         const price = params.currentPrice.toNumber();
         const totalValueUsdc =
             params.usdcBalance.toNumber() + params.baseBalance.toNumber() * price;

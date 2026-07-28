@@ -9,13 +9,13 @@ describe('GridCreatedSuccessMessage', () => {
         mode: 'neutral',
         lowerPrice: 90000,
         upperPrice: 100000,
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: 500,
         investmentBase: 0.005,
         trailingEnabled: false,
     };
 
-    it('contains symbol, range, levels, and capital', () => {
+    it('contains symbol, range, orders, and capital', () => {
         const msg = GridCreatedSuccessMessage.create(baseProps);
         expect(msg.text).toContain('BTC');
         expect(msg.text).toContain('$90,000');

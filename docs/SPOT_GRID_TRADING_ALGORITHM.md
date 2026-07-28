@@ -2,7 +2,7 @@
 
 ## Overview
 
-**SPOT Grid Trading** - automated strategy that profits from price volatility by placing buy and sell orders at predefined price levels.
+**SPOT Grid Trading** - automated strategy that profits from price volatility by placing buy and sell orders at predefined grid prices.
 
 **Key Point**: SPOT = physical tokens, no leverage, no liquidation risk!
 
@@ -15,8 +15,8 @@
 ```
 Symbol: BTC
 Range: $45,000 - $55,000
-Levels: 20
-Spacing: $526 per level
+Orders: 20
+Spacing: $526 per order
 
 Sell Orders (above price):
 $55,000 ← Upper bound
@@ -36,7 +36,7 @@ Buy Orders (below price)
 ### Profit Mechanism
 
 ```
-Spacing: $526 per level
+Spacing: $526 per order
 Amount: 0.01 BTC per order
 
 1. Buy  @ $49,474 → hold 0.01 BTC (cost: $495)
@@ -86,9 +86,9 @@ Portfolio: 50% SOL + 50% USDT
 **Step 1: Calculate Grid Step**
 
 ```
-Step = (Pmax - Pmin) / TotalLevels
+Step = (Pmax - Pmin) / orderCount
      = ($120 - $20) / 50
-     = $2 per level
+     = $2 per order
 ```
 
 **Step 2: Count Orders by Zone**
@@ -100,7 +100,7 @@ Nsell = floor((Pmax - Pcurrent) / Step)
       = 40 orders → need 80% of capital in tokens
 
 Buy Orders (below current):
-Nbuy = TotalLevels - Nsell
+Nbuy = orderCount - Nsell
      = 50 - 40
      = 10 orders → need 20% of capital in USDT
 ```
@@ -219,18 +219,18 @@ Example: $20-$120 is 6x range → Geometric recommended!
 
 ```
 Capital: $10,000 ($5,000 USD + 0.1 BTC)
-Grid: BTC $45k - $55k, 20 levels
+Grid: BTC $45k - $55k, 20 orders
 Current Price: $50,000
 ```
 
 ### Step 1: Place Initial Orders
 
 ```
-Buy Orders (10 levels below $50k):
+Buy Orders (10 orders below $50k):
 Each: $500 USD worth
 Prices: $45k, $45.5k, $46k... $49.5k
 
-Sell Orders (10 levels above $50k):
+Sell Orders (10 orders above $50k):
 Each: 0.01 BTC
 Prices: $50.5k, $51k, $51.5k... $55k
 ```
@@ -245,7 +245,7 @@ Buy @ $49,474 FILLED
 - Spent: $495
 - Now holding: 0.11 BTC total
 
-Bot action: Place Sell @ $50,000 (one level up)
+Bot action: Place Sell @ $50,000 (one order up)
 ```
 
 ### Step 3: Price Rises → Sell Fills (PROFIT!)
@@ -271,7 +271,7 @@ Price bounces in range multiple times:
 ...
 - 10 cycles = $50 profit
 
-With 20 levels, multiple cycles possible!
+With 20 orders, multiple cycles possible!
 ```
 
 ---
@@ -308,7 +308,7 @@ Step: 10% up
 New grid: $49.5k - $60.5k
 
 Cancel all old orders
-Place 20 new orders at higher levels
+Place 20 new orders at higher prices
 ```
 
 **3. Continue Trading**
@@ -333,7 +333,7 @@ Prevents overtrading in volatile markets
 ### 1. Grid Cycles (Main Income)
 
 ```
-Spacing: $526 per level
+Spacing: $526 per order
 Amount: 0.01 BTC per trade
 Profit per cycle: $5.26 ≈ $5
 
@@ -348,7 +348,7 @@ Monthly: $750
 Hyperliquid pays NEGATIVE fees for limit orders!
 Rebate: ~0.02% per trade
 
-20 levels = 20 initial orders (10 buy + 10 sell)
+20 orders total (10 buy + 10 sell)
 20 trades × $500 × 0.0002 = $2 bonus
 
 Plus rebates on every refill!
@@ -400,20 +400,20 @@ Example: Bear market accumulation phase
 ### Grid Spacing:
 
 ```
-spacing = (upper - lower) / (levels - 1)
+spacing = (upper - lower) / (orderCount - 1)
 = ($55k - $45k) / 19
-= $526 per level
+= $526 per order
 ```
 
 ### Order Sizes:
 
 ```
-Buy orders: $5,000 / 10 levels = $500 per level
+Buy orders: $5,000 / 10 orders = $500 per order
   At $49,474: $500 / $49,474 = 0.0101 BTC
   At $48,947: $500 / $48,947 = 0.0102 BTC
   (More tokens at lower prices!)
 
-Sell orders: 0.1 BTC / 10 levels = 0.01 BTC per level
+Sell orders: 0.1 BTC / 10 orders = 0.01 BTC per order
   (Fixed amount per sell)
 ```
 
@@ -453,14 +453,14 @@ Optimal ($45k - $55k for BTC):
   ✓ ±10% from center
 ```
 
-### Level Count
+### Order Count
 
 ```
-Few levels (10):
+Few orders (10):
   ✓ Bigger profits per cycle
   ✗ Fewer opportunities
 
-Many levels (50):
+Many orders (50):
   ✗ Smaller profits per cycle
   ✓ More opportunities
 
@@ -534,7 +534,7 @@ Free money on top of strategy profits!
 
 **Grid Trading in 3 Steps:**
 
-1. **Setup**: Define price range and levels
+1. **Setup**: Define price range and order count
 2. **Execute**: Place buy orders below, sell orders above
 3. **Profit**: Each cycle = gridSpacing × amount
 
@@ -543,7 +543,7 @@ Free money on top of strategy profits!
 - Activate when price breaks up significantly
 - Take partial profits
 - Shift grid higher
-- Continue at new levels
+- Continue trading at the new price range
 
 **Result**: Consistent profits from market volatility + bonus from trends
 

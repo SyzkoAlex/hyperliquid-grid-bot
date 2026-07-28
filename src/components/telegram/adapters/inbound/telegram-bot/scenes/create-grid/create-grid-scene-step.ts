@@ -4,7 +4,7 @@ export enum SceneStep {
     Quick = 'quick',
     Upper = 'upper',
     Lower = 'lower',
-    Levels = 'levels',
+    Orders = 'orders',
     Investment = 'investment',
     Swap = 'swap',
     StopLoss = 'stop_loss',

@@ -74,7 +74,7 @@ export class ConfirmStep {
                 symbol: state!.symbol!,
                 lowerPrice: state!.lowerPrice!,
                 upperPrice: state!.upperPrice!,
-                levels: state!.levels!,
+                orderCount: state!.orderCount!,
                 totalInvestmentUSDC: state!.totalInvestmentUSDC,
                 accountAddress,
                 stopLossEnabled: state!.stopLossEnabled,
@@ -90,7 +90,7 @@ export class ConfirmStep {
             state?.symbol &&
             state?.upperPrice &&
             state?.lowerPrice &&
-            state?.levels &&
+            state?.orderCount &&
             state?.totalInvestmentUSDC
         );
     }

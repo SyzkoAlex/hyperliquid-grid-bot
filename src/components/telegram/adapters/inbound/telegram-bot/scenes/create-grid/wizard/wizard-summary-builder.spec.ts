@@ -60,11 +60,11 @@ describe('WizardSummaryBuilder', () => {
         expect(result).toContain('✓ <b>Lower</b> · $45000');
     });
 
-    it('renders Levels row', () => {
+    it('renders Orders row', () => {
         const result = sut.buildSummaryFromSession(
-            state({ stepHistory: [SceneStep.Levels], levels: 10 }),
+            state({ stepHistory: [SceneStep.Orders], orderCount: 10 }),
         );
-        expect(result).toContain('✓ <b>Levels</b> · 10');
+        expect(result).toContain('✓ <b>Orders</b> · 10');
     });
 
     it('renders Investment row from Quick step when grid params absent', () => {
@@ -75,19 +75,19 @@ describe('WizardSummaryBuilder', () => {
         expect(result).not.toContain('<b>Upper</b>');
     });
 
-    it('renders Upper, Lower, Levels and Investment from Quick step when grid params present', () => {
+    it('renders Upper, Lower, Orders and Investment from Quick step when grid params present', () => {
         const result = sut.buildSummaryFromSession(
             state({
                 stepHistory: [SceneStep.Quick],
                 totalInvestmentUSDC: 2828,
                 upperPrice: 52.38,
                 lowerPrice: 41.9,
-                levels: 20,
+                orderCount: 20,
             }),
         );
         expect(result).toContain('✓ <b>Upper</b>');
         expect(result).toContain('✓ <b>Lower</b>');
-        expect(result).toContain('✓ <b>Levels</b> · 20');
+        expect(result).toContain('✓ <b>Orders</b> · 20');
         expect(result).toContain('✓ <b>Investment</b> · $2828 USDC');
         const lines = result.split('\n');
         expect(lines.length).toBe(4);
@@ -143,7 +143,7 @@ describe('WizardSummaryBuilder', () => {
                 totalInvestmentUSDC: 2000,
                 upperPrice: 70,
                 lowerPrice: 50,
-                levels: 10,
+                orderCount: 10,
             }),
         );
         const lines = result.split('\n');

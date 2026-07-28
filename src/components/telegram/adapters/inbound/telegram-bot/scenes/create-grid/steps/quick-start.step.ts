@@ -59,7 +59,7 @@ export class QuickStartStep implements WizardStep {
                     this.tradingApi,
                     accountAddress,
                     symbol,
-                    WIZARD_CONFIG.DEFAULT_LEVELS,
+                    WIZARD_CONFIG.DEFAULT_ORDERS,
                     lowerPrice,
                     upperPrice,
                     {
@@ -202,7 +202,7 @@ export class QuickStartStep implements WizardStep {
             const result = await validateInvestment(
                 {
                     investment,
-                    levels: WIZARD_CONFIG.DEFAULT_LEVELS,
+                    orderCount: WIZARD_CONFIG.DEFAULT_ORDERS,
                     symbol: session.createGrid.symbol,
                     upperPrice,
                     lowerPrice,
@@ -219,7 +219,7 @@ export class QuickStartStep implements WizardStep {
             session.createGrid.totalInvestmentUSDC = investment;
             session.createGrid.upperPrice = upperPrice;
             session.createGrid.lowerPrice = lowerPrice;
-            session.createGrid.levels = WIZARD_CONFIG.DEFAULT_LEVELS;
+            session.createGrid.orderCount = WIZARD_CONFIG.DEFAULT_ORDERS;
 
             return { nextStep: SceneStep.Preview };
         } catch (error) {
@@ -236,7 +236,7 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.totalInvestmentUSDC;
             delete ctx.session.createGrid.upperPrice;
             delete ctx.session.createGrid.lowerPrice;
-            delete ctx.session.createGrid.levels;
+            delete ctx.session.createGrid.orderCount;
             delete ctx.session.createGrid.balanceSnapshot;
             delete ctx.session.createGrid.swapOffer;
             delete ctx.session.createGrid.swapFeedback;

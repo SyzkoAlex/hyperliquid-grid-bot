@@ -4,7 +4,7 @@ export interface CreateGridDto {
     symbol: string;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
     investmentUSDC: number;
     investmentBase: number;
     creationPrice?: number;

@@ -48,24 +48,24 @@ export class OrderRefillService {
             let currentOrder = filledOrder;
             let lastPlacedOrder: OrderDto | undefined;
 
-            for (let depth = 0; depth <= grid.levels; depth++) {
+            for (let depth = 0; depth < grid.orderCount; depth++) {
                 const refillParams = RefillParams.calc(currentOrder, grid);
                 if (!refillParams) {
-                    if (!lastPlacedOrder) return this.handleEdgeLevel(filledOrder);
+                    if (!lastPlacedOrder) return this.handleEdgeOrder(filledOrder);
                     break;
                 }
 
                 if (
-                    await this.hasActiveOrderAtLevel(
+                    await this.hasActiveOrderAtIndex(
                         grid.id,
-                        refillParams.levelIndex,
+                        refillParams.orderIndex,
                         refillParams.side,
                     )
                 ) {
                     if (!lastPlacedOrder)
                         return this.handleDuplicateActiveOrder(
                             grid.id,
-                            refillParams.levelIndex,
+                            refillParams.orderIndex,
                             refillParams.side,
                         );
                     break;
@@ -88,7 +88,7 @@ export class OrderRefillService {
                 this.logger.info(
                     {
                         gridId: grid.id,
-                        levelIndex: refillParams.levelIndex,
+                        orderIndex: refillParams.orderIndex,
                         side: refillParams.side,
                     },
                     'Refill order was immediately filled, continuing chain',
@@ -128,7 +128,7 @@ export class OrderRefillService {
                 gridId: grid.id,
                 orderId: filledOrder.id,
                 side: filledOrder.side,
-                level: filledOrder.levelIndex,
+                orderIndex: filledOrder.orderIndex,
                 price: filledOrder.price,
             },
             'Processing filled order',
@@ -137,23 +137,23 @@ export class OrderRefillService {
 
     private handleDuplicateActiveOrder(
         gridId: string,
-        levelIndex: number,
+        orderIndex: number,
         side: OrderSide,
     ): OrderRefillResult {
         this.logger.warn(
-            { gridId, levelIndex, side },
-            'Refill skipped: active order already exists at target level',
+            { gridId, orderIndex, side },
+            'Refill skipped: active order already exists at target order index',
         );
-        return OrderRefillResult.failure('Active order already exists at target level');
+        return OrderRefillResult.failure('Active order already exists at target order index');
     }
 
-    private handleEdgeLevel(filledOrder: OrderDto): OrderRefillResult {
+    private handleEdgeOrder(filledOrder: OrderDto): OrderRefillResult {
         this.logger.warn(
-            { orderId: filledOrder.id, levelIndex: filledOrder.levelIndex },
-            'Cannot calculate refill params (edge level)',
+            { orderId: filledOrder.id, orderIndex: filledOrder.orderIndex },
+            'Cannot calculate refill params (edge order)',
         );
 
-        return OrderRefillResult.failure('Edge level - no refill needed');
+        return OrderRefillResult.failure('Edge order - no refill needed');
     }
 
     private logSuccess(
@@ -168,7 +168,7 @@ export class OrderRefillService {
                 filledOrderId: filledOrder.id,
                 refillOrderId: refillOrder.id,
                 refillSide: refillOrder.side,
-                refillLevel: refillOrder.levelIndex,
+                refillOrderIndex: refillOrder.orderIndex,
                 profit: profit?.toNumber() ?? null,
             },
             'Refill order placed successfully',
@@ -187,13 +187,13 @@ export class OrderRefillService {
         return OrderRefillResult.failure(errorMessage);
     }
 
-    private async hasActiveOrderAtLevel(
+    private async hasActiveOrderAtIndex(
         gridId: string,
-        levelIndex: number,
+        orderIndex: number,
         side: OrderSide,
     ): Promise<boolean> {
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
-        return activeOrders.some((o) => o.levelIndex === levelIndex && o.side === side);
+        return activeOrders.some((o) => o.orderIndex === orderIndex && o.side === side);
     }
 
     private deduplicateOrders(filledOrders: OrderDto[], grid: GridDto): OrderDto[] {
@@ -204,10 +204,10 @@ export class OrderRefillService {
             const params = RefillParams.calc(order, grid);
             if (!params) continue;
 
-            const key = `${params.levelIndex}-${params.side}`;
+            const key = `${params.orderIndex}-${params.side}`;
             if (seen.has(key)) {
                 this.logger.debug(
-                    { levelIndex: params.levelIndex, side: params.side },
+                    { orderIndex: params.orderIndex, side: params.side },
                     'Refill skipped: duplicate',
                 );
                 continue;

@@ -10,8 +10,6 @@ export class OrderOpenedEvent extends SerializableEvent {
         public readonly price: number,
         public readonly amount: number,
         public readonly total: number,
-        public readonly level: number,
-        public readonly totalLevels: number,
         timestamp?: number,
     ) {
         super(EventType.OrderOpened, userId, timestamp);
@@ -25,8 +23,6 @@ export class OrderOpenedEvent extends SerializableEvent {
             price: this.price,
             amount: this.amount,
             total: this.total,
-            level: this.level,
-            totalLevels: this.totalLevels,
         };
     }
 
@@ -40,8 +36,6 @@ export class OrderOpenedEvent extends SerializableEvent {
             data.price,
             data.amount,
             data.total,
-            data.level,
-            data.totalLevels,
             data.timestamp,
         );
     }

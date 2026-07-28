@@ -23,7 +23,6 @@ export class TradeEventPublisher {
         const filledPrice = filledOrder.price ?? 0;
         const filledAmount = filledOrder.amount;
         const total = filledPrice * filledAmount;
-        const level = filledOrder.levelIndex + 1;
 
         if (profit !== null) {
             await this.publisher.publish(
@@ -33,7 +32,6 @@ export class TradeEventPublisher {
                     filledPrice,
                     filledAmount,
                     total,
-                    level,
                     profit,
                 ),
             );
@@ -41,7 +39,7 @@ export class TradeEventPublisher {
         }
 
         await this.publisher.publish(
-            this.createOrderOpenedEvent(filledOrder, grid, filledPrice, filledAmount, total, level),
+            this.createOrderOpenedEvent(filledOrder, grid, filledPrice, filledAmount, total),
         );
         return null;
     }
@@ -52,7 +50,6 @@ export class TradeEventPublisher {
         filledPrice: number,
         filledAmount: number,
         total: number,
-        level: number,
         profit: Decimal,
     ): OrderClosedEvent {
         return new OrderClosedEvent(
@@ -64,8 +61,6 @@ export class TradeEventPublisher {
             filledAmount,
             total,
             profit.toNumber(),
-            level,
-            grid.levels,
         );
     }
 
@@ -75,7 +70,6 @@ export class TradeEventPublisher {
         filledPrice: number,
         filledAmount: number,
         total: number,
-        level: number,
     ): OrderOpenedEvent {
         return new OrderOpenedEvent(
             grid.userId,
@@ -85,8 +79,6 @@ export class TradeEventPublisher {
             filledPrice,
             filledAmount,
             total,
-            level,
-            grid.levels,
         );
     }
 
@@ -96,7 +88,7 @@ export class TradeEventPublisher {
             filledOrder.amount,
             grid.upperPrice,
             grid.lowerPrice,
-            grid.levels,
+            grid.orderCount,
         );
     }
 }

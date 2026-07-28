@@ -10,7 +10,7 @@ const makeBaseParams = () => ({
     symbol: TradingSymbol.create('ETH'),
     lowerPrice: Price.from(2000),
     upperPrice: Price.from(3000),
-    levels: 10,
+    orderCount: 10,
     investmentUSDC: Decimal.from(1000),
     investmentBase: Decimal.from(0),
 });

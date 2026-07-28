@@ -8,7 +8,7 @@ import { SelectModeStep } from './steps/select-mode.step';
 import { QuickStartStep } from './steps/quick-start.step';
 import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
-import { AdvancedLevelsStep } from './steps/advanced-levels.step';
+import { AdvancedOrdersStep } from './steps/advanced-orders.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
 import { SwapStep } from './steps/swap.step';
 import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
@@ -24,7 +24,7 @@ describe('CreateGridSceneHandler', () => {
     let mockConfirmStep: ConfirmStep;
     let mockSelectPairStep: SelectPairStep;
     let mockSelectModeStep: SelectModeStep;
-    let mockAdvancedLevelsStep: AdvancedLevelsStep;
+    let mockAdvancedOrdersStep: AdvancedOrdersStep;
     let mockAdvancedUpperStep: AdvancedUpperStep;
     let mockAdvancedLowerStep: AdvancedLowerStep;
     let mockAdvancedStopLossStep: AdvancedStopLossStep;
@@ -64,12 +64,12 @@ describe('CreateGridSceneHandler', () => {
             handleModeSelection: vi.fn().mockResolvedValue(null),
         } as unknown as SelectModeStep;
 
-        mockAdvancedLevelsStep = {
-            id: SceneStep.Levels,
+        mockAdvancedOrdersStep = {
+            id: SceneStep.Orders,
             buildView: vi.fn().mockResolvedValue({ body: '', keyboard: [] }),
             rollbackState: vi.fn(),
-            handleLevelsSelection: vi.fn().mockResolvedValue(null),
-        } as unknown as AdvancedLevelsStep;
+            handleOrdersSelection: vi.fn().mockResolvedValue(null),
+        } as unknown as AdvancedOrdersStep;
 
         mockAdvancedUpperStep = {
             id: SceneStep.Upper,
@@ -135,7 +135,7 @@ describe('CreateGridSceneHandler', () => {
             mockQuickStartStep,
             mockAdvancedUpperStep,
             mockAdvancedLowerStep,
-            mockAdvancedLevelsStep,
+            mockAdvancedOrdersStep,
             mockAdvancedInvestmentStep,
             mockSwapStep,
             mockAdvancedStopLossStep,
@@ -265,31 +265,31 @@ describe('CreateGridSceneHandler', () => {
         });
     });
 
-    describe('handleLevelsAction', () => {
-        it('answers callback query and calls advancedLevelsStep.handleLevelsSelection', async () => {
+    describe('handleOrdersAction', () => {
+        it('answers callback query and calls advancedOrdersStep.handleOrdersSelection', async () => {
             const ctx = createMockContext({
                 match: [undefined, '10'] as unknown as RegExpExecArray,
             });
-            vi.mocked(mockAdvancedLevelsStep.handleLevelsSelection).mockResolvedValue(null);
+            vi.mocked(mockAdvancedOrdersStep.handleOrdersSelection).mockResolvedValue(null);
 
             await (
-                handler as unknown as { handleLevelsAction(ctx: BotContext): Promise<void> }
-            ).handleLevelsAction(ctx);
+                handler as unknown as { handleOrdersAction(ctx: BotContext): Promise<void> }
+            ).handleOrdersAction(ctx);
 
             expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(mockAdvancedLevelsStep.handleLevelsSelection).toHaveBeenCalledWith(ctx, 10);
+            expect(mockAdvancedOrdersStep.handleOrdersSelection).toHaveBeenCalledWith(ctx, 10);
         });
 
-        it('calls navigator.completeStep when levels result is non-null', async () => {
+        it('calls navigator.completeStep when orders result is non-null', async () => {
             const result = { nextStep: SceneStep.Investment };
             const ctx = createMockContext({
                 match: [undefined, '10'] as unknown as RegExpExecArray,
             });
-            vi.mocked(mockAdvancedLevelsStep.handleLevelsSelection).mockResolvedValue(result);
+            vi.mocked(mockAdvancedOrdersStep.handleOrdersSelection).mockResolvedValue(result);
 
             await (
-                handler as unknown as { handleLevelsAction(ctx: BotContext): Promise<void> }
-            ).handleLevelsAction(ctx);
+                handler as unknown as { handleOrdersAction(ctx: BotContext): Promise<void> }
+            ).handleOrdersAction(ctx);
 
             expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
         });

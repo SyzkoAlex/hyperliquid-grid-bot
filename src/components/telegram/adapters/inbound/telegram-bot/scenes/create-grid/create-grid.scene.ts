@@ -6,7 +6,7 @@ import { SelectModeStep } from './steps/select-mode.step';
 import { QuickStartStep } from './steps/quick-start.step';
 import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
-import { AdvancedLevelsStep } from './steps/advanced-levels.step';
+import { AdvancedOrdersStep } from './steps/advanced-orders.step';
 import { AdvancedInvestmentStep } from './steps/advanced-investment.step';
 import { SwapStep } from './steps/swap.step';
 import { AdvancedStopLossStep } from './steps/advanced-stop-loss.step';
@@ -36,7 +36,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         private readonly quickStartStep: QuickStartStep,
         private readonly advancedUpperStep: AdvancedUpperStep,
         private readonly advancedLowerStep: AdvancedLowerStep,
-        private readonly advancedLevelsStep: AdvancedLevelsStep,
+        private readonly advancedOrdersStep: AdvancedOrdersStep,
         private readonly advancedInvestmentStep: AdvancedInvestmentStep,
         private readonly swapStep: SwapStep,
         private readonly advancedStopLossStep: AdvancedStopLossStep,
@@ -48,7 +48,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         this.navigator.registerStep(quickStartStep);
         this.navigator.registerStep(advancedUpperStep);
         this.navigator.registerStep(advancedLowerStep);
-        this.navigator.registerStep(advancedLevelsStep);
+        this.navigator.registerStep(advancedOrdersStep);
         this.navigator.registerStep(advancedInvestmentStep);
         this.navigator.registerStep(swapStep);
         this.navigator.registerStep(advancedStopLossStep);
@@ -70,7 +70,7 @@ export class CreateGridSceneHandler implements SceneHandler {
             this.handleModeAction(ctx, CreateGridMode.Advanced),
         );
 
-        scene.action(CREATE_GRID_PATTERNS.LEVELS, (ctx) => this.handleLevelsAction(ctx));
+        scene.action(CREATE_GRID_PATTERNS.ORDERS, (ctx) => this.handleOrdersAction(ctx));
 
         scene.action(CREATE_GRID_PATTERNS.UPPER_PRESET, (ctx) => this.handleUpperPresetAction(ctx));
         scene.action(CREATE_GRID_PATTERNS.LOWER_PRESET, (ctx) => this.handleLowerPresetAction(ctx));
@@ -135,10 +135,10 @@ export class CreateGridSceneHandler implements SceneHandler {
         return this.runStepAction(ctx, () => this.selectModeStep.handleModeSelection(ctx, mode));
     }
 
-    private async handleLevelsAction(ctx: BotContext): Promise<void> {
-        const levels = parseInt(ctx.match![1], 10);
+    private async handleOrdersAction(ctx: BotContext): Promise<void> {
+        const orderCount = parseInt(ctx.match![1], 10);
         return this.runStepAction(ctx, () =>
-            this.advancedLevelsStep.handleLevelsSelection(ctx, levels),
+            this.advancedOrdersStep.handleOrdersSelection(ctx, orderCount),
         );
     }
 

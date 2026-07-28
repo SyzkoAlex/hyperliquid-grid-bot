@@ -21,7 +21,7 @@ const makeOrder = (side: OrderSide, amount: number, status: OrderStatus) => ({
     side,
     status,
     type: 'limit' as const,
-    levelIndex: 0,
+    orderIndex: 0,
     price: 2000,
     amount,
     exchangeOrderId: 'ex-1',

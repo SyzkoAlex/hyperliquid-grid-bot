@@ -9,7 +9,7 @@ const makeOrder = (overrides = {}) => ({
     side: 'buy' as const,
     status: OrderStatus.Placed,
     type: 'limit' as const,
-    levelIndex: 0,
+    orderIndex: 0,
     price: 2000,
     amount: 0.05,
     exchangeOrderId: 'ex-1',

@@ -32,7 +32,7 @@ export async function buildInvestmentView(
     tradingApi: TradingApiPort,
     accountAddress: string,
     symbol: string,
-    levels: number,
+    orderCount: number,
     lowerPrice: number,
     upperPrice: number,
     promptFactory: InvestmentPromptFactory,
@@ -46,7 +46,7 @@ export async function buildInvestmentView(
             tradingApi,
             accountAddress,
             symbol,
-            levels,
+            orderCount,
             lowerPrice,
             upperPrice,
         );
@@ -58,7 +58,7 @@ export async function buildInvestmentView(
             currentPrice: balanceInfo.currentPrice,
             lowerPrice,
             upperPrice,
-            levels,
+            orderCount,
         });
         const hint = swapHintLine(symbol, eligibleSwap);
 
@@ -77,7 +77,7 @@ export async function buildInvestmentView(
             body = ValidationTexts.zeroUsdcBalance(symbol, balanceInfo.baseBalance, hint);
             swapOffer = eligibleSwap;
         } else {
-            const minRequired = (levels + 1) * WIZARD_CONFIG.MIN_INVESTMENT;
+            const minRequired = orderCount * WIZARD_CONFIG.MIN_INVESTMENT;
             if (balanceInfo.suggestedMaxRounded < minRequired) {
                 if (!balanceInfo.baseHold.isZero()) {
                     body = ValidationTexts.baseLockedInOrders(
@@ -87,7 +87,7 @@ export async function buildInvestmentView(
                     );
                 } else {
                     body = ValidationTexts.insufficientBalanceForGrid(
-                        levels,
+                        orderCount,
                         minRequired,
                         balanceInfo.suggestedMaxRounded,
                         hint,

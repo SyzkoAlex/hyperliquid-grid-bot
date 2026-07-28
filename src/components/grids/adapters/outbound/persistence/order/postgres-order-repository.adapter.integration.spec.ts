@@ -23,7 +23,7 @@ function createGrid(id?: GridId): Grid {
         symbol: TradingSymbol.create('HYPE'),
         lowerPrice: Price.from(100),
         upperPrice: Price.from(200),
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: Decimal.from(1000),
         investmentBase: Decimal.from(5),
     });
@@ -37,7 +37,7 @@ function createOrder(
         side: OrderSide;
         status: OrderStatus;
         price: number;
-        levelIndex: number;
+        orderIndex: number;
         placedAt: Timestamp;
         filledAt: Timestamp;
         cancelledAt: Timestamp;
@@ -53,7 +53,7 @@ function createOrder(
         price: overrides.price !== undefined ? Price.from(overrides.price) : Price.from(150),
         amount: Decimal.from(1),
         status: overrides.status ?? OrderStatus.Pending,
-        levelIndex: overrides.levelIndex ?? 0,
+        orderIndex: overrides.orderIndex ?? 0,
         placedAt: overrides.placedAt,
         filledAt: overrides.filledAt,
         cancelledAt: overrides.cancelledAt,
@@ -105,7 +105,7 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
                 exchangeOrderId: 'EX-123',
                 side: OrderSide.Sell,
                 price: 175.5,
-                levelIndex: 5,
+                orderIndex: 5,
                 status: OrderStatus.Placed,
                 placedAt: Timestamp.from(new Date('2025-01-15T10:00:00Z')),
             });
@@ -116,7 +116,7 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
             expect(found.exchangeOrderId).toBe('EX-123');
             expect(found.side).toBe(OrderSide.Sell);
             expect(found.price!.toNumber()).toBeCloseTo(175.5, 4);
-            expect(found.levelIndex).toBe(5);
+            expect(found.orderIndex).toBe(5);
             expect(found.status).toBe(OrderStatus.Placed);
         });
     });
@@ -126,18 +126,18 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
             const pending = createOrder({
                 gridId: grid.id,
                 status: OrderStatus.Pending,
-                levelIndex: 0,
+                orderIndex: 0,
             });
             const placed = createOrder({
                 gridId: grid.id,
                 status: OrderStatus.Placed,
-                levelIndex: 1,
+                orderIndex: 1,
             });
             const filled = createOrder({
                 gridId: grid.id,
                 status: OrderStatus.Filled,
                 filledAt: Timestamp.now(),
-                levelIndex: 2,
+                orderIndex: 2,
             });
 
             await orderRepo.save(pending);
@@ -157,9 +157,9 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
             const grid2 = createGrid();
             await gridRepo.save(grid2);
 
-            await orderRepo.save(createOrder({ gridId: grid.id, levelIndex: 0 }));
-            await orderRepo.save(createOrder({ gridId: grid.id, levelIndex: 1 }));
-            await orderRepo.save(createOrder({ gridId: grid2.id, levelIndex: 0 }));
+            await orderRepo.save(createOrder({ gridId: grid.id, orderIndex: 0 }));
+            await orderRepo.save(createOrder({ gridId: grid.id, orderIndex: 1 }));
+            await orderRepo.save(createOrder({ gridId: grid2.id, orderIndex: 0 }));
 
             const result = await orderRepo.findManyByGridId(grid.id);
             expect(result).toHaveLength(2);
@@ -240,13 +240,13 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
     describe('findManyByStatus', () => {
         it('should return orders filtered by status', async () => {
             await orderRepo.save(
-                createOrder({ gridId: grid.id, status: OrderStatus.Pending, levelIndex: 0 }),
+                createOrder({ gridId: grid.id, status: OrderStatus.Pending, orderIndex: 0 }),
             );
             await orderRepo.save(
-                createOrder({ gridId: grid.id, status: OrderStatus.Placed, levelIndex: 1 }),
+                createOrder({ gridId: grid.id, status: OrderStatus.Placed, orderIndex: 1 }),
             );
             await orderRepo.save(
-                createOrder({ gridId: grid.id, status: OrderStatus.Pending, levelIndex: 2 }),
+                createOrder({ gridId: grid.id, status: OrderStatus.Pending, orderIndex: 2 }),
             );
 
             const result = await orderRepo.findManyByStatus(OrderStatus.Pending);
@@ -275,11 +275,11 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
         });
     });
 
-    describe('partial unique index (idx_orders_active_level)', () => {
-        it('should throw DuplicateActiveOrderError when saving duplicate active order at same level', async () => {
+    describe('partial unique index (idx_orders_active_order)', () => {
+        it('should throw DuplicateActiveOrderError when saving duplicate active order at same order index', async () => {
             const order1 = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Buy,
                 status: OrderStatus.Pending,
             });
@@ -287,17 +287,17 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
 
             const order2 = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Buy,
                 status: OrderStatus.Pending,
             });
             await expect(orderRepo.save(order2)).rejects.toThrow(DuplicateActiveOrderError);
         });
 
-        it('should allow saving order at same level after first is filled', async () => {
+        it('should allow saving order at same order index after first is filled', async () => {
             const order1 = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Buy,
                 status: OrderStatus.Pending,
             });
@@ -306,23 +306,23 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
 
             const order2 = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Buy,
                 status: OrderStatus.Pending,
             });
             await expect(orderRepo.save(order2)).resolves.not.toThrow();
         });
 
-        it('should allow saving orders at same level with different sides', async () => {
+        it('should allow saving orders at same order index with different sides', async () => {
             const buyOrder = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Buy,
                 status: OrderStatus.Pending,
             });
             const sellOrder = createOrder({
                 gridId: grid.id,
-                levelIndex: 3,
+                orderIndex: 3,
                 side: OrderSide.Sell,
                 status: OrderStatus.Pending,
             });
@@ -337,21 +337,21 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
             await gridRepo.save(grid2);
 
             await orderRepo.save(
-                createOrder({ gridId: grid.id, status: OrderStatus.Pending, levelIndex: 0 }),
+                createOrder({ gridId: grid.id, status: OrderStatus.Pending, orderIndex: 0 }),
             );
             await orderRepo.save(
-                createOrder({ gridId: grid.id, status: OrderStatus.Placed, levelIndex: 1 }),
+                createOrder({ gridId: grid.id, status: OrderStatus.Placed, orderIndex: 1 }),
             );
             await orderRepo.save(
                 createOrder({
                     gridId: grid.id,
                     status: OrderStatus.Filled,
                     filledAt: Timestamp.now(),
-                    levelIndex: 2,
+                    orderIndex: 2,
                 }),
             );
             await orderRepo.save(
-                createOrder({ gridId: grid2.id, status: OrderStatus.Placed, levelIndex: 0 }),
+                createOrder({ gridId: grid2.id, status: OrderStatus.Placed, orderIndex: 0 }),
             );
 
             const result = await orderRepo.findManyPlacedByGridIds([

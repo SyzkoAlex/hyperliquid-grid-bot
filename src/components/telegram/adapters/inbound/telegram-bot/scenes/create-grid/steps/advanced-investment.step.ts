@@ -31,7 +31,7 @@ export class AdvancedInvestmentStep implements WizardStep {
     async buildView(ctx: BotContext): Promise<StepView> {
         const session = ctx.session;
         const symbol = session.createGrid?.symbol;
-        const levels = session.createGrid?.levels ?? WIZARD_CONFIG.DEFAULT_LEVELS;
+        const orderCount = session.createGrid?.orderCount ?? WIZARD_CONFIG.DEFAULT_ORDERS;
         const accountAddress = ctx.user?.accountAddress;
 
         // Consume and clear the post-swap success banner set by SwapStep
@@ -61,7 +61,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                     this.tradingApi,
                     accountAddress,
                     symbol,
-                    levels,
+                    orderCount,
                     lowerPrice,
                     upperPrice,
                     {
@@ -75,7 +75,7 @@ export class AdvancedInvestmentStep implements WizardStep {
                                 totalBalance: info.totalBalance,
                                 currentPrice: info.currentPrice,
                                 suggestedMax: info.suggestedMax,
-                                levels,
+                                orderCount,
                                 lowerPrice: info.lowerPrice,
                                 upperPrice: info.upperPrice,
                             }).text,
@@ -191,7 +191,7 @@ export class AdvancedInvestmentStep implements WizardStep {
         const session = ctx.session;
         const accountAddress = ctx.user?.accountAddress;
         if (
-            !session.createGrid?.levels ||
+            !session.createGrid?.orderCount ||
             !session.createGrid?.upperPrice ||
             !session.createGrid?.lowerPrice ||
             !session.createGrid?.symbol ||
@@ -206,7 +206,7 @@ export class AdvancedInvestmentStep implements WizardStep {
             const result = await validateInvestment(
                 {
                     investment,
-                    levels: session.createGrid.levels,
+                    orderCount: session.createGrid.orderCount,
                     symbol: session.createGrid.symbol,
                     upperPrice: session.createGrid.upperPrice,
                     lowerPrice: session.createGrid.lowerPrice,

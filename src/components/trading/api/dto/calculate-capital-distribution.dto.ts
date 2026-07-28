@@ -1,6 +1,6 @@
 export interface CalculateCapitalDistributionDto {
     symbol: string;
-    levels: number;
+    orderCount: number;
     totalInvestmentUSDC?: number;
     usdcBalance: number;
     baseBalance: number;

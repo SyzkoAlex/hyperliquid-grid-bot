@@ -35,7 +35,7 @@ describe('RefillOrderPlacementService', () => {
         status: GridStatus.Running,
         lowerPrice: 45000,
         upperPrice: 55000,
-        levels: 11,
+        orderCount: 11,
         investmentUSDC: 5000,
         investmentBase: 0.1,
         trailingEnabled: false,
@@ -54,7 +54,7 @@ describe('RefillOrderPlacementService', () => {
         side: OrderSide.Sell,
         status: OrderStatus.Pending,
         type: OrderType.Limit,
-        levelIndex: 6,
+        orderIndex: 6,
         price: 51000,
         amount: 0.01,
         exchangeOrderId: null,
@@ -99,7 +99,7 @@ describe('RefillOrderPlacementService', () => {
             expect.objectContaining({
                 gridId: GRID_ID,
                 side: OrderSide.Sell,
-                levelIndex: 6,
+                orderIndex: 6,
             }),
         );
 

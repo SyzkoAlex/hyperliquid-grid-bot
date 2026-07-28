@@ -3,7 +3,7 @@ import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { swapHintLine } from '@components/telegram/core/domain/models/messages/wizard/swap-hint';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
-import { countBuySellLevels } from '@components/trading/api/count-buy-sell-levels';
+import { countBuySellOrders } from '@components/trading/api/count-buy-sell-orders';
 import { roundToCents } from './round-to-cents';
 import { buildEligibleSwapOffer } from './build-eligible-swap-offer';
 import { InvestmentValidationParams } from './investment-validation-params';
@@ -13,7 +13,7 @@ export async function validateInvestment(
     params: InvestmentValidationParams,
     tradingApi: TradingApiPort,
 ): Promise<InvestmentValidationResult> {
-    const { investment, levels, symbol, upperPrice, lowerPrice, accountAddress } = params;
+    const { investment, orderCount, symbol, upperPrice, lowerPrice, accountAddress } = params;
 
     if (isNaN(investment) || investment < WIZARD_CONFIG.MIN_INVESTMENT) {
         return {
@@ -22,12 +22,12 @@ export async function validateInvestment(
         };
     }
 
-    const perOrderAmount = investment / (levels + 1);
+    const perOrderAmount = investment / orderCount;
     if (perOrderAmount < WIZARD_CONFIG.MIN_INVESTMENT) {
         return {
             valid: false,
             errorMessage: ValidationTexts.orderSizeTooSmall(
-                levels,
+                orderCount,
                 perOrderAmount,
                 WIZARD_CONFIG.MIN_INVESTMENT,
             ),
@@ -45,7 +45,7 @@ export async function validateInvestment(
 
     const distributionDto = tradingApi.calculateCapitalDistribution({
         symbol,
-        levels,
+        orderCount,
         totalInvestmentUSDC: investment,
         usdcBalance: userState.usdcBalance,
         baseBalance: userState.spotBalances[symbol] ?? 0,
@@ -57,8 +57,8 @@ export async function validateInvestment(
     const requiredUSDC = Decimal.from(distributionDto.requiredUSDC);
     const requiredBase = Decimal.from(distributionDto.requiredBase);
 
-    const { buyLevels: buyCount, sellLevels: sellCount } = countBuySellLevels(
-        levels,
+    const { buyOrders: buyCount, sellOrders: sellCount } = countBuySellOrders(
+        orderCount,
         lowerPrice,
         upperPrice,
         currentPriceNum,
@@ -79,7 +79,7 @@ export async function validateInvestment(
             return {
                 valid: false,
                 errorMessage: ValidationTexts.orderSizeTooSmall(
-                    levels + 1,
+                    orderCount,
                     minNotional,
                     WIZARD_CONFIG.MIN_INVESTMENT,
                     minRequired,
@@ -105,7 +105,7 @@ export async function validateInvestment(
             currentPrice: currentPriceNum,
             lowerPrice,
             upperPrice,
-            levels,
+            orderCount,
         });
         const hint = swapHintLine(symbol, eligibleSwapOffer);
 

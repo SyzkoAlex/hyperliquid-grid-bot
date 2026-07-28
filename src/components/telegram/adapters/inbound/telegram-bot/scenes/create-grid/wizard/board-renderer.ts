@@ -22,7 +22,7 @@ const ADVANCED_STEPS: readonly SceneStep[] = [
     SceneStep.Mode,
     SceneStep.Upper,
     SceneStep.Lower,
-    SceneStep.Levels,
+    SceneStep.Orders,
     SceneStep.Investment,
     SceneStep.StopLoss,
     SceneStep.Preview,

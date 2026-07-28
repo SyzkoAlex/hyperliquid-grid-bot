@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
-import { CREATE_GRID_ACTIONS, buildLevelsAction } from '../create-grid-actions';
+import { CREATE_GRID_ACTIONS, buildOrdersAction } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { AdvancedLevelsTexts } from '@components/telegram/core/domain/models/messages/wizard/advanced-levels.messages';
+import { AdvancedOrdersTexts } from '@components/telegram/core/domain/models/messages/wizard/advanced-orders.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 
 @Injectable()
-export class AdvancedLevelsStep implements WizardStep {
-    readonly id = SceneStep.Levels;
+export class AdvancedOrdersStep implements WizardStep {
+    readonly id = SceneStep.Orders;
 
     async buildView(_ctx: BotContext): Promise<StepView> {
         const keyboard: InlineButton[][] = [
-            ...WIZARD_CONFIG.PRESET_LEVELS.map((level) => [
-                { text: level.toString(), action: buildLevelsAction(level) },
+            ...WIZARD_CONFIG.PRESET_ORDERS.map((orderCount) => [
+                { text: orderCount.toString(), action: buildOrdersAction(orderCount) },
             ]),
             [
                 { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
@@ -26,24 +26,24 @@ export class AdvancedLevelsStep implements WizardStep {
             ],
         ];
 
-        return { body: AdvancedLevelsTexts.PROMPT, keyboard };
+        return { body: AdvancedOrdersTexts.PROMPT, keyboard };
     }
 
-    async handleLevelsSelection(ctx: BotContext, levels: number): Promise<StepResult> {
+    async handleOrdersSelection(ctx: BotContext, orderCount: number): Promise<StepResult> {
         const session = ctx.session;
         if (!session.createGrid?.lowerPrice) {
             return null;
         }
 
-        if (levels < WIZARD_CONFIG.MIN_LEVELS || levels > WIZARD_CONFIG.MAX_LEVELS) {
-            session.createGrid.pendingError = ValidationTexts.invalidLevelsRange(
-                WIZARD_CONFIG.MIN_LEVELS,
-                WIZARD_CONFIG.MAX_LEVELS,
+        if (orderCount < WIZARD_CONFIG.MIN_ORDERS || orderCount > WIZARD_CONFIG.MAX_ORDERS) {
+            session.createGrid.pendingError = ValidationTexts.invalidOrdersRange(
+                WIZARD_CONFIG.MIN_ORDERS,
+                WIZARD_CONFIG.MAX_ORDERS,
             );
             return null;
         }
 
-        session.createGrid.levels = levels;
+        session.createGrid.orderCount = orderCount;
         return { nextStep: SceneStep.Investment };
     }
 
@@ -53,19 +53,19 @@ export class AdvancedLevelsStep implements WizardStep {
             return null;
         }
 
-        const levels = parseInt(text, 10);
+        const orderCount = parseInt(text, 10);
 
-        if (isNaN(levels)) {
+        if (isNaN(orderCount)) {
             session.createGrid.pendingError = ValidationTexts.invalidNumber();
             return null;
         }
 
-        return this.handleLevelsSelection(ctx, levels);
+        return this.handleOrdersSelection(ctx, orderCount);
     }
 
     rollbackState(ctx: BotContext): void {
         if (ctx.session.createGrid) {
-            delete ctx.session.createGrid.levels;
+            delete ctx.session.createGrid.orderCount;
         }
     }
 }

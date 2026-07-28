@@ -56,7 +56,7 @@ describe('OrderStatusSyncService', () => {
             price: 50000,
             amount: 0.01,
             status: OrderStatus.Placed,
-            levelIndex: 5,
+            orderIndex: 5,
             exchangeOrderId,
             createdAt: Date.now(),
         });
@@ -287,7 +287,7 @@ describe('OrderStatusSyncService', () => {
                 price: 50000,
                 amount: 0.01,
                 status: OrderStatus.Pending,
-                levelIndex: 5,
+                orderIndex: 5,
                 exchangeOrderId: null,
                 createdAt: Date.now(),
             };

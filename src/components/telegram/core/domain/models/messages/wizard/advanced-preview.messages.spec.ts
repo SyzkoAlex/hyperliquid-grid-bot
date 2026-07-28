@@ -3,7 +3,7 @@ import { AdvancedPreviewMessage } from './advanced-preview.messages';
 
 const base = {
     totalInvestment: 1000,
-    levels: 10,
+    orderCount: 10,
     lowerPrice: 45000,
     upperPrice: 55000,
 };
@@ -15,11 +15,11 @@ describe('AdvancedPreviewMessage', () => {
     });
 
     it('shows per-order fee hint in the same format as the investment step', () => {
-        // $1000 / 10 levels = $100/order
-        // midPrice=50000, gridStep=(55000-45000)/10/50000*100=2.00%
-        // profit/cycle=$100*2%=$2.00; fee/cycle=$100*0.04%*2=$0.08
+        // $1000 / 10 orders = $100/order
+        // midPrice=50000, gridStep=(55000-45000)/9/50000*100≈2.2222%
+        // profit/cycle=$100*2.2222%≈$2.22; fee/cycle=$100*0.04%*2=$0.08
         const result = AdvancedPreviewMessage.create(base);
-        expect(result.text).toContain('~$100/order → profit ~$2.00/cycle, fee ~$0.08');
+        expect(result.text).toContain('~$100/order → profit ~$2.22/cycle, fee ~$0.08');
     });
 
     it('does not show break-even warning when grid is profitable', () => {
@@ -30,7 +30,7 @@ describe('AdvancedPreviewMessage', () => {
     it('shows break-even warning when grid step is too tight to cover fees', () => {
         const result = AdvancedPreviewMessage.create({
             totalInvestment: 1000,
-            levels: 100,
+            orderCount: 100,
             lowerPrice: 99990,
             upperPrice: 100000,
         });

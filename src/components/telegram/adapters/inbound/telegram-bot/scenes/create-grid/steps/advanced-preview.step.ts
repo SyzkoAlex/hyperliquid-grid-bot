@@ -30,7 +30,7 @@ export class AdvancedPreviewStep implements WizardStep {
         const state = ctx.session.createGrid!;
         const lowerPrice = state.lowerPrice!;
         const upperPrice = state.upperPrice!;
-        const levels = state.levels!;
+        const orderCount = state.orderCount!;
         const totalInvestment = state.totalInvestmentUSDC!;
 
         const keyboard: InlineButton[][] = [
@@ -43,7 +43,7 @@ export class AdvancedPreviewStep implements WizardStep {
 
         const body = AdvancedPreviewMessage.create({
             totalInvestment,
-            levels,
+            orderCount,
             lowerPrice,
             upperPrice,
         }).text;
@@ -58,7 +58,7 @@ export class AdvancedPreviewStep implements WizardStep {
             state?.mode &&
             state?.upperPrice &&
             state?.lowerPrice &&
-            state?.levels &&
+            state?.orderCount &&
             state?.totalInvestmentUSDC
         );
     }
@@ -74,7 +74,7 @@ export class AdvancedPreviewStep implements WizardStep {
             delete state.totalInvestmentUSDC;
             delete state.upperPrice;
             delete state.lowerPrice;
-            delete state.levels;
+            delete state.orderCount;
         } else {
             delete state.totalInvestmentUSDC;
         }

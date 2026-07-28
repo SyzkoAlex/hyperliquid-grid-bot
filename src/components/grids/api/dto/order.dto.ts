@@ -9,7 +9,7 @@ export interface OrderDto {
     side: OrderSide;
     status: OrderStatus;
     type: OrderType;
-    levelIndex: number;
+    orderIndex: number;
     price: number | null;
     amount: number;
     exchangeOrderId: string | null;

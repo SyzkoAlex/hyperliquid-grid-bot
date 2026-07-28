@@ -5,5 +5,5 @@ export interface CalculateOptimalSwapDto {
     currentPrice: number;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
 }

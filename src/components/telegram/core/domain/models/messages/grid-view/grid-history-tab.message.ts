@@ -13,7 +13,7 @@ export class GridHistoryTabMessage {
     private constructor({ grid, filledOrders, currentPrice }: GridSnapshot, timezone: string) {
         const { pair, shortId } = gridHeaderParts(grid);
         const symbol = grid.symbol;
-        const gridStep = (grid.upperPrice - grid.lowerPrice) / grid.levels;
+        const gridStep = (grid.upperPrice - grid.lowerPrice) / (grid.orderCount - 1);
 
         const filled = filledOrders.slice(0, HISTORY_DISPLAY_LIMIT);
 

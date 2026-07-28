@@ -7,7 +7,7 @@ export interface GridDto {
     status: GridStatus;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
     investmentUSDC: number;
     investmentBase: number;
     creationPrice?: number;

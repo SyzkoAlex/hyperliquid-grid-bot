@@ -18,7 +18,7 @@ function makeGrid(status: GridStatus = GridStatus.Running): GridDto {
         status,
         lowerPrice: 90000,
         upperPrice: 100000,
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: 500,
         investmentBase: 0.001,
         trailingEnabled: false,
@@ -30,7 +30,7 @@ function makeGrid(status: GridStatus = GridStatus.Running): GridDto {
     };
 }
 
-function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, levelIndex = 5): OrderDto {
+function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, orderIndex = 5): OrderDto {
     return {
         id: '660e8400-e29b-41d4-a716-446655440001',
         gridId: '550e8400-e29b-41d4-a716-446655440000',
@@ -38,7 +38,7 @@ function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, levelInd
         side,
         status,
         type: OrderType.Limit,
-        levelIndex,
+        orderIndex,
         price,
         amount: 0.001,
         exchangeOrderId: null,

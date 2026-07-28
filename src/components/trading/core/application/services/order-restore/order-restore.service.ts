@@ -107,7 +107,7 @@ export class OrderRestoreService {
             {
                 orderId: order.id,
                 gridId: order.gridId,
-                levelIndex: order.levelIndex,
+                orderIndex: order.orderIndex,
                 ageMs: orderAge,
             },
             'Stale pending order marked as missing',

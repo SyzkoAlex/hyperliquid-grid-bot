@@ -10,7 +10,7 @@ const balanceParams = {
     totalBalance: Decimal.from(1950),
     currentPrice: 95000,
     suggestedMax: 800,
-    levels: 10,
+    orderCount: 10,
     lowerPrice: 76000,
     upperPrice: 114000,
 };
@@ -38,20 +38,20 @@ describe('AdvancedInvestmentPromptMessage', () => {
         expect(result.text).toContain('1,000 USDC + 0.01 BTC');
     });
 
-    it('shows recommended amount and levels', () => {
+    it('shows recommended amount and orders', () => {
         const result = AdvancedInvestmentPromptMessage.create(balanceParams);
-        expect(result.text).toContain('Recommended: ~800 USDC for 10 levels');
+        expect(result.text).toContain('Recommended: ~800 USDC for 10 orders');
     });
 
     it('shows per-order fee hint when params provided', () => {
         const result = AdvancedInvestmentPromptMessage.create(balanceParams);
-        // $800 / 10 levels = $80/order
-        // gridStep = (114000-76000)/10/95000*100 = 4.00%
-        // profit/cycle = $80 * 4% = $3.20; fee/cycle = $80 * 0.04% * 2 = $0.06
-        expect(result.text).toContain('~$80/order → profit ~$3.20/cycle, fee ~$0.06');
+        // $800 / 10 orders = $80/order
+        // gridStep = (114000-76000)/9/95000*100 ≈ 4.4444%
+        // profit/cycle = $80 * 4.4444% ≈ $3.56; fee/cycle = $80 * 0.04% * 2 = $0.06
+        expect(result.text).toContain('~$80/order → profit ~$3.56/cycle, fee ~$0.06');
     });
 
-    it('shows suggested max for the specified levels', () => {
+    it('shows suggested max for the specified orders', () => {
         const result = AdvancedInvestmentPromptMessage.create({
             symbol: 'ETH',
             usdcBalance: Decimal.from(500),
@@ -60,11 +60,11 @@ describe('AdvancedInvestmentPromptMessage', () => {
             totalBalance: Decimal.from(3500),
             currentPrice: 3000,
             suggestedMax: 400,
-            levels: 20,
+            orderCount: 20,
             lowerPrice: 2400,
             upperPrice: 3600,
         });
-        expect(result.text).toContain('20 levels');
+        expect(result.text).toContain('20 orders');
         expect(result.text).toContain('400');
     });
 

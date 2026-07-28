@@ -47,7 +47,7 @@ Where `Current_equity = Qty_base × Current_price + Quote_balance`. Everything y
 
 This is where mistakes happen. Suppose the bot reports `Grid Profit = +$200` but `Total PnL = −$50`. How?
 
-While collecting $200 in realized profit from back-and-forth cycles, SOL dropped from $160 to $140. The bot accumulated coins at lower levels, and the unrealized loss on those coins ($250) wiped out the entire grid profit:
+While collecting $200 in realized profit from back-and-forth cycles, SOL dropped from $160 to $140. The bot accumulated coins at lower prices, and the unrealized loss on those coins ($250) wiped out the entire grid profit:
 
 ```
 Total PnL = Grid Profit − Unrealized Loss
@@ -58,7 +58,7 @@ This is the core risk of a spot grid: **you earn on oscillation, but lose on a d
 
 ---
 
-## PnL Per Grid Level
+## PnL Per Grid Order
 
 Useful to calculate upfront to verify the grid is profitable at all:
 
@@ -89,7 +89,7 @@ Advantage = PnL_bot − PnL_hodl
 
 **Bot wins over HODL:** sideways market, price oscillates within range.
 
-**HODL wins:** strong uptrend — the bot sold coins at each level up and now holds little base asset.
+**HODL wins:** strong uptrend — the bot sold coins at each order up and now holds little base asset.
 
 **Example:** bot launched on SOL/USDC at $150, invested $10,000. SOL rises to $300.
 - HODL: ~66.7 SOL × $300 = $20,000 → profit $10,000

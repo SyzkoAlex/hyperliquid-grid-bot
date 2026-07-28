@@ -85,7 +85,7 @@ export class TradingApiAdapter implements TradingApiPort {
     calculateCapitalDistribution(params: CalculateCapitalDistributionDto): CapitalDistributionDto {
         const szDecimals = this.exchange.getSzDecimals(TradingSymbol.fromString(params.symbol));
         const distribution = this.capitalCalculator.calculateDistribution({
-            levels: params.levels,
+            orderCount: params.orderCount,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance: Decimal.from(params.usdcBalance),
             baseBalance: Decimal.from(params.baseBalance),
@@ -109,7 +109,7 @@ export class TradingApiAdapter implements TradingApiPort {
             currentPrice: Price.from(params.currentPrice),
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
-            levels: params.levels,
+            orderCount: params.orderCount,
             sellSizeBuffer: this.sellSizeBuffer,
             szDecimals,
         });
@@ -122,7 +122,7 @@ export class TradingApiAdapter implements TradingApiPort {
             currentPrice: Price.from(params.currentPrice),
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
-            levels: params.levels,
+            orderCount: params.orderCount,
         });
         if (!result) return null;
         return {

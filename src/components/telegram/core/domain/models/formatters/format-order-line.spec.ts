@@ -12,7 +12,7 @@ const baseOrder: OrderDto = {
     side: OrderSide.Buy,
     status: OrderStatus.Placed,
     type: OrderType.Limit,
-    levelIndex: 4,
+    orderIndex: 4,
     price: 90,
     amount: 0.1,
     exchangeOrderId: null,
@@ -20,7 +20,7 @@ const baseOrder: OrderDto = {
 };
 
 describe('formatOrderLine', () => {
-    it('does not render a level number', () => {
+    it('does not render an order index number', () => {
         expect(formatOrderLine(baseOrder, 'ETH')).not.toContain('Lv.');
     });
 

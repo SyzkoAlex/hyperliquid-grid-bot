@@ -19,7 +19,7 @@ function makeGrid(): GridDto {
         status: GridStatus.Running,
         lowerPrice: 90000,
         upperPrice: 100000,
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: 500,
         investmentBase: 0,
         trailingEnabled: false,

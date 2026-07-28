@@ -98,9 +98,9 @@ Trading: GridCommandsController receives event
         ↓
 CreateAndStartGridUseCase:
   1. Calculate capital split (50/50 neutral or 30/70 long)
-  2. Calculate price levels (even spacing in range)
+  2. Calculate order prices (even spacing in range)
   3. Save grid record (status: PENDING)
-  4. For each level:
+  4. For each order:
        - Save order record (PENDING)
        - Place order on Hyperliquid
        - Update order (PLACED)
@@ -127,7 +127,7 @@ Every 2 seconds (configurable via ORDERS_POLL_INTERVAL_MS):
   5. Process status change:
        - filled         → trigger refill
        - cancelled      → update status
-       - selfTradeCanceled → re-place order at same level/side (STP recovery)
+       - selfTradeCanceled → re-place order at same index/side (STP recovery)
 ```
 
 Polling is the single fill-detection mechanism. It is reliable (no missed fills
@@ -149,8 +149,8 @@ Fill detected
 Update order status (FILLED)
       ↓
 Calculate opposite order:
-  BUY filled  → place SELL one level up
-  SELL filled → place BUY one level down
+  BUY filled  → place SELL one order up
+  SELL filled → place BUY one order down
       ↓
 Save order (PENDING) → place on exchange → update (PLACED)
       ↓
@@ -267,7 +267,7 @@ All workers are independent and idempotent — safe to run concurrently.
 Once a grid is created, the system operates fully autonomously:
 
 ✅ **Detects fills** — polling every 2 seconds
-✅ **Places refills** — opposite orders one level away
+✅ **Places refills** — opposite orders one order away
 ✅ **Recovers from crashes** — orphaned order monitor
 ✅ **Survives network issues** — stateless polling (no persistent connection)
 ✅ **Notifies user** — Telegram events

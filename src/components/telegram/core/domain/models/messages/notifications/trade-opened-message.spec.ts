@@ -31,7 +31,7 @@ describe('TradeOpenedMessage', () => {
         expect(msg.text).toContain('$475.00');
     });
 
-    it('shows first 8 chars of grid ID without level info', () => {
+    it('shows first 8 chars of grid ID without order index info', () => {
         const msg = TradeOpenedMessage.create(baseProps);
         expect(msg.text).toContain('550e8400');
         expect(msg.text).not.toContain('Lv.');
@@ -47,8 +47,6 @@ describe('TradeOpenedMessage', () => {
             3500,
             0.15,
             525,
-            2,
-            8,
         );
         const msg = TradeOpenedMessage.fromEvent(event);
         expect(msg.text).toContain('▲');

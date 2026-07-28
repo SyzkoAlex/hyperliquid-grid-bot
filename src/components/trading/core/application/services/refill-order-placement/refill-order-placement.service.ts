@@ -68,7 +68,7 @@ export class RefillOrderPlacementService {
                     { gridId: grid.id },
                     'Refill skipped: duplicate active order detected by DB constraint',
                 );
-                return PlaceRefillOrderResult.failure('Duplicate active order at level');
+                return PlaceRefillOrderResult.failure('Duplicate active order at order index');
             }
             await this.cleanupPendingOrder(order);
             throw error;
@@ -86,13 +86,13 @@ export class RefillOrderPlacementService {
             symbol: grid.symbol,
             side: params.side,
             type: OrderType.Limit,
-            levelIndex: params.levelIndex,
+            orderIndex: params.orderIndex,
             price: params.price.toNumber(),
             amount: params.amount.toNumber(),
         });
 
         this.logger.debug(
-            { orderId: order.id, levelIndex: params.levelIndex },
+            { orderId: order.id, orderIndex: params.orderIndex },
             'Refill order saved with pending status',
         );
 

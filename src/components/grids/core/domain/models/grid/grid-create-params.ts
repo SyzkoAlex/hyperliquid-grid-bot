@@ -12,7 +12,7 @@ export interface GridCreateParams {
     status?: GridStatus;
     lowerPrice: Price;
     upperPrice: Price;
-    levels: number;
+    orderCount: number;
     investmentUSDC: Decimal; // USD/USDC for buy orders
     investmentBase: Decimal; // Base asset (BTC/ETH) for sell orders
     creationPrice?: Price;

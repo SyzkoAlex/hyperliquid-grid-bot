@@ -17,7 +17,7 @@ describe('TradeEventPublisher', () => {
     let mockPublisher: { publish: ReturnType<typeof vi.fn> };
     let mockProfitCalculator: { calculate: ReturnType<typeof vi.fn> };
 
-    // Grid: 11 levels, spacing = (55000-45000)/(11-1) = 1000
+    // Grid: 11 orders, spacing = (55000-45000)/(11-1) = 1000
     const testGrid: GridDto = {
         id: GRID_ID,
         userId: 'user-1',
@@ -25,7 +25,7 @@ describe('TradeEventPublisher', () => {
         status: GridStatus.Running,
         lowerPrice: 45000,
         upperPrice: 55000,
-        levels: 11,
+        orderCount: 11,
         investmentUSDC: 5000,
         investmentBase: 0.1,
         trailingEnabled: false,
@@ -42,7 +42,7 @@ describe('TradeEventPublisher', () => {
         side: OrderSide.Buy,
         status: OrderStatus.Filled,
         type: OrderType.Limit,
-        levelIndex: 5,
+        orderIndex: 5,
         price: 50000,
         amount: 0.01,
         exchangeOrderId: 'exchange-789',
@@ -57,7 +57,7 @@ describe('TradeEventPublisher', () => {
         side: OrderSide.Sell,
         status: OrderStatus.Filled,
         type: OrderType.Limit,
-        levelIndex: 6,
+        orderIndex: 6,
         price: 51000,
         amount: 0.01,
         exchangeOrderId: 'exchange-012',
@@ -72,8 +72,13 @@ describe('TradeEventPublisher', () => {
             calculate: vi
                 .fn()
                 .mockImplementation(
-                    (amount: number, upperPrice: number, lowerPrice: number, levels: number) => {
-                        const spacing = (upperPrice - lowerPrice) / (levels - 1);
+                    (
+                        amount: number,
+                        upperPrice: number,
+                        lowerPrice: number,
+                        orderCount: number,
+                    ) => {
+                        const spacing = (upperPrice - lowerPrice) / (orderCount - 1);
                         return Decimal.from(spacing * amount);
                     },
                 ),
@@ -98,9 +103,6 @@ describe('TradeEventPublisher', () => {
         expect(event.price).toBe(50000);
         expect(event.amount).toBe(0.01);
         expect(event.total).toBe(500);
-        // 1-based level: levelIndex(5) + 1 = 6
-        expect(event.level).toBe(6);
-        expect(event.totalLevels).toBe(11);
     });
 
     it('should publish OrderClosedEvent with profit for a SELL fill and return profit', async () => {
@@ -118,23 +120,5 @@ describe('TradeEventPublisher', () => {
         const event = mockPublisher.publish.mock.calls[0][0];
         expect(event).toBeInstanceOf(OrderClosedEvent);
         expect(event.profit).toBe(10);
-        // 1-based level: levelIndex(6) + 1 = 7
-        expect(event.level).toBe(7);
-        expect(event.totalLevels).toBe(11);
-    });
-
-    it('should use 1-based level index in both event types', async () => {
-        const buyAtLevel0 = makeBuyOrder({ levelIndex: 0, price: 45000 });
-        const sellAtLevel10 = makeSellOrder({ levelIndex: 10, price: 55000 });
-
-        await service.publishFillEvent(buyAtLevel0, testGrid);
-        const openedEvent = mockPublisher.publish.mock.calls[0][0];
-        expect(openedEvent.level).toBe(1);
-
-        mockPublisher.publish.mockClear();
-
-        await service.publishFillEvent(sellAtLevel10, testGrid);
-        const closedEvent = mockPublisher.publish.mock.calls[0][0];
-        expect(closedEvent.level).toBe(11);
     });
 });

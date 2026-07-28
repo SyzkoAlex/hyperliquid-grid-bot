@@ -15,7 +15,7 @@ export async function fetchBalanceInfo(
     tradingApi: TradingApiPort,
     accountAddress: string,
     symbol: string,
-    levels: number,
+    orderCount: number,
     lowerPrice: number,
     upperPrice: number,
 ): Promise<BalanceInfo> {
@@ -35,7 +35,7 @@ export async function fetchBalanceInfo(
         usdcBalance: userState.usdcBalance,
         baseBalance: userState.spotBalances[symbol] ?? 0,
         currentPrice,
-        levels,
+        orderCount,
         lowerPrice,
         upperPrice,
     });
