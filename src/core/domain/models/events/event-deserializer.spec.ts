@@ -25,9 +25,9 @@ function createEventByType(type: EventType): SerializableEvent {
             }),
         [EventType.StopGridCommand]: () => StopGridCommandEvent.create(USER_ID, 'grid-1', '0xabc'),
         [EventType.OrderOpened]: () =>
-            new OrderOpenedEvent(USER_ID, 'grid-1', 'BTC', 'buy', 50000, 0.1, 5000, 1, 10),
+            new OrderOpenedEvent(USER_ID, 'grid-1', 'BTC', 'buy', 50000, 0.1, 5000),
         [EventType.OrderClosed]: () =>
-            new OrderClosedEvent(USER_ID, 'grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100, 2, 10),
+            new OrderClosedEvent(USER_ID, 'grid-1', 'BTC', 'sell', 51000, 0.1, 5100, 100),
         [EventType.GridCreatedSuccess]: () =>
             new GridCreatedSuccessEvent(
                 USER_ID,

@@ -36,7 +36,7 @@ export class QuickStartPromptMessage {
 
         const feeHint = feeHintLine({
             suggestedMax,
-            levels: WIZARD_CONFIG.DEFAULT_LEVELS,
+            orderCount: WIZARD_CONFIG.DEFAULT_ORDERS,
             lowerPrice,
             upperPrice,
         });
@@ -49,7 +49,7 @@ export class QuickStartPromptMessage {
             `How much to invest?\n\n` +
             `${EMOJI.MONEY} Available: ~${totalRounded} USDC\n` +
             `   (${usdcRounded} USDC + ${baseFormatted} ${symbol})\n\n` +
-            `${EMOJI.BULB} Recommended: ~${suggestedMax} USDC for ${WIZARD_CONFIG.DEFAULT_LEVELS} levels\n` +
+            `${EMOJI.BULB} Recommended: ~${suggestedMax} USDC for ${WIZARD_CONFIG.DEFAULT_ORDERS} orders\n` +
             feeHint;
     }
 

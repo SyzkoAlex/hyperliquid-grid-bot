@@ -44,9 +44,9 @@ export class WizardSummaryBuilder {
                 if (state.lowerPrice === undefined) return null;
                 return `✓ <b>Lower</b> · $${PriceFormatter.format(state.lowerPrice)}`;
             }
-            case SceneStep.Levels: {
-                if (state.levels === undefined) return null;
-                return `✓ <b>Levels</b> · ${state.levels}`;
+            case SceneStep.Orders: {
+                if (state.orderCount === undefined) return null;
+                return `✓ <b>Orders</b> · ${state.orderCount}`;
             }
             case SceneStep.Quick: {
                 if (state.totalInvestmentUSDC === undefined) return null;
@@ -55,7 +55,8 @@ export class WizardSummaryBuilder {
                     lines.push(`✓ <b>Upper</b> · $${PriceFormatter.format(state.upperPrice)}`);
                 if (state.lowerPrice !== undefined)
                     lines.push(`✓ <b>Lower</b> · $${PriceFormatter.format(state.lowerPrice)}`);
-                if (state.levels !== undefined) lines.push(`✓ <b>Levels</b> · ${state.levels}`);
+                if (state.orderCount !== undefined)
+                    lines.push(`✓ <b>Orders</b> · ${state.orderCount}`);
                 lines.push(`✓ <b>Investment</b> · $${state.totalInvestmentUSDC} USDC`);
                 return lines.join('\n');
             }

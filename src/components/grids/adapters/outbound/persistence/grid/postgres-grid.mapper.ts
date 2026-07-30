@@ -18,7 +18,7 @@ export class PostgresGridMapper {
             status: grid.status,
             lowerPrice: grid.lowerPrice.toNumber().toString(),
             upperPrice: grid.upperPrice.toNumber().toString(),
-            levels: grid.levels,
+            orderCount: grid.orderCount,
             investmentUSDC: grid.investmentUSDC.toString(),
             investmentBase: grid.investmentBase.toString(),
             creationPrice: grid.creationPrice?.toNumber().toString() ?? null,
@@ -48,7 +48,7 @@ export class PostgresGridMapper {
                 status: row.status as GridStatus,
                 lowerPrice: Price.from(parseFloat(row.lowerPrice)),
                 upperPrice: Price.from(parseFloat(row.upperPrice)),
-                levels: row.levels,
+                orderCount: row.orderCount,
                 investmentUSDC: Decimal.from(row.investmentUSDC),
                 investmentBase: Decimal.from(row.investmentBase),
                 creationPrice: row.creationPrice

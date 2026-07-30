@@ -3,7 +3,7 @@ export interface CreateAndStartGridParams {
     symbol: string;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
     totalInvestmentUSDC?: number;
     trailingEnabled: boolean;
     trailingTriggerPercent?: number;

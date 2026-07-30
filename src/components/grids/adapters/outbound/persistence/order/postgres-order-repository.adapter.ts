@@ -27,10 +27,10 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
     }
 
     private handleSaveError(error: unknown, order: Order): never {
-        if (this.isDuplicateActiveLevelError(error)) {
+        if (this.isDuplicateActiveOrderError(error)) {
             throw new DuplicateActiveOrderError(
                 order.gridId.toString(),
-                order.levelIndex,
+                order.orderIndex,
                 order.side,
             );
         }
@@ -38,13 +38,13 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
         throw error;
     }
 
-    private isDuplicateActiveLevelError(error: unknown): boolean {
+    private isDuplicateActiveOrderError(error: unknown): boolean {
         const PG_UNIQUE_VIOLATION = '23505';
         return (
             error instanceof Error &&
             'code' in error &&
             (error as NodeJS.ErrnoException).code === PG_UNIQUE_VIOLATION &&
-            error.message.includes('idx_orders_active_level')
+            error.message.includes('idx_orders_active_order')
         );
     }
 

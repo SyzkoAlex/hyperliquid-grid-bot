@@ -9,7 +9,7 @@ export class GridCreatedSuccessEventMapper {
             result.grid.symbol,
             result.grid.lowerPrice,
             result.grid.upperPrice,
-            result.grid.levels,
+            result.grid.orderCount,
             result.investmentUSDC.toNumber(),
             result.investmentBase.toNumber(),
             result.grid.trailingEnabled,

@@ -4,7 +4,7 @@ import { feeHintLine } from './fee-hint';
 
 interface AdvancedPreviewParams {
     totalInvestment: number;
-    levels: number;
+    orderCount: number;
     lowerPrice: number;
     upperPrice: number;
 }
@@ -14,17 +14,22 @@ export class AdvancedPreviewMessage {
 
     private constructor({
         totalInvestment,
-        levels,
+        orderCount,
         lowerPrice,
         upperPrice,
     }: AdvancedPreviewParams) {
         const metrics = calculateGridFeeMetrics({
             lowerPrice,
             upperPrice,
-            levels,
+            orderCount,
             totalInvestment,
         });
-        const hint = feeHintLine({ suggestedMax: totalInvestment, levels, lowerPrice, upperPrice });
+        const hint = feeHintLine({
+            suggestedMax: totalInvestment,
+            orderCount,
+            lowerPrice,
+            upperPrice,
+        });
 
         const breakEvenLine = !metrics.isProfitable
             ? `\n${EMOJI.WARNING} Break-even risk: grid step (${metrics.gridStepPct.toFixed(4)}%) < 2× fee rate`

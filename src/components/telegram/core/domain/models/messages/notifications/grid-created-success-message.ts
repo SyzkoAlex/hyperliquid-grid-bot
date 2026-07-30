@@ -5,7 +5,7 @@ interface GridCreatedSuccessProps {
     symbol: string;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
     investmentUSDC: number;
     investmentBase: number;
     trailingEnabled: boolean;
@@ -19,7 +19,7 @@ export class GridCreatedSuccessMessage {
             `✅ <b>Grid Created!</b>\n\n` +
             `<b>Symbol:</b> ${props.symbol}\n` +
             `<b>Range:</b> $${props.lowerPrice.toLocaleString()} - $${props.upperPrice.toLocaleString()}\n` +
-            `<b>Levels:</b> ${props.levels}\n\n` +
+            `<b>Orders:</b> ${props.orderCount}\n\n` +
             `<b>Capital:</b>\n` +
             `• USDC: $${props.investmentUSDC.toLocaleString()}\n` +
             `• ${props.symbol}: ${props.investmentBase.toFixed(4)}\n\n` +

@@ -3,7 +3,7 @@ export interface CreateGridParams {
     symbol: string;
     lowerPrice: number;
     upperPrice: number;
-    levels: number;
+    orderCount: number;
     totalInvestmentUSDC?: number;
     accountAddress: string;
     stopLossEnabled?: boolean;

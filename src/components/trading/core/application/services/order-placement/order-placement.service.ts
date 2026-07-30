@@ -12,7 +12,7 @@ import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
 import { Decimal } from '@domain/models/primitives/decimal';
 import { logger } from '@/infra/logger/logger';
-import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
+import { GridOrder } from '@components/trading/core/domain/services/grid-orders-calculator/grid-order';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
 import {
     AGENT_EXPIRATION_HANDLER_PORT,
@@ -32,41 +32,44 @@ export class OrderPlacementService {
 
     async placeGridOrders(
         grid: GridDto,
-        levels: GridLevel[],
+        gridOrders: GridOrder[],
         accountAddress: string,
     ): Promise<number> {
         let placedCount = 0;
 
-        for (const level of levels) {
+        for (const gridOrder of gridOrders) {
             try {
-                const placed = await this.placeOrderForLevel(grid, level, accountAddress);
+                const placed = await this.placeGridOrder(grid, gridOrder, accountAddress);
                 if (placed) {
                     placedCount++;
                 }
             } catch (error) {
-                this.logger.error({ err: error, level: level.index }, 'Failed to place grid order');
+                this.logger.error(
+                    { err: error, orderIndex: gridOrder.index },
+                    'Failed to place grid order',
+                );
             }
         }
 
         return placedCount;
     }
 
-    private async placeOrderForLevel(
+    private async placeGridOrder(
         grid: GridDto,
-        level: GridLevel,
+        gridOrder: GridOrder,
         accountAddress: string,
     ): Promise<boolean> {
-        const order = await this.createAndSavePendingOrder(grid, level);
+        const order = await this.createAndSavePendingOrder(grid, gridOrder);
         try {
             const result = await this.exchange.placeSpotOrder({
                 symbol: TradingSymbol.create(grid.symbol),
-                side: level.side,
-                price: level.price,
-                amount: Decimal.from(level.amountBase!),
+                side: gridOrder.side,
+                price: gridOrder.price,
+                amount: Decimal.from(gridOrder.amountBase!),
                 orderId: order.id,
                 accountAddress,
             });
-            return await this.updateOrderStatus(order, level, result);
+            return await this.updateOrderStatus(order, gridOrder, result);
         } catch (error) {
             if (error instanceof AgentNotApprovedError) {
                 await this.agentExpirationHandler.handleAgentExpired(error.accountAddress);
@@ -88,21 +91,24 @@ export class OrderPlacementService {
         }
     }
 
-    private async createAndSavePendingOrder(grid: GridDto, level: GridLevel): Promise<OrderDto> {
+    private async createAndSavePendingOrder(
+        grid: GridDto,
+        gridOrder: GridOrder,
+    ): Promise<OrderDto> {
         const orderId = uuidv4();
         const order = await this.grids.createOrder({
             id: orderId,
             gridId: grid.id,
             symbol: grid.symbol,
-            side: level.side,
+            side: gridOrder.side,
             type: OrderType.Limit,
-            levelIndex: level.index,
-            price: level.price.toNumber(),
-            amount: level.amountBase!,
+            orderIndex: gridOrder.index,
+            price: gridOrder.price.toNumber(),
+            amount: gridOrder.amountBase!,
         });
 
         this.logger.debug(
-            { level: level.index, orderId: order.id },
+            { orderIndex: gridOrder.index, orderId: order.id },
             'Order saved with pending status',
         );
 
@@ -111,7 +117,7 @@ export class OrderPlacementService {
 
     private async updateOrderStatus(
         order: OrderDto,
-        level: GridLevel,
+        gridOrder: GridOrder,
         result: { exchangeOrderId?: string; status: OrderStatus; error?: string },
     ): Promise<boolean> {
         if (result.exchangeOrderId && result.status !== OrderStatus.Failed) {
@@ -123,7 +129,7 @@ export class OrderPlacementService {
             );
 
             this.logger.debug(
-                { level: level.index, orderId: result.exchangeOrderId },
+                { orderIndex: gridOrder.index, orderId: result.exchangeOrderId },
                 'Order placed and updated with exchangeOrderId',
             );
 
@@ -133,7 +139,7 @@ export class OrderPlacementService {
         await this.grids.updateOrderStatus(order.id, OrderStatus.Failed);
 
         this.logger.warn(
-            { level: level.index, error: result.error },
+            { orderIndex: gridOrder.index, error: result.error },
             'Failed to place order - marked as failed',
         );
 

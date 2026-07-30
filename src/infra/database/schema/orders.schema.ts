@@ -12,7 +12,7 @@ import { grids } from './grids.schema';
 
 /**
  * Orders table
- * Stores only grid orders (gridId and levelIndex are required)
+ * Stores only grid orders (gridId and orderIndex are required)
  */
 export const orders = pgTable(
     'orders',
@@ -31,7 +31,7 @@ export const orders = pgTable(
         gridId: uuid('grid_id')
             .notNull()
             .references(() => grids.id, { onDelete: 'cascade' }),
-        levelIndex: integer('level_index').notNull(),
+        orderIndex: integer('order_index').notNull(),
 
         placedAt: timestamp('placed_at'),
         filledAt: timestamp('filled_at'),
@@ -40,8 +40,8 @@ export const orders = pgTable(
         updatedAt: timestamp('updated_at').notNull().defaultNow(),
     },
     (table) => ({
-        idxActiveLevel: uniqueIndex('idx_orders_active_level')
-            .on(table.gridId, table.levelIndex, table.side)
+        idxActiveOrder: uniqueIndex('idx_orders_active_order')
+            .on(table.gridId, table.orderIndex, table.side)
             .where(sql`status IN ('pending', 'placed')`),
     }),
 );

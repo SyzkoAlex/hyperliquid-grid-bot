@@ -10,7 +10,7 @@ import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.po
 import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
-import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
+import { GridOrdersCalculatorService } from '@components/trading/core/domain/services/grid-orders-calculator/grid-orders-calculator.service';
 import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
 import { Decimal } from '@domain/models/primitives/decimal';
@@ -31,7 +31,7 @@ export class CreateAndStartGridUseCase {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(USERS_API_PORT) private readonly usersApi: UsersApiPort,
         private readonly capitalCalculator: CapitalCalculatorService,
-        private readonly gridLevelsCalculator: GridLevelsCalculatorService,
+        private readonly gridOrdersCalculator: GridOrdersCalculatorService,
         private readonly userBalanceExtractor: UserBalanceExtractorService,
         private readonly orderPlacement: OrderPlacementService,
         configService: ConfigService<Config, true>,
@@ -87,7 +87,7 @@ export class CreateAndStartGridUseCase {
 
         const szDecimals = this.exchange.getSzDecimals(TradingSymbol.create(params.symbol));
         const distribution = this.capitalCalculator.calculateDistribution({
-            levels: params.levels,
+            orderCount: params.orderCount,
             totalInvestmentUSDC: params.totalInvestmentUSDC,
             usdcBalance,
             baseBalance,
@@ -133,7 +133,7 @@ export class CreateAndStartGridUseCase {
             symbol: params.symbol,
             lowerPrice: params.lowerPrice,
             upperPrice: params.upperPrice,
-            levels: params.levels,
+            orderCount: params.orderCount,
             investmentUSDC: requiredUSDC.toNumber(),
             investmentBase: rawInvestmentBase.toNumber(),
             creationPrice: currentPrice.toNumber(),
@@ -165,10 +165,10 @@ export class CreateAndStartGridUseCase {
             'Using current market price for grid',
         );
 
-        const levelsWithSizes = this.gridLevelsCalculator.calculateLevelsWithSizes(
+        const ordersWithSizes = this.gridOrdersCalculator.calculateOrdersWithSizes(
             grid.lowerPrice,
             grid.upperPrice,
-            grid.levels,
+            grid.orderCount,
             grid.investmentUSDC,
             grid.investmentBase,
             currentPrice,
@@ -178,7 +178,7 @@ export class CreateAndStartGridUseCase {
 
         const placedCount = await this.orderPlacement.placeGridOrders(
             grid,
-            levelsWithSizes,
+            ordersWithSizes,
             accountAddress,
         );
 

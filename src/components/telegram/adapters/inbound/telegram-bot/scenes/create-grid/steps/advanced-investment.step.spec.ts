@@ -32,7 +32,7 @@ describe('AdvancedInvestmentStep', () => {
     describe('buildView', () => {
         it('should show zero base balance warning when base token is zero', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5000,
@@ -49,7 +49,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show locked-in-orders warning when all base is in orders', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5697,
@@ -67,7 +67,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show locked-in-orders warning when partial base is locked and max-investment is too low', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(74);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5697,
@@ -85,7 +85,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show zero USDC balance warning when USDC is zero', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 0,
@@ -102,7 +102,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show balance info when both balances are non-zero', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5000,
@@ -118,7 +118,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show fallback message when symbol is missing', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 };
+            ctx.session.createGrid = { orderCount: 10 };
 
             const view = await step.buildView(ctx);
 
@@ -128,7 +128,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should show fallback message when balance fetch fails', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockRejectedValue(new Error('API down'));
 
             const view = await step.buildView(ctx);
@@ -138,7 +138,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('includes Custom button in keyboard', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 };
+            ctx.session.createGrid = { orderCount: 10 };
 
             const view = await step.buildView(ctx);
 
@@ -150,7 +150,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('renders swap offer button when result.swapOffer is non-null (error path)', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5000,
@@ -174,7 +174,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('renders "Swap to maximize" button when proactive hint is shown (normal balance with imbalance)', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 6550,
@@ -200,7 +200,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('renders "Swap to fit grid" button on error path (zero base balance)', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5000,
@@ -225,7 +225,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('shows proactive hint text in body when imbalanced portfolio is present', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 6550,
@@ -247,7 +247,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('does not show proactive hint when balances are perfectly balanced', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { symbol: 'HYPE', levels: 10 };
+            ctx.session.createGrid = { symbol: 'HYPE', orderCount: 10 };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
                 usdcBalance: 5000,
@@ -271,7 +271,7 @@ describe('AdvancedInvestmentStep', () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
                 symbol: 'HYPE',
-                levels: 10,
+                orderCount: 10,
                 swapFeedback: '✅ Swap complete!\n\nBought ~6.5 HYPE',
             };
             vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
@@ -299,7 +299,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should accept valid investment amount with sufficient balance', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -314,7 +314,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should set pendingError and return null for investment below minimum', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -329,7 +329,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should reject when per-order amount is too small', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 20,
+                orderCount: 20,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -344,7 +344,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should reject when balance is insufficient', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -364,7 +364,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should set pendingError for non-numeric input', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -378,7 +378,7 @@ describe('AdvancedInvestmentStep', () => {
 
         it('should return null if required state not set', async () => {
             const ctx = createMockContext();
-            ctx.session.createGrid = { levels: 10 };
+            ctx.session.createGrid = { orderCount: 10 };
 
             const result = await step.handleTextInput(ctx, '1000');
 
@@ -388,7 +388,7 @@ describe('AdvancedInvestmentStep', () => {
         it('should handle validateInvestment throwing an error', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -418,7 +418,7 @@ describe('AdvancedInvestmentStep', () => {
         it('returns null when balanceSnapshot is missing', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                levels: 10,
+                orderCount: 10,
                 symbol: 'HYPE',
                 upperPrice: 11,
                 lowerPrice: 9,
@@ -436,7 +436,7 @@ describe('AdvancedInvestmentStep', () => {
             // Pre-load a stale swapOffer from a previous render
             ctx.session.createGrid = {
                 symbol: 'HYPE',
-                levels: 10,
+                orderCount: 10,
                 swapOffer: { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
             };
             vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(53);

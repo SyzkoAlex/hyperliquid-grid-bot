@@ -18,7 +18,7 @@ const createGrid = (overrides: Partial<GridDto> = {}): GridDto => ({
     status: GridStatus.Running,
     lowerPrice: 45000,
     upperPrice: 55000,
-    levels: 11,
+    orderCount: 11,
     investmentUSDC: 5000,
     investmentBase: 0.1,
     trailingEnabled: false,
@@ -38,7 +38,7 @@ const createOrder = (overrides: Partial<OrderDto> = {}): OrderDto => ({
     price: 50000,
     amount: 0.01,
     status: OrderStatus.Cancelled,
-    levelIndex: 5,
+    orderIndex: 5,
     exchangeOrderId: '123',
     createdAt: Date.now(),
     ...overrides,
@@ -87,10 +87,10 @@ describe('StpRecoveryService', () => {
             expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
         });
 
-        it('should skip order when conflicting order exists on opposite side at same level', async () => {
+        it('should skip order when conflicting order exists on opposite side at same order index', async () => {
             const grid = createGrid();
-            const stpOrder = createOrder({ side: OrderSide.Buy, levelIndex: 5 });
-            const conflictingOrder = createOrder({ side: OrderSide.Sell, levelIndex: 5 });
+            const stpOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5 });
+            const conflictingOrder = createOrder({ side: OrderSide.Sell, orderIndex: 5 });
 
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([conflictingOrder]);
 
@@ -100,10 +100,10 @@ describe('StpRecoveryService', () => {
             expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
         });
 
-        it('should not skip when conflicting order is on the same side at same level', async () => {
+        it('should not skip when conflicting order is on the same side at same order index', async () => {
             const grid = createGrid();
-            const stpOrder = createOrder({ side: OrderSide.Buy, levelIndex: 5 });
-            const sameSideOrder = createOrder({ side: OrderSide.Buy, levelIndex: 5 });
+            const stpOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5 });
+            const sameSideOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5 });
 
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([sameSideOrder]);
 
@@ -113,11 +113,11 @@ describe('StpRecoveryService', () => {
             expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
         });
 
-        it('should call placeRefillOrder with correct RefillParams (same side, level, price, amount)', async () => {
+        it('should call placeRefillOrder with correct RefillParams (same side, index, price, amount)', async () => {
             const grid = createGrid();
             const stpOrder = createOrder({
                 side: OrderSide.Sell,
-                levelIndex: 7,
+                orderIndex: 7,
                 price: 52000,
                 amount: 0.02,
             });
@@ -129,7 +129,7 @@ describe('StpRecoveryService', () => {
                 grid,
                 expect.objectContaining({
                     side: OrderSide.Sell,
-                    levelIndex: 7,
+                    orderIndex: 7,
                 }),
                 ACCOUNT_ADDRESS,
             );
@@ -137,8 +137,8 @@ describe('StpRecoveryService', () => {
 
         it('should return the number of successfully recovered orders', async () => {
             const grid = createGrid();
-            const stpOrder1 = createOrder({ levelIndex: 3, price: 47000 });
-            const stpOrder2 = createOrder({ levelIndex: 7, price: 52000 });
+            const stpOrder1 = createOrder({ orderIndex: 3, price: 47000 });
+            const stpOrder2 = createOrder({ orderIndex: 7, price: 52000 });
 
             mockRefillPlacement.placeRefillOrder
                 .mockResolvedValueOnce(PlaceRefillOrderResult.success(createOrder()))
@@ -152,8 +152,8 @@ describe('StpRecoveryService', () => {
 
         it('should count only successful recoveries when one fails', async () => {
             const grid = createGrid();
-            const stpOrder1 = createOrder({ levelIndex: 3, price: 47000 });
-            const stpOrder2 = createOrder({ levelIndex: 7, price: 52000 });
+            const stpOrder1 = createOrder({ orderIndex: 3, price: 47000 });
+            const stpOrder2 = createOrder({ orderIndex: 7, price: 52000 });
 
             mockRefillPlacement.placeRefillOrder
                 .mockResolvedValueOnce(PlaceRefillOrderResult.success(createOrder()))
@@ -166,8 +166,8 @@ describe('StpRecoveryService', () => {
 
         it('should not throw when placeRefillOrder throws and should continue processing', async () => {
             const grid = createGrid();
-            const stpOrder1 = createOrder({ levelIndex: 3, price: 47000 });
-            const stpOrder2 = createOrder({ levelIndex: 7, price: 52000 });
+            const stpOrder1 = createOrder({ orderIndex: 3, price: 47000 });
+            const stpOrder2 = createOrder({ orderIndex: 7, price: 52000 });
 
             mockRefillPlacement.placeRefillOrder
                 .mockRejectedValueOnce(new Error('Network error'))
@@ -179,12 +179,12 @@ describe('StpRecoveryService', () => {
             expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(2);
         });
 
-        it('should not skip when conflicting order is at a different level', async () => {
+        it('should not skip when conflicting order is at a different order index', async () => {
             const grid = createGrid();
-            const stpOrder = createOrder({ side: OrderSide.Buy, levelIndex: 5 });
-            const differentLevelOrder = createOrder({ side: OrderSide.Sell, levelIndex: 6 });
+            const stpOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5 });
+            const differentIndexOrder = createOrder({ side: OrderSide.Sell, orderIndex: 6 });
 
-            mockGrids.findActiveOrdersByGridId.mockResolvedValue([differentLevelOrder]);
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([differentIndexOrder]);
 
             const result = await sut.recoverMany([stpOrder], grid, ACCOUNT_ADDRESS);
 

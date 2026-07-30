@@ -18,7 +18,7 @@ The following wizard improvements depend on the external AI/analytics service cu
 Once the service is ready, integrate its output into the wizard UI:
 
 - [ ] **AI-suggested range** — display AI-recommended Upper/Lower bounds (based on 7/30/90-day volatility) as preset buttons on the Range step
-- [ ] **AI-suggested grid count** — show AI-recommended number of levels alongside the profit-per-grid estimate
+- [ ] **AI-suggested grid count** — show AI-recommended number of orders alongside the profit-per-grid estimate
 - [ ] **Historical backtest preview** — show simulated 30-day PnL, number of cycles, max drawdown, and time-in-range % on the Preview step (`GridBacktestService` consumer)
 - [ ] **Annualized projected return** — show APR estimate in Preview based on backtest output with disclaimer
 - [ ] **AI chat entry point** — `/grid_ai <natural language>` command: parse intent → pre-fill wizard state → jump to Preview (LLM integration, separate scope)
@@ -48,14 +48,14 @@ Swap tokens directly in the Telegram bot (e.g. USDC → BTC). Useful when user h
 
 **Problem:** the system is purely event-driven (`fill → refill`). If an order is cancelled, fails,
 or a WS event is lost, the gap in the grid persists indefinitely. Example: grid `de8a2d64`,
-level 1 sell (83.3454) was cancelled by the exchange — bot placed nothing in its place.
+order index 1 sell (83.3454) was cancelled by the exchange — bot placed nothing in its place.
 
 **Solution:** a new `GridGapScanUseCase` running periodically (~5 min) as a safety net.
 
 Gap detection logic per running grid:
 - Load all `filled` (history) and `placed`/`pending` (active) orders
-- For each level N: if there is a `filled buy` at N without a `placed sell` at N+1 → gap
-- For each level N: if there is a `filled sell` at N without a `placed buy` at N-1 → gap
+- For each order index N: if there is a `filled buy` at N without a `placed sell` at N+1 → gap
+- For each order index N: if there is a `filled sell` at N without a `placed buy` at N-1 → gap
 - Before placing a missing order, check current price — skip if sell would be below bid or buy above ask
 
 Implementation structure:

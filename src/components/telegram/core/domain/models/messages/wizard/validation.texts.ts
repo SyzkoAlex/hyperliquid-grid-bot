@@ -21,12 +21,12 @@ export class ValidationTexts {
         return `${EMOJI.ERROR} Lower price must be less than upper price (${PriceFormatter.format(upperPrice)})\n\nPlease enter a valid price:`;
     }
 
-    static invalidLevelsRange(min: number, max: number): string {
-        return `${EMOJI.ERROR} Invalid number of levels. Must be between ${min} and ${max}`;
+    static invalidOrdersRange(min: number, max: number): string {
+        return `${EMOJI.ERROR} Invalid number of orders. Must be between ${min} and ${max}`;
     }
 
     static orderSizeTooSmall(
-        levels: number,
+        orderCount: number,
         perOrderAmount: number,
         minInvestment: number,
         minRequiredTotal?: number,
@@ -34,10 +34,10 @@ export class ValidationTexts {
         const minTotal =
             minRequiredTotal !== undefined
                 ? formatFiat(minRequiredTotal)
-                : formatFiat(minInvestment * levels);
+                : formatFiat(minInvestment * orderCount);
         return (
             `${EMOJI.ERROR} Order size too small!\n\n` +
-            `With ${levels} levels, each order would be ${formatFiat(perOrderAmount)} USDC.\n` +
+            `With ${orderCount} orders, each order would be ${formatFiat(perOrderAmount)} USDC.\n` +
             `Minimum per order: ${minInvestment} USDC\n\n` +
             `Please increase your investment to at least ${minTotal} USDC.`
         );
@@ -100,25 +100,24 @@ export class ValidationTexts {
     }
 
     static insufficientBalanceForGrid(
-        levels: number,
+        orderCount: number,
         minRequired: number,
         suggestedMax: number,
         swapHint?: string | null,
     ): string {
-        const ordersCount = levels + 1;
         const shortfall = Math.ceil(minRequired - suggestedMax);
-        const maxAffordableLevels = Math.floor(suggestedMax / WIZARD_CONFIG.MIN_INVESTMENT) - 1;
-        const canReduceLevels = maxAffordableLevels >= WIZARD_CONFIG.MIN_LEVELS;
+        const maxAffordableOrders = Math.floor(suggestedMax / WIZARD_CONFIG.MIN_INVESTMENT);
+        const canReduceOrders = maxAffordableOrders >= WIZARD_CONFIG.MIN_ORDERS;
 
         let options = `  • Add at least ${shortfall} more USDC to your balance`;
-        if (canReduceLevels) {
-            options = `  • Reduce to ${maxAffordableLevels} levels or fewer\n` + options;
+        if (canReduceOrders) {
+            options = `  • Reduce to ${maxAffordableOrders} orders or fewer\n` + options;
         }
 
         let message =
             `${EMOJI.WARNING} Insufficient balance for grid creation!\n\n` +
-            `With ${levels} levels, minimum investment is ${minRequired} USDC ` +
-            `(${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order × ${ordersCount} orders).\n` +
+            `With ${orderCount} orders, minimum investment is ${minRequired} USDC ` +
+            `(${WIZARD_CONFIG.MIN_INVESTMENT} USDC per order × ${orderCount} orders).\n` +
             `Your balance supports at most ~${suggestedMax} USDC for this grid configuration.\n\n` +
             `Options:\n` +
             options;

@@ -22,7 +22,7 @@ export const CREATE_GRID_ACTIONS = {
     OTHER_PAIR: 'create_grid:other_pair',
     MODE_QUICK: 'create_grid:mode:quick',
     MODE_ADVANCED: 'create_grid:mode:advanced',
-    LEVELS_PREFIX: 'create_grid:levels:',
+    ORDERS_PREFIX: 'create_grid:orders:',
     STOP_LOSS_OFF: 'create_grid:stop_loss:off',
     UPPER_PRESET_PREFIX: 'create_grid:upper:',
     LOWER_PRESET_PREFIX: 'create_grid:lower:',
@@ -40,7 +40,7 @@ export const CREATE_GRID_ACTIONS = {
 // Regex patterns for dynamic actions
 export const CREATE_GRID_PATTERNS = {
     PAIR: /^create_grid:pair:(.+)$/,
-    LEVELS: /^create_grid:levels:(.+)$/,
+    ORDERS: /^create_grid:orders:(.+)$/,
     UPPER_PRESET: /^create_grid:upper:(\d+|custom)$/,
     LOWER_PRESET: /^create_grid:lower:(\d+|custom)$/,
     QUICK_INVESTMENT_PRESET: /^create_grid:quick_invest:(25|50|75|max|custom)$/,
@@ -51,8 +51,8 @@ export const CREATE_GRID_PATTERNS = {
 export const buildPairAction = (symbol: string): string =>
     `${CREATE_GRID_ACTIONS.PAIR_PREFIX}${symbol}`;
 
-export const buildLevelsAction = (levels: number): string =>
-    `${CREATE_GRID_ACTIONS.LEVELS_PREFIX}${levels}`;
+export const buildOrdersAction = (orderCount: number): string =>
+    `${CREATE_GRID_ACTIONS.ORDERS_PREFIX}${orderCount}`;
 
 export const buildUpperPreset = (pct: number | PricePresetKey): string =>
     `${CREATE_GRID_ACTIONS.UPPER_PRESET_PREFIX}${pct}`;

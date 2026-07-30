@@ -7,7 +7,7 @@ export interface CreateOrderDto {
     symbol: string;
     side: OrderSide;
     type: OrderType;
-    levelIndex: number;
+    orderIndex: number;
     price: number | null;
     amount: number;
 }

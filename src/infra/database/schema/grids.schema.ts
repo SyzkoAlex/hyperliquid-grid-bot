@@ -10,7 +10,7 @@ export const grids = pgTable('grids', {
     status: varchar('status', { length: 20 }).notNull(), // idle, running, stopped, error
     lowerPrice: decimal('lower_price', { precision: 20, scale: 8 }).notNull(),
     upperPrice: decimal('upper_price', { precision: 20, scale: 8 }).notNull(),
-    levels: integer('levels').notNull(),
+    orderCount: integer('order_count').notNull(),
     investmentUSDC: decimal('investment_quote', { precision: 20, scale: 8 }).notNull(), // USD for buys
     investmentBase: decimal('investment_base', { precision: 20, scale: 8 }).notNull(), // Tokens for sells
     creationPrice: decimal('creation_price', { precision: 20, scale: 8 }),

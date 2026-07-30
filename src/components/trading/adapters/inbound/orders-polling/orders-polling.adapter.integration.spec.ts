@@ -78,7 +78,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
             symbol,
             lowerPrice: 45000,
             upperPrice: 55000,
-            levels: 10,
+            orderCount: 10,
             investmentUSDC: 5000,
             investmentBase: 0.1,
             trailingEnabled: false,
@@ -98,7 +98,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
             side: OrderSide;
             price: number;
             exchangeOrderId: string;
-            levelIndex: number;
+            orderIndex: number;
         }> = {},
     ): Promise<OrderDto> {
         const orderId = crypto.randomUUID();
@@ -108,7 +108,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
             symbol: grid.symbol,
             side: overrides.side ?? OrderSide.Buy,
             type: OrderType.Limit,
-            levelIndex: overrides.levelIndex ?? 5,
+            orderIndex: overrides.orderIndex ?? 5,
             price: overrides.price ?? 50000,
             amount: 0.01,
         });
@@ -186,12 +186,12 @@ describe('OrdersPollingAdapter (Integration)', () => {
             expect(updatedOrder?.status).toBe(OrderStatus.Cancelled);
         });
 
-        it('should mark order Cancelled and re-place on the same level/side when selfTradeCanceled', async () => {
+        it('should mark order Cancelled and re-place on the same order index/side when selfTradeCanceled', async () => {
             const grid = await createGrid('BTC');
             const order = await createOrder(grid, {
                 side: OrderSide.Buy,
                 price: 50000,
-                levelIndex: 5,
+                orderIndex: 5,
                 exchangeOrderId: '55555',
             });
 
@@ -215,7 +215,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
 
             const allOrders = await gridsApi.findActiveOrdersByGridId(grid.id);
             const recovered = allOrders.filter(
-                (o) => o.id !== order.id && o.levelIndex === 5 && o.side === OrderSide.Buy,
+                (o) => o.id !== order.id && o.orderIndex === 5 && o.side === OrderSide.Buy,
             );
             expect(recovered.length).toBeGreaterThan(0);
         });
@@ -224,14 +224,14 @@ describe('OrdersPollingAdapter (Integration)', () => {
             const grid = await createGrid('SOL', {
                 lowerPrice: 100,
                 upperPrice: 150,
-                levels: 5,
+                orderCount: 5,
                 investmentUSDC: 1000,
                 investmentBase: 10,
             });
             const order = await createOrder(grid, {
                 price: 120,
                 exchangeOrderId: '11111',
-                levelIndex: 2,
+                orderIndex: 2,
             });
 
             vi.mocked(hyperliquidOrderClient.getOpenSpotOrders).mockResolvedValue([
@@ -262,7 +262,7 @@ describe('OrdersPollingAdapter (Integration)', () => {
             await createGrid('AVAX', {
                 lowerPrice: 30,
                 upperPrice: 40,
-                levels: 5,
+                orderCount: 5,
                 investmentUSDC: 500,
                 investmentBase: 10,
             });

@@ -13,7 +13,7 @@ describe('GridCreatingMessage', () => {
     });
 
     it('includes the summary when provided', () => {
-        const summary = '✓ <b>Pair</b> · BTC\n✓ <b>Levels</b> · 10';
+        const summary = '✓ <b>Pair</b> · BTC\n✓ <b>Orders</b> · 10';
         const result = GridCreatingMessage.create({ summary });
         expect(result.text).toContain('BTC');
         expect(result.text).toContain('10');

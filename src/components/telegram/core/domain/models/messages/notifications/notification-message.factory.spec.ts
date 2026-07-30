@@ -12,34 +12,13 @@ describe('NotificationMessageFactory', () => {
     const factory = new NotificationMessageFactory();
 
     it('builds TradeOpenedMessage from OrderOpenedEvent', () => {
-        const event = new OrderOpenedEvent(
-            'user-1',
-            'grid-1',
-            'BTC',
-            'buy',
-            95000,
-            0.01,
-            950,
-            1,
-            10,
-        );
+        const event = new OrderOpenedEvent('user-1', 'grid-1', 'BTC', 'buy', 95000, 0.01, 950);
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('BUY BTC');
     });
 
     it('builds TradeClosedMessage from OrderClosedEvent', () => {
-        const event = new OrderClosedEvent(
-            'user-1',
-            'grid-1',
-            'BTC',
-            'sell',
-            96000,
-            0.01,
-            960,
-            10,
-            1,
-            10,
-        );
+        const event = new OrderClosedEvent('user-1', 'grid-1', 'BTC', 'sell', 96000, 0.01, 960, 10);
         const msg = factory.buildFromEvent(event);
         expect(msg.text).toContain('SELL BTC');
         expect(msg.text).toContain('Profit:');

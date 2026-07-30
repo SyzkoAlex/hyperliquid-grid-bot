@@ -11,13 +11,13 @@ import { OrderSide } from '@domain/models/order/order-side';
  * after an order in the grid is filled.
  *
  * Grid trading logic:
- * - When a BUY order is filled → place a SELL order one level higher
- * - When a SELL order is filled → place a BUY order one level lower
+ * - When a BUY order is filled → place a SELL order one order higher
+ * - When a SELL order is filled → place a BUY order one order lower
  */
 export class RefillParams {
     constructor(
         readonly side: OrderSide,
-        readonly levelIndex: number,
+        readonly orderIndex: number,
         readonly price: Price,
         readonly amount: Decimal,
     ) {}
@@ -26,32 +26,32 @@ export class RefillParams {
      * Calculate refill parameters for a filled order.
      *
      * Logic:
-     * - BUY filled at level N → SELL at level N+1 (higher price)
-     * - SELL filled at level N → BUY at level N-1 (lower price)
+     * - BUY filled at index N → SELL at index N+1 (higher price)
+     * - SELL filled at index N → BUY at index N-1 (lower price)
      *
-     * @returns RefillParams for the new order, or null if at edge level
+     * @returns RefillParams for the new order, or null if at edge index
      */
     static calc(filledOrder: OrderDto, grid: GridDto): RefillParams | null {
-        const currentLevel = filledOrder.levelIndex;
-        const priceStep = (grid.upperPrice - grid.lowerPrice) / grid.levels;
-        const getLevelPrice = (i: number): Price => Price.from(grid.lowerPrice + priceStep * i);
+        const currentIndex = filledOrder.orderIndex;
+        const priceStep = (grid.upperPrice - grid.lowerPrice) / (grid.orderCount - 1);
+        const getOrderPrice = (i: number): Price => Price.from(grid.lowerPrice + priceStep * i);
 
         if (filledOrder.side === OrderSide.Buy) {
-            const refillLevel = currentLevel + 1;
-            if (refillLevel > grid.levels) return null;
+            const refillIndex = currentIndex + 1;
+            if (refillIndex > grid.orderCount - 1) return null;
             return new RefillParams(
                 OrderSide.Sell,
-                refillLevel,
-                getLevelPrice(refillLevel),
+                refillIndex,
+                getOrderPrice(refillIndex),
                 Decimal.from(filledOrder.amount),
             );
         } else {
-            const refillLevel = currentLevel - 1;
-            if (refillLevel < 0) return null;
+            const refillIndex = currentIndex - 1;
+            if (refillIndex < 0) return null;
             return new RefillParams(
                 OrderSide.Buy,
-                refillLevel,
-                getLevelPrice(refillLevel),
+                refillIndex,
+                getOrderPrice(refillIndex),
                 Decimal.from(filledOrder.amount),
             );
         }

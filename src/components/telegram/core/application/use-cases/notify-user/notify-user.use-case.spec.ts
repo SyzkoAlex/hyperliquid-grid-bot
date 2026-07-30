@@ -60,17 +60,7 @@ describe('NotifyUserUseCase', () => {
     describe('execute', () => {
         it('should not call sendMessage when user not found', async () => {
             mockUsersApi.findUserById.mockResolvedValue(null);
-            const event = new OrderOpenedEvent(
-                USER_ID,
-                GRID_ID,
-                'BTC',
-                'buy',
-                50000,
-                0.1,
-                5000,
-                1,
-                10,
-            );
+            const event = new OrderOpenedEvent(USER_ID, GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000);
 
             await sut.execute({ event });
 
@@ -81,17 +71,7 @@ describe('NotifyUserUseCase', () => {
             mockUsersApi.findUserById.mockResolvedValue(
                 makeUser({ tradeNotificationsEnabled: false }),
             );
-            const event = new OrderOpenedEvent(
-                USER_ID,
-                GRID_ID,
-                'BTC',
-                'buy',
-                50000,
-                0.1,
-                5000,
-                1,
-                10,
-            );
+            const event = new OrderOpenedEvent(USER_ID, GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000);
 
             await sut.execute({ event });
 
@@ -99,17 +79,7 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should call sendMessage with chatId and text when notifications are enabled', async () => {
-            const event = new OrderOpenedEvent(
-                USER_ID,
-                GRID_ID,
-                'BTC',
-                'buy',
-                50000,
-                0.1,
-                5000,
-                1,
-                10,
-            );
+            const event = new OrderOpenedEvent(USER_ID, GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000);
 
             await sut.execute({ event });
 
@@ -120,17 +90,7 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should build the message text using the factory', async () => {
-            const event = new OrderOpenedEvent(
-                USER_ID,
-                GRID_ID,
-                'BTC',
-                'buy',
-                50000,
-                0.1,
-                5000,
-                1,
-                10,
-            );
+            const event = new OrderOpenedEvent(USER_ID, GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000);
 
             await sut.execute({ event });
 
@@ -138,17 +98,7 @@ describe('NotifyUserUseCase', () => {
         });
 
         it('should look up user by event.userId', async () => {
-            const event = new OrderOpenedEvent(
-                USER_ID,
-                GRID_ID,
-                'BTC',
-                'buy',
-                50000,
-                0.1,
-                5000,
-                1,
-                10,
-            );
+            const event = new OrderOpenedEvent(USER_ID, GRID_ID, 'BTC', 'buy', 50000, 0.1, 5000);
 
             await sut.execute({ event });
 

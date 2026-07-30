@@ -71,6 +71,13 @@
       "when": 1778976001000,
       "tag": "0009_add_stop_price",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778976002000,
+      "tag": "0010_order_terminology_rename",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,7 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { Price } from '@domain/models/primitives/price';
-import { GridLevel } from '@components/trading/core/domain/services/grid-levels-calculator/grid-level';
+import { GridOrder } from '@components/trading/core/domain/services/grid-orders-calculator/grid-order';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { AgentNotApprovedError } from '@components/trading/core/domain/errors/agent-not-approved.error';
@@ -20,7 +20,7 @@ const makeMockOrderDto = (overrides: Partial<OrderDto> = {}): OrderDto => ({
     side: OrderSide.Buy,
     status: OrderStatus.Pending,
     type: OrderType.Limit,
-    levelIndex: 0,
+    orderIndex: 0,
     price: 45000,
     amount: 0.0555,
     exchangeOrderId: null,
@@ -32,7 +32,7 @@ const makeGrid = (
     symbol: string,
     lowerPrice: number,
     upperPrice: number,
-    levels: number,
+    orderCount: number,
 ): GridDto => ({
     id: MOCK_GRID_ID,
     userId: 'user-1',
@@ -40,7 +40,7 @@ const makeGrid = (
     status: GridStatus.Running,
     lowerPrice,
     upperPrice,
-    levels,
+    orderCount,
     investmentUSDC: 5000,
     investmentBase: 0.1,
     trailingEnabled: false,
@@ -78,7 +78,7 @@ describe('OrderPlacementService', () => {
         it('should place all orders successfully and return count', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -101,7 +101,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(2);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
@@ -115,7 +115,7 @@ describe('OrderPlacementService', () => {
         it('should handle buy order with correct amount', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 5);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -131,7 +131,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels, '0xabc');
+            await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             const call = orderClient.placeSpotOrder.mock.calls[0][0];
             expect(call.side).toBe(OrderSide.Buy);
@@ -141,7 +141,7 @@ describe('OrderPlacementService', () => {
         it('should handle sell order with correct amount', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 5);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(55000),
@@ -160,7 +160,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels, '0xabc');
+            await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             const call = orderClient.placeSpotOrder.mock.calls[0][0];
             expect(call.side).toBe(OrderSide.Sell);
@@ -170,7 +170,7 @@ describe('OrderPlacementService', () => {
         it('should handle partial failures and return only successful count', async () => {
             const mockGrid = makeGrid('ETH', 2500, 3500, 5);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(2600),
@@ -201,7 +201,7 @@ describe('OrderPlacementService', () => {
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
             orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(1);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
@@ -217,7 +217,7 @@ describe('OrderPlacementService', () => {
         it('should mark order as failed when exchangeOrderId is empty', async () => {
             const mockGrid = makeGrid('SOL', 100, 150, 5);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(100),
@@ -233,7 +233,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderStatus.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(0);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(1);
@@ -246,7 +246,7 @@ describe('OrderPlacementService', () => {
         it('should continue placing orders even if one fails with exception', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -271,7 +271,7 @@ describe('OrderPlacementService', () => {
                 });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(1);
             expect(orderRepository.createOrder).toHaveBeenCalledTimes(2);
@@ -282,7 +282,7 @@ describe('OrderPlacementService', () => {
         it('should save orders before placing (pre-save pattern)', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -298,7 +298,7 @@ describe('OrderPlacementService', () => {
             });
             orderRepository.updateOrderExchangeId.mockResolvedValue(undefined);
 
-            await service.placeGridOrders(mockGrid, levels, '0xabc');
+            await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(orderRepository.createOrder).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -308,12 +308,12 @@ describe('OrderPlacementService', () => {
             );
         });
 
-        it('should handle empty levels array', async () => {
+        it('should handle empty orders array', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 10);
 
-            const levels: GridLevel[] = [];
+            const gridOrders: GridOrder[] = [];
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(0);
             expect(orderRepository.createOrder).not.toHaveBeenCalled();
@@ -322,7 +322,7 @@ describe('OrderPlacementService', () => {
 
         it('should call handleAgentExpired and return 0 when AgentNotApprovedError is thrown', async () => {
             const mockGrid = makeGrid('BTC', 45000, 55000, 10);
-            const levels: GridLevel[] = [
+            const gridOrders: GridOrder[] = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -336,7 +336,7 @@ describe('OrderPlacementService', () => {
                 new AgentNotApprovedError('0xabc', 'not approved'),
             );
 
-            const count = await service.placeGridOrders(mockGrid, levels, '0xabc');
+            const count = await service.placeGridOrders(mockGrid, gridOrders, '0xabc');
 
             expect(count).toBe(0);
             expect(handleAgentExpired.handleAgentExpired).toHaveBeenCalledWith('0xabc');

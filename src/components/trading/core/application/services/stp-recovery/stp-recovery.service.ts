@@ -12,8 +12,8 @@ import { RefillOrderPlacementService } from '@components/trading/core/applicatio
 /**
  * Recovers orders cancelled by Hyperliquid's Self-Trade Prevention (STP) mechanism.
  * Called during each sync cycle when the order-status sync detects stpCancelledOrders.
- * Recovery re-places the cancelled order at the same level and side, provided no
- * conflicting order on the opposite side exists at that level.
+ * Recovery re-places the cancelled order at the same order index and side, provided no
+ * conflicting order on the opposite side exists at that order index.
  */
 @Injectable()
 export class StpRecoveryService {
@@ -50,27 +50,27 @@ export class StpRecoveryService {
         try {
             if (stpOrder.price == null) {
                 this.logger.warn(
-                    { orderId: stpOrder.id, levelIndex: stpOrder.levelIndex, gridId: grid.id },
+                    { orderId: stpOrder.id, orderIndex: stpOrder.orderIndex, gridId: grid.id },
                     'STP recovery skipped: order has no price',
                 );
                 return false;
             }
 
             const hasConflict = activeOrders.some(
-                (o) => o.levelIndex === stpOrder.levelIndex && o.side !== stpOrder.side,
+                (o) => o.orderIndex === stpOrder.orderIndex && o.side !== stpOrder.side,
             );
 
             if (hasConflict) {
                 this.logger.warn(
-                    { levelIndex: stpOrder.levelIndex, side: stpOrder.side, gridId: grid.id },
-                    'STP recovery skipped: conflicting order on opposite side at same level',
+                    { orderIndex: stpOrder.orderIndex, side: stpOrder.side, gridId: grid.id },
+                    'STP recovery skipped: conflicting order on opposite side at same order index',
                 );
                 return false;
             }
 
             const params = new RefillParams(
                 stpOrder.side,
-                stpOrder.levelIndex,
+                stpOrder.orderIndex,
                 Price.from(stpOrder.price),
                 Decimal.from(stpOrder.amount),
             );
@@ -83,7 +83,7 @@ export class StpRecoveryService {
 
             if (result.success) {
                 this.logger.info(
-                    { levelIndex: stpOrder.levelIndex, side: stpOrder.side, gridId: grid.id },
+                    { orderIndex: stpOrder.orderIndex, side: stpOrder.side, gridId: grid.id },
                     'Order re-placed after STP cancellation',
                 );
                 return true;
@@ -91,7 +91,7 @@ export class StpRecoveryService {
 
             this.logger.warn(
                 {
-                    levelIndex: stpOrder.levelIndex,
+                    orderIndex: stpOrder.orderIndex,
                     side: stpOrder.side,
                     gridId: grid.id,
                     error: result.error,
@@ -101,7 +101,7 @@ export class StpRecoveryService {
             return false;
         } catch (error) {
             this.logger.warn(
-                { error, levelIndex: stpOrder.levelIndex, gridId: grid.id },
+                { error, orderIndex: stpOrder.orderIndex, gridId: grid.id },
                 'STP recovery error for order',
             );
             return false;

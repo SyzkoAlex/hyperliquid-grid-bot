@@ -10,7 +10,7 @@ import { SyncOrdersUseCase } from '@components/trading/core/application/use-case
 import { RestoreOrdersUseCase } from '@components/trading/core/application/use-cases/restore-orders/restore-orders.use-case';
 import { CapitalCalculatorService } from '@components/trading/core/domain/services/capital-calculator/capital-calculator.service';
 import { TokenDisplayResolverService } from '@components/trading/core/domain/services/token-display-resolver/token-display-resolver.service';
-import { GridLevelsCalculatorService } from '@components/trading/core/domain/services/grid-levels-calculator/grid-levels-calculator.service';
+import { GridOrdersCalculatorService } from '@components/trading/core/domain/services/grid-orders-calculator/grid-orders-calculator.service';
 import { UserBalanceExtractorService } from '@components/trading/core/domain/services/user-balance-extractor/user-balance-extractor.service';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
@@ -70,12 +70,12 @@ import { UsersModule } from '@components/users/users.module';
         CapitalCalculatorService,
         TokenDisplayResolverService,
         {
-            provide: GridLevelsCalculatorService,
+            provide: GridOrdersCalculatorService,
             useFactory: (configService: ConfigService<Config, true>) => {
                 const { minOrderNotional, sellSizeBuffer } = configService.get('hyperliquid', {
                     infer: true,
                 });
-                return new GridLevelsCalculatorService(minOrderNotional, sellSizeBuffer);
+                return new GridOrdersCalculatorService(minOrderNotional, sellSizeBuffer);
             },
             inject: [ConfigService],
         },

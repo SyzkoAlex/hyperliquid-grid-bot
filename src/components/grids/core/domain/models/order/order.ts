@@ -20,7 +20,7 @@ export interface OrderParams {
 
     // Grid fields (required - only grid orders are stored)
     gridId: GridId;
-    levelIndex: number;
+    orderIndex: number;
 
     feeUsdc?: Decimal;
 
@@ -46,7 +46,7 @@ export class Order {
 
     // Grid fields (required)
     private readonly _gridId: GridId;
-    private readonly _levelIndex: number;
+    private readonly _orderIndex: number;
 
     private readonly _feeUsdc: Decimal | null;
 
@@ -65,7 +65,7 @@ export class Order {
         this._amount = params.amount;
         this._status = params.status;
         this._gridId = params.gridId;
-        this._levelIndex = params.levelIndex;
+        this._orderIndex = params.orderIndex;
         this._feeUsdc = params.feeUsdc ?? null;
         this._createdAt = params.createdAt ?? Timestamp.now();
         this._placedAt = params.placedAt ?? null;
@@ -161,7 +161,7 @@ export class Order {
         return this._gridId;
     }
 
-    get levelIndex(): number {
-        return this._levelIndex;
+    get orderIndex(): number {
+        return this._orderIndex;
     }
 }

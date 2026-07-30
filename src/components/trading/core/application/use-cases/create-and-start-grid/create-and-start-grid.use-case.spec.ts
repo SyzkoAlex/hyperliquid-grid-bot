@@ -11,7 +11,7 @@ describe('CreateAndStartGridUseCase', () => {
     let grids: any;
     let usersApi: any;
     let capitalCalculator: any;
-    let gridLevelsCalculator: any;
+    let gridOrdersCalculator: any;
     let userBalanceExtractor: any;
     let orderPlacement: any;
 
@@ -22,7 +22,7 @@ describe('CreateAndStartGridUseCase', () => {
         status: GridStatus.Idle,
         lowerPrice: 45000,
         upperPrice: 55000,
-        levels: 10,
+        orderCount: 10,
         investmentUSDC: 5000,
         investmentBase: 0.1,
         creationPrice: 50000,
@@ -65,8 +65,8 @@ describe('CreateAndStartGridUseCase', () => {
             calculateDistribution: vi.fn(),
         };
 
-        gridLevelsCalculator = {
-            calculateLevelsWithSizes: vi.fn(),
+        gridOrdersCalculator = {
+            calculateOrdersWithSizes: vi.fn(),
         };
 
         userBalanceExtractor = {
@@ -86,7 +86,7 @@ describe('CreateAndStartGridUseCase', () => {
             grids,
             usersApi,
             capitalCalculator,
-            gridLevelsCalculator,
+            gridOrdersCalculator,
             userBalanceExtractor,
             orderPlacement,
             configService,
@@ -101,7 +101,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 10000,
                 trailingEnabled: false,
             };
@@ -124,7 +124,7 @@ describe('CreateAndStartGridUseCase', () => {
 
             const currentPrice = Price.from(50000);
 
-            const levelsWithSizes = [
+            const ordersWithSizes = [
                 {
                     index: 0,
                     price: Price.from(45000),
@@ -149,13 +149,13 @@ describe('CreateAndStartGridUseCase', () => {
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);
             grids.updateGridStatus.mockResolvedValue(undefined);
-            gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
+            gridOrdersCalculator.calculateOrdersWithSizes.mockReturnValue(ordersWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(2);
 
             const result = await useCase.execute(params);
 
             expect(result.grid.symbol).toBe('BTC');
-            expect(result.grid.levels).toBe(10);
+            expect(result.grid.orderCount).toBe(10);
             expect(result.investmentUSDC).toEqual(distribution.requiredUSDC);
             // investmentBase comes directly from distribution.rawInvestmentBase
             expect(result.investmentBase).toEqual(distribution.rawInvestmentBase);
@@ -164,7 +164,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(userBalanceExtractor.extractBalances).toHaveBeenCalledWith(userState, 'BTC');
 
             expect(capitalCalculator.calculateDistribution).toHaveBeenCalledWith({
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 10000,
                 usdcBalance: balances.usdcBalance,
                 baseBalance: balances.baseBalance,
@@ -185,10 +185,10 @@ describe('CreateAndStartGridUseCase', () => {
                 expect.objectContaining({ value: 'BTC' }),
             );
 
-            expect(gridLevelsCalculator.calculateLevelsWithSizes).toHaveBeenCalledWith(
+            expect(gridOrdersCalculator.calculateOrdersWithSizes).toHaveBeenCalledWith(
                 gridDto.lowerPrice,
                 gridDto.upperPrice,
-                gridDto.levels,
+                gridDto.orderCount,
                 gridDto.investmentUSDC,
                 gridDto.investmentBase,
                 currentPrice,
@@ -196,7 +196,7 @@ describe('CreateAndStartGridUseCase', () => {
 
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
                 gridDto,
-                levelsWithSizes,
+                ordersWithSizes,
                 '0x123',
             );
         });
@@ -208,7 +208,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'ETH',
                 lowerPrice: 2500,
                 upperPrice: 3500,
-                levels: 5,
+                orderCount: 5,
                 totalInvestmentUSDC: 5000,
                 trailingEnabled: false,
             };
@@ -226,7 +226,7 @@ describe('CreateAndStartGridUseCase', () => {
 
             const currentPrice = Price.from(3000);
 
-            const levelsWithSizes = [
+            const ordersWithSizes = [
                 {
                     index: 0,
                     price: Price.from(2500),
@@ -243,7 +243,7 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            const gridDto = makeGridDto({ symbol: 'ETH', levels: 5 });
+            const gridDto = makeGridDto({ symbol: 'ETH', orderCount: 5 });
 
             exchange.getUserSpotState.mockResolvedValue(userState);
             exchange.getCurrentPrice.mockResolvedValue(currentPrice);
@@ -251,7 +251,7 @@ describe('CreateAndStartGridUseCase', () => {
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);
             grids.updateGridStatus.mockResolvedValue(undefined);
-            gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
+            gridOrdersCalculator.calculateOrdersWithSizes.mockReturnValue(ordersWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(1);
 
             const result = await useCase.execute(params);
@@ -259,7 +259,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(result.grid.symbol).toBe('ETH');
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
                 gridDto,
-                levelsWithSizes,
+                ordersWithSizes,
                 '0x123',
             );
         });
@@ -271,7 +271,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 10000,
                 trailingEnabled: false,
             };
@@ -296,7 +296,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 10000,
                 trailingEnabled: false,
             };
@@ -321,7 +321,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'HYPE',
                 lowerPrice: 57.52,
                 upperPrice: 86.28,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 4271,
                 trailingEnabled: false,
             };
@@ -353,7 +353,7 @@ describe('CreateAndStartGridUseCase', () => {
                 symbol: 'SOL',
                 lowerPrice: 100,
                 upperPrice: 150,
-                levels: 5,
+                orderCount: 5,
                 totalInvestmentUSDC: 3000,
                 trailingEnabled: false,
             };
@@ -371,7 +371,7 @@ describe('CreateAndStartGridUseCase', () => {
 
             const currentPrice = Price.from(125);
 
-            const levelsWithSizes = [
+            const ordersWithSizes = [
                 {
                     index: 0,
                     price: Price.from(100),
@@ -381,7 +381,7 @@ describe('CreateAndStartGridUseCase', () => {
                 },
             ];
 
-            const gridDto = makeGridDto({ symbol: 'SOL', levels: 5 });
+            const gridDto = makeGridDto({ symbol: 'SOL', orderCount: 5 });
 
             exchange.getUserSpotState.mockResolvedValue(userState);
             exchange.getCurrentPrice.mockResolvedValue(currentPrice);
@@ -389,7 +389,7 @@ describe('CreateAndStartGridUseCase', () => {
             capitalCalculator.calculateDistribution.mockReturnValue(distribution);
             grids.createGrid.mockResolvedValue(gridDto);
             grids.updateGridStatus.mockResolvedValue(undefined);
-            gridLevelsCalculator.calculateLevelsWithSizes.mockReturnValue(levelsWithSizes);
+            gridOrdersCalculator.calculateOrdersWithSizes.mockReturnValue(ordersWithSizes);
             orderPlacement.placeGridOrders.mockResolvedValue(0);
 
             const result = await useCase.execute(params);
@@ -397,7 +397,7 @@ describe('CreateAndStartGridUseCase', () => {
             expect(result.grid.symbol).toBe('SOL');
             expect(orderPlacement.placeGridOrders).toHaveBeenCalledWith(
                 gridDto,
-                levelsWithSizes,
+                ordersWithSizes,
                 '0x123',
             );
         });

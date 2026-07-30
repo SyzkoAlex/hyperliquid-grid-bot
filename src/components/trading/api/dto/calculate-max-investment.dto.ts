@@ -3,7 +3,7 @@ export interface CalculateMaxInvestmentDto {
     usdcBalance: number;
     baseBalance: number;
     currentPrice: number;
-    levels: number;
+    orderCount: number;
     lowerPrice: number;
     upperPrice: number;
 }

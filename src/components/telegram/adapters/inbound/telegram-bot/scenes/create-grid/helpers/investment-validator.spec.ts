@@ -9,7 +9,7 @@ describe('validateInvestment', () => {
 
     const defaultParams: InvestmentValidationParams = {
         investment: 1000,
-        levels: 10,
+        orderCount: 10,
         symbol: 'HYPE',
         upperPrice: 11,
         lowerPrice: 9,
@@ -80,7 +80,7 @@ describe('validateInvestment', () => {
 
     it('rejects when per-order amount is below minimum', async () => {
         const result = await validateInvestment(
-            { ...defaultParams, investment: 50, levels: 20 }, // 50/20 = 2.5 < 10
+            { ...defaultParams, investment: 50, orderCount: 20 }, // 50/20 = 2.5 < 10
             mockTradingApi,
         );
 
@@ -157,7 +157,7 @@ describe('validateInvestment', () => {
             expect.objectContaining({
                 symbol: 'HYPE',
                 totalInvestmentUSDC: 1000,
-                levels: 10,
+                orderCount: 10,
                 currentPrice: 10,
                 lowerPrice: 9,
                 upperPrice: 11,
@@ -166,10 +166,10 @@ describe('validateInvestment', () => {
     });
 
     it('accepts investment where per-order amount meets the minimum', async () => {
-        // investment / (levels + 1) >= MIN_INVESTMENT
-        // 20 / (1 + 1) = 10 >= 10 -- passes
+        // investment / orderCount >= MIN_INVESTMENT
+        // 20 / 2 = 10 >= 10 -- passes
         const result = await validateInvestment(
-            { ...defaultParams, investment: WIZARD_CONFIG.MIN_INVESTMENT * 2, levels: 1 },
+            { ...defaultParams, investment: WIZARD_CONFIG.MIN_INVESTMENT * 2, orderCount: 2 },
             mockTradingApi,
         );
 
@@ -179,7 +179,7 @@ describe('validateInvestment', () => {
     it('accepts investment when minNotional is just below minimum due to floating-point', async () => {
         // Capital distribution returns 9.9999 — rounds to 10.00 cents, should pass.
         // Before the roundToCents fix this would be incorrectly rejected.
-        // levels=1 → countBuySellLevels gives buyCount=1, sellCount=1.
+        // orderCount=2 (lower/upper bounds only) → countBuySellOrders gives buyCount=1, sellCount=1.
         vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(10);
         vi.mocked(mockTradingApi.calculateCapitalDistribution).mockReturnValue({
             requiredUSDC: 9.9999,
@@ -187,7 +187,7 @@ describe('validateInvestment', () => {
         });
 
         const result = await validateInvestment(
-            { ...defaultParams, levels: 1, lowerPrice: 9, upperPrice: 11 },
+            { ...defaultParams, orderCount: 2, lowerPrice: 9, upperPrice: 11 },
             mockTradingApi,
         );
 
@@ -203,7 +203,7 @@ describe('validateInvestment', () => {
         });
 
         const result = await validateInvestment(
-            { ...defaultParams, levels: 1, lowerPrice: 9, upperPrice: 11 },
+            { ...defaultParams, orderCount: 2, lowerPrice: 9, upperPrice: 11 },
             mockTradingApi,
         );
 

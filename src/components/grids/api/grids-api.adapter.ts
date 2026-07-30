@@ -40,7 +40,7 @@ export class GridsApiAdapter implements GridsApiPort {
             symbol: TradingSymbol.create(dto.symbol),
             lowerPrice: Price.from(dto.lowerPrice),
             upperPrice: Price.from(dto.upperPrice),
-            levels: dto.levels,
+            orderCount: dto.orderCount,
             investmentUSDC: Decimal.from(dto.investmentUSDC),
             investmentBase: Decimal.from(dto.investmentBase),
             creationPrice:
@@ -119,7 +119,7 @@ export class GridsApiAdapter implements GridsApiPort {
             symbol: TradingSymbol.create(dto.symbol),
             side: dto.side,
             type: dto.type,
-            levelIndex: dto.levelIndex,
+            orderIndex: dto.orderIndex,
             price: dto.price !== null ? Price.from(dto.price) : undefined,
             amount: Decimal.from(dto.amount),
             status: OrderStatus.Pending,

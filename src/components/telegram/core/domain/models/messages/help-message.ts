@@ -3,7 +3,7 @@ export class HelpMessage {
         '<b>🤖 Hyperliquid Grid Bot</b>\n\n' +
         'Automates grid trading on Hyperliquid perpetuals.\n\n' +
         '<b>💡 How it works</b>\n' +
-        'Bot places buy and sell orders across a price range. Each time price crosses a level — a trade executes and profit is locked in. Works best in sideways, oscillating markets.\n\n' +
+        'Bot places buy and sell orders across a price range. Each time price crosses a grid line — a trade executes and profit is locked in. Works best in sideways, oscillating markets.\n\n' +
         '<b>🚀 Quick Start</b>\n' +
         '1. Press <b>Create Grid</b>\n' +
         '2. Choose token and set price range + capital\n' +

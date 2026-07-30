@@ -129,7 +129,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 10000,
                 trailing: false,
                 accountAddress: '0xtest',
@@ -150,7 +150,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(grid.symbol).toBe('BTC');
             expect(grid.lowerPrice).toBe(45000);
             expect(grid.upperPrice).toBe(55000);
-            expect(grid.levels).toBe(10);
+            expect(grid.orderCount).toBe(10);
             expect(grid.status).toBe(GridStatus.Running);
 
             // Verify orders were placed
@@ -160,7 +160,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(successEvent.symbol).toBe('BTC');
             expect(successEvent.lowerPrice).toBe(45000);
             expect(successEvent.upperPrice).toBe(55000);
-            expect(successEvent.levels).toBe(10);
+            expect(successEvent.orderCount).toBe(10);
         });
 
         it('should use default values when not provided', async () => {
@@ -224,7 +224,7 @@ describe('GridCommandsAdapter (Integration)', () => {
             expect(grids.length).toBe(1);
 
             const grid = grids[0];
-            expect(grid.levels).toBe(20); // default
+            expect(grid.orderCount).toBe(20); // default
             expect(grid.trailingEnabled).toBe(false); // default
         });
 
@@ -273,7 +273,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'SOL',
                 lowerPrice: 100,
                 upperPrice: 150,
-                levels: 10,
+                orderCount: 10,
                 trailing: true,
                 accountAddress: '0xtest',
             });
@@ -486,7 +486,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
-                levels: 5,
+                orderCount: 5,
                 accountAddress: '0xtest',
             });
 
@@ -498,7 +498,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
-                levels: 5,
+                orderCount: 5,
                 accountAddress: '0xtest',
             });
 

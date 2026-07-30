@@ -22,7 +22,7 @@ describe('AdvancedPreviewStep', () => {
 
         it('shows per-order fee hint in preview body', async () => {
             const ctx = createMockContext();
-            // $1000 / 10 levels = $100/order
+            // $1000 / 10 orders = $100/order
             const view = await step.buildView(ctx);
 
             expect(view.body).toContain('~$100/order');
@@ -34,7 +34,7 @@ describe('AdvancedPreviewStep', () => {
             const ctx = createMockContext({
                 upperPrice: 50001,
                 lowerPrice: 50000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 1000,
             });
 
@@ -84,7 +84,7 @@ describe('AdvancedPreviewStep', () => {
                 totalInvestmentUSDC: 1000,
                 upperPrice: 55000,
                 lowerPrice: 45000,
-                levels: 10,
+                orderCount: 10,
             };
 
             step.rollbackState(ctx);
@@ -92,7 +92,7 @@ describe('AdvancedPreviewStep', () => {
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
             expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
             expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
-            expect(ctx.session.createGrid?.levels).toBeUndefined();
+            expect(ctx.session.createGrid?.orderCount).toBeUndefined();
         });
 
         it('only clears investment for advanced mode', () => {
@@ -102,7 +102,7 @@ describe('AdvancedPreviewStep', () => {
                 totalInvestmentUSDC: 1000,
                 upperPrice: 55000,
                 lowerPrice: 45000,
-                levels: 10,
+                orderCount: 10,
             };
 
             step.rollbackState(ctx);
@@ -110,7 +110,7 @@ describe('AdvancedPreviewStep', () => {
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
             expect(ctx.session.createGrid?.upperPrice).toBe(55000);
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
-            expect(ctx.session.createGrid?.levels).toBe(10);
+            expect(ctx.session.createGrid?.orderCount).toBe(10);
         });
     });
 
@@ -118,7 +118,7 @@ describe('AdvancedPreviewStep', () => {
         overrides: Partial<{
             upperPrice: number;
             lowerPrice: number;
-            levels: number;
+            orderCount: number;
             totalInvestmentUSDC: number;
         }> = {},
     ): BotContext {
@@ -128,7 +128,7 @@ describe('AdvancedPreviewStep', () => {
                 mode: CreateGridMode.Advanced,
                 upperPrice: 55000,
                 lowerPrice: 45000,
-                levels: 10,
+                orderCount: 10,
                 totalInvestmentUSDC: 1000,
                 ...overrides,
             },

@@ -42,7 +42,7 @@ describe('SyncOrdersUseCase', () => {
         status: GridStatus.Running,
         lowerPrice: 45000,
         upperPrice: 55000,
-        levels: 11,
+        orderCount: 11,
         investmentUSDC: 5000,
         investmentBase: 0.1,
         trailingEnabled: false,
@@ -62,7 +62,7 @@ describe('SyncOrdersUseCase', () => {
         price: 50000,
         amount: 0.01,
         status: OrderStatus.Placed,
-        levelIndex: 5,
+        orderIndex: 5,
         exchangeOrderId: null,
         createdAt: Date.now(),
         ...overrides,
@@ -264,8 +264,8 @@ describe('SyncOrdersUseCase', () => {
         it('should pass all filled orders to processMany', async () => {
             const grid = createTestGrid();
 
-            const buyOrder1 = createTestOrder(grid.id, { levelIndex: 5 });
-            const buyOrder2 = createTestOrder(grid.id, { price: 52000, levelIndex: 7 });
+            const buyOrder1 = createTestOrder(grid.id, { orderIndex: 5 });
+            const buyOrder2 = createTestOrder(grid.id, { price: 52000, orderIndex: 7 });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([]);
             mockGrids.findActiveGridsByUserId.mockResolvedValue([grid]);
@@ -308,7 +308,7 @@ describe('SyncOrdersUseCase', () => {
                 placedAt: Date.now(),
             };
 
-            const order2 = createTestOrder(grid.id, { levelIndex: 6 });
+            const order2 = createTestOrder(grid.id, { orderIndex: 6 });
 
             mockOrderClient.getOpenSpotOrders.mockResolvedValue([exchangeOrder]);
             mockGrids.findActiveGridsByUserId.mockResolvedValue([grid]);

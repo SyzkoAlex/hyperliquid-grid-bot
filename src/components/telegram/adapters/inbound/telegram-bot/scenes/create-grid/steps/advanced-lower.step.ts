@@ -57,7 +57,7 @@ export class AdvancedLowerStep implements WizardStep {
         if (!basePrice) return null;
         const price = basePrice * (1 - pct / 100);
         ctx.session.createGrid!.lowerPrice = price;
-        return { nextStep: SceneStep.Levels };
+        return { nextStep: SceneStep.Orders };
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
@@ -81,7 +81,7 @@ export class AdvancedLowerStep implements WizardStep {
         }
 
         session.createGrid.lowerPrice = price;
-        return { nextStep: SceneStep.Levels };
+        return { nextStep: SceneStep.Orders };
     }
 
     rollbackState(ctx: BotContext): void {

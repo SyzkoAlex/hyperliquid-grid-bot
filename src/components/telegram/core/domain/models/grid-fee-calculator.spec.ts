@@ -5,7 +5,7 @@ describe('calculateGridFeeMetrics', () => {
     const base = {
         lowerPrice: 90000,
         upperPrice: 100000,
-        levels: 10,
+        orderCount: 10,
         totalInvestment: 1000,
     };
 
@@ -16,9 +16,9 @@ describe('calculateGridFeeMetrics', () => {
     });
 
     it('computes gridStepPct correctly', () => {
-        // range=10000, levels=10, midPrice=95000 → step=1000/95000*100 ≈ 1.0526%
+        // range=10000, orderCount=10, midPrice=95000 → step=(10000/9)/95000*100 ≈ 1.1696%
         const { gridStepPct } = calculateGridFeeMetrics(base);
-        expect(gridStepPct).toBeCloseTo(1.0526, 3);
+        expect(gridStepPct).toBeCloseTo(1.1696, 3);
     });
 
     it('computes profitPerGridPct = gridStepPct - 2*makerRate*100', () => {
@@ -33,11 +33,11 @@ describe('calculateGridFeeMetrics', () => {
     });
 
     it('isProfitable false when grid is too tight to cover fees', () => {
-        // Very tight range: 1% total spread across 100 levels → step ≈ 0.0001% — far below 2*0.04%
+        // Very tight range: 1% total spread across 100 orders → step ≈ 0.0001% — far below 2*0.04%
         const { isProfitable } = calculateGridFeeMetrics({
             lowerPrice: 99990,
             upperPrice: 100000,
-            levels: 100,
+            orderCount: 100,
             totalInvestment: 1000,
         });
         expect(isProfitable).toBe(false);

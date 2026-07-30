@@ -69,7 +69,7 @@ describe('fetchBalanceInfo', () => {
             usdcBalance: 800,
             baseBalance: 10,
             currentPrice: 100,
-            levels: 10,
+            orderCount: 10,
             lowerPrice: 80,
             upperPrice: 120,
         });

@@ -8,7 +8,7 @@ export class CreateGridParamsMapper {
             symbol: command.symbol,
             lowerPrice: command.lowerPrice,
             upperPrice: command.upperPrice,
-            levels: command.levels,
+            orderCount: command.orderCount,
             totalInvestmentUSDC: command.totalInvestmentUSDC,
             trailingEnabled: command.trailing,
             stopLossEnabled: command.stopLossEnabled,

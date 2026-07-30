@@ -10,7 +10,7 @@ interface InvestmentPromptParams {
     totalBalance: Decimal;
     currentPrice: number;
     suggestedMax: number;
-    levels: number;
+    orderCount: number;
     lowerPrice: number;
     upperPrice: number;
 }
@@ -30,12 +30,12 @@ export class AdvancedInvestmentPromptMessage {
             baseBalance,
             totalBalance,
             suggestedMax,
-            levels,
+            orderCount,
             lowerPrice,
             upperPrice,
         } = params;
 
-        const feeHint = feeHintLine({ suggestedMax, levels, lowerPrice, upperPrice });
+        const feeHint = feeHintLine({ suggestedMax, orderCount, lowerPrice, upperPrice });
 
         const totalRounded = Math.round(totalBalance.toNumber()).toLocaleString('en-US');
         const usdcRounded = Math.round(usdcBalance.toNumber()).toLocaleString('en-US');
@@ -45,7 +45,7 @@ export class AdvancedInvestmentPromptMessage {
             `How much to invest?\n\n` +
             `${EMOJI.MONEY} Available: ~${totalRounded} USDC\n` +
             `   (${usdcRounded} USDC + ${baseFormatted} ${symbol})\n\n` +
-            `${EMOJI.BULB} Recommended: ~${suggestedMax} USDC for ${levels} levels\n` +
+            `${EMOJI.BULB} Recommended: ~${suggestedMax} USDC for ${orderCount} orders\n` +
             feeHint;
     }
 

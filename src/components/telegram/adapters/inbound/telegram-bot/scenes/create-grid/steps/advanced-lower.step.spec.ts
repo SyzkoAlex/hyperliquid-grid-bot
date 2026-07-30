@@ -93,13 +93,13 @@ describe('AdvancedLowerStep', () => {
             expect(ctx.session.createGrid?.pendingError).toBeTruthy();
         });
 
-        it('computes lower price from currentPrice percentage and advances to Levels', async () => {
+        it('computes lower price from currentPrice percentage and advances to Orders', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { upperPrice: 55000, currentPrice: 50000 };
 
             const result = await step.handleLowerPreset(ctx, '10');
 
-            expect(result).toEqual({ nextStep: SceneStep.Levels });
+            expect(result).toEqual({ nextStep: SceneStep.Orders });
             // -10% of currentPrice(50000) = 45000
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
         });
@@ -110,7 +110,7 @@ describe('AdvancedLowerStep', () => {
 
             const result = await step.handleLowerPreset(ctx, '10');
 
-            expect(result).toEqual({ nextStep: SceneStep.Levels });
+            expect(result).toEqual({ nextStep: SceneStep.Orders });
             // -10% of upperPrice(50000) = 45000
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
         });
@@ -132,7 +132,7 @@ describe('AdvancedLowerStep', () => {
 
             const result = await step.handleTextInput(ctx, '45000');
 
-            expect(result).toEqual({ nextStep: SceneStep.Levels });
+            expect(result).toEqual({ nextStep: SceneStep.Orders });
             expect(ctx.session.createGrid?.lowerPrice).toBe(45000);
         });
 

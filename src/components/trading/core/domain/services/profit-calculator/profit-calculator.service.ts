@@ -7,9 +7,9 @@ export class ProfitCalculatorService {
         orderAmount: number,
         gridUpperPrice: number,
         gridLowerPrice: number,
-        gridLevels: number,
+        orderCount: number,
     ): Decimal {
-        const spacing = (gridUpperPrice - gridLowerPrice) / (gridLevels - 1);
+        const spacing = (gridUpperPrice - gridLowerPrice) / (orderCount - 1);
         return Decimal.from(spacing).mul(Decimal.from(orderAmount));
     }
 }

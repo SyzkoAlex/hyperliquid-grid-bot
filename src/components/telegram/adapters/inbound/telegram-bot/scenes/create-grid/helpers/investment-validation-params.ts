@@ -1,6 +1,6 @@
 export interface InvestmentValidationParams {
     investment: number;
-    levels: number;
+    orderCount: number;
     symbol: string;
     upperPrice: number;
     lowerPrice: number;

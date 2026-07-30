@@ -9,7 +9,7 @@ export interface CreateGridWizardState {
     mode?: CreateGridMode;
     upperPrice?: number;
     lowerPrice?: number;
-    levels?: number;
+    orderCount?: number;
     totalInvestmentUSDC?: number;
     currentStep?: SceneStep;
     stepHistory?: SceneStep[];

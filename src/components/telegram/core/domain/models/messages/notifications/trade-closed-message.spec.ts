@@ -31,7 +31,7 @@ describe('TradeClosedMessage', () => {
         expect(msg.text).toContain('-0.52%');
     });
 
-    it('renders symbol, formatted price/amount/total, and grid id without level info', () => {
+    it('renders symbol, formatted price/amount/total, and grid id without order index info', () => {
         const msg = TradeClosedMessage.create(baseProps);
         expect(msg.text).toContain('SELL BTC');
         expect(msg.text).toContain('0.005');
@@ -52,8 +52,6 @@ describe('TradeClosedMessage', () => {
             0.15,
             510,
             7.65,
-            2,
-            8,
         );
         const msg = TradeClosedMessage.fromEvent(event);
         expect(msg.text).toContain('▼');
@@ -73,8 +71,6 @@ describe('TradeClosedMessage', () => {
             0.01,
             950,
             -4.75,
-            5,
-            10,
         );
         const msg = TradeClosedMessage.fromEvent(event);
         expect(msg.text).toContain('$-4.75');

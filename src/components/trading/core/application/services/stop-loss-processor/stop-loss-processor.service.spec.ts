@@ -11,7 +11,7 @@ const makeGrid = (overrides: Record<string, unknown> = {}) => ({
     symbol: 'ETH',
     lowerPrice: 110,
     upperPrice: 200,
-    levels: 10,
+    orderCount: 10,
     investmentUSDC: 1000,
     investmentBase: 0.5,
     stopLossEnabled: true,
