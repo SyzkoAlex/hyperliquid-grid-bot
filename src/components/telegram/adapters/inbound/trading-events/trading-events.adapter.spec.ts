@@ -113,8 +113,29 @@ describe('TradingEventsAdapter — notifyCreationResult', () => {
 
             await subscriberCallbacks.get(EventType.GridCreatedSuccess)!(event);
 
+            expect(pendingStore.consume).toHaveBeenCalledWith(USER_ID);
             expect(botService.editMessage).toHaveBeenCalledWith(111, 222, 'result text');
             expect(notifyUser.execute).not.toHaveBeenCalled();
+        });
+
+        it('falls back to NotifyUserUseCase when editing the pending message fails', async () => {
+            botService.editMessage.mockRejectedValue(new Error('message to edit not found'));
+            const event = new GridCreatedSuccessEvent(
+                USER_ID,
+                'grid-1',
+                'BTC',
+                50000,
+                60000,
+                10,
+                5000,
+                0.5,
+                false,
+            );
+
+            await subscriberCallbacks.get(EventType.GridCreatedSuccess)!(event);
+
+            expect(botService.editMessage).toHaveBeenCalledWith(111, 222, 'result text');
+            expect(notifyUser.execute).toHaveBeenCalledWith({ event });
         });
 
         it('edits the pending message for GridCreatedError', async () => {
@@ -122,6 +143,7 @@ describe('TradingEventsAdapter — notifyCreationResult', () => {
 
             await subscriberCallbacks.get(EventType.GridCreatedError)!(event);
 
+            expect(pendingStore.consume).toHaveBeenCalledWith(USER_ID);
             expect(botService.editMessage).toHaveBeenCalledWith(111, 222, 'result text');
             expect(notifyUser.execute).not.toHaveBeenCalled();
         });

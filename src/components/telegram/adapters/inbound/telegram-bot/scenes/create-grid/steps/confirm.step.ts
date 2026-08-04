@@ -28,6 +28,12 @@ export class ConfirmStep {
             return;
         }
 
+        const user = ctx.user;
+        if (!user?.accountAddress) {
+            await ctx.reply(CommonTexts.ACCOUNT_NOT_CONNECTED);
+            return;
+        }
+
         const summary = this.wizardSummaryBuilder.buildSummaryFromSession(state);
         const creatingText = GridCreatingMessage.create({ summary }).text;
 
@@ -60,23 +66,17 @@ export class ConfirmStep {
             messageId = sentMessage.message_id;
         }
 
-        this.pendingCreationMessageStore.save(chatId, messageId);
-
-        const accountAddress = ctx.user?.accountAddress;
-        if (!accountAddress) {
-            await ctx.reply(CommonTexts.ACCOUNT_NOT_CONNECTED);
-            return;
-        }
+        this.pendingCreationMessageStore.save(user.id, chatId, messageId);
 
         void this.createGridUseCase
             .execute({
-                userId: ctx.user!.id,
+                userId: user.id,
                 symbol: state!.symbol!,
                 lowerPrice: state!.lowerPrice!,
                 upperPrice: state!.upperPrice!,
                 orderCount: state!.orderCount!,
                 totalInvestmentUSDC: state!.totalInvestmentUSDC,
-                accountAddress,
+                accountAddress: user.accountAddress,
                 stopLossEnabled: state!.stopLossEnabled,
                 stopLossPrice: state!.stopLossPrice,
             })

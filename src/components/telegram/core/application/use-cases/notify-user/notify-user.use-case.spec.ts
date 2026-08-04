@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import { NotifyUserUseCase } from './notify-user.use-case';
 import { OrderOpenedEvent } from '@domain/models/events/trading/order-opened.event';
 import { GridStopLossTriggeredEvent } from '@domain/models/events/trading/grid-stop-loss-triggered.event';
+import { GridCreatedSuccessEvent } from '@domain/models/events/trading/grid-created-success.event';
+import { GridCreatedErrorEvent } from '@domain/models/events/trading/grid-created-error.event';
 import { TelegramNotificationPort } from '@components/telegram/core/application/ports/telegram-notification.port';
 import { NotificationMessageFactory } from '@components/telegram/core/domain/models/messages/notifications/notification-message.factory';
 import { UsersApiPort } from '@components/users/api/users-api.port';
@@ -120,6 +122,44 @@ describe('NotifyUserUseCase', () => {
                 true,
                 undefined,
             );
+
+            await sut.execute({ event });
+
+            expect(mockTelegramNotification.sendMessage).toHaveBeenCalledWith(
+                CHAT_ID,
+                'notification text',
+            );
+        });
+
+        it('should send GridCreatedSuccess notification even when tradeNotificationsEnabled is false', async () => {
+            mockUsersApi.findUserById.mockResolvedValue(
+                makeUser({ tradeNotificationsEnabled: false }),
+            );
+            const event = new GridCreatedSuccessEvent(
+                USER_ID,
+                GRID_ID,
+                'BTC',
+                50000,
+                60000,
+                10,
+                5000,
+                0.5,
+                false,
+            );
+
+            await sut.execute({ event });
+
+            expect(mockTelegramNotification.sendMessage).toHaveBeenCalledWith(
+                CHAT_ID,
+                'notification text',
+            );
+        });
+
+        it('should send GridCreatedError notification even when tradeNotificationsEnabled is false', async () => {
+            mockUsersApi.findUserById.mockResolvedValue(
+                makeUser({ tradeNotificationsEnabled: false }),
+            );
+            const event = new GridCreatedErrorEvent(USER_ID, 'Something went wrong');
 
             await sut.execute({ event });
 
