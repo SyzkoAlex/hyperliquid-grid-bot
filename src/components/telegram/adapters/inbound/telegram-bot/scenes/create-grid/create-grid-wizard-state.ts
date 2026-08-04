@@ -21,6 +21,8 @@ export interface CreateGridWizardState {
     stopLossPrice?: number;
     /** Filled by AdvancedInvestmentStep when a swap is offered; consumed by SwapStep. */
     swapOffer?: OptimalSwapDto;
+    /** Price swapOffer was computed against; consumed by SwapStep to format amounts. */
+    swapOfferPrice?: number;
     /** Mirror of `pendingError`, but for the Swap step's own validation/feedback. */
     swapFeedback?: string;
 }

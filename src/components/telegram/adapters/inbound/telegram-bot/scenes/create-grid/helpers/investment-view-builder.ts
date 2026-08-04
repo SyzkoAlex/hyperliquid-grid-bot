@@ -26,6 +26,9 @@ interface InvestmentViewResult {
     readonly body: string;
     readonly suggestedMax: number | null;
     readonly swapOffer: OptimalSwapDto | null;
+    /** Price the swap offer was computed against — persist alongside swapOffer so
+     *  later steps (e.g. SwapStep) format amounts with the same price, not a stale one. */
+    readonly swapOfferPrice: number | null;
 }
 
 export async function buildInvestmentView(
@@ -39,6 +42,7 @@ export async function buildInvestmentView(
 ): Promise<InvestmentViewResult> {
     let suggestedMax: number | null = null;
     let swapOffer: OptimalSwapDto | null = null;
+    let currentPrice: number | null = null;
     let body = promptFactory.fallback();
 
     try {
@@ -50,6 +54,7 @@ export async function buildInvestmentView(
             lowerPrice,
             upperPrice,
         );
+        currentPrice = balanceInfo.currentPrice;
 
         const eligibleSwap = buildEligibleSwapOffer(tradingApi, {
             symbol,
@@ -60,7 +65,7 @@ export async function buildInvestmentView(
             upperPrice,
             orderCount,
         });
-        const hint = swapHintLine(symbol, eligibleSwap);
+        const hint = swapHintLine(symbol, eligibleSwap, balanceInfo.currentPrice);
 
         if (balanceInfo.baseBalance.isZero()) {
             if (!balanceInfo.baseHold.isZero()) {
@@ -114,6 +119,7 @@ export async function buildInvestmentView(
                         eligibleSwap,
                         balanceInfo.suggestedMaxRounded,
                         balanceInfo.totalBalance.toNumber(),
+                        balanceInfo.currentPrice,
                     );
                     body = `${body}\n\n${proactiveHint}`;
                     swapOffer = eligibleSwap;
@@ -126,5 +132,5 @@ export async function buildInvestmentView(
         // the next render cycle.
     }
 
-    return { body, suggestedMax, swapOffer };
+    return { body, suggestedMax, swapOffer, swapOfferPrice: swapOffer ? currentPrice : null };
 }

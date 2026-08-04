@@ -2,13 +2,14 @@ import { EMOJI } from '../../constants/emoji';
 import { formatFiat } from '../../formatters/format-fiat';
 import { escapeHtml } from '../../formatters/escape-html';
 import { OptimalSwapDto, SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
+import { baseQuantityFromUsdc } from './swap-amount';
 
 function formatRoundedUsdc(n: number): string {
     return Math.round(n).toLocaleString('en-US');
 }
 
 export class SwapMessages {
-    static offer(symbol: string, offer: OptimalSwapDto): string {
+    static offer(symbol: string, offer: OptimalSwapDto, currentPrice: number): string {
         const s = escapeHtml(symbol);
         if (offer.side === SwapSide.UsdcToBase) {
             return (
@@ -17,8 +18,9 @@ export class SwapMessages {
                 `${EMOJI.WARNING} Price may move during execution; the order fills at the current market price.`
             );
         }
+        const baseAmount = baseQuantityFromUsdc(offer.amountUsdc, currentPrice);
         return (
-            `${EMOJI.REFRESH} Swap ~${offer.amountUsdc.toFixed(6)} ${s} → ~${formatFiat(offer.expectedReceived)} USDC?\n\n` +
+            `${EMOJI.REFRESH} Swap ~${baseAmount} ${s} → ~${formatFiat(offer.expectedReceived)} USDC?\n\n` +
             `This converts part of your ${s} balance to USDC to fit the grid.\n\n` +
             `${EMOJI.WARNING} Price may move during execution; the order fills at the current market price.`
         );
@@ -57,23 +59,25 @@ export class SwapMessages {
      * hints at a swap that would let the user invest more. This is distinct from offer() which
      * renders the full swap confirmation dialog.
      *
-     * NOTE: toFixed(2) here is intentional — this is a hint line where rough precision is
-     * sufficient. offer() uses toFixed(6) for the confirmation dialog where exact amounts matter.
+     * NOTE: toFixed(2) is used for USDC amounts (rough precision is sufficient for this hint
+     * line) and toFixed(6) for base-token quantities (matches offer()'s precision, since a
+     * coarser rounding can read as ~0 for higher-priced assets).
      */
     static proactiveHint(
         symbol: string,
         swapOffer: OptimalSwapDto,
         maxWithoutSwap: number,
         totalAvailable: number,
+        currentPrice: number,
     ): string {
         const total = formatRoundedUsdc(totalAvailable);
         const maxLine = `${EMOJI.LIGHTNING} Max without swap: ~${formatRoundedUsdc(maxWithoutSwap)} USDC`;
         if (swapOffer.side === SwapSide.UsdcToBase) {
             const amount = formatFiat(swapOffer.amountUsdc);
-            const received = swapOffer.expectedReceived.toFixed(2);
+            const received = swapOffer.expectedReceived.toFixed(6);
             return `${maxLine}\n${EMOJI.BULB} Swap ~${amount} USDC → ~${received} ${escapeHtml(symbol)} to invest up to ~${total} USDC`;
         }
-        const amount = swapOffer.amountUsdc.toFixed(2);
+        const amount = baseQuantityFromUsdc(swapOffer.amountUsdc, currentPrice);
         const received = formatFiat(swapOffer.expectedReceived);
         return `${maxLine}\n${EMOJI.BULB} Swap ~${amount} ${escapeHtml(symbol)} → ~${received} USDC to invest up to ~${total} USDC`;
     }

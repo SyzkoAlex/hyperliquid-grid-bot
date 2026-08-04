@@ -12,4 +12,7 @@ export interface InvestmentValidationResult {
     showBackButton?: boolean;
     distribution?: ValidatedDistribution;
     swapOffer?: OptimalSwapDto | null;
+    /** Price the swap offer was computed against — persist alongside swapOffer so
+     *  later steps (e.g. SwapStep) format amounts with the same price, not a stale one. */
+    swapOfferPrice?: number | null;
 }

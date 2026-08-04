@@ -50,6 +50,7 @@ describe('buildInvestmentView', () => {
         expect(result.body).toBe('Fallback body');
         expect(result.suggestedMax).toBeNull();
         expect(result.swapOffer).toBeNull();
+        expect(result.swapOfferPrice).toBeNull();
     });
 
     it('returns normal balance body and no swap offer when balances are perfectly balanced', async () => {
@@ -68,6 +69,7 @@ describe('buildInvestmentView', () => {
         expect(result.body).toBe('Balance body (max: 1896)');
         expect(result.suggestedMax).toBe(1896);
         expect(result.swapOffer).toBeNull();
+        expect(result.swapOfferPrice).toBeNull();
     });
 
     it('appends proactive hint and sets swapOffer when imbalance exists on normal balance screen', async () => {
@@ -92,15 +94,17 @@ describe('buildInvestmentView', () => {
         expect(result.body).toContain('2,801.00 USDC');
         expect(result.swapOffer).not.toBeNull();
         expect(result.swapOffer?.amountUsdc).toBe(2801);
+        expect(result.swapOfferPrice).toBe(53);
         expect(result.suggestedMax).toBe(1896);
     });
 
     it('appends proactive hint and sets swapOffer for BaseToUsdc direction', async () => {
-        // amountUsdc must be >= minOrderNotional (10) to pass buildEligibleSwapOffer filter
+        // amountUsdc must be >= minOrderNotional (10) to pass buildEligibleSwapOffer filter.
+        // expectedReceived === amountUsdc for BaseToUsdc, per calculateOptimalSwap's contract.
         vi.mocked(mockTradingApi.calculateOptimalSwap).mockReturnValue({
             side: SwapSide.BaseToUsdc,
             amountUsdc: 55,
-            expectedReceived: 1100,
+            expectedReceived: 55,
         });
 
         const result = await buildInvestmentView(
@@ -115,10 +119,13 @@ describe('buildInvestmentView', () => {
 
         expect(result.body).toContain('Balance body (max: 1896)');
         expect(result.body).toContain('Max without swap: ~1,896 USDC');
-        expect(result.body).toContain('55.00 HYPE');
-        expect(result.body).toContain('1,100.00 USDC');
+        // amountUsdc (55) is a USDC notional, converted via currentPrice (53) to a HYPE quantity: 55 / 53 ≈ 1.037736.
+        expect(result.body).toContain('1.037736 HYPE');
+        expect(result.body).not.toContain('55.000000 HYPE');
+        expect(result.body).toContain('55.00 USDC');
         expect(result.swapOffer).not.toBeNull();
         expect(result.swapOffer?.side).toBe(SwapSide.BaseToUsdc);
+        expect(result.swapOfferPrice).toBe(53);
         expect(result.suggestedMax).toBe(1896);
     });
 
