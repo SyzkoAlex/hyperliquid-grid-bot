@@ -37,11 +37,13 @@ const DEFAULT_OFFER = {
     amountUsdc: 200,
     expectedReceived: 6.5,
 };
+const DEFAULT_PRICE = 40;
 
 function createMockContext(
     overrides: {
         symbol?: string;
         swapOffer?: typeof DEFAULT_OFFER | null;
+        swapOfferPrice?: number | null;
         swapFeedback?: string;
         accountAddress?: string;
         stepHistory?: SceneStep[];
@@ -55,6 +57,10 @@ function createMockContext(
                     overrides.swapOffer === null
                         ? undefined
                         : (overrides.swapOffer ?? DEFAULT_OFFER),
+                swapOfferPrice:
+                    overrides.swapOfferPrice === null
+                        ? undefined
+                        : (overrides.swapOfferPrice ?? DEFAULT_PRICE),
                 swapFeedback: overrides.swapFeedback,
                 totalInvestmentUSDC: 500,
                 stepHistory: overrides.stepHistory,
@@ -107,26 +113,45 @@ describe('SwapStep', () => {
             expect(hasCancelOnly).toBe(true);
         });
 
-        it('shows UsdcToBase direction correctly', async () => {
-            const ctx = createMockContext({
-                swapOffer: { side: SwapSide.UsdcToBase, amountUsdc: 200, expectedReceived: 6.5 },
-            });
+        it('returns error body with cancel-only keyboard when swapOfferPrice is missing', async () => {
+            const ctx = createMockContext({ swapOfferPrice: null });
 
             const view = await sut.buildView(ctx);
 
-            expect(view.body).toContain('USDC');
-            expect(view.body).toContain('HYPE');
+            expect(view.body).toContain('No swap offer found');
+            const hasCancelOnly =
+                view.keyboard.length === 1 &&
+                view.keyboard[0].some((b) => b.action === 'create_grid:cancel');
+            expect(hasCancelOnly).toBe(true);
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
 
-        it('shows BaseToUsdc direction correctly', async () => {
+        it('shows UsdcToBase direction correctly, formatting amounts with the stored swapOfferPrice', async () => {
             const ctx = createMockContext({
-                swapOffer: { side: SwapSide.BaseToUsdc, amountUsdc: 50, expectedReceived: 150 },
+                swapOffer: { side: SwapSide.UsdcToBase, amountUsdc: 200, expectedReceived: 6.5 },
+                swapOfferPrice: 40,
             });
 
             const view = await sut.buildView(ctx);
 
-            expect(view.body).toContain('HYPE');
-            expect(view.body).toContain('USDC');
+            expect(view.body).toContain('200.00 USDC');
+            expect(view.body).toContain('6.500000 HYPE');
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
+        });
+
+        it('shows BaseToUsdc direction correctly, converting amountUsdc to a base quantity via swapOfferPrice', async () => {
+            const ctx = createMockContext({
+                swapOffer: { side: SwapSide.BaseToUsdc, amountUsdc: 50, expectedReceived: 50 },
+                swapOfferPrice: 10,
+            });
+
+            const view = await sut.buildView(ctx);
+
+            // 50 USDC worth of HYPE at $10/HYPE = 5 HYPE, not 50 HYPE.
+            expect(view.body).toContain('5.000000 HYPE');
+            expect(view.body).not.toContain('50.000000 HYPE');
+            expect(view.body).toContain('50.00 USDC');
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
 
         it('shows confirm button (not back-only) when offer is present', async () => {
@@ -215,6 +240,7 @@ describe('SwapStep', () => {
             await sut.handleConfirm(ctx);
 
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
             expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
         });
 
@@ -309,6 +335,7 @@ describe('SwapStep', () => {
 
             expect(result).toEqual({ nextStep: SceneStep.Investment });
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
         });
 
         it('returns Quick step when reached from Quick mode', async () => {
@@ -320,6 +347,7 @@ describe('SwapStep', () => {
 
             expect(result).toEqual({ nextStep: SceneStep.Quick });
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
         });
 
         it('defaults to Investment step when stepHistory is empty', async () => {
@@ -338,6 +366,7 @@ describe('SwapStep', () => {
             sut.rollbackState(ctx);
 
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
             expect(ctx.session.createGrid?.swapFeedback).toBeUndefined();
         });
     });

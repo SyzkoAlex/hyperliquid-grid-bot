@@ -87,7 +87,11 @@ export class QuickStartStep implements WizardStep {
                 }
 
                 if (session.createGrid) {
-                    hasSwapOffer = persistSwapOffer(session.createGrid, result.swapOffer);
+                    hasSwapOffer = persistSwapOffer(
+                        session.createGrid,
+                        result.swapOffer,
+                        result.swapOfferPrice,
+                    );
                 }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in quick start step');
@@ -239,6 +243,7 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.orderCount;
             delete ctx.session.createGrid.balanceSnapshot;
             delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapOfferPrice;
             delete ctx.session.createGrid.swapFeedback;
         }
     }

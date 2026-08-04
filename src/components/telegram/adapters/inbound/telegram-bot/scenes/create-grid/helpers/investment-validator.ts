@@ -107,7 +107,7 @@ export async function validateInvestment(
             upperPrice,
             orderCount,
         });
-        const hint = swapHintLine(symbol, eligibleSwapOffer);
+        const hint = swapHintLine(symbol, eligibleSwapOffer, currentPriceNum);
 
         return {
             valid: false,
@@ -126,6 +126,7 @@ export async function validateInvestment(
             ),
             showBackButton: true,
             swapOffer: eligibleSwapOffer,
+            swapOfferPrice: eligibleSwapOffer ? currentPriceNum : null,
         };
     }
 

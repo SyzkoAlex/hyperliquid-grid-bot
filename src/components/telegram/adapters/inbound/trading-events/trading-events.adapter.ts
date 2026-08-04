@@ -110,15 +110,25 @@ export class TradingEventsAdapter implements OnModuleInit {
      * Lives in the adapter because it depends on PendingCreationMessageStore and TelegramBotService,
      * both of which are Telegram-specific infrastructure unavailable at the use-case layer.
      * The wizard path intentionally bypasses tradeNotificationsEnabled — the user is actively waiting.
+     * If editing the pending message fails (e.g. it was deleted), falls back to NotifyUserUseCase
+     * rather than dropping the result — GridCreatedSuccess/Error are critical events there too,
+     * so the user is still notified even with trade notifications disabled.
      */
     private async notifyCreationResult(
         event: GridCreatedSuccessEvent | GridCreatedErrorEvent,
     ): Promise<void> {
-        const pending = this.pendingCreationMessageStore.consume();
+        const pending = this.pendingCreationMessageStore.consume(event.userId);
         if (pending) {
-            const text = this.messageFactory.buildFromEvent(event).text;
-            await this.botService.editMessage(pending.chatId, pending.messageId, text);
-            return;
+            try {
+                const text = this.messageFactory.buildFromEvent(event).text;
+                await this.botService.editMessage(pending.chatId, pending.messageId, text);
+                return;
+            } catch (error) {
+                this.logger.warn(
+                    { err: error, userId: event.userId },
+                    'Failed to edit pending creation message — falling back to NotifyUserUseCase',
+                );
+            }
         }
         await this.notifyUser.execute({ event });
     }

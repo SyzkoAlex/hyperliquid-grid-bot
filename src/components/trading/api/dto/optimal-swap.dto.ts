@@ -7,6 +7,9 @@ export { SwapSide };
 
 export interface OptimalSwapDto {
     side: SwapSide;
+    /** Worth of USDC to swap (positive). For BaseToUsdc this is the USDC value of the base
+     *  being sold, computed at currentPrice — not a base-token quantity. */
     amountUsdc: number;
+    /** Expected received amount in the destination leg, worst-case at currentPrice (no slippage applied here). */
     expectedReceived: number;
 }

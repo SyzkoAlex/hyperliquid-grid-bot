@@ -46,7 +46,7 @@ describe('ConfirmStep', () => {
                 expect.stringContaining('Creating grid'),
                 expect.objectContaining({ parse_mode: 'HTML' }),
             );
-            const pending = pendingCreationMessageStore.consume();
+            const pending = pendingCreationMessageStore.consume('user-42');
             expect(pending).toEqual({ chatId: 77, messageId: 88 });
         });
 
@@ -71,7 +71,7 @@ describe('ConfirmStep', () => {
 
             expect(mockCreateGridUseCase.execute).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userId: 42,
+                    userId: 'user-42',
                     symbol: 'BTC',
                     lowerPrice: 45000,
                     upperPrice: 55000,
@@ -99,7 +99,7 @@ describe('ConfirmStep', () => {
             await step.execute(ctx);
 
             expect(mockCreateGridUseCase.execute).toHaveBeenCalledWith({
-                userId: 42,
+                userId: 'user-42',
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
@@ -108,20 +108,23 @@ describe('ConfirmStep', () => {
                 accountAddress: '0xtest',
             });
             expect(ctx.reply).toHaveBeenCalled();
-            const pending = pendingCreationMessageStore.consume();
+            const pending = pendingCreationMessageStore.consume('user-42');
             expect(pending).toEqual({ chatId: 123, messageId: 456 });
         });
     });
 
     describe('execute — no account address', () => {
-        it('should reply with ACCOUNT_NOT_CONNECTED and not call CreateGridUseCase', async () => {
-            const ctx = createMockContext();
-            ctx.user = { id: 42 } as unknown as typeof ctx.user;
+        it('replies with ACCOUNT_NOT_CONNECTED before ever showing "Creating grid..." or storing a pending message', async () => {
+            const ctx = createMockContext({ boardChatId: 77, boardMessageId: 88 });
+            ctx.user = { id: 'user-42' } as unknown as typeof ctx.user;
 
             await step.execute(ctx);
 
+            expect(ctx.reply).toHaveBeenCalledTimes(1);
             expect(ctx.reply).toHaveBeenCalledWith(CommonTexts.ACCOUNT_NOT_CONNECTED);
+            expect(ctx.telegram.editMessageText).not.toHaveBeenCalled();
             expect(mockCreateGridUseCase.execute).not.toHaveBeenCalled();
+            expect(pendingCreationMessageStore.consume('user-42')).toBeNull();
         });
     });
 
@@ -157,7 +160,7 @@ describe('ConfirmStep', () => {
             reply: vi.fn().mockResolvedValue({ chat: { id: 123 }, message_id: 456 }),
             session,
             scene: { leave: vi.fn() },
-            user: { id: 42, accountAddress: '0xtest' },
+            user: { id: 'user-42', accountAddress: '0xtest' },
             telegram: {
                 editMessageText: vi.fn().mockResolvedValue(undefined),
             },

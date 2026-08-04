@@ -9,11 +9,19 @@ import { logger } from '@/infra/logger/logger';
 import { EventType } from '@domain/models/events/event-type';
 import { NotifyUserParams } from './notify-user-params';
 
-const CRITICAL_EVENT_TYPES = new Set<EventType>([EventType.GridStopLossTriggered]);
+const CRITICAL_EVENT_TYPES = new Set<EventType>([
+    EventType.GridStopLossTriggered,
+    // Direct result of the user's own create-grid action (normally delivered by editing the
+    // wizard's "Creating grid…" message — see TradingEventsAdapter.notifyCreationResult).
+    // Critical here too so the fallback send still reaches the user even with
+    // tradeNotificationsEnabled: false, instead of being silently dropped.
+    EventType.GridCreatedSuccess,
+    EventType.GridCreatedError,
+]);
 
 /** Routes a serializable event to the user's personal Telegram chat.
  * Skips silently when the user is not found or has tradeNotificationsEnabled: false.
- * Critical events (stop-loss) bypass the trade-notifications toggle. */
+ * Critical events (stop-loss, grid-created result) bypass the trade-notifications toggle. */
 @Injectable()
 export class NotifyUserUseCase {
     private readonly logger = logger.child({ context: NotifyUserUseCase.name });

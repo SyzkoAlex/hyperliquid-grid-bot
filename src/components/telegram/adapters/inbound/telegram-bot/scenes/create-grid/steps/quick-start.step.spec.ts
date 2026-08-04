@@ -342,6 +342,7 @@ describe('QuickStartStep', () => {
             step.rollbackState(ctx);
 
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
         });
 
         it('clears swapFeedback on rollback', () => {

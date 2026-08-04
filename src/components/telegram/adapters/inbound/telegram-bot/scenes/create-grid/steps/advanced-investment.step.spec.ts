@@ -453,6 +453,7 @@ describe('AdvancedInvestmentStep', () => {
             await step.buildView(ctx);
 
             expect(ctx.session.createGrid?.swapOffer).toBeUndefined();
+            expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
         });
 
         it('deletes totalInvestmentUSDC and balanceSnapshot from session', () => {

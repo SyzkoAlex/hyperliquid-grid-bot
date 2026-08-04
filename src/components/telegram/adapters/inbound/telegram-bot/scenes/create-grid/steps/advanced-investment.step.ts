@@ -90,7 +90,11 @@ export class AdvancedInvestmentStep implements WizardStep {
                 }
 
                 if (session.createGrid) {
-                    hasSwapOffer = persistSwapOffer(session.createGrid, result.swapOffer);
+                    hasSwapOffer = persistSwapOffer(
+                        session.createGrid,
+                        result.swapOffer,
+                        result.swapOfferPrice,
+                    );
                 }
             } catch (error) {
                 this.logger.warn({ error }, 'Failed to fetch balance in advanced investment step');
@@ -217,7 +221,7 @@ export class AdvancedInvestmentStep implements WizardStep {
 
             if (!result.valid) {
                 session.createGrid.pendingError = result.errorMessage ?? undefined;
-                persistSwapOffer(session.createGrid, result.swapOffer);
+                persistSwapOffer(session.createGrid, result.swapOffer, result.swapOfferPrice);
                 return null;
             }
 
@@ -243,6 +247,7 @@ export class AdvancedInvestmentStep implements WizardStep {
             delete ctx.session.createGrid.totalInvestmentUSDC;
             delete ctx.session.createGrid.balanceSnapshot;
             delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapOfferPrice;
             delete ctx.session.createGrid.swapFeedback;
         }
     }

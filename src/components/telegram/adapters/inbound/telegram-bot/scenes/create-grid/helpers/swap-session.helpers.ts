@@ -3,18 +3,24 @@ import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
 
 /**
- * Stores or clears the swap offer in wizard session state.
+ * Stores or clears the swap offer (and the price it was computed against) in wizard
+ * session state. Persisting the price alongside the offer lets SwapStep format amounts
+ * without re-fetching — avoiding both an extra I/O call in the render path and a mismatch
+ * against a price that may have moved since the offer was built.
  * Returns `true` when an offer was stored (used to toggle the swap button).
  */
 export function persistSwapOffer(
     state: CreateGridWizardState,
     swapOffer: OptimalSwapDto | null | undefined,
+    swapOfferPrice: number | null | undefined,
 ): boolean {
     if (swapOffer) {
         state.swapOffer = swapOffer;
+        state.swapOfferPrice = swapOfferPrice ?? undefined;
         return true;
     }
     delete state.swapOffer;
+    delete state.swapOfferPrice;
     return false;
 }
 

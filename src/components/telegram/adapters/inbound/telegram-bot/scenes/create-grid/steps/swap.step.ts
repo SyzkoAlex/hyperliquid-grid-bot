@@ -28,8 +28,9 @@ export class SwapStep implements WizardStep {
         const session = ctx.session.createGrid;
         const offer = session?.swapOffer;
         const symbol = session?.symbol;
+        const currentPrice = session?.swapOfferPrice;
 
-        if (!offer || !symbol) {
+        if (!offer || !symbol || !currentPrice) {
             return {
                 body: SwapMessages.failed('No swap offer found. Please go back and try again.'),
                 keyboard: this.cancelOnlyKeyboard(),
@@ -37,7 +38,7 @@ export class SwapStep implements WizardStep {
         }
 
         return {
-            body: SwapMessages.offer(symbol, offer),
+            body: SwapMessages.offer(symbol, offer, currentPrice),
             keyboard: this.confirmKeyboard(),
         };
     }
@@ -91,6 +92,7 @@ export class SwapStep implements WizardStep {
 
             if (ctx.session.createGrid) {
                 delete ctx.session.createGrid.swapOffer;
+                delete ctx.session.createGrid.swapOfferPrice;
                 delete ctx.session.createGrid.totalInvestmentUSDC;
                 ctx.session.createGrid.swapFeedback = feedback;
             }
@@ -109,6 +111,7 @@ export class SwapStep implements WizardStep {
     async handleSkip(ctx: BotContext): Promise<StepResult> {
         if (ctx.session.createGrid) {
             delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapOfferPrice;
         }
         return { nextStep: this.previousInvestmentStep(ctx) };
     }
@@ -123,6 +126,7 @@ export class SwapStep implements WizardStep {
     rollbackState(ctx: BotContext): void {
         if (ctx.session.createGrid) {
             delete ctx.session.createGrid.swapOffer;
+            delete ctx.session.createGrid.swapOfferPrice;
             delete ctx.session.createGrid.swapFeedback;
         }
     }

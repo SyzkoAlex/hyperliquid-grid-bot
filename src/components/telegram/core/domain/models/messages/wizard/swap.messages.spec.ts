@@ -5,22 +5,30 @@ import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 describe('SwapMessages', () => {
     describe('offer', () => {
         it('escapes HTML special characters in the symbol', () => {
-            const result = SwapMessages.offer('<script>', {
-                side: SwapSide.UsdcToBase,
-                amountUsdc: 100,
-                expectedReceived: 5,
-            });
+            const result = SwapMessages.offer(
+                '<script>',
+                {
+                    side: SwapSide.UsdcToBase,
+                    amountUsdc: 100,
+                    expectedReceived: 5,
+                },
+                20,
+            );
 
             expect(result).not.toContain('<script>');
             expect(result).toContain('&lt;script&gt;');
         });
 
         it('renders UsdcToBase offer with USDC on the left and base on the right', () => {
-            const result = SwapMessages.offer('HYPE', {
-                side: SwapSide.UsdcToBase,
-                amountUsdc: 200,
-                expectedReceived: 6.5,
-            });
+            const result = SwapMessages.offer(
+                'HYPE',
+                {
+                    side: SwapSide.UsdcToBase,
+                    amountUsdc: 200,
+                    expectedReceived: 6.5,
+                },
+                30.77,
+            );
 
             expect(result).toContain('USDC');
             expect(result).toContain('HYPE');
@@ -29,37 +37,51 @@ describe('SwapMessages', () => {
             expect(result).toContain('→');
         });
 
-        it('renders BaseToUsdc offer with base on the left and USDC on the right', () => {
-            const result = SwapMessages.offer('HYPE', {
-                side: SwapSide.BaseToUsdc,
-                amountUsdc: 3.5,
-                expectedReceived: 70,
-            });
+        it('renders BaseToUsdc offer with base quantity (converted via currentPrice) on the left and USDC on the right', () => {
+            const result = SwapMessages.offer(
+                'HYPE',
+                {
+                    side: SwapSide.BaseToUsdc,
+                    amountUsdc: 35,
+                    expectedReceived: 35,
+                },
+                10,
+            );
 
             expect(result).toContain('HYPE');
             expect(result).toContain('USDC');
+            // 35 USDC worth of HYPE at $10/HYPE = 3.5 HYPE, not 35 HYPE.
             expect(result).toContain('3.500000');
-            expect(result).toContain('70.00');
+            expect(result).not.toContain('35.000000');
+            expect(result).toContain('35.00');
             expect(result).toContain('→');
         });
 
         it('includes price-movement warning for UsdcToBase offer', () => {
-            const result = SwapMessages.offer('HYPE', {
-                side: SwapSide.UsdcToBase,
-                amountUsdc: 100,
-                expectedReceived: 5,
-            });
+            const result = SwapMessages.offer(
+                'HYPE',
+                {
+                    side: SwapSide.UsdcToBase,
+                    amountUsdc: 100,
+                    expectedReceived: 5,
+                },
+                20,
+            );
 
             expect(result).toContain('Price may move');
             expect(result).toContain('market price');
         });
 
         it('includes price-movement warning for BaseToUsdc offer', () => {
-            const result = SwapMessages.offer('HYPE', {
-                side: SwapSide.BaseToUsdc,
-                amountUsdc: 100,
-                expectedReceived: 5,
-            });
+            const result = SwapMessages.offer(
+                'HYPE',
+                {
+                    side: SwapSide.BaseToUsdc,
+                    amountUsdc: 100,
+                    expectedReceived: 5,
+                },
+                20,
+            );
 
             expect(result).toContain('Price may move');
             expect(result).toContain('market price');
@@ -131,6 +153,7 @@ describe('SwapMessages', () => {
                 { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
                 1896,
                 7498,
+                53.87,
             );
 
             expect(result).toContain('Max without swap: ~1,896 USDC');
@@ -142,23 +165,27 @@ describe('SwapMessages', () => {
                 { side: SwapSide.UsdcToBase, amountUsdc: 2801, expectedReceived: 52 },
                 1896,
                 7498,
+                53.87,
             );
 
             expect(result).toContain('2,801.00 USDC');
-            expect(result).toContain('52.00 HYPE');
+            expect(result).toContain('52.000000 HYPE');
             expect(result).toContain('7,498 USDC');
         });
 
-        it('shows swap direction base to USDC for BaseToUsdc offer', () => {
+        it('shows swap direction base to USDC for BaseToUsdc offer, converting the USDC-denominated amount to a base-token quantity via currentPrice', () => {
             const result = SwapMessages.proactiveHint(
                 'HYPE',
-                { side: SwapSide.BaseToUsdc, amountUsdc: 5.5, expectedReceived: 110 },
+                { side: SwapSide.BaseToUsdc, amountUsdc: 55, expectedReceived: 55 },
                 900,
                 2000,
+                10,
             );
 
-            expect(result).toContain('5.50 HYPE');
-            expect(result).toContain('110.00 USDC');
+            // 55 USDC worth of HYPE at $10/HYPE = 5.5 HYPE, not 55 HYPE.
+            expect(result).toContain('5.500000 HYPE');
+            expect(result).not.toContain('55.000000 HYPE');
+            expect(result).toContain('55.00 USDC');
             expect(result).toContain('~2,000 USDC');
         });
 
@@ -168,6 +195,7 @@ describe('SwapMessages', () => {
                 { side: SwapSide.UsdcToBase, amountUsdc: 100, expectedReceived: 5 },
                 500,
                 1000,
+                20,
             );
 
             expect(result).not.toContain('<b>');
@@ -180,6 +208,7 @@ describe('SwapMessages', () => {
                 { side: SwapSide.BaseToUsdc, amountUsdc: 5.5, expectedReceived: 110 },
                 900,
                 2000,
+                10,
             );
 
             expect(result).toContain('Max without swap: ~900 USDC');
