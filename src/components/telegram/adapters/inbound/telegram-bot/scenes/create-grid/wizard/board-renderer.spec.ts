@@ -186,76 +186,132 @@ describe('BoardRenderer', () => {
     });
 
     describe('stepper', () => {
+        async function renderAndGetText(ctx: BotContext): Promise<string> {
+            const view: StepView = { body: 'body', keyboard: [] };
+            await sut.render(ctx, view);
+            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
+            return text;
+        }
+
         it('renders "Step 1" when stepHistory is empty and mode is unknown', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { stepHistory: [] };
-            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, view);
+            const text = await renderAndGetText(ctx);
 
-            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
             expect(text).toMatch(/^Step 1\n\n/);
-        });
-
-        it('renders "Step N of 5" for Quick mode', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = {
-                mode: CreateGridMode.Quick,
-                stepHistory: [SceneStep.Pair],
-            };
-            const view: StepView = { body: 'body', keyboard: [] };
-
-            await sut.render(ctx, view);
-
-            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toMatch(/^Step 2 of 5\n\n/);
-        });
-
-        it('renders "Step N of 9" for Advanced mode', async () => {
-            const ctx = createMockContext();
-            ctx.session.createGrid = {
-                mode: CreateGridMode.Advanced,
-                stepHistory: [SceneStep.Pair, SceneStep.Mode],
-            };
-            const view: StepView = { body: 'body', keyboard: [] };
-
-            await sut.render(ctx, view);
-
-            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toMatch(/^Step 3 of 9\n\n/);
         });
 
         it('renders "Step 1" without total when session is empty', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {};
-            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, view);
+            const text = await renderAndGetText(ctx);
 
-            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
             expect(text).toMatch(/^Step 1\n\n/);
         });
 
-        it('caps stepNumber at stepTotal when swap detour inflates history past total', async () => {
+        it('renders "Step 1" for currentStep Pair with no mode set', async () => {
             const ctx = createMockContext();
-            // Swap round-trip adds 2 extra entries: Quick→Swap→Quick
-            // Without cap: stepNumber = 6 → "Step 6 of 5"
+            ctx.session.createGrid = { currentStep: SceneStep.Pair };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 1\n\n/);
+        });
+
+        it('renders "Step 2" for currentStep Mode with no mode set', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { currentStep: SceneStep.Mode };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 2\n\n/);
+        });
+
+        it('renders "Step 3 of 4" for Quick + currentStep Quick', async () => {
+            const ctx = createMockContext();
             ctx.session.createGrid = {
                 mode: CreateGridMode.Quick,
-                stepHistory: [
-                    SceneStep.Pair,
-                    SceneStep.Mode,
-                    SceneStep.Quick,
-                    SceneStep.Swap,
-                    SceneStep.Quick,
-                ],
+                currentStep: SceneStep.Quick,
             };
-            const view: StepView = { body: 'body', keyboard: [] };
 
-            await sut.render(ctx, view);
+            const text = await renderAndGetText(ctx);
 
-            const [text] = vi.mocked(ctx.reply).mock.calls[0] as unknown as [string];
-            expect(text).toMatch(/^Step 5 of 5\n\n/);
+            expect(text).toMatch(/^Step 3 of 4\n\n/);
+        });
+
+        it('still renders "Step 3 of 4" when stepHistory is inflated by a swap round-trip (D1 regression guard)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Quick,
+                currentStep: SceneStep.Quick,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Quick, SceneStep.Quick],
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 3 of 4\n\n/);
+        });
+
+        it('renders "Step 3 of 4" for Quick + currentStep Swap (detour borrows the investment position)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Quick,
+                currentStep: SceneStep.Swap,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 3 of 4\n\n/);
+        });
+
+        it('renders "Step 4 of 4" for Quick + currentStep Preview (D2 regression guard)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Quick,
+                currentStep: SceneStep.Preview,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 4 of 4\n\n/);
+        });
+
+        it('renders "Step 6 of 8" for Advanced + currentStep Investment', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Advanced,
+                currentStep: SceneStep.Investment,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 6 of 8\n\n/);
+        });
+
+        it('renders "Step 6 of 8" for Advanced + currentStep Swap', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Advanced,
+                currentStep: SceneStep.Swap,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 6 of 8\n\n/);
+        });
+
+        it('renders "Step 8 of 8" for Advanced + currentStep Preview', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Advanced,
+                currentStep: SceneStep.Preview,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 8 of 8\n\n/);
         });
     });
 });

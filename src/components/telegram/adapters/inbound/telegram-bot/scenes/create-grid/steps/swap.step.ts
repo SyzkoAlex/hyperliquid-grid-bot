@@ -12,6 +12,7 @@ import { SpotSwapResultDto } from '@components/trading/api/dto/spot-swap-result.
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SwapMessages } from '@components/telegram/core/domain/models/messages/wizard/swap.messages';
 import { BoardRenderer } from '../wizard/board-renderer';
+import { CreateGridMode } from '../create-grid-mode';
 import { logger } from '@/infra/logger/logger';
 
 @Injectable()
@@ -33,7 +34,7 @@ export class SwapStep implements WizardStep {
         if (!offer || !symbol || !currentPrice) {
             return {
                 body: SwapMessages.failed('No swap offer found. Please go back and try again.'),
-                keyboard: this.cancelOnlyKeyboard(),
+                keyboard: this.recoveryKeyboard(),
             };
         }
 
@@ -116,11 +117,17 @@ export class SwapStep implements WizardStep {
         return { nextStep: this.previousInvestmentStep(ctx) };
     }
 
-    /** Returns the investment step that navigated into Swap (Quick or Advanced). */
+    /**
+     * Returns the investment step that navigated into Swap (Quick or Advanced).
+     * Falls back to `state.mode` when `detourReturnStep` is missing, which can happen
+     * for sessions created before this field existed (cached sessions live up to 24h).
+     */
     private previousInvestmentStep(ctx: BotContext): SceneStep {
-        const history = ctx.session.createGrid?.stepHistory;
-        const previousStep = history?.[history.length - 1];
-        return previousStep === SceneStep.Quick ? SceneStep.Quick : SceneStep.Investment;
+        const state = ctx.session.createGrid;
+        return (
+            state?.detourReturnStep ??
+            (state?.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment)
+        );
     }
 
     rollbackState(ctx: BotContext): void {
@@ -141,7 +148,12 @@ export class SwapStep implements WizardStep {
         ];
     }
 
-    private cancelOnlyKeyboard(): InlineButton[][] {
-        return [[{ text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL }]];
+    private recoveryKeyboard(): InlineButton[][] {
+        return [
+            [
+                { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
+                { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
+            ],
+        ];
     }
 }

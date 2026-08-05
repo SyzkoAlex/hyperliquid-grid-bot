@@ -85,6 +85,16 @@ describe('AdvancedUpperStep', () => {
             expect(view.body).toBeTruthy();
             expect(view.body).not.toContain('❌ Invalid price');
         });
+
+        it('caches currentPrice in session', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+
+            await step.buildView(ctx);
+
+            expect(ctx.session.createGrid?.currentPrice).toBe(50000);
+        });
     });
 
     describe('rollbackState', () => {
@@ -125,6 +135,17 @@ describe('AdvancedUpperStep', () => {
 
             expect(result).toEqual({ nextStep: SceneStep.Lower });
             expect(ctx.session.createGrid?.upperPrice).toBe(55000);
+        });
+
+        it('uses the cached currentPrice without calling getCurrentPrice again (F5 regression guard)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC', currentPrice: 50000 };
+
+            const result = await step.handleUpperPreset(ctx, '10');
+
+            expect(result).toEqual({ nextStep: SceneStep.Lower });
+            expect(ctx.session.createGrid?.upperPrice).toBe(55000);
+            expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
     });
 

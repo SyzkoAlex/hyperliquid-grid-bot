@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SwapStep } from './swap.step';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
+import { CreateGridMode } from '../create-grid-mode';
 import { SwapSide } from '@components/trading/api/dto/optimal-swap.dto';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
 import { BoardRenderer } from '../wizard/board-renderer';
@@ -46,7 +47,8 @@ function createMockContext(
         swapOfferPrice?: number | null;
         swapFeedback?: string;
         accountAddress?: string;
-        stepHistory?: SceneStep[];
+        detourReturnStep?: SceneStep;
+        mode?: CreateGridMode;
     } = {},
 ): BotContext {
     return {
@@ -63,7 +65,8 @@ function createMockContext(
                         : (overrides.swapOfferPrice ?? DEFAULT_PRICE),
                 swapFeedback: overrides.swapFeedback,
                 totalInvestmentUSDC: 500,
-                stepHistory: overrides.stepHistory,
+                detourReturnStep: overrides.detourReturnStep,
+                mode: overrides.mode,
             },
         },
         user: {
@@ -101,28 +104,30 @@ describe('SwapStep', () => {
             expect(hasConfirm).toBe(true);
         });
 
-        it('returns error body with cancel-only keyboard when no swapOffer', async () => {
+        it('returns error body with a Back + Cancel recovery keyboard when no swapOffer', async () => {
             const ctx = createMockContext({ swapOffer: null });
 
             const view = await sut.buildView(ctx);
 
             expect(view.body).toContain('No swap offer found');
-            const hasCancelOnly =
+            const hasBackAndCancel =
                 view.keyboard.length === 1 &&
+                view.keyboard[0].some((b) => b.action === 'create_grid:back') &&
                 view.keyboard[0].some((b) => b.action === 'create_grid:cancel');
-            expect(hasCancelOnly).toBe(true);
+            expect(hasBackAndCancel).toBe(true);
         });
 
-        it('returns error body with cancel-only keyboard when swapOfferPrice is missing', async () => {
+        it('returns error body with a Back + Cancel recovery keyboard when swapOfferPrice is missing', async () => {
             const ctx = createMockContext({ swapOfferPrice: null });
 
             const view = await sut.buildView(ctx);
 
             expect(view.body).toContain('No swap offer found');
-            const hasCancelOnly =
+            const hasBackAndCancel =
                 view.keyboard.length === 1 &&
+                view.keyboard[0].some((b) => b.action === 'create_grid:back') &&
                 view.keyboard[0].some((b) => b.action === 'create_grid:cancel');
-            expect(hasCancelOnly).toBe(true);
+            expect(hasBackAndCancel).toBe(true);
             expect(mockTradingApi.getCurrentPrice).not.toHaveBeenCalled();
         });
 
@@ -200,7 +205,7 @@ describe('SwapStep', () => {
                 notionalUsdc: 200,
             });
             const ctx = createMockContext({
-                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Investment],
+                detourReturnStep: SceneStep.Investment,
             });
 
             const result = await sut.handleConfirm(ctx);
@@ -221,12 +226,38 @@ describe('SwapStep', () => {
                 notionalUsdc: 200,
             });
             const ctx = createMockContext({
-                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Quick],
+                detourReturnStep: SceneStep.Quick,
             });
 
             const result = await sut.handleConfirm(ctx);
 
             expect(result).toEqual({ nextStep: SceneStep.Quick });
+        });
+
+        it('falls back to Quick when detourReturnStep is missing but mode is Quick (stale pre-migration session)', async () => {
+            mockTradingApi.executeSpotSwap.mockResolvedValue({
+                success: true,
+                filledBase: 6.5,
+                notionalUsdc: 200,
+            });
+            const ctx = createMockContext({ mode: CreateGridMode.Quick });
+
+            const result = await sut.handleConfirm(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Quick });
+        });
+
+        it('falls back to Investment when detourReturnStep and mode are both missing (stale pre-migration session)', async () => {
+            mockTradingApi.executeSpotSwap.mockResolvedValue({
+                success: true,
+                filledBase: 6.5,
+                notionalUsdc: 200,
+            });
+            const ctx = createMockContext();
+
+            const result = await sut.handleConfirm(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Investment });
         });
 
         it('clears swapOffer and totalInvestmentUSDC on success', async () => {
@@ -328,7 +359,7 @@ describe('SwapStep', () => {
     describe('handleSkip', () => {
         it('clears swapOffer and returns Investment step (advanced mode)', async () => {
             const ctx = createMockContext({
-                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Investment],
+                detourReturnStep: SceneStep.Investment,
             });
 
             const result = await sut.handleSkip(ctx);
@@ -340,7 +371,7 @@ describe('SwapStep', () => {
 
         it('returns Quick step when reached from Quick mode', async () => {
             const ctx = createMockContext({
-                stepHistory: [SceneStep.Pair, SceneStep.Mode, SceneStep.Quick],
+                detourReturnStep: SceneStep.Quick,
             });
 
             const result = await sut.handleSkip(ctx);
@@ -350,12 +381,20 @@ describe('SwapStep', () => {
             expect(ctx.session.createGrid?.swapOfferPrice).toBeUndefined();
         });
 
-        it('defaults to Investment step when stepHistory is empty', async () => {
-            const ctx = createMockContext({ stepHistory: [] });
+        it('defaults to Investment step when detourReturnStep is unset', async () => {
+            const ctx = createMockContext();
 
             const result = await sut.handleSkip(ctx);
 
             expect(result).toEqual({ nextStep: SceneStep.Investment });
+        });
+
+        it('falls back to Quick when detourReturnStep is missing but mode is Quick (stale pre-migration session)', async () => {
+            const ctx = createMockContext({ mode: CreateGridMode.Quick });
+
+            const result = await sut.handleSkip(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Quick });
         });
     });
 

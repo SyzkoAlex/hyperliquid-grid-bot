@@ -9,13 +9,15 @@ import { CreateGridMode } from '../create-grid-mode';
 import { SceneStep } from '../create-grid-scene-step';
 import { WizardSummaryBuilder } from './wizard-summary-builder';
 
-// Canonical step sequences (Swap is a detour, not counted in the total).
+// Canonical rendered-step sequences. Confirm is a button on Preview, not a screen,
+// so it is not part of the sequence. Swap is a detour and borrows the position of
+// the investment step it was opened from.
+const PRE_MODE_STEPS: readonly SceneStep[] = [SceneStep.Pair, SceneStep.Mode];
 const QUICK_STEPS: readonly SceneStep[] = [
     SceneStep.Pair,
     SceneStep.Mode,
     SceneStep.Quick,
     SceneStep.Preview,
-    SceneStep.Confirm,
 ];
 const ADVANCED_STEPS: readonly SceneStep[] = [
     SceneStep.Pair,
@@ -26,11 +28,7 @@ const ADVANCED_STEPS: readonly SceneStep[] = [
     SceneStep.Investment,
     SceneStep.StopLoss,
     SceneStep.Preview,
-    SceneStep.Confirm,
 ];
-
-const QUICK_STEP_TOTAL = QUICK_STEPS.length;
-const ADVANCED_STEP_TOTAL = ADVANCED_STEPS.length;
 
 @Injectable()
 export class BoardRenderer {
@@ -100,16 +98,21 @@ export class BoardRenderer {
 
     private buildStepper(state: CreateGridWizardState | undefined): string | null {
         if (!state) return null;
-        const rawStepNumber = (state.stepHistory?.length ?? 0) + 1;
-        let stepTotal: number | null = null;
-        if (state.mode === CreateGridMode.Quick) {
-            stepTotal = QUICK_STEP_TOTAL;
-        } else if (state.mode === CreateGridMode.Advanced) {
-            stepTotal = ADVANCED_STEP_TOTAL;
-        }
-        // Cap stepNumber so detour steps (e.g. Swap round-trips) never push the
-        // counter above the declared total (prevents "Step 7 of 5" displays).
-        const stepNumber = stepTotal !== null ? Math.min(rawStepNumber, stepTotal) : rawStepNumber;
-        return stepTotal !== null ? `Step ${stepNumber} of ${stepTotal}` : `Step ${stepNumber}`;
+        const sequence = this.resolveSequence(state.mode);
+        const index = sequence.indexOf(this.resolveSequencePosition(state));
+        if (index === -1) return null;
+        return state.mode ? `Step ${index + 1} of ${sequence.length}` : `Step ${index + 1}`;
+    }
+
+    private resolveSequence(mode: CreateGridMode | undefined): readonly SceneStep[] {
+        if (mode === CreateGridMode.Quick) return QUICK_STEPS;
+        if (mode === CreateGridMode.Advanced) return ADVANCED_STEPS;
+        return PRE_MODE_STEPS;
+    }
+
+    private resolveSequencePosition(state: CreateGridWizardState): SceneStep {
+        const current = state.currentStep ?? SceneStep.Pair;
+        if (current !== SceneStep.Swap) return current;
+        return state.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment;
     }
 }

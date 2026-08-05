@@ -67,15 +67,16 @@ describe('WizardSummaryBuilder', () => {
         expect(result).toContain('✓ <b>Orders</b> · 10');
     });
 
-    it('renders Investment row from Quick step when grid params absent', () => {
+    it('renders Investment and Stop Loss rows from Quick step when grid params absent', () => {
         const result = sut.buildSummaryFromSession(
             state({ stepHistory: [SceneStep.Quick], totalInvestmentUSDC: 500 }),
         );
         expect(result).toContain('✓ <b>Investment</b> · $500 USDC');
+        expect(result).toContain('✓ <b>Stop Loss</b> · Disabled');
         expect(result).not.toContain('<b>Upper</b>');
     });
 
-    it('renders Upper, Lower, Orders and Investment from Quick step when grid params present', () => {
+    it('renders Upper, Lower, Orders, Investment and Stop Loss from Quick step when grid params present', () => {
         const result = sut.buildSummaryFromSession(
             state({
                 stepHistory: [SceneStep.Quick],
@@ -89,8 +90,25 @@ describe('WizardSummaryBuilder', () => {
         expect(result).toContain('✓ <b>Lower</b>');
         expect(result).toContain('✓ <b>Orders</b> · 20');
         expect(result).toContain('✓ <b>Investment</b> · $2828 USDC');
+        expect(result).toContain('✓ <b>Stop Loss</b> · Disabled');
         const lines = result.split('\n');
-        expect(lines.length).toBe(4);
+        expect(lines.length).toBe(5);
+        expect(lines[lines.length - 1]).toBe('✓ <b>Stop Loss</b> · Disabled');
+    });
+
+    it('renders Stop Loss row with price from Quick step when stopLossEnabled is true', () => {
+        // Currently unreachable in prod (Quick flow never sets stopLossEnabled), but the
+        // summary formula must stay correct in case that ever changes.
+        const result = sut.buildSummaryFromSession(
+            state({
+                stepHistory: [SceneStep.Quick],
+                totalInvestmentUSDC: 500,
+                stopLossEnabled: true,
+                stopLossPrice: 1980,
+            }),
+        );
+        expect(result).toContain('✓ <b>Stop Loss</b> · $1980');
+        expect(result).not.toContain('✓ <b>Stop Loss</b> · Disabled');
     });
 
     it('renders Investment row from Investment step', () => {
@@ -116,6 +134,23 @@ describe('WizardSummaryBuilder', () => {
             }),
         );
         expect(result).toContain('✓ <b>Stop Loss</b> · $1980');
+    });
+
+    it('renders exactly one Stop Loss row for an Advanced history', () => {
+        const result = sut.buildSummaryFromSession(
+            state({
+                stepHistory: [SceneStep.Investment, SceneStep.StopLoss],
+                mode: CreateGridMode.Advanced,
+                totalInvestmentUSDC: 1000,
+                stopLossEnabled: true,
+                stopLossPrice: 1980,
+            }),
+        );
+        const stopLossLines = result
+            .split('\n')
+            .filter((line) => line.includes('<b>Stop Loss</b>'));
+        expect(stopLossLines).toHaveLength(1);
+        expect(stopLossLines[0]).toBe('✓ <b>Stop Loss</b> · $1980');
     });
 
     it('does not render rows for steps not in stepHistory', () => {

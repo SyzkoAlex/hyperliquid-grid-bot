@@ -46,6 +46,7 @@ export class AdvancedPreviewStep implements WizardStep {
             orderCount,
             lowerPrice,
             upperPrice,
+            capacityMax: state.balanceSnapshot?.suggestedMax,
         }).text;
 
         return { body, keyboard };
