@@ -7,6 +7,22 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.1.0] — 2026-05-27
 
+### Bug Fixes
+
+- **ci:** Construct PR URL from remote.github vars — commit.remote.pr_url does not exist in git-cliff 2.x 
+- **ci:** Grant pull-requests:read so GITHUB_TOKEN can fetch PR metadata for git-cliff 
+- **ci:** Pass GITHUB_TOKEN to git-cliff steps, fix deprecated commit.github refs and owner casing 
+
+### Chore
+
+- **release:** V1.1.0 
+
+### Features
+
+- **telegram:** Add persistent menu button via setMyCommands 
+
+## [1.1.0] — 2026-05-27
+
 ### Features
 
 - **telegram:** Add persistent menu button via setMyCommands
