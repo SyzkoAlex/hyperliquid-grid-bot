@@ -15,6 +15,7 @@ on:
 permissions:
   contents: write
   pull-requests: read
+  packages: write
 
 jobs:
   release:
@@ -81,11 +82,40 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit package.json + CHANGELOG.md and push tag
+      - name: Commit package.json + CHANGELOG.md and tag (local only)
         run: |
           git add package.json CHANGELOG.md
           git commit -m "chore(release): v${{ steps.bump.outputs.version }}"
           git tag "${{ steps.bump.outputs.tag }}"
+
+      # Build and push the image before publishing the commit, tag and release:
+      # a failed build must not leave a tag/release without an image
+      - name: Set image name and tag
+        id: image
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.image.outputs.sha }}
+            ${{ steps.image.outputs.name }}:${{ steps.bump.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Push commit and tag
+        run: |
           git push origin HEAD:main
           git push origin "${{ steps.bump.outputs.tag }}"
 
@@ -97,3 +127,11 @@ jobs:
           body_path: RELEASE_BODY.md
           draft: false
           prerelease: false
+
+      - name: Summary
+        run: |
+          {
+            echo "Release ${{ steps.bump.outputs.tag }}"
+            echo "Image: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.sha }}"
+            echo "Image: ${{ steps.image.outputs.name }}:${{ steps.bump.outputs.tag }}"
+          } >> "$GITHUB_STEP_SUMMARY"
