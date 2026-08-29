@@ -35,7 +35,7 @@ export class QuickStartPromptMessage {
         } = params;
 
         const feeHint = feeHintLine({
-            suggestedMax,
+            totalInvestment: suggestedMax,
             orderCount: WIZARD_CONFIG.DEFAULT_ORDERS,
             lowerPrice,
             upperPrice,

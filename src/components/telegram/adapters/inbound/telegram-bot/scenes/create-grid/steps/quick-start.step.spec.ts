@@ -181,6 +181,24 @@ describe('QuickStartStep', () => {
             expect(view.body).not.toContain('Swap complete');
         });
 
+        it('writes upperPrice, lowerPrice and currentPrice into session', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { BTC: 0.1 },
+                spotPositions: { BTC: { available: 0.1, total: 0.1, hold: 0 } },
+            });
+
+            await step.buildView(ctx);
+
+            expect(ctx.session.createGrid?.currentPrice).toBe(50000);
+            expect(ctx.session.createGrid?.upperPrice).toBe(60000);
+            expect(ctx.session.createGrid?.lowerPrice).toBe(40000);
+        });
+
         it('renders Swap to maximize button when proactive hint is shown', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = { symbol: 'HYPE' };
@@ -309,6 +327,36 @@ describe('QuickStartStep', () => {
             const result = await step.handleInvestmentPreset(ctx, '50');
 
             expect(result).toBeNull();
+        });
+
+        it('reuses the price range persisted by buildView without extra getCurrentPrice calls (F4 regression guard)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'BTC' };
+            vi.mocked(mockTradingApi.getCurrentPrice).mockResolvedValue(50000);
+            vi.mocked(mockTradingApi.getUserSpotState).mockResolvedValue({
+                usdcBalance: 5000,
+                usdc: { available: 5000, total: 5000, hold: 0 },
+                spotBalances: { BTC: 1 },
+                spotPositions: { BTC: { available: 1, total: 1, hold: 0 } },
+            });
+            vi.mocked(mockTradingApi.calculateMaxInvestment).mockReturnValue(1000);
+
+            await step.buildView(ctx);
+            const callsAfterBuildView = vi.mocked(mockTradingApi.getCurrentPrice).mock.calls.length;
+            const upperPriceFromBuildView = ctx.session.createGrid?.upperPrice;
+            const lowerPriceFromBuildView = ctx.session.createGrid?.lowerPrice;
+
+            const result = await step.handleInvestmentPreset(ctx, '25');
+
+            // applyTextInput no longer re-derives the ±20% range itself (that used to be
+            // one extra call); validateInvestment still fetches the price once for its
+            // own buy/sell classification, so the count grows by exactly one, not zero.
+            expect(vi.mocked(mockTradingApi.getCurrentPrice).mock.calls.length).toBe(
+                callsAfterBuildView + 1,
+            );
+            expect(result).toEqual({ nextStep: SceneStep.Preview });
+            expect(ctx.session.createGrid?.upperPrice).toBe(upperPriceFromBuildView);
+            expect(ctx.session.createGrid?.lowerPrice).toBe(lowerPriceFromBuildView);
         });
     });
 

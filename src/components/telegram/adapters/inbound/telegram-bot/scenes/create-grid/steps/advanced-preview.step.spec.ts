@@ -65,6 +65,26 @@ describe('AdvancedPreviewStep', () => {
             expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.BACK)).toBe(true);
             expect(flat.some((b) => b.action === CREATE_GRID_ACTIONS.CANCEL)).toBe(true);
         });
+
+        it('shows the capacity line when balanceSnapshot is present', async () => {
+            const ctx = createMockContext({ totalInvestmentUSDC: 326 }, { suggestedMax: 1304 });
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('326.00');
+            expect(view.body).toContain('1,304.00');
+            expect(view.body).toContain('25%');
+        });
+
+        it('renders without the capacity line when balanceSnapshot is absent', async () => {
+            const ctx = createMockContext();
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).not.toContain('max for this grid');
+            expect(view.body).not.toContain('NaN');
+            expect(view.body).not.toContain('undefined');
+        });
     });
 
     describe('rollbackState', () => {
@@ -121,6 +141,7 @@ describe('AdvancedPreviewStep', () => {
             orderCount: number;
             totalInvestmentUSDC: number;
         }> = {},
+        balanceSnapshot?: { suggestedMax: number },
     ): BotContext {
         const session = {
             createGrid: {
@@ -130,6 +151,7 @@ describe('AdvancedPreviewStep', () => {
                 lowerPrice: 45000,
                 orderCount: 10,
                 totalInvestmentUSDC: 1000,
+                balanceSnapshot,
                 ...overrides,
             },
         };

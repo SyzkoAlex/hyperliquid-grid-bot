@@ -25,4 +25,6 @@ export interface CreateGridWizardState {
     swapOfferPrice?: number;
     /** Mirror of `pendingError`, but for the Swap step's own validation/feedback. */
     swapFeedback?: string;
+    /** Step to return to when leaving a detour step (Swap). Set by WizardNavigator. */
+    detourReturnStep?: SceneStep;
 }

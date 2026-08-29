@@ -17,6 +17,7 @@ import { ConfirmStep } from './steps/confirm.step';
 import { BotContext } from '../../types/bot-context';
 import { SceneStep } from './create-grid-scene-step';
 import { CreateGridMode } from './create-grid-mode';
+import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 
 describe('CreateGridSceneHandler', () => {
     let handler: CreateGridSceneHandler;
@@ -205,6 +206,37 @@ describe('CreateGridSceneHandler', () => {
             ).handlePairAction(ctx);
 
             expect(mockNavigator.renderCurrentStep).toHaveBeenCalledWith(ctx);
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith(undefined);
+        });
+
+        it('answers with the action-unavailable toast when result is null and no pendingError is set (H3 regression guard)', async () => {
+            const ctx = createMockContext({
+                match: [undefined, 'INVALID'] as unknown as RegExpExecArray,
+            });
+            ctx.session.createGrid = {};
+            vi.mocked(mockSelectPairStep.handlePairSelection).mockResolvedValue(null);
+
+            await (
+                handler as unknown as { handlePairAction(ctx: BotContext): Promise<void> }
+            ).handlePairAction(ctx);
+
+            expect(mockNavigator.renderCurrentStep).not.toHaveBeenCalled();
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith(CommonTexts.ACTION_UNAVAILABLE);
+        });
+
+        it('answers with undefined toast when a result is returned', async () => {
+            const result = { nextStep: SceneStep.Mode };
+            const ctx = createMockContext({
+                match: [undefined, 'ETH'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockSelectPairStep.handlePairSelection).mockResolvedValue(result);
+
+            await (
+                handler as unknown as { handlePairAction(ctx: BotContext): Promise<void> }
+            ).handlePairAction(ctx);
+
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith(undefined);
         });
     });
 

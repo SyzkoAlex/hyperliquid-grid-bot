@@ -55,6 +55,12 @@ export class QuickStartStep implements WizardStep {
                 const upperPrice = currentPrice + priceOffset;
                 const lowerPrice = currentPrice - priceOffset;
 
+                if (session.createGrid) {
+                    session.createGrid.currentPrice = currentPrice;
+                    session.createGrid.upperPrice = upperPrice;
+                    session.createGrid.lowerPrice = lowerPrice;
+                }
+
                 const result = await buildInvestmentView(
                     this.tradingApi,
                     accountAddress,
@@ -198,10 +204,12 @@ export class QuickStartStep implements WizardStep {
         const investment = parseFloat(text);
 
         try {
-            const currentPrice = await this.tradingApi.getCurrentPrice(session.createGrid.symbol);
-            const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
-            const upperPrice = currentPrice + priceOffset;
-            const lowerPrice = currentPrice - priceOffset;
+            const storedUpper = session.createGrid.upperPrice;
+            const storedLower = session.createGrid.lowerPrice;
+            const [lowerPrice, upperPrice] =
+                storedUpper && storedLower
+                    ? [storedLower, storedUpper]
+                    : await this.computePriceRange(session.createGrid.symbol);
 
             const result = await validateInvestment(
                 {
@@ -233,6 +241,12 @@ export class QuickStartStep implements WizardStep {
             );
             return null;
         }
+    }
+
+    private async computePriceRange(symbol: string): Promise<[number, number]> {
+        const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+        const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
+        return [currentPrice - priceOffset, currentPrice + priceOffset];
     }
 
     rollbackState(ctx: BotContext): void {

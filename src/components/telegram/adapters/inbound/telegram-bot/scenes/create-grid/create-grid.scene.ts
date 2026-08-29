@@ -103,15 +103,18 @@ export class CreateGridSceneHandler implements SceneHandler {
         ctx: BotContext,
         handlerFn: () => Promise<StepResult>,
     ): Promise<void> {
+        let toast: string | undefined;
         try {
             const result = await handlerFn();
             if (result) {
                 await this.navigator.completeStep(ctx, result);
             } else if (ctx.session.createGrid?.pendingError) {
                 await this.navigator.renderCurrentStep(ctx);
+            } else {
+                toast = CommonTexts.ACTION_UNAVAILABLE;
             }
         } finally {
-            await ctx.answerCbQuery();
+            await ctx.answerCbQuery(toast);
         }
     }
 

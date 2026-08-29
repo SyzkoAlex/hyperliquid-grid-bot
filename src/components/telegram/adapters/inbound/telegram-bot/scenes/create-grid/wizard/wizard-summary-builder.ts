@@ -13,7 +13,7 @@ export class WizardSummaryBuilder {
         const rows: string[] = [];
         const seen = new Set<SceneStep>();
         for (const step of state.stepHistory) {
-            // Skip duplicate steps (e.g. Quick appears twice after a swap round-trip)
+            // Each step renders at most one row, no matter how many times it recurs.
             if (seen.has(step)) continue;
             seen.add(step);
             const row = this.buildRowForStep(step, state);
@@ -58,6 +58,11 @@ export class WizardSummaryBuilder {
                 if (state.orderCount !== undefined)
                     lines.push(`✓ <b>Orders</b> · ${state.orderCount}`);
                 lines.push(`✓ <b>Investment</b> · $${state.totalInvestmentUSDC} USDC`);
+                lines.push(
+                    !state.stopLossEnabled || state.stopLossPrice === undefined
+                        ? `✓ <b>Stop Loss</b> · Disabled`
+                        : `✓ <b>Stop Loss</b> · $${PriceFormatter.format(state.stopLossPrice)}`,
+                );
                 return lines.join('\n');
             }
             case SceneStep.Investment: {

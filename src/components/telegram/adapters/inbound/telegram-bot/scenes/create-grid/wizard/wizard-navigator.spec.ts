@@ -5,12 +5,16 @@ import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
 import { WizardStep } from './wizard-step';
 import { StepView } from './step-view';
+import { CreateGridMode } from '../create-grid-mode';
 
 describe('WizardNavigator', () => {
     let navigator: WizardNavigator;
     let mockBoardRenderer: BoardRenderer;
     let mockPairStep: WizardStep;
     let mockModeStep: WizardStep;
+    let mockSwapStep: WizardStep;
+    let mockInvestmentStep: WizardStep;
+    let mockQuickStep: WizardStep;
 
     const pairView: StepView = {
         body: 'Select pair',
@@ -20,6 +24,21 @@ describe('WizardNavigator', () => {
     const modeView: StepView = {
         body: 'Select mode',
         keyboard: [[{ text: 'Quick', action: 'create_grid:mode:quick' }]],
+    };
+
+    const swapView: StepView = {
+        body: 'Swap offer',
+        keyboard: [[{ text: 'Confirm', action: 'create_grid:swap_confirm' }]],
+    };
+
+    const investmentView: StepView = {
+        body: 'Enter investment',
+        keyboard: [[{ text: 'Cancel', action: 'create_grid:cancel' }]],
+    };
+
+    const quickView: StepView = {
+        body: 'Quick setup',
+        keyboard: [[{ text: 'Cancel', action: 'create_grid:cancel' }]],
     };
 
     beforeEach(() => {
@@ -39,9 +58,30 @@ describe('WizardNavigator', () => {
             rollbackState: vi.fn(),
         } as unknown as WizardStep;
 
+        mockSwapStep = {
+            id: SceneStep.Swap,
+            buildView: vi.fn().mockResolvedValue(swapView),
+            rollbackState: vi.fn(),
+        } as unknown as WizardStep;
+
+        mockInvestmentStep = {
+            id: SceneStep.Investment,
+            buildView: vi.fn().mockResolvedValue(investmentView),
+            rollbackState: vi.fn(),
+        } as unknown as WizardStep;
+
+        mockQuickStep = {
+            id: SceneStep.Quick,
+            buildView: vi.fn().mockResolvedValue(quickView),
+            rollbackState: vi.fn(),
+        } as unknown as WizardStep;
+
         navigator = new WizardNavigator(mockBoardRenderer);
         navigator.registerStep(mockPairStep);
         navigator.registerStep(mockModeStep);
+        navigator.registerStep(mockSwapStep);
+        navigator.registerStep(mockInvestmentStep);
+        navigator.registerStep(mockQuickStep);
     });
 
     function createMockContext(): BotContext {
@@ -105,6 +145,55 @@ describe('WizardNavigator', () => {
 
             expect(ctx.session.createGrid?.stepHistory).toContain(SceneStep.Pair);
         });
+
+        it('entering Swap does not push to stepHistory and sets detourReturnStep', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Mode,
+                stepHistory: [SceneStep.Pair],
+            };
+
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Swap });
+
+            expect(ctx.session.createGrid?.stepHistory).toEqual([SceneStep.Pair]);
+            expect(ctx.session.createGrid?.detourReturnStep).toBe(SceneStep.Mode);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Swap);
+        });
+
+        it('leaving Swap does not push to stepHistory and clears detourReturnStep', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Swap,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                detourReturnStep: SceneStep.Mode,
+            };
+
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Mode });
+
+            expect(ctx.session.createGrid?.stepHistory).toEqual([SceneStep.Pair, SceneStep.Mode]);
+            expect(ctx.session.createGrid?.detourReturnStep).toBeUndefined();
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Mode);
+        });
+
+        it('two consecutive swap round-trips leave stepHistory free of Swap and with only one Quick entry', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Mode,
+                stepHistory: [SceneStep.Pair],
+            };
+
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Quick });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Swap });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Quick });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Swap });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Quick });
+            await navigator.completeStep(ctx, { nextStep: SceneStep.Preview });
+
+            expect(ctx.session.createGrid?.stepHistory).not.toContain(SceneStep.Swap);
+            expect(
+                ctx.session.createGrid?.stepHistory?.filter((s) => s === SceneStep.Quick),
+            ).toHaveLength(1);
+        });
     });
 
     describe('handleBack', () => {
@@ -154,6 +243,54 @@ describe('WizardNavigator', () => {
             await navigator.handleBack(ctx);
 
             expect(mockBoardRenderer.render).not.toHaveBeenCalled();
+        });
+
+        it('rolls back Swap and returns to detourReturnStep without popping stepHistory (C4 regression guard)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Swap,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                detourReturnStep: SceneStep.Mode,
+            };
+
+            await navigator.handleBack(ctx);
+
+            expect(mockSwapStep.rollbackState).toHaveBeenCalledWith(ctx);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Mode);
+            expect(ctx.session.createGrid?.stepHistory).toEqual([SceneStep.Pair, SceneStep.Mode]);
+            expect(ctx.session.createGrid?.detourReturnStep).toBeUndefined();
+            expect(mockModeStep.buildView).toHaveBeenCalledWith(ctx);
+        });
+
+        it('falls back to Quick when currentStep is Swap, detourReturnStep is missing, and mode is Quick (stale pre-migration session)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Swap,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                mode: CreateGridMode.Quick,
+            };
+
+            await navigator.handleBack(ctx);
+
+            expect(mockSwapStep.rollbackState).toHaveBeenCalledWith(ctx);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Quick);
+            expect(mockQuickStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, quickView);
+        });
+
+        it('falls back to Investment when currentStep is Swap, detourReturnStep and mode are both missing (stale pre-migration session)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Swap,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+            };
+
+            await navigator.handleBack(ctx);
+
+            expect(mockSwapStep.rollbackState).toHaveBeenCalledWith(ctx);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Investment);
+            expect(mockInvestmentStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, investmentView);
         });
     });
 
@@ -265,7 +402,7 @@ describe('WizardNavigator', () => {
         it('does nothing when step is not registered', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {
-                currentStep: SceneStep.Quick,
+                currentStep: SceneStep.StopLoss,
                 stepHistory: [],
             };
 
@@ -297,7 +434,7 @@ describe('WizardNavigator', () => {
         });
 
         it('returns undefined for unregistered step', () => {
-            expect(navigator.getStepInstance(SceneStep.Quick)).toBeUndefined();
+            expect(navigator.getStepInstance(SceneStep.StopLoss)).toBeUndefined();
         });
     });
 });

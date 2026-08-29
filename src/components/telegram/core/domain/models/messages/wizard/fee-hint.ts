@@ -3,7 +3,7 @@ import { EMOJI } from '../../constants/emoji';
 import { calculateGridFeeMetrics } from '../../grid-fee-calculator';
 
 interface FeeHintParams {
-    suggestedMax: number;
+    totalInvestment: number;
     orderCount: number;
     lowerPrice: number;
     upperPrice: number;
@@ -16,14 +16,14 @@ export function feeHintLine(params?: FeeHintParams): string {
             ` / ~${(HYPERLIQUID_SPOT_FEE.makerRate * 100).toFixed(2)}% maker`
         );
     }
-    const { suggestedMax, orderCount, lowerPrice, upperPrice } = params;
+    const { totalInvestment, orderCount, lowerPrice, upperPrice } = params;
     const metrics = calculateGridFeeMetrics({
         lowerPrice,
         upperPrice,
         orderCount,
-        totalInvestment: suggestedMax,
+        totalInvestment,
     });
-    const orderSize = suggestedMax / orderCount;
+    const orderSize = totalInvestment / orderCount;
     // profitPerCycle: gross profit per order per completed grid step (buy + sell round-trip)
     const profitPerCycle = (orderSize * metrics.gridStepPct) / 100;
     // feePerCycle: maker fee for both fills (buy fill + sell fill) for one order

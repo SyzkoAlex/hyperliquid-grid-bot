@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
+import { CreateGridMode } from '../create-grid-mode';
 import { WizardStep } from './wizard-step';
 import { StepCompleted } from './step-result';
 import { BoardRenderer } from './board-renderer';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
 import { logger } from '@/infra/logger/logger';
+
+const DETOUR_STEPS: ReadonlySet<SceneStep> = new Set([SceneStep.Swap]);
 
 @Injectable()
 export class WizardNavigator {
@@ -33,31 +36,45 @@ export class WizardNavigator {
             return;
         }
 
-        if (!state.stepHistory) {
-            state.stepHistory = [];
+        if (DETOUR_STEPS.has(result.nextStep)) {
+            state.detourReturnStep = state.currentStep;
+        } else if (DETOUR_STEPS.has(state.currentStep)) {
+            delete state.detourReturnStep;
+        } else {
+            state.stepHistory = state.stepHistory ?? [];
+            state.stepHistory.push(state.currentStep);
         }
-        state.stepHistory.push(state.currentStep);
-        state.currentStep = result.nextStep;
 
+        state.currentStep = result.nextStep;
         await this.renderCurrentStep(ctx);
     }
 
     async handleBack(ctx: BotContext): Promise<void> {
         const state = ctx.session.createGrid;
-        if (!state?.currentStep || !state.stepHistory) {
+        if (!state?.currentStep) {
             return;
         }
 
-        const previousStepId = state.stepHistory.pop();
+        if (DETOUR_STEPS.has(state.currentStep)) {
+            // Fall back to `state.mode` for sessions cached before `detourReturnStep`
+            // existed (cached sessions live up to 24h and may predate this field).
+            const returnStep =
+                state.detourReturnStep ??
+                (state.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment);
+            this.steps.get(state.currentStep)?.rollbackState(ctx);
+            delete state.detourReturnStep;
+            state.currentStep = returnStep;
+            state.pendingError = undefined;
+            await this.renderCurrentStep(ctx);
+            return;
+        }
+
+        const previousStepId = state.stepHistory?.pop();
         if (!previousStepId) {
             return;
         }
 
-        const previousStep = this.steps.get(previousStepId);
-        if (previousStep) {
-            previousStep.rollbackState(ctx);
-        }
-
+        this.steps.get(previousStepId)?.rollbackState(ctx);
         state.currentStep = previousStepId;
         state.pendingError = undefined;
         await this.renderCurrentStep(ctx);

@@ -30,6 +30,10 @@ export class AdvancedUpperStep implements WizardStep {
             // ignore — show prompt without price
         }
 
+        if (currentPrice !== null && ctx.session.createGrid) {
+            ctx.session.createGrid.currentPrice = currentPrice;
+        }
+
         return {
             body: AdvancedUpperPromptMessage.create(symbol, currentPrice ?? undefined).text,
             keyboard: this.buildKeyboard(currentPrice),
@@ -63,9 +67,10 @@ export class AdvancedUpperStep implements WizardStep {
             return null;
         }
         const pct = parseInt(raw, 10);
-        const symbol = ctx.session.createGrid?.symbol;
+        const state = ctx.session.createGrid;
+        const symbol = state?.symbol;
         if (!symbol) return null;
-        const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
+        const currentPrice = state.currentPrice ?? (await this.tradingApi.getCurrentPrice(symbol));
         const price = parseFloat((currentPrice * (1 + pct / 100)).toPrecision(8));
         ctx.session.createGrid!.upperPrice = price;
         return { nextStep: SceneStep.Lower };

@@ -35,7 +35,12 @@ export class AdvancedInvestmentPromptMessage {
             upperPrice,
         } = params;
 
-        const feeHint = feeHintLine({ suggestedMax, orderCount, lowerPrice, upperPrice });
+        const feeHint = feeHintLine({
+            totalInvestment: suggestedMax,
+            orderCount,
+            lowerPrice,
+            upperPrice,
+        });
 
         const totalRounded = Math.round(totalBalance.toNumber()).toLocaleString('en-US');
         const usdcRounded = Math.round(usdcBalance.toNumber()).toLocaleString('en-US');

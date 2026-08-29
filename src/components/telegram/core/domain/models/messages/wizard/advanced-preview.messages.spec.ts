@@ -37,4 +37,27 @@ describe('AdvancedPreviewMessage', () => {
         expect(result.text).toContain('Break-even risk');
         expect(result.text).toContain('< 2× fee rate');
     });
+
+    it('shows the capacity line when capacityMax is provided', () => {
+        const result = AdvancedPreviewMessage.create({
+            totalInvestment: 326,
+            orderCount: 10,
+            lowerPrice: 45000,
+            upperPrice: 55000,
+            capacityMax: 1304,
+        });
+        expect(result.text).toContain('$326.00 of $1,304.00 max for this grid (25%)');
+    });
+
+    it('omits the capacity line when capacityMax is absent', () => {
+        const result = AdvancedPreviewMessage.create(base);
+        expect(result.text).not.toContain('max for this grid');
+    });
+
+    it('omits the capacity line when capacityMax is zero (no divide-by-zero)', () => {
+        const result = AdvancedPreviewMessage.create({ ...base, capacityMax: 0 });
+        expect(result.text).not.toContain('max for this grid');
+        expect(result.text).not.toContain('NaN');
+        expect(result.text).not.toContain('Infinity');
+    });
 });
