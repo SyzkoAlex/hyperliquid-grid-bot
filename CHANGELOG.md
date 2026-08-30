@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-08-29
+
+### Bug Fixes
+
+- **deps:** Cap nanoid override at 3.x and bump js-yaml direct range 
+- Align create-grid wizard flow, navigation, and messaging (#24) ([#24](https://github.com/SyzkoAlex/hyperliquid-grid-bot/pull/24))
+- **ci:** Use --latest --prepend for incremental changelog; restore CHANGELOG.md; tag v1.0.0 
+
+### CI/CD
+
+- Publish Docker image during release and add scheduled image cleanup 
+
+### Chore
+
+- **release:** V1.2.0 
+- **deps:** Add security overrides for js-yaml and nanoid 
+- **deps:** Bump dependencies and fix security overrides 
+- **deps:** Update vitest to 3.2.6, @typescript-eslint to 8.x 
+
+### Features
+
+- Add swap-to-fit-grid step to create-grid wizard (#21) ([#21](https://github.com/SyzkoAlex/hyperliquid-grid-bot/pull/21))
+
 ## [1.1.0] — 2026-05-27
 
 ### Bug Fixes
