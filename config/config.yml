@@ -30,6 +30,7 @@ hyperliquid:
 telegram:
     enabled: ${TELEGRAM_ENABLED:true}
     botToken: ${TELEGRAM_BOT_TOKEN:0000000000:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX}
+    proxyUrl: ${TELEGRAM_PROXY_URL:}  # SOCKS proxy for Telegram API only; empty = direct
     allowedUserId: ${TELEGRAM_ALLOWED_USER_ID}  # restrict bot to a single Telegram user ID
     session:
         ttlSeconds: 86400

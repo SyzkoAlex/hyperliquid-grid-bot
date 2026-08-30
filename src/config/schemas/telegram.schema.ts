@@ -14,6 +14,9 @@ export const telegramPaginationSchema = z.object({
 export const telegramSchema = z.object({
     enabled: coerceBoolean(),
     botToken: z.string().min(1),
+    // SOCKS proxy for Telegram API traffic only (e.g. socks5h://proxy:1080);
+    // empty/unset = direct connection
+    proxyUrl: z.string().optional(),
     allowedUserId: z.coerce.number().int().optional(),
     session: telegramSessionSchema,
     pagination: telegramPaginationSchema,

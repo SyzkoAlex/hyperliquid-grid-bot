@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Scenes, Telegraf, Types } from 'telegraf';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { BotContext } from './types/bot-context';
@@ -25,6 +26,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
     private readonly logger = logger.child({ context: TelegramBotService.name });
     private readonly enabled: boolean;
     private readonly botToken: string;
+    private readonly proxyUrl: string | undefined;
     private readonly allowedUserId: number | undefined;
 
     constructor(
@@ -36,6 +38,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
         const telegramConfig = configService.get('telegram', { infer: true });
         this.enabled = telegramConfig.enabled;
         this.botToken = telegramConfig.botToken;
+        this.proxyUrl = telegramConfig.proxyUrl;
         this.allowedUserId = telegramConfig.allowedUserId;
     }
 
@@ -45,7 +48,23 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
             return;
         }
 
-        this._bot = new Telegraf<BotContext>(this.botToken);
+        this._bot = new Telegraf<BotContext>(
+            this.botToken,
+            this.proxyUrl
+                ? {
+                      telegram: {
+                          // agent-base v6 typings predate http.Agent's full
+                          // interface; runtime-compatible with node-fetch
+                          agent: new SocksProxyAgent(
+                              this.proxyUrl,
+                          ) as unknown as import('http').Agent,
+                      },
+                  }
+                : undefined,
+        );
+        if (this.proxyUrl) {
+            this.logger.info('Telegram API traffic routed through SOCKS proxy');
+        }
 
         // Safety net for Telegraf-level errors (polling failures, webhook errors).
         // Handler errors are caught earlier by createErrorHandlerMiddleware.
