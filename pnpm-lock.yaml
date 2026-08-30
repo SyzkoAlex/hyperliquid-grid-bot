@@ -91,8 +91,8 @@ dependencies:
     specifier: ^7.8.2
     version: 7.8.2
   socks-proxy-agent:
-    specifier: ^7.0.0
-    version: 7.0.0
+    specifier: ^8.0.5
+    version: 8.0.5
   telegraf:
     specifier: ^4.16.3
     version: 4.16.3
@@ -1983,6 +1983,11 @@ packages:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /agent-base@7.1.4:
+    resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
+    engines: {node: '>= 14'}
     dev: false
 
   /ajv@6.15.0:
@@ -4699,11 +4704,11 @@ packages:
     engines: {node: '>= 6.0.0', npm: '>= 3.0.0'}
     dev: false
 
-  /socks-proxy-agent@7.0.0:
-    resolution: {integrity: sha512-Fgl0YPZ902wEsAyiQ+idGd1A7rSFx/ayC1CQVMw5P+EQx2V0SgpGtf6OKFhVjPflPUl9YMmEOnmfjCdMUsygww==}
-    engines: {node: '>= 10'}
+  /socks-proxy-agent@8.0.5:
+    resolution: {integrity: sha512-HehCEsotFqbPW9sJ8WVYB6UbmIMv7kUUORIF2Nncq4VQvBfNBLibW9YZR5dlYCSUhwcD628pRllm7n+E+YTzJw==}
+    engines: {node: '>= 14'}
     dependencies:
-      agent-base: 6.0.2
+      agent-base: 7.1.4
       debug: 4.4.3
       socks: 2.8.9
     transitivePeerDependencies:

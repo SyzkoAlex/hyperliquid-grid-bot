@@ -48,20 +48,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy, Telegr
             return;
         }
 
-        this._bot = new Telegraf<BotContext>(
-            this.botToken,
-            this.proxyUrl
-                ? {
-                      telegram: {
-                          // agent-base v6 typings predate http.Agent's full
-                          // interface; runtime-compatible with node-fetch
-                          agent: new SocksProxyAgent(
-                              this.proxyUrl,
-                          ) as unknown as import('http').Agent,
-                      },
-                  }
-                : undefined,
-        );
+        const options = this.proxyUrl
+            ? { telegram: { agent: new SocksProxyAgent(this.proxyUrl) } }
+            : undefined;
+        this._bot = new Telegraf<BotContext>(this.botToken, options);
         if (this.proxyUrl) {
             this.logger.info('Telegram API traffic routed through SOCKS proxy');
         }
