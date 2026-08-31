@@ -1,0 +1,145 @@
+name: Deploy
+
+# Build (or reuse) the image for a ref, bump the tag in home-ops and wait
+# for Flux to report the result via commit status on the bump commit.
+#
+# Secrets: HOME_OPS_TOKEN — fine-grained PAT, home-ops repo only,
+# Contents: r/w (bump push) + Commit statuses: read (verify polling).
+# NB: this is a public repo — never print home-ops file contents in logs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      ref:
+        description: 'Git ref to deploy (branch, tag or sha)'
+        required: true
+        default: main
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.image.outputs.sha }}
+      name: ${{ steps.image.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set image name and tag
+        id: image
+        run: |
+          echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Redeploys and rollbacks reuse the already-published image
+      - name: Skip build if image already exists
+        id: exists
+        run: |
+          if docker manifest inspect "${{ steps.image.outputs.name }}:${{ steps.image.outputs.sha }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image already in GHCR — skipping build"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.exists.outputs.exists == 'false'
+
+      - uses: docker/build-push-action@v6
+        if: steps.exists.outputs.exists == 'false'
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.name }}:${{ steps.image.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Bump tag in home-ops
+    needs: build
+    runs-on: ubuntu-latest
+    # production environment carries required reviewers — approval gate
+    environment: ${{ inputs.environment }}
+    outputs:
+      bump_sha: ${{ steps.push.outputs.bump_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: SyzkoAlex/home-ops
+          token: ${{ secrets.HOME_OPS_TOKEN }}
+
+      # Targeted sed instead of `kustomize edit`: the latter rewrites the
+      # whole file, dropping comments and reformatting every deploy
+      - name: Set image tag
+        working-directory: apps/hyperliquid/${{ inputs.environment }}
+        run: |
+          [ "$(grep -c '^\s*newTag:' kustomization.yaml)" = "1" ] \
+            || { echo "expected exactly one newTag line"; exit 1; }
+          sed -i -E 's|^(\s*)newTag:.*$|\1newTag: "${{ needs.build.outputs.sha }}"|' kustomization.yaml
+          grep 'newTag' kustomization.yaml
+
+      - name: Commit and push bump
+        id: push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/hyperliquid/${{ inputs.environment }}/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "Tag unchanged — nothing to deploy"
+            echo "bump_sha=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "deploy(hyperliquid/${{ inputs.environment }}): ${{ needs.build.outputs.sha }}"
+          git push
+          echo "bump_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Wait for Flux health
+    needs: deploy
+    if: needs.deploy.outputs.bump_sha != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll commit status on bump commit
+        env:
+          GH_TOKEN: ${{ secrets.HOME_OPS_TOKEN }}
+          BUMP_SHA: ${{ needs.deploy.outputs.bump_sha }}
+        run: |
+          echo "Waiting for Flux to report status on home-ops@${BUMP_SHA}"
+          deadline=$(( $(date +%s) + 600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            state=$(curl -sf \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/SyzkoAlex/home-ops/commits/${BUMP_SHA}/status" \
+              | jq -r '.state')
+            echo "$(date -u +%T) state=${state}"
+            case "$state" in
+              success) echo "Flux reconciled successfully"; exit 0 ;;
+              failure|error) echo "Flux reported failure — check flux events / kustomization"; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "Timed out after 10m without a final status"; exit 1
