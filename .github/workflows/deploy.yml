@@ -7,6 +7,8 @@ name: Deploy
 # Contents: r/w (bump push) + Commit statuses: read (verify polling).
 # NB: this is a public repo — never print home-ops file contents in logs.
 
+# The ref to deploy is the branch/tag picked in the "Use workflow from"
+# dropdown of the Run workflow dialog — no separate input needed.
 on:
   workflow_dispatch:
     inputs:
@@ -17,10 +19,6 @@ on:
         options:
           - staging
           - production
-      ref:
-        description: 'Git ref to deploy (branch, tag or sha)'
-        required: true
-        default: main
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -39,8 +37,6 @@ jobs:
       name: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Set image name and tag
         id: image
