@@ -7,6 +7,7 @@ import { logger } from '@/infra/logger/logger';
 import { CreateGridWizardState } from '../create-grid-wizard-state';
 import { CreateGridMode } from '../create-grid-mode';
 import { SceneStep } from '../create-grid-scene-step';
+import { investmentStepForMode } from '../helpers/investment-step-for-mode';
 import { WizardSummaryBuilder } from './wizard-summary-builder';
 
 // Canonical rendered-step sequences. Confirm is a button on Preview, not a screen,
@@ -17,6 +18,12 @@ const QUICK_STEPS: readonly SceneStep[] = [
     SceneStep.Pair,
     SceneStep.Mode,
     SceneStep.Quick,
+    SceneStep.Preview,
+];
+const AI_STEPS: readonly SceneStep[] = [
+    SceneStep.Pair,
+    SceneStep.Mode,
+    SceneStep.Ai,
     SceneStep.Preview,
 ];
 const ADVANCED_STEPS: readonly SceneStep[] = [
@@ -106,6 +113,7 @@ export class BoardRenderer {
 
     private resolveSequence(mode: CreateGridMode | undefined): readonly SceneStep[] {
         if (mode === CreateGridMode.Quick) return QUICK_STEPS;
+        if (mode === CreateGridMode.Ai) return AI_STEPS;
         if (mode === CreateGridMode.Advanced) return ADVANCED_STEPS;
         return PRE_MODE_STEPS;
     }
@@ -113,6 +121,6 @@ export class BoardRenderer {
     private resolveSequencePosition(state: CreateGridWizardState): SceneStep {
         const current = state.currentStep ?? SceneStep.Pair;
         if (current !== SceneStep.Swap) return current;
-        return state.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment;
+        return investmentStepForMode(state.mode);
     }
 }

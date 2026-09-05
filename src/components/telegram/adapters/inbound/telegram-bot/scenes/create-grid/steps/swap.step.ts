@@ -12,7 +12,7 @@ import { SpotSwapResultDto } from '@components/trading/api/dto/spot-swap-result.
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SwapMessages } from '@components/telegram/core/domain/models/messages/wizard/swap.messages';
 import { BoardRenderer } from '../wizard/board-renderer';
-import { CreateGridMode } from '../create-grid-mode';
+import { investmentStepForMode } from '../helpers/investment-step-for-mode';
 import { logger } from '@/infra/logger/logger';
 
 @Injectable()
@@ -124,10 +124,7 @@ export class SwapStep implements WizardStep {
      */
     private previousInvestmentStep(ctx: BotContext): SceneStep {
         const state = ctx.session.createGrid;
-        return (
-            state?.detourReturnStep ??
-            (state?.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment)
-        );
+        return state?.detourReturnStep ?? investmentStepForMode(state?.mode);
     }
 
     rollbackState(ctx: BotContext): void {

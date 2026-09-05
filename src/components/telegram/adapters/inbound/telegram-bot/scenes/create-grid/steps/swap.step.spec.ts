@@ -247,6 +247,19 @@ describe('SwapStep', () => {
             expect(result).toEqual({ nextStep: SceneStep.Quick });
         });
 
+        it('falls back to Ai when detourReturnStep is missing but mode is Ai (stale pre-migration session)', async () => {
+            mockTradingApi.executeSpotSwap.mockResolvedValue({
+                success: true,
+                filledBase: 6.5,
+                notionalUsdc: 200,
+            });
+            const ctx = createMockContext({ mode: CreateGridMode.Ai });
+
+            const result = await sut.handleConfirm(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Ai });
+        });
+
         it('falls back to Investment when detourReturnStep and mode are both missing (stale pre-migration session)', async () => {
             mockTradingApi.executeSpotSwap.mockResolvedValue({
                 success: true,
@@ -395,6 +408,14 @@ describe('SwapStep', () => {
             const result = await sut.handleSkip(ctx);
 
             expect(result).toEqual({ nextStep: SceneStep.Quick });
+        });
+
+        it('falls back to Ai when detourReturnStep is missing but mode is Ai (stale pre-migration session)', async () => {
+            const ctx = createMockContext({ mode: CreateGridMode.Ai });
+
+            const result = await sut.handleSkip(ctx);
+
+            expect(result).toEqual({ nextStep: SceneStep.Ai });
         });
     });
 

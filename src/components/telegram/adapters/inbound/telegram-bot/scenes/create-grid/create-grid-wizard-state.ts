@@ -1,6 +1,7 @@
 import { CreateGridMode } from './create-grid-mode';
 import { SceneStep } from './create-grid-scene-step';
 import { BalanceSnapshot } from './balance-snapshot';
+import { AiSuggestionState } from './ai-suggestion-state';
 import { OptimalSwapDto } from '@components/trading/api/dto/optimal-swap.dto';
 
 export interface CreateGridWizardState {
@@ -17,6 +18,8 @@ export interface CreateGridWizardState {
     boardMessageId?: number;
     pendingError?: string;
     balanceSnapshot?: BalanceSnapshot;
+    /** Cached /best-grid outcome; set by AiStartStep, cleared by its rollbackState. */
+    aiSuggestion?: AiSuggestionState;
     stopLossEnabled?: boolean;
     stopLossPrice?: number;
     /** Filled by AdvancedInvestmentStep when a swap is offered; consumed by SwapStep. */

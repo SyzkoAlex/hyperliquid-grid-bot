@@ -1,27 +1,36 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
-import { buildQuickInvestmentPreset } from '../create-grid-actions';
+import { buildAiInvestmentPreset } from '../create-grid-actions';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
+import {
+    PREDICTION_API_PORT,
+    PredictionApiPort,
+} from '@components/prediction/api/prediction-api.port';
 import { logger } from '@/infra/logger/logger';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
 import { StepView } from '../wizard/step-view';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
-import { QuickStartPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/quick-start.messages';
+import { AiStartMessages } from '@components/telegram/core/domain/models/messages/wizard/ai-start.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
 import { validateInvestment } from '../helpers/investment-validator';
 import { buildInvestmentPresetKeyboard } from '../helpers/investment-preset-keyboard';
 import { handleInvestmentPresetSelection } from '../helpers/investment-preset-selection';
 import { awaitSwapBalanceSettle, persistSwapOffer } from '../helpers/swap-session.helpers';
+import { AiSuggestionState } from '../ai-suggestion-state';
+import { AiSuggestionSource } from '../ai-suggestion-source';
 
 @Injectable()
-export class QuickStartStep implements WizardStep {
-    readonly id = SceneStep.Quick;
-    private readonly logger = logger.child({ context: QuickStartStep.name });
+export class AiStartStep implements WizardStep {
+    readonly id = SceneStep.Ai;
+    private readonly logger = logger.child({ context: AiStartStep.name });
 
-    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
+    constructor(
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
+        @Inject(PREDICTION_API_PORT) private readonly predictionApi: PredictionApiPort,
+    ) {}
 
     async buildView(ctx: BotContext): Promise<StepView> {
         const session = ctx.session;
@@ -35,21 +44,27 @@ export class QuickStartStep implements WizardStep {
         }
 
         let suggestedMax: number | null = null;
-        let body = QuickStartPromptMessage.create().text;
+        let body = AiStartMessages.prompt(AiStartMessages.fallbackNotice());
         let hasSwapOffer = false;
 
         if (symbol && accountAddress) {
             try {
+                let suggestion = session.createGrid?.aiSuggestion;
+                if (!suggestion) {
+                    suggestion = await this.resolveSuggestion(symbol);
+                    if (session.createGrid) {
+                        session.createGrid.aiSuggestion = suggestion;
+                    }
+                }
+                const header = this.buildHeader(symbol, suggestion);
+                const { lowerPrice, upperPrice, orderCount } = suggestion;
+
                 // After a swap, the exchange balance endpoint may lag behind the
                 // fill settlement — wait briefly so preset buttons reflect the
                 // post-swap state.
                 await awaitSwapBalanceSettle(swapFeedback);
 
                 const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
-                const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
-                const upperPrice = currentPrice + priceOffset;
-                const lowerPrice = currentPrice - priceOffset;
-
                 if (session.createGrid) {
                     session.createGrid.currentPrice = currentPrice;
                     session.createGrid.upperPrice = upperPrice;
@@ -60,13 +75,13 @@ export class QuickStartStep implements WizardStep {
                     this.tradingApi,
                     accountAddress,
                     symbol,
-                    WIZARD_CONFIG.DEFAULT_ORDERS,
+                    orderCount,
                     lowerPrice,
                     upperPrice,
                     {
-                        fallback: () => QuickStartPromptMessage.create().text,
+                        fallback: () => AiStartMessages.prompt(header),
                         withBalance: (info) =>
-                            QuickStartPromptMessage.create({
+                            AiStartMessages.prompt(header, {
                                 symbol: info.symbol,
                                 usdcBalance: info.usdcBalance,
                                 baseBalance: info.baseBalance,
@@ -76,7 +91,8 @@ export class QuickStartStep implements WizardStep {
                                 suggestedMax: info.suggestedMax,
                                 lowerPrice: info.lowerPrice,
                                 upperPrice: info.upperPrice,
-                            }).text,
+                                orderCount,
+                            }),
                     },
                 );
 
@@ -95,7 +111,15 @@ export class QuickStartStep implements WizardStep {
                     );
                 }
             } catch (error) {
-                this.logger.warn({ error }, 'Failed to fetch balance in quick start step');
+                this.logger.warn({ error }, 'Failed to fetch balance in AI start step');
+                // Keep the body consistent with the cached suggestion: a later
+                // text input applies the suggested order count/range, so the
+                // pre-initialized fallback notice (±20% / 10 orders) would be
+                // misleading when a suggestion was already resolved.
+                const cachedSuggestion = session.createGrid?.aiSuggestion;
+                if (cachedSuggestion) {
+                    body = AiStartMessages.prompt(this.buildHeader(symbol, cachedSuggestion));
+                }
             }
         }
 
@@ -108,8 +132,55 @@ export class QuickStartStep implements WizardStep {
             keyboard: buildInvestmentPresetKeyboard(
                 suggestedMax,
                 hasSwapOffer,
-                buildQuickInvestmentPreset,
+                buildAiInvestmentPreset,
             ),
+        };
+    }
+
+    private buildHeader(symbol: string, suggestion: AiSuggestionState): string {
+        if (suggestion.source !== AiSuggestionSource.Prediction) {
+            return AiStartMessages.fallbackNotice();
+        }
+        return AiStartMessages.suggestionBlock({
+            symbol,
+            lowerPrice: suggestion.lowerPrice,
+            upperPrice: suggestion.upperPrice,
+            orderCount: suggestion.orderCount,
+            conservativePnlUsdc: suggestion.conservativePnlUsdc ?? null,
+            periodDays: suggestion.periodDays,
+            warnings: suggestion.warnings ?? [],
+        });
+    }
+
+    private async resolveSuggestion(symbol: string): Promise<AiSuggestionState> {
+        try {
+            const bestGrid = await this.predictionApi.getBestGrid(symbol);
+            const config = bestGrid?.recommendedConfig;
+            if (bestGrid && config) {
+                const orderCount = Math.min(
+                    Math.max(config.nLevels, WIZARD_CONFIG.MIN_ORDERS),
+                    WIZARD_CONFIG.MAX_ORDERS,
+                );
+                return {
+                    source: AiSuggestionSource.Prediction,
+                    lowerPrice: config.lower,
+                    upperPrice: config.upper,
+                    orderCount,
+                    conservativePnlUsdc: bestGrid.conservativePnlUsdc,
+                    warnings: bestGrid.warnings,
+                    periodDays: bestGrid.periodDays,
+                };
+            }
+            this.logger.warn({ symbol }, 'Prediction service returned no recommendation');
+        } catch (error) {
+            this.logger.warn({ error, symbol }, 'Best-grid fetch failed, falling back to defaults');
+        }
+        const [lowerPrice, upperPrice] = await this.computeFallbackRange(symbol);
+        return {
+            source: AiSuggestionSource.Fallback,
+            lowerPrice,
+            upperPrice,
+            orderCount: WIZARD_CONFIG.DEFAULT_ORDERS,
         };
     }
 
@@ -131,17 +202,19 @@ export class QuickStartStep implements WizardStep {
         const investment = parseFloat(text);
 
         try {
+            const orderCount =
+                session.createGrid.aiSuggestion?.orderCount ?? WIZARD_CONFIG.DEFAULT_ORDERS;
             const storedUpper = session.createGrid.upperPrice;
             const storedLower = session.createGrid.lowerPrice;
             const [lowerPrice, upperPrice] =
                 storedUpper && storedLower
                     ? [storedLower, storedUpper]
-                    : await this.computePriceRange(session.createGrid.symbol);
+                    : await this.computeFallbackRange(session.createGrid.symbol);
 
             const result = await validateInvestment(
                 {
                     investment,
-                    orderCount: WIZARD_CONFIG.DEFAULT_ORDERS,
+                    orderCount,
                     symbol: session.createGrid.symbol,
                     upperPrice,
                     lowerPrice,
@@ -158,11 +231,11 @@ export class QuickStartStep implements WizardStep {
             session.createGrid.totalInvestmentUSDC = investment;
             session.createGrid.upperPrice = upperPrice;
             session.createGrid.lowerPrice = lowerPrice;
-            session.createGrid.orderCount = WIZARD_CONFIG.DEFAULT_ORDERS;
+            session.createGrid.orderCount = orderCount;
 
             return { nextStep: SceneStep.Preview };
         } catch (error) {
-            this.logger.error({ error }, 'Failed to validate balance in quick start step');
+            this.logger.error({ error }, 'Failed to validate balance in AI start step');
             session.createGrid.pendingError = ValidationTexts.fetchDataFailed(
                 session.createGrid.symbol,
             );
@@ -170,7 +243,7 @@ export class QuickStartStep implements WizardStep {
         }
     }
 
-    private async computePriceRange(symbol: string): Promise<[number, number]> {
+    private async computeFallbackRange(symbol: string): Promise<[number, number]> {
         const currentPrice = await this.tradingApi.getCurrentPrice(symbol);
         const priceOffset = currentPrice * (WIZARD_CONFIG.PRICE_RANGE_PERCENT / 100);
         return [currentPrice - priceOffset, currentPrice + priceOffset];
@@ -186,6 +259,7 @@ export class QuickStartStep implements WizardStep {
             delete ctx.session.createGrid.swapOffer;
             delete ctx.session.createGrid.swapOfferPrice;
             delete ctx.session.createGrid.swapFeedback;
+            delete ctx.session.createGrid.aiSuggestion;
         }
     }
 }

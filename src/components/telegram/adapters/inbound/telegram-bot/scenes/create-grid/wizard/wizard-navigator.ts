@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
-import { CreateGridMode } from '../create-grid-mode';
+import { investmentStepForMode } from '../helpers/investment-step-for-mode';
 import { WizardStep } from './wizard-step';
 import { StepCompleted } from './step-result';
 import { BoardRenderer } from './board-renderer';
@@ -58,9 +58,7 @@ export class WizardNavigator {
         if (DETOUR_STEPS.has(state.currentStep)) {
             // Fall back to `state.mode` for sessions cached before `detourReturnStep`
             // existed (cached sessions live up to 24h and may predate this field).
-            const returnStep =
-                state.detourReturnStep ??
-                (state.mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Investment);
+            const returnStep = state.detourReturnStep ?? investmentStepForMode(state.mode);
             this.steps.get(state.currentStep)?.rollbackState(ctx);
             delete state.detourReturnStep;
             state.currentStep = returnStep;

@@ -7,6 +7,7 @@ export const BUTTON_LABELS = {
     OTHER_TOKEN: `${EMOJI.SEARCH} Other token`,
     MODE_QUICK: `${EMOJI.LIGHTNING} Quick start`,
     MODE_ADVANCED: `${EMOJI.SETTINGS} Advanced`,
+    MODE_AI: `${EMOJI.ROBOT} AI mode`,
     DETAILS: `${EMOJI.SEARCH} Details`,
     ORDERS: `${EMOJI.CLIPBOARD} Orders`,
     HISTORY: `${EMOJI.SCROLL} History`,
