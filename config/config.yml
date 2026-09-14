@@ -67,7 +67,7 @@ swap:
 
 prediction:
     baseUrl: ${PREDICTION_SERVICE_URL:}  # empty = AI grid mode disabled
-    requestTimeout: ${PREDICTION_REQUEST_TIMEOUT:60000} # 60s — /best-grid runs a seconds-scale walk-forward
+    requestTimeout: ${PREDICTION_REQUEST_TIMEOUT:60000} # 60s — /suggest runs a seconds-scale walk-forward
 
 logging:
     level: ${LOG_LEVEL:trace}

@@ -150,7 +150,7 @@ export class CreateGridSceneHandler implements SceneHandler {
 
     /**
      * Does not use runStepAction: entering SceneStep.Ai triggers a seconds-scale
-     * /best-grid fetch inside AiStartStep.buildView, so the callback query must be
+     * /suggest fetch inside AiStartStep.buildView, so the callback query must be
      * answered first (Telegram cb queries expire) and a loading board rendered
      * before the slow work.
      */

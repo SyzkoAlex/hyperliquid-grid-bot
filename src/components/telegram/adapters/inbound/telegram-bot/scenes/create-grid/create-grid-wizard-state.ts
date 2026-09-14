@@ -18,7 +18,7 @@ export interface CreateGridWizardState {
     boardMessageId?: number;
     pendingError?: string;
     balanceSnapshot?: BalanceSnapshot;
-    /** Cached /best-grid outcome; set by AiStartStep, cleared by its rollbackState. */
+    /** Cached /suggest outcome; set by AiStartStep, cleared by its rollbackState. */
     aiSuggestion?: AiSuggestionState;
     stopLossEnabled?: boolean;
     stopLossPrice?: number;

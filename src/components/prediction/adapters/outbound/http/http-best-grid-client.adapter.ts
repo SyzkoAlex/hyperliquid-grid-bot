@@ -31,8 +31,8 @@ export class HttpBestGridClientAdapter implements BestGridClientPort {
         }
         try {
             const response = await this.http.get<BestGridResponseItem[]>(
-                `${this.baseUrl}/best-grid`,
-                { params: { ticker }, timeout: this.requestTimeout },
+                `${this.baseUrl}/suggest`,
+                { params: { ticker, strategy: 'simple' }, timeout: this.requestTimeout },
             );
             const item = response.data[0];
             return item ? this.mapToDto(item) : null;

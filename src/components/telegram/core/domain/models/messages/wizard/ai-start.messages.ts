@@ -30,7 +30,7 @@ interface AiBalanceParams {
 }
 
 export class AiStartMessages {
-    /** Board body shown while /best-grid is being fetched. */
+    /** Board body shown while /suggest is being fetched. */
     static loading(symbol: string): string {
         return (
             `${EMOJI.ROBOT} <b>AI mode</b>\n\n` +

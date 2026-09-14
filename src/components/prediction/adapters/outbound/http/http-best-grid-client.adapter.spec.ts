@@ -63,13 +63,13 @@ describe('HttpBestGridClientAdapter', () => {
             });
         });
 
-        it('passes ticker param and per-request timeout to http.get', async () => {
+        it('passes ticker, simple strategy, and per-request timeout to http.get', async () => {
             mockHttp.get.mockResolvedValue({ data: [makeResponseItem()] });
 
             await sut.fetchBestGrid('HYPE');
 
-            expect(mockHttp.get).toHaveBeenCalledWith(`${BASE_URL}/best-grid`, {
-                params: { ticker: 'HYPE' },
+            expect(mockHttp.get).toHaveBeenCalledWith(`${BASE_URL}/suggest`, {
+                params: { ticker: 'HYPE', strategy: 'simple' },
                 timeout: REQUEST_TIMEOUT,
             });
         });

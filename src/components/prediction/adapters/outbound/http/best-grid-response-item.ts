@@ -1,4 +1,4 @@
-/** Raw /best-grid wire shape (all money values are decimal strings). */
+/** Raw /suggest wire shape (all money values are decimal strings). */
 export interface BestGridResponseItem {
     pair: string;
     base_asset: string;
