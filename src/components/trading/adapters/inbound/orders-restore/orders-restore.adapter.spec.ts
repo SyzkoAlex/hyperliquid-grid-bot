@@ -43,7 +43,9 @@ describe('OrdersRestoreAdapter (Unit)', () => {
                 {
                     provide: USERS_API_PORT,
                     useValue: {
-                        findActiveUsers: vi.fn().mockResolvedValue([{ accountAddress: '0xtest' }]),
+                        findActiveUsers: vi
+                            .fn()
+                            .mockResolvedValue([{ id: 'user-1', accountAddress: '0xtest' }]),
                     },
                 },
             ],
@@ -66,6 +68,7 @@ describe('OrdersRestoreAdapter (Unit)', () => {
                 expect.any(Function),
             );
             expect(mockRestoreOrders.execute).toHaveBeenCalledOnce();
+            expect(mockRestoreOrders.execute).toHaveBeenCalledWith('0xtest', 'user-1');
         });
 
         it('should not call use case when lock is not acquired', async () => {

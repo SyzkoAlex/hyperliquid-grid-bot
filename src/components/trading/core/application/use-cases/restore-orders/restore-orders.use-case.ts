@@ -35,7 +35,7 @@ export class RestoreOrdersUseCase {
         const result = new RestoreResult();
 
         await this.restorePendingOrders(result, accountAddress);
-        await this.sweepLeftoverOrders(result, userId, accountAddress);
+        await this.sweepLeftoverOrders(result, accountAddress, userId);
 
         return result;
     }
@@ -63,11 +63,11 @@ export class RestoreOrdersUseCase {
 
     private async sweepLeftoverOrders(
         result: RestoreResult,
-        userId: string,
         accountAddress: string,
+        userId: string,
     ): Promise<void> {
         try {
-            const cancelledCount = await this.leftoverOrderSweep.sweep(userId, accountAddress);
+            const cancelledCount = await this.leftoverOrderSweep.sweep(accountAddress, userId);
 
             if (cancelledCount > 0) {
                 this.logger.info(

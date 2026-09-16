@@ -77,27 +77,27 @@ describe('LeftoverOrderSweepService', () => {
         const order = createOrder();
         givenActiveOrders([order]);
 
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(1);
         expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(order, ACCOUNT_ADDRESS);
     });
 
-    it('cancels pending orders of a stopped grid as well', async () => {
+    it('leaves a pending order of a stopped grid to the order restore', async () => {
         const pending = createOrder({ id: 'order-2', status: OrderStatus.Pending });
         givenActiveOrders([], [pending]);
 
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
-        expect(cancelled).toBe(1);
-        expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(pending, ACCOUNT_ADDRESS);
+        expect(cancelled).toBe(0);
+        expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
     });
 
     it('leaves the orders of a running grid alone', async () => {
         givenActiveOrders([createOrder()]);
         mockGrids.findGridById.mockResolvedValue(createGrid({ status: GridStatus.Running }));
 
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(0);
         expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('LeftoverOrderSweepService', () => {
             givenActiveOrders([createOrder()]);
             mockGrids.findGridById.mockResolvedValue(createGrid({ status }));
 
-            const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+            const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
             expect(cancelled).toBe(0);
             expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe('LeftoverOrderSweepService', () => {
         givenActiveOrders([createOrder()]);
         mockGrids.findGridById.mockResolvedValue(createGrid({ userId: 'user-2' }));
 
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(0);
         expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
@@ -132,7 +132,7 @@ describe('LeftoverOrderSweepService', () => {
         givenActiveOrders([first, second]);
         mockOrderCancellation.cancelOrder.mockRejectedValueOnce(new Error('db unavailable'));
 
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(1);
         expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledTimes(2);
@@ -142,13 +142,13 @@ describe('LeftoverOrderSweepService', () => {
     it('reads each grid once for all of its orders', async () => {
         givenActiveOrders([createOrder({ id: 'order-1' }), createOrder({ id: 'order-2' })]);
 
-        await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(mockGrids.findGridById).toHaveBeenCalledOnce();
     });
 
     it('does nothing when no orders are active', async () => {
-        const cancelled = await sut.sweep(USER_ID, ACCOUNT_ADDRESS);
+        const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(0);
         expect(mockGrids.findGridById).not.toHaveBeenCalled();

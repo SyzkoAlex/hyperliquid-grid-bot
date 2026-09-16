@@ -65,7 +65,7 @@ describe('RestoreOrdersUseCase', () => {
 
             const result = await execute();
 
-            expect(mockLeftoverOrderSweep.sweep).toHaveBeenCalledWith(USER_ID, ACCOUNT_ADDRESS);
+            expect(mockLeftoverOrderSweep.sweep).toHaveBeenCalledWith(ACCOUNT_ADDRESS, USER_ID);
             expect(result.hasErrors).toBe(false);
         });
 

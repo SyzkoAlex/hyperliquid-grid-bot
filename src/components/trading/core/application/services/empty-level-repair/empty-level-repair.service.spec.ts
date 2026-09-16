@@ -322,6 +322,37 @@ describe('EmptyLevelRepairService', () => {
                 new Date(LONG_AGO),
             );
         });
+
+        it('books the fill but places no refill once the grid was stopped meanwhile', async () => {
+            mockGrids.findGridById.mockResolvedValue(createGrid({ status: GridStatus.Stopped }));
+
+            const result = await repair();
+
+            expect(result).toBe(0);
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                ghostOrder.id,
+                OrderStatus.Filled,
+                new Date(LONG_AGO),
+            );
+            expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+        });
+
+        it('books the fill but places no refill that would cross an active order', async () => {
+            mockGrids.findOrdersByGridId.mockResolvedValue([
+                ...createOrdersWithEmptyPair4(ghostOrder),
+                createOrder({ side: OrderSide.Buy, orderIndex: 6 }),
+            ]);
+
+            const result = await repair();
+
+            expect(result).toBe(0);
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                ghostOrder.id,
+                OrderStatus.Filled,
+                new Date(LONG_AGO),
+            );
+            expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+        });
     });
 
     it('does not re-place or book a failed order that still rests on the exchange', async () => {

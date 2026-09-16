@@ -6,7 +6,6 @@ import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.po
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderCancellationService } from '../order-cancellation/order-cancellation.service';
 
-const ACTIVE_ORDER_STATUSES = [OrderStatus.Pending, OrderStatus.Placed];
 const TERMINAL_GRID_STATUSES = new Set([GridStatus.Stopped, GridStatus.Error]);
 
 /**
@@ -20,6 +19,11 @@ const TERMINAL_GRID_STATUSES = new Set([GridStatus.Stopped, GridStatus.Error]);
  *
  * Only terminal grids are swept. An Idle grid is mid-creation (orders are placed after the grid
  * goes Running) and a Paused grid is meant to keep its orders resting, so neither is touched.
+ *
+ * Only Placed orders are swept. A Pending row never carries an exchangeOrderId, so cancelling it
+ * would merely flip the DB row to a terminal status while a placement the exchange did accept
+ * keeps resting — and a terminal row can no longer be matched by cloid. Such rows belong to
+ * OrderRestoreService, which either attaches their exchangeOrderId or retires them to Missing.
  */
 @Injectable()
 export class LeftoverOrderSweepService {
@@ -31,8 +35,8 @@ export class LeftoverOrderSweepService {
     ) {}
 
     /** @returns the number of orders cancelled for the given user */
-    async sweep(userId: string, accountAddress: string): Promise<number> {
-        const ordersByGridId = await this.groupActiveOrdersByGridId();
+    async sweep(accountAddress: string, userId: string): Promise<number> {
+        const ordersByGridId = await this.groupPlacedOrdersByGridId();
 
         let cancelled = 0;
         for (const [gridId, orders] of ordersByGridId) {
@@ -54,17 +58,11 @@ export class LeftoverOrderSweepService {
         return cancelled;
     }
 
-    private async groupActiveOrdersByGridId(): Promise<Map<string, OrderDto[]>> {
+    private async groupPlacedOrdersByGridId(): Promise<Map<string, OrderDto[]>> {
         const ordersByGridId = new Map<string, OrderDto[]>();
 
-        for (const status of ACTIVE_ORDER_STATUSES) {
-            const orders = await this.grids.findOrdersByStatus(status);
-            for (const order of orders) {
-                ordersByGridId.set(order.gridId, [
-                    ...(ordersByGridId.get(order.gridId) ?? []),
-                    order,
-                ]);
-            }
+        for (const order of await this.grids.findOrdersByStatus(OrderStatus.Placed)) {
+            ordersByGridId.set(order.gridId, [...(ordersByGridId.get(order.gridId) ?? []), order]);
         }
 
         return ordersByGridId;
