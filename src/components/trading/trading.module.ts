@@ -16,6 +16,7 @@ import { OrderStatusSyncService } from '@components/trading/core/application/ser
 import { OrderFeeSyncService } from '@components/trading/core/application/services/order-fee-sync/order-fee-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { EmptyLevelRepairService } from '@components/trading/core/application/services/empty-level-repair/empty-level-repair.service';
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
 import { ProfitCalculatorService } from '@components/trading/core/domain/services/profit-calculator/profit-calculator.service';
@@ -86,6 +87,7 @@ import { UsersModule } from '@components/users/users.module';
         TradeEventPublisher,
         OrderRefillService,
         StpRecoveryService,
+        EmptyLevelRepairService,
         OrderRestoreService,
         OrderPlacementService,
         ProfitCalculatorService,

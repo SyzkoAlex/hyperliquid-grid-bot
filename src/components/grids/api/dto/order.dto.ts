@@ -16,5 +16,6 @@ export interface OrderDto {
     createdAt: number;
     placedAt?: number;
     filledAt?: number;
+    cancelledAt?: number;
     feeUsdc?: number;
 }

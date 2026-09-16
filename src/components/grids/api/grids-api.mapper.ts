@@ -45,6 +45,7 @@ export class GridsApiMapper {
             createdAt: order.createdAt.toDate().getTime(),
             placedAt: order.placedAt?.toDate().getTime(),
             filledAt: order.filledAt?.toDate().getTime(),
+            cancelledAt: order.cancelledAt?.toDate().getTime(),
             feeUsdc: order.feeUsdc?.toNumber(),
         };
     }

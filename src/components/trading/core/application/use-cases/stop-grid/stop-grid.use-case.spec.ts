@@ -93,15 +93,17 @@ describe('StopGridUseCase', () => {
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', 2600);
         });
 
-        it('cancels active orders before marking stopped', async () => {
+        it('marks the grid stopped before loading and cancelling active orders', async () => {
             const order = makeOrder({ exchangeOrderId: 'exch-1' });
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
 
             await sut.execute('grid-1', accountAddress);
 
-            const cancelOrder = mockExchange.cancelSpotOrder.mock.invocationCallOrder[0];
             const markStopped = mockGrids.markStopped.mock.invocationCallOrder[0];
-            expect(cancelOrder).toBeLessThan(markStopped);
+            const loadOrders = mockGrids.findActiveOrdersByGridId.mock.invocationCallOrder[0];
+            const cancelOrder = mockExchange.cancelSpotOrder.mock.invocationCallOrder[0];
+            expect(markStopped).toBeLessThan(loadOrders);
+            expect(loadOrders).toBeLessThan(cancelOrder);
         });
 
         it('marks orders as cancelled when no exchangeOrderId', async () => {
@@ -123,6 +125,42 @@ describe('StopGridUseCase', () => {
             await sut.execute('grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', 2600);
+        });
+    });
+
+    describe('execute — retry of an interrupted stop', () => {
+        it('cancels the orders of an already stopped grid without marking it stopped again', async () => {
+            const order = makeOrder({ exchangeOrderId: 'exch-1' });
+            mockGrids.findGridById.mockResolvedValue(makeGrid({ status: GridStatus.Stopped }));
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
+
+            await sut.execute('grid-1', accountAddress);
+
+            expect(mockGrids.markStopped).not.toHaveBeenCalled();
+            expect(mockExchange.cancelSpotOrder).toHaveBeenCalledOnce();
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                order.id,
+                OrderStatus.Cancelled,
+            );
+        });
+
+        it('cancels the orders left over by a stop that failed mid-loop', async () => {
+            const first = makeOrder({ id: 'order-1' });
+            const second = makeOrder({ id: 'order-2' });
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([first, second]);
+            mockGrids.updateOrderStatus.mockRejectedValueOnce(new Error('db unavailable'));
+
+            await expect(sut.execute('grid-1', accountAddress)).rejects.toThrow('db unavailable');
+
+            mockGrids.findGridById.mockResolvedValue(makeGrid({ status: GridStatus.Stopped }));
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([second]);
+            await sut.execute('grid-1', accountAddress);
+
+            expect(mockGrids.markStopped).toHaveBeenCalledOnce();
+            expect(mockGrids.updateOrderStatus).toHaveBeenLastCalledWith(
+                second.id,
+                OrderStatus.Cancelled,
+            );
         });
     });
 

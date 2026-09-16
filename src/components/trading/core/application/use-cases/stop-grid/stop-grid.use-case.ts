@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
@@ -28,13 +29,17 @@ export class StopGridUseCase {
 
         this.logger.info({ gridId, symbol: grid.symbol }, 'Stopping grid');
 
+        // Marked stopped first so that concurrent order placement stops; skipped for a grid that is
+        // already stopped, so a stop interrupted before (or during) the cancel loop can be retried.
+        if (grid.status !== GridStatus.Stopped) {
+            const stopPrice = await this.fetchCurrentPriceSafe(grid.symbol);
+            await this.grids.markStopped(gridId, stopPrice);
+        }
+
         const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
         for (const order of activeOrders) {
             await this.cancelOrder(order, accountAddress);
         }
-
-        const stopPrice = await this.fetchCurrentPriceSafe(grid.symbol);
-        await this.grids.markStopped(gridId, stopPrice);
 
         this.logger.info(
             { gridId, cancelledOrders: activeOrders.length },
