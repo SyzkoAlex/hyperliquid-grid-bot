@@ -13,8 +13,8 @@ import { USERS_API_PORT, UsersApiPort } from '@components/users/api/users-api.po
 /**
  * Order Restore Monitor
  *
- * Restores orders that were placed on exchange but not updated in DB.
- * Iterates all active users.
+ * Restores orders that were placed on exchange but not updated in DB, and cancels the orders left
+ * active by grids that are no longer running. Iterates all active users.
  *
  * Runs:
  * - On bot startup
@@ -66,7 +66,10 @@ export class OrdersRestoreAdapter implements OnApplicationBootstrap, OnModuleDes
 
         for (const user of activeUsers) {
             try {
-                const restoreResult = await this.restoreOrdersUseCase.execute(user.accountAddress);
+                const restoreResult = await this.restoreOrdersUseCase.execute(
+                    user.accountAddress,
+                    user.id,
+                );
 
                 if (restoreResult.hasErrors) {
                     this.logger.error(

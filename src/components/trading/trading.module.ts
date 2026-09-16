@@ -18,6 +18,8 @@ import { OrderRefillService } from '@components/trading/core/application/service
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
 import { EmptyLevelRepairService } from '@components/trading/core/application/services/empty-level-repair/empty-level-repair.service';
 import { OrderRestoreService } from '@components/trading/core/application/services/order-restore/order-restore.service';
+import { OrderCancellationService } from '@components/trading/core/application/services/order-cancellation/order-cancellation.service';
+import { LeftoverOrderSweepService } from '@components/trading/core/application/services/leftover-order-sweep/leftover-order-sweep.service';
 import { OrderPlacementService } from '@components/trading/core/application/services/order-placement/order-placement.service';
 import { ProfitCalculatorService } from '@components/trading/core/domain/services/profit-calculator/profit-calculator.service';
 import { RefillOrderPlacementService } from '@components/trading/core/application/services/refill-order-placement/refill-order-placement.service';
@@ -89,6 +91,8 @@ import { UsersModule } from '@components/users/users.module';
         StpRecoveryService,
         EmptyLevelRepairService,
         OrderRestoreService,
+        OrderCancellationService,
+        LeftoverOrderSweepService,
         OrderPlacementService,
         ProfitCalculatorService,
         GridCommandsAdapter,

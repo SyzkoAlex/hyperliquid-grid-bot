@@ -7,6 +7,9 @@ import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
+import { GridsApiPort } from '@components/grids/api/grids-api.port';
+import { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
+import { OrderCancellationService } from '@components/trading/core/application/services/order-cancellation/order-cancellation.service';
 
 function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     return {
@@ -51,12 +54,11 @@ describe('StopGridUseCase', () => {
         findGridById: ReturnType<typeof vi.fn>;
         findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
         markStopped: ReturnType<typeof vi.fn>;
-        updateOrderStatus: ReturnType<typeof vi.fn>;
     };
     let mockExchange: {
         getCurrentPrice: ReturnType<typeof vi.fn>;
-        cancelSpotOrder: ReturnType<typeof vi.fn>;
     };
+    let mockOrderCancellation: { cancelOrder: ReturnType<typeof vi.fn> };
 
     const accountAddress = '0xabc';
 
@@ -65,14 +67,17 @@ describe('StopGridUseCase', () => {
             findGridById: vi.fn().mockResolvedValue(makeGrid()),
             findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
             markStopped: vi.fn().mockResolvedValue(undefined),
-            updateOrderStatus: vi.fn().mockResolvedValue(undefined),
         };
         mockExchange = {
             getCurrentPrice: vi.fn().mockResolvedValue(Price.from(2600)),
-            cancelSpotOrder: vi.fn().mockResolvedValue({ success: true }),
         };
+        mockOrderCancellation = { cancelOrder: vi.fn().mockResolvedValue(undefined) };
 
-        sut = new StopGridUseCase(mockGrids as any, mockExchange as any);
+        sut = new StopGridUseCase(
+            mockGrids as unknown as GridsApiPort,
+            mockExchange as unknown as ExchangePort,
+            mockOrderCancellation as unknown as OrderCancellationService,
+        );
     });
 
     describe('execute — grid not found', () => {
@@ -94,29 +99,28 @@ describe('StopGridUseCase', () => {
         });
 
         it('marks the grid stopped before loading and cancelling active orders', async () => {
-            const order = makeOrder({ exchangeOrderId: 'exch-1' });
+            const order = makeOrder();
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
 
             await sut.execute('grid-1', accountAddress);
 
             const markStopped = mockGrids.markStopped.mock.invocationCallOrder[0];
             const loadOrders = mockGrids.findActiveOrdersByGridId.mock.invocationCallOrder[0];
-            const cancelOrder = mockExchange.cancelSpotOrder.mock.invocationCallOrder[0];
+            const cancelOrder = mockOrderCancellation.cancelOrder.mock.invocationCallOrder[0];
             expect(markStopped).toBeLessThan(loadOrders);
             expect(loadOrders).toBeLessThan(cancelOrder);
         });
 
-        it('marks orders as cancelled when no exchangeOrderId', async () => {
-            const order = makeOrder({ exchangeOrderId: null });
-            mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
+        it('cancels every active order of the grid', async () => {
+            const first = makeOrder({ id: 'order-1' });
+            const second = makeOrder({ id: 'order-2', orderIndex: 1 });
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([first, second]);
 
             await sut.execute('grid-1', accountAddress);
 
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id,
-                OrderStatus.Cancelled,
-            );
-            expect(mockExchange.cancelSpotOrder).not.toHaveBeenCalled();
+            expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledTimes(2);
+            expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(first, accountAddress);
+            expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(second, accountAddress);
         });
 
         it('calls markStopped even when there are no active orders', async () => {
@@ -125,30 +129,27 @@ describe('StopGridUseCase', () => {
             await sut.execute('grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', 2600);
+            expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
         });
     });
 
     describe('execute — retry of an interrupted stop', () => {
         it('cancels the orders of an already stopped grid without marking it stopped again', async () => {
-            const order = makeOrder({ exchangeOrderId: 'exch-1' });
+            const order = makeOrder();
             mockGrids.findGridById.mockResolvedValue(makeGrid({ status: GridStatus.Stopped }));
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
 
             await sut.execute('grid-1', accountAddress);
 
             expect(mockGrids.markStopped).not.toHaveBeenCalled();
-            expect(mockExchange.cancelSpotOrder).toHaveBeenCalledOnce();
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                order.id,
-                OrderStatus.Cancelled,
-            );
+            expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(order, accountAddress);
         });
 
         it('cancels the orders left over by a stop that failed mid-loop', async () => {
             const first = makeOrder({ id: 'order-1' });
             const second = makeOrder({ id: 'order-2' });
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([first, second]);
-            mockGrids.updateOrderStatus.mockRejectedValueOnce(new Error('db unavailable'));
+            mockOrderCancellation.cancelOrder.mockRejectedValueOnce(new Error('db unavailable'));
 
             await expect(sut.execute('grid-1', accountAddress)).rejects.toThrow('db unavailable');
 
@@ -157,9 +158,9 @@ describe('StopGridUseCase', () => {
             await sut.execute('grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledOnce();
-            expect(mockGrids.updateOrderStatus).toHaveBeenLastCalledWith(
-                second.id,
-                OrderStatus.Cancelled,
+            expect(mockOrderCancellation.cancelOrder).toHaveBeenLastCalledWith(
+                second,
+                accountAddress,
             );
         });
     });

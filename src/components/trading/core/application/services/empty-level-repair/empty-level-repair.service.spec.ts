@@ -16,6 +16,9 @@ import { ExchangeCloid } from '@components/trading/core/domain/models/exchange-o
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { Config } from '@/config/config.schema';
+import { OrderFeeSyncService } from '../order-fee-sync/order-fee-sync.service';
+import { OrderRefillResult } from '../order-refill/order-refill-result';
+import { OrderRefillService } from '../order-refill/order-refill.service';
 import { RefillParams } from '../order-refill/refill-params';
 import { PlaceRefillOrderResult } from '../refill-order-placement/place-refill-order-result';
 import { RefillOrderPlacementService } from '../refill-order-placement/refill-order-placement.service';
@@ -90,9 +93,13 @@ describe('EmptyLevelRepairService', () => {
     let mockGrids: {
         findOrdersByGridId: ReturnType<typeof vi.fn>;
         findGridById: ReturnType<typeof vi.fn>;
+        updateOrderStatus: ReturnType<typeof vi.fn>;
+        updateOrderExchangeId: ReturnType<typeof vi.fn>;
     };
     let mockExchange: { getOrderStatus: ReturnType<typeof vi.fn> };
     let mockRefillPlacement: { placeRefillOrder: ReturnType<typeof vi.fn> };
+    let mockOrderRefill: { processOne: ReturnType<typeof vi.fn> };
+    let mockFeeSync: { syncFee: ReturnType<typeof vi.fn> };
 
     const placedParams = (call = 0): RefillParams =>
         mockRefillPlacement.placeRefillOrder.mock.calls[call][1];
@@ -110,10 +117,20 @@ describe('EmptyLevelRepairService', () => {
         mockGrids = {
             findOrdersByGridId: vi.fn().mockResolvedValue([]),
             findGridById: vi.fn().mockResolvedValue(createGrid()),
+            updateOrderStatus: vi.fn().mockResolvedValue(undefined),
+            updateOrderExchangeId: vi.fn().mockResolvedValue(undefined),
         };
         mockExchange = {
             getOrderStatus: vi.fn().mockResolvedValue(null),
         };
+        mockOrderRefill = {
+            processOne: vi
+                .fn()
+                .mockResolvedValue(
+                    OrderRefillResult.success(createOrder({ status: OrderStatus.Pending })),
+                ),
+        };
+        mockFeeSync = { syncFee: vi.fn().mockResolvedValue(undefined) };
         mockRefillPlacement = {
             placeRefillOrder: vi.fn(async (_grid: GridDto, params: RefillParams) =>
                 PlaceRefillOrderResult.success(
@@ -137,6 +154,8 @@ describe('EmptyLevelRepairService', () => {
             mockGrids as unknown as GridsApiPort,
             mockExchange as unknown as ExchangePort,
             mockRefillPlacement as unknown as RefillOrderPlacementService,
+            mockOrderRefill as unknown as OrderRefillService,
+            mockFeeSync as unknown as OrderFeeSyncService,
             mockConfig as unknown as ConfigService<Config, true>,
         );
     });
@@ -225,16 +244,95 @@ describe('EmptyLevelRepairService', () => {
         expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
     });
 
-    it('does not re-place a failed order that the exchange reports as filled', async () => {
+    describe('a failed order the exchange reports as filled', () => {
         const ghostOrder = createOrder({
             side: OrderSide.Buy,
             orderIndex: 4,
             status: OrderStatus.Failed,
         });
-        mockGrids.findOrdersByGridId.mockResolvedValue(createOrdersWithEmptyPair4(ghostOrder));
+
+        beforeEach(() => {
+            mockGrids.findOrdersByGridId.mockResolvedValue(createOrdersWithEmptyPair4(ghostOrder));
+            mockExchange.getOrderStatus.mockResolvedValue({
+                exchangeOrderId: '111',
+                status: ExchangeOrderStatus.FILLED,
+                statusTimestamp: LONG_AGO,
+            });
+        });
+
+        it('books the fill and refills the level exactly once', async () => {
+            const result = await repair();
+
+            expect(result).toBe(1);
+            expect(mockExchange.getOrderStatus).toHaveBeenCalledWith(
+                ACCOUNT_ADDRESS,
+                ExchangeCloid.create(ghostOrder.id).toString(),
+            );
+            expect(mockGrids.updateOrderExchangeId).toHaveBeenCalledWith(
+                ghostOrder.id,
+                '111',
+                OrderStatus.Filled,
+                new Date(LONG_AGO),
+            );
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                ghostOrder.id,
+                OrderStatus.Filled,
+                new Date(LONG_AGO),
+            );
+            expect(mockOrderRefill.processOne).toHaveBeenCalledOnce();
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        });
+
+        it('runs the filled-order flow with the reconciled order', async () => {
+            await repair();
+
+            const [bookedOrder, bookedGrid, address] = mockOrderRefill.processOne.mock.calls[0];
+            expect(bookedOrder).toMatchObject({
+                id: ghostOrder.id,
+                status: OrderStatus.Filled,
+                exchangeOrderId: '111',
+                filledAt: LONG_AGO,
+            });
+            expect(bookedGrid.id).toBe(GRID_ID);
+            expect(address).toBe(ACCOUNT_ADDRESS);
+        });
+
+        it('books the fee of the ghost fill', async () => {
+            await repair();
+
+            expect(mockFeeSync.syncFee).toHaveBeenCalledWith(
+                ghostOrder.id,
+                '111',
+                LONG_AGO,
+                ACCOUNT_ADDRESS,
+            );
+        });
+
+        it('does not count the pair when the filled-order flow places no refill', async () => {
+            mockOrderRefill.processOne.mockResolvedValue(
+                OrderRefillResult.failure('Edge order - no refill needed'),
+            );
+
+            const result = await repair();
+
+            expect(result).toBe(0);
+            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
+                ghostOrder.id,
+                OrderStatus.Filled,
+                new Date(LONG_AGO),
+            );
+        });
+    });
+
+    it('does not re-place or book a failed order that still rests on the exchange', async () => {
+        mockGrids.findOrdersByGridId.mockResolvedValue(
+            createOrdersWithEmptyPair4(
+                createOrder({ side: OrderSide.Buy, orderIndex: 4, status: OrderStatus.Failed }),
+            ),
+        );
         mockExchange.getOrderStatus.mockResolvedValue({
             exchangeOrderId: '111',
-            status: ExchangeOrderStatus.FILLED,
+            status: ExchangeOrderStatus.OPEN,
             statusTimestamp: LONG_AGO,
         });
 
@@ -242,10 +340,27 @@ describe('EmptyLevelRepairService', () => {
 
         expect(result).toBe(0);
         expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
-        expect(mockExchange.getOrderStatus).toHaveBeenCalledWith(
-            ACCOUNT_ADDRESS,
-            ExchangeCloid.create(ghostOrder.id).toString(),
+        expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+        expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
+    });
+
+    it('re-places a failed order the exchange reports as cancelled', async () => {
+        mockGrids.findOrdersByGridId.mockResolvedValue(
+            createOrdersWithEmptyPair4(
+                createOrder({ side: OrderSide.Buy, orderIndex: 4, status: OrderStatus.Failed }),
+            ),
         );
+        mockExchange.getOrderStatus.mockResolvedValue({
+            exchangeOrderId: '111',
+            status: ExchangeOrderStatus.CANCELED,
+            statusTimestamp: LONG_AGO,
+        });
+
+        const result = await repair();
+
+        expect(result).toBe(1);
+        expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
+        expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
     });
 
     it('does not re-place a failed order whose exchange status cannot be read', async () => {
