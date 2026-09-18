@@ -41,6 +41,13 @@ describe('WizardSummaryBuilder', () => {
         expect(result).toContain('✓ <b>Mode</b> · Quick');
     });
 
+    it('renders Mode row as AI', () => {
+        const result = sut.buildSummaryFromSession(
+            state({ stepHistory: [SceneStep.Mode], mode: CreateGridMode.Ai }),
+        );
+        expect(result).toContain('✓ <b>Mode</b> · AI');
+    });
+
     it('renders Mode row as Advanced', () => {
         const result = sut.buildSummaryFromSession(
             state({ stepHistory: [SceneStep.Mode], mode: CreateGridMode.Advanced }),
@@ -109,6 +116,23 @@ describe('WizardSummaryBuilder', () => {
         );
         expect(result).toContain('✓ <b>Stop Loss</b> · $1980');
         expect(result).not.toContain('✓ <b>Stop Loss</b> · Disabled');
+    });
+
+    it('renders Upper, Lower, Orders, Investment and Stop Loss from Ai step when grid params present', () => {
+        const result = sut.buildSummaryFromSession(
+            state({
+                stepHistory: [SceneStep.Ai],
+                totalInvestmentUSDC: 1500,
+                upperPrice: 60,
+                lowerPrice: 40,
+                orderCount: 15,
+            }),
+        );
+        expect(result).toContain('✓ <b>Upper</b> · $60');
+        expect(result).toContain('✓ <b>Lower</b> · $40');
+        expect(result).toContain('✓ <b>Orders</b> · 15');
+        expect(result).toContain('✓ <b>Investment</b> · $1500 USDC');
+        expect(result).toContain('✓ <b>Stop Loss</b> · Disabled');
     });
 
     it('renders Investment row from Investment step', () => {

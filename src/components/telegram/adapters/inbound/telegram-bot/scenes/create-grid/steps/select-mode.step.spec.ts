@@ -4,16 +4,22 @@ import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { SceneStep } from '../create-grid-scene-step';
 import { TradingApiPort } from '@components/trading/api/trading-api.port';
+import { PredictionApiPort } from '@components/prediction/api/prediction-api.port';
 
 describe('SelectModeStep', () => {
     let step: SelectModeStep;
     let mockTradingApi: TradingApiPort;
+    let mockPredictionApi: PredictionApiPort;
 
     beforeEach(() => {
         mockTradingApi = {
             getCurrentPrice: vi.fn().mockResolvedValue(43.89),
         } as unknown as TradingApiPort;
-        step = new SelectModeStep(mockTradingApi);
+        mockPredictionApi = {
+            isAvailable: vi.fn().mockReturnValue(false),
+            getBestGrid: vi.fn(),
+        } as unknown as PredictionApiPort;
+        step = new SelectModeStep(mockTradingApi, mockPredictionApi);
     });
 
     describe('buildView', () => {
@@ -25,7 +31,7 @@ describe('SelectModeStep', () => {
             expect(view.body).toBeTruthy();
         });
 
-        it('returns keyboard with Quick and Advanced mode buttons', async () => {
+        it('returns keyboard with Quick and Advanced mode buttons when AI is unavailable', async () => {
             const ctx = createMockContext();
 
             const view = await step.buildView(ctx);
@@ -36,9 +42,35 @@ describe('SelectModeStep', () => {
             const advancedRow = view.keyboard.find((r) =>
                 r.some((b) => b.action === 'create_grid:mode:advanced'),
             );
+            const aiRow = view.keyboard.find((r) =>
+                r.some((b) => b.action === 'create_grid:mode:ai'),
+            );
 
             expect(quickRow).toBeDefined();
             expect(advancedRow).toBeDefined();
+            expect(aiRow).toBeUndefined();
+        });
+
+        it('replaces the Quick button with AI mode when prediction is available', async () => {
+            vi.mocked(mockPredictionApi.isAvailable).mockReturnValue(true);
+            const ctx = createMockContext();
+
+            const view = await step.buildView(ctx);
+
+            const flat = view.keyboard.flat();
+            expect(flat.some((b) => b.action === 'create_grid:mode:ai')).toBe(true);
+            expect(flat.some((b) => b.action === 'create_grid:mode:quick')).toBe(false);
+            expect(flat.some((b) => b.action === 'create_grid:mode:advanced')).toBe(true);
+        });
+
+        it('describes AI mode in the body when prediction is available', async () => {
+            vi.mocked(mockPredictionApi.isAvailable).mockReturnValue(true);
+            const ctx = createMockContext();
+
+            const view = await step.buildView(ctx);
+
+            expect(view.body).toContain('AI mode');
+            expect(view.body).not.toContain('Quick start');
         });
 
         it('includes Back and Cancel buttons', async () => {
@@ -83,6 +115,16 @@ describe('SelectModeStep', () => {
 
             expect(result).toEqual({ nextStep: SceneStep.Quick });
             expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Quick);
+        });
+
+        it('should set ai mode in session and return nextStep Ai', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+
+            const result = await step.handleModeSelection(ctx, CreateGridMode.Ai);
+
+            expect(result).toEqual({ nextStep: SceneStep.Ai });
+            expect(ctx.session.createGrid!.mode).toBe(CreateGridMode.Ai);
         });
 
         it('should set advanced mode in session and return nextStep Upper', async () => {

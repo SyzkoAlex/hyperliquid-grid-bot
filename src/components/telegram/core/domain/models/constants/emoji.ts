@@ -35,4 +35,5 @@ export const EMOJI = {
     BELL_ON: '🔔',
     BELL_OFF: '🔕',
     MONEY_WINGS: '💸',
+    ROBOT: '🤖',
 } as const;

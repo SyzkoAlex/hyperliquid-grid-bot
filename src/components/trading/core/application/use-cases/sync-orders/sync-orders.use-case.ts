@@ -5,10 +5,12 @@ import {
 } from '@components/trading/core/application/ports/exchange.port';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
+import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchange-order/exchange-open-order';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { EmptyLevelRepairService } from '@components/trading/core/application/services/empty-level-repair/empty-level-repair.service';
 import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
 import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 import { logger } from '@/infra/logger/logger';
@@ -25,6 +27,7 @@ export class SyncOrdersUseCase {
         private readonly orderStatusSyncService: OrderStatusSyncService,
         private readonly orderRefillService: OrderRefillService,
         private readonly stpRecoveryService: StpRecoveryService,
+        private readonly emptyLevelRepairService: EmptyLevelRepairService,
         private readonly stopLossProcessor: StopLossProcessorService,
         private readonly priceFetcher: SymbolPriceFetcherService,
     ) {}
@@ -58,31 +61,63 @@ export class SyncOrdersUseCase {
             priceBySymbol,
         );
 
-        const orderableGridIds = activeGrids
-            .map((g) => g.id)
-            .filter((id) => !stoppedGridIds.has(id));
-
-        const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(orderableGridIds);
-        if (allActiveDbOrders.length === 0) return result;
-
         const orderableGrids = activeGrids.filter((g) => !stoppedGridIds.has(g.id));
+        const allActiveDbOrders = await this.grids.findPlacedOrdersByGridIds(
+            orderableGrids.map((g) => g.id),
+        );
         const gridsWithOrders = GridWithOrders.buildMany(
             orderableGrids,
             allActiveDbOrders,
             exchangeOpenOrders,
         );
 
-        this.logger.debug(
-            { activeGrids: gridsWithOrders.length, openOrders: exchangeOpenOrders.length },
-            'Syncing orders',
-        );
+        if (gridsWithOrders.length > 0) {
+            this.logger.debug(
+                { activeGrids: gridsWithOrders.length, openOrders: exchangeOpenOrders.length },
+                'Syncing orders',
+            );
+        }
 
         for (const gridWithOrders of gridsWithOrders) {
             await this.processGrid(gridWithOrders, accountAddress, result);
         }
 
+        // Includes grids without placed orders — a fully drained grid needs repair the most
+        for (const grid of orderableGrids) {
+            await this.repairEmptyLevels(
+                grid,
+                allActiveDbOrders.filter((o) => o.gridId === grid.id),
+                exchangeOpenOrders,
+                accountAddress,
+                result,
+            );
+        }
+
         this.logResultIfNeeded(result);
         return result;
+    }
+
+    private async repairEmptyLevels(
+        grid: GridDto,
+        placedOrders: OrderDto[],
+        exchangeOpenOrders: ExchangeOpenOrder[],
+        accountAddress: string,
+        result: SyncOrdersResult,
+    ): Promise<void> {
+        try {
+            result.addLevelsRepaired(
+                await this.emptyLevelRepairService.repair(
+                    grid,
+                    placedOrders,
+                    exchangeOpenOrders,
+                    accountAddress,
+                ),
+            );
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            result.errors.push(`Grid ${grid.id} level repair: ${errorMsg}`);
+            this.logger.error({ err: error, gridId: grid.id }, 'Error repairing empty levels');
+        }
     }
 
     private async runStopLossCheck(
@@ -149,13 +184,14 @@ export class SyncOrdersUseCase {
     }
 
     private logResultIfNeeded(result: SyncOrdersResult): void {
-        if (result.fillsDetected > 0 || result.stpRecovered > 0) {
+        if (result.fillsDetected > 0 || result.stpRecovered > 0 || result.levelsRepaired > 0) {
             this.logger.info(
                 {
                     gridsProcessed: result.gridsProcessed,
                     fillsDetected: result.fillsDetected,
                     refillsPlaced: result.refillsPlaced,
                     stpRecovered: result.stpRecovered,
+                    levelsRepaired: result.levelsRepaired,
                 },
                 'Orders sync completed',
             );

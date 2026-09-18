@@ -71,11 +71,13 @@ export class AdvancedPreviewStep implements WizardStep {
             return;
         }
 
-        if (state.mode === CreateGridMode.Quick) {
+        if (state.mode !== CreateGridMode.Advanced) {
             delete state.totalInvestmentUSDC;
             delete state.upperPrice;
             delete state.lowerPrice;
             delete state.orderCount;
+            // aiSuggestion is intentionally kept — Back from Preview re-renders the AI step
+            // from the cached suggestion without a seconds-scale re-fetch.
         } else {
             delete state.totalInvestmentUSDC;
         }

@@ -12,8 +12,10 @@ import { RefillOrderPlacementService } from '@components/trading/core/applicatio
 /**
  * Recovers orders cancelled by Hyperliquid's Self-Trade Prevention (STP) mechanism.
  * Called during each sync cycle when the order-status sync detects stpCancelledOrders.
- * Recovery re-places the cancelled order at the same order index and side, provided no
- * conflicting order on the opposite side exists at that order index.
+ * Recovery re-places the cancelled order at the same order index and side, provided it does not
+ * cross any active opposite-side order of the grid. Re-placing a crossing order would be
+ * STP-cancelled again (or cancel the other order), looping every sync cycle; the skipped pair is
+ * picked up later by EmptyLevelRepairService once the crossing is gone.
  */
 @Injectable()
 export class StpRecoveryService {
@@ -56,24 +58,27 @@ export class StpRecoveryService {
                 return false;
             }
 
-            const hasConflict = activeOrders.some(
-                (o) => o.orderIndex === stpOrder.orderIndex && o.side !== stpOrder.side,
-            );
-
-            if (hasConflict) {
-                this.logger.warn(
-                    { orderIndex: stpOrder.orderIndex, side: stpOrder.side, gridId: grid.id },
-                    'STP recovery skipped: conflicting order on opposite side at same order index',
-                );
-                return false;
-            }
-
             const params = new RefillParams(
                 stpOrder.side,
                 stpOrder.orderIndex,
                 Price.from(stpOrder.price),
                 Decimal.from(stpOrder.amount),
             );
+
+            const crossingOrder = params.findCrossingOrder(activeOrders);
+            if (crossingOrder) {
+                this.logger.warn(
+                    {
+                        orderIndex: stpOrder.orderIndex,
+                        side: stpOrder.side,
+                        gridId: grid.id,
+                        crossingOrderId: crossingOrder.id,
+                        crossingOrderIndex: crossingOrder.orderIndex,
+                    },
+                    'STP recovery skipped: order would cross an active opposite-side order',
+                );
+                return false;
+            }
 
             const result = await this.refillPlacement.placeRefillOrder(
                 grid,
@@ -82,6 +87,7 @@ export class StpRecoveryService {
             );
 
             if (result.success) {
+                if (result.order && !result.immediatelyFilled) activeOrders.push(result.order);
                 this.logger.info(
                     { orderIndex: stpOrder.orderIndex, side: stpOrder.side, gridId: grid.id },
                     'Order re-placed after STP cancellation',

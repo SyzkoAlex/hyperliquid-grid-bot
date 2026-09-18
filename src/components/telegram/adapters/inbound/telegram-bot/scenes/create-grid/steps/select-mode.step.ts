@@ -9,18 +9,29 @@ import { StepView } from '../wizard/step-view';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { SelectModeTexts } from '@components/telegram/core/domain/models/messages/wizard/select-mode.texts';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
+import {
+    PREDICTION_API_PORT,
+    PredictionApiPort,
+} from '@components/prediction/api/prediction-api.port';
 
 @Injectable()
 export class SelectModeStep implements WizardStep {
     readonly id = SceneStep.Mode;
 
-    constructor(@Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort) {}
+    constructor(
+        @Inject(TRADING_API_PORT) private readonly tradingApi: TradingApiPort,
+        @Inject(PREDICTION_API_PORT) private readonly predictionApi: PredictionApiPort,
+    ) {}
 
     async buildView(_ctx: BotContext): Promise<StepView> {
+        const isAiAvailable = this.predictionApi.isAvailable();
+        const primaryRow = isAiAvailable
+            ? [{ text: BUTTON_LABELS.MODE_AI, action: CREATE_GRID_ACTIONS.MODE_AI }]
+            : [{ text: BUTTON_LABELS.MODE_QUICK, action: CREATE_GRID_ACTIONS.MODE_QUICK }];
         return {
-            body: SelectModeTexts.PROMPT,
+            body: SelectModeTexts.prompt(isAiAvailable),
             keyboard: [
-                [{ text: BUTTON_LABELS.MODE_QUICK, action: CREATE_GRID_ACTIONS.MODE_QUICK }],
+                primaryRow,
                 [{ text: BUTTON_LABELS.MODE_ADVANCED, action: CREATE_GRID_ACTIONS.MODE_ADVANCED }],
                 [
                     { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
@@ -46,7 +57,12 @@ export class SelectModeStep implements WizardStep {
             }
         }
 
-        const nextStep = mode === CreateGridMode.Quick ? SceneStep.Quick : SceneStep.Upper;
+        const nextStep =
+            mode === CreateGridMode.Quick
+                ? SceneStep.Quick
+                : mode === CreateGridMode.Ai
+                  ? SceneStep.Ai
+                  : SceneStep.Upper;
         return { nextStep };
     }
 

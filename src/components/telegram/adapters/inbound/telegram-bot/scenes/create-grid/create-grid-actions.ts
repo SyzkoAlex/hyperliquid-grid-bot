@@ -22,11 +22,13 @@ export const CREATE_GRID_ACTIONS = {
     OTHER_PAIR: 'create_grid:other_pair',
     MODE_QUICK: 'create_grid:mode:quick',
     MODE_ADVANCED: 'create_grid:mode:advanced',
+    MODE_AI: 'create_grid:mode:ai',
     ORDERS_PREFIX: 'create_grid:orders:',
     STOP_LOSS_OFF: 'create_grid:stop_loss:off',
     UPPER_PRESET_PREFIX: 'create_grid:upper:',
     LOWER_PRESET_PREFIX: 'create_grid:lower:',
     QUICK_INVESTMENT_PRESET_PREFIX: 'create_grid:quick_invest:',
+    AI_INVESTMENT_PRESET_PREFIX: 'create_grid:ai_invest:',
     ADV_INVESTMENT_PRESET_PREFIX: 'create_grid:adv_invest:',
     STOP_LOSS_PRESET_PREFIX: 'create_grid:sl:',
     SWAP_OFFER: 'create_grid:swap_offer',
@@ -44,6 +46,7 @@ export const CREATE_GRID_PATTERNS = {
     UPPER_PRESET: /^create_grid:upper:(\d+|custom)$/,
     LOWER_PRESET: /^create_grid:lower:(\d+|custom)$/,
     QUICK_INVESTMENT_PRESET: /^create_grid:quick_invest:(25|50|75|max|custom)$/,
+    AI_INVESTMENT_PRESET: /^create_grid:ai_invest:(25|50|75|max|custom)$/,
     ADV_INVESTMENT_PRESET: /^create_grid:adv_invest:(25|50|75|max|custom)$/,
     STOP_LOSS_PRESET: /^create_grid:sl:(5|10|20|custom)$/,
 } as const;
@@ -62,6 +65,9 @@ export const buildLowerPreset = (pct: number | PricePresetKey): string =>
 
 export const buildQuickInvestmentPreset = (key: InvestmentPresetKey): string =>
     `${CREATE_GRID_ACTIONS.QUICK_INVESTMENT_PRESET_PREFIX}${key}`;
+
+export const buildAiInvestmentPreset = (key: InvestmentPresetKey): string =>
+    `${CREATE_GRID_ACTIONS.AI_INVESTMENT_PRESET_PREFIX}${key}`;
 
 export const buildAdvInvestmentPreset = (key: InvestmentPresetKey): string =>
     `${CREATE_GRID_ACTIONS.ADV_INVESTMENT_PRESET_PREFIX}${key}`;

@@ -179,16 +179,96 @@ describe('StpRecoveryService', () => {
             expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(2);
         });
 
-        it('should not skip when conflicting order is at a different order index', async () => {
+        it('should not skip when the opposite-side order at another index does not cross', async () => {
             const grid = createGrid();
-            const stpOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5 });
-            const differentIndexOrder = createOrder({ side: OrderSide.Sell, orderIndex: 6 });
+            const stpOrder = createOrder({ side: OrderSide.Buy, orderIndex: 5, price: 50000 });
+            const higherSell = createOrder({ side: OrderSide.Sell, orderIndex: 6, price: 51000 });
 
-            mockGrids.findActiveOrdersByGridId.mockResolvedValue([differentIndexOrder]);
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([higherSell]);
 
             const result = await sut.recoverMany([stpOrder], grid, ACCOUNT_ADDRESS);
 
             expect(result).toBe(1);
+        });
+
+        it('should skip a sell that would cross an active buy at a higher order index', async () => {
+            const grid = createGrid();
+            const stpSell = createOrder({ side: OrderSide.Sell, orderIndex: 2, price: 47000 });
+            const higherBuy = createOrder({
+                side: OrderSide.Buy,
+                orderIndex: 3,
+                price: 48000,
+                status: OrderStatus.Placed,
+            });
+
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([higherBuy]);
+
+            const result = await sut.recoverMany([stpSell], grid, ACCOUNT_ADDRESS);
+
+            expect(result).toBe(0);
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        });
+
+        it('should skip a buy that would cross an active sell at a lower order index', async () => {
+            const grid = createGrid();
+            const stpBuy = createOrder({ side: OrderSide.Buy, orderIndex: 3, price: 48000 });
+            const lowerSell = createOrder({
+                side: OrderSide.Sell,
+                orderIndex: 2,
+                price: 47000,
+                status: OrderStatus.Placed,
+            });
+
+            mockGrids.findActiveOrdersByGridId.mockResolvedValue([lowerSell]);
+
+            const result = await sut.recoverMany([stpBuy], grid, ACCOUNT_ADDRESS);
+
+            expect(result).toBe(0);
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        });
+
+        it('should not re-place an order crossing one recovered earlier in the same batch', async () => {
+            const grid = createGrid();
+            const stpBuy = createOrder({ side: OrderSide.Buy, orderIndex: 3, price: 48000 });
+            const stpSell = createOrder({ side: OrderSide.Sell, orderIndex: 2, price: 47000 });
+
+            mockRefillPlacement.placeRefillOrder.mockResolvedValueOnce(
+                PlaceRefillOrderResult.success(
+                    createOrder({
+                        side: OrderSide.Buy,
+                        orderIndex: 3,
+                        price: 48000,
+                        status: OrderStatus.Pending,
+                    }),
+                ),
+            );
+
+            const result = await sut.recoverMany([stpBuy, stpSell], grid, ACCOUNT_ADDRESS);
+
+            expect(result).toBe(1);
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
+        });
+
+        it('should not let an immediately filled recovery block the next order in the batch', async () => {
+            const grid = createGrid();
+            const stpBuy = createOrder({ side: OrderSide.Buy, orderIndex: 3, price: 48000 });
+            const stpSell = createOrder({ side: OrderSide.Sell, orderIndex: 2, price: 47000 });
+
+            mockRefillPlacement.placeRefillOrder.mockResolvedValueOnce(
+                PlaceRefillOrderResult.immediatelyFilled(
+                    createOrder({
+                        side: OrderSide.Buy,
+                        orderIndex: 3,
+                        price: 48000,
+                        status: OrderStatus.Filled,
+                    }),
+                ),
+            );
+
+            const result = await sut.recoverMany([stpBuy, stpSell], grid, ACCOUNT_ADDRESS);
+
+            expect(result).toBe(2);
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledTimes(2);
         });
     });
 });

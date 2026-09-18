@@ -46,6 +46,8 @@ orders:
     pendingCleanupThresholdMs: ${ORDERS_PENDING_CLEANUP_THRESHOLD_MS:300000} # 5 minutes
     syncLockTtlMs: ${ORDERS_SYNC_LOCK_TTL_MS:30000} # 30 seconds
     restoreLockTtlMs: ${ORDERS_RESTORE_LOCK_TTL_MS:60000} # 60 seconds
+    emptyLevelRepairIntervalMs: ${ORDERS_EMPTY_LEVEL_REPAIR_INTERVAL_MS:60000} # 1 minute
+    emptyLevelRepairMaxBackoffMs: ${ORDERS_EMPTY_LEVEL_REPAIR_MAX_BACKOFF_MS:3600000} # 1 hour
 
 tokens:
     topSize: ${TOKENS_TOP_SIZE:10}
@@ -64,6 +66,10 @@ swap:
     initialL2BufferPct: ${SWAP_INITIAL_L2_BUFFER_PCT:0.001}
     retryL2BufferPct: ${SWAP_RETRY_L2_BUFFER_PCT:0.005}
     minFillRatioPct: ${SWAP_MIN_FILL_RATIO_PCT:0.05}
+
+prediction:
+    baseUrl: ${PREDICTION_SERVICE_URL:}  # empty = AI grid mode disabled
+    requestTimeout: ${PREDICTION_REQUEST_TIMEOUT:60000} # 60s — /suggest runs a seconds-scale walk-forward
 
 logging:
     level: ${LOG_LEVEL:trace}

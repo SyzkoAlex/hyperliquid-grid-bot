@@ -6,6 +6,8 @@ export const ordersSchema = z.object({
     pendingCleanupThresholdMs: z.coerce.number().int().positive(),
     syncLockTtlMs: z.coerce.number().int().positive(),
     restoreLockTtlMs: z.coerce.number().int().positive(),
+    emptyLevelRepairIntervalMs: z.coerce.number().int().positive(),
+    emptyLevelRepairMaxBackoffMs: z.coerce.number().int().positive(),
 });
 
 export type OrdersConfig = z.infer<typeof ordersSchema>;

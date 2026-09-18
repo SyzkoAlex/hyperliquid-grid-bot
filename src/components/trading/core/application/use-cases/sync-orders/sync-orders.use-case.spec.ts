@@ -16,6 +16,7 @@ import { GridsApiPort } from '@components/grids/api/grids-api.port';
 import { OrderStatusSyncService } from '@components/trading/core/application/services/order-status-sync/order-status-sync.service';
 import { OrderRefillService } from '@components/trading/core/application/services/order-refill/order-refill.service';
 import { StpRecoveryService } from '@components/trading/core/application/services/stp-recovery/stp-recovery.service';
+import { EmptyLevelRepairService } from '@components/trading/core/application/services/empty-level-repair/empty-level-repair.service';
 import { StopLossProcessorService } from '@components/trading/core/application/services/stop-loss-processor/stop-loss-processor.service';
 import { SymbolPriceFetcherService } from '@components/trading/core/application/services/symbol-price-fetcher/symbol-price-fetcher.service';
 
@@ -32,6 +33,7 @@ describe('SyncOrdersUseCase', () => {
     let mockOrderStatusSyncService: { process: ReturnType<typeof vi.fn> };
     let mockOrderRefillService: { processMany: ReturnType<typeof vi.fn> };
     let mockStpRecoveryService: { recoverMany: ReturnType<typeof vi.fn> };
+    let mockEmptyLevelRepairService: { repair: ReturnType<typeof vi.fn> };
     let mockStopLossProcessor: { process: ReturnType<typeof vi.fn> };
     let mockPriceFetcher: { fetchPrices: ReturnType<typeof vi.fn> };
 
@@ -93,6 +95,10 @@ describe('SyncOrdersUseCase', () => {
             recoverMany: vi.fn().mockResolvedValue(0),
         };
 
+        mockEmptyLevelRepairService = {
+            repair: vi.fn().mockResolvedValue(0),
+        };
+
         mockStopLossProcessor = {
             process: vi.fn().mockResolvedValue(false),
         };
@@ -107,6 +113,7 @@ describe('SyncOrdersUseCase', () => {
             mockOrderStatusSyncService as unknown as OrderStatusSyncService,
             mockOrderRefillService as unknown as OrderRefillService,
             mockStpRecoveryService as unknown as StpRecoveryService,
+            mockEmptyLevelRepairService as unknown as EmptyLevelRepairService,
             mockStopLossProcessor as unknown as StopLossProcessorService,
             mockPriceFetcher as unknown as SymbolPriceFetcherService,
         );
@@ -365,6 +372,95 @@ describe('SyncOrdersUseCase', () => {
 
             expect(result.gridsProcessed).toBe(0);
             expect(mockOrderStatusSyncService.process).not.toHaveBeenCalled();
+        });
+
+        it('should repair empty levels even when a grid has no placed orders', async () => {
+            const grid = createTestGrid();
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([]);
+            mockEmptyLevelRepairService.repair.mockResolvedValue(3);
+
+            const result = await useCase.executeForGrids('0x123', [grid], [], new Map());
+
+            expect(mockEmptyLevelRepairService.repair).toHaveBeenCalledWith(grid, [], [], '0x123');
+            expect(result.levelsRepaired).toBe(3);
+        });
+
+        it('should repair levels after refill and STP recovery with the grid snapshot', async () => {
+            const grid = createTestGrid();
+            const otherGrid = createTestGrid();
+            const order = createTestOrder(grid.id);
+            const otherOrder = createTestOrder(otherGrid.id);
+            const exchangeOrder = {
+                id: 'exchange-123',
+                cloid: ExchangeCloid.create(order.id),
+                symbol: TradingSymbol.create('BTC'),
+                type: OrderType.Limit,
+                side: OrderSide.Buy,
+                price: Price.from(50000),
+                amount: Decimal.from(0.01),
+                filledAmount: Decimal.zero(),
+                status: ExchangeOrderStatus.OPEN,
+                reduceOnly: false,
+                placedAt: Date.now(),
+            };
+            mockGrids.findPlacedOrdersByGridIds.mockResolvedValue([order, otherOrder]);
+
+            await useCase.executeForGrids('0x123', [grid], [exchangeOrder], new Map());
+
+            expect(mockEmptyLevelRepairService.repair).toHaveBeenCalledWith(
+                grid,
+                [order],
+                [exchangeOrder],
+                '0x123',
+            );
+            const repairCall = mockEmptyLevelRepairService.repair.mock.invocationCallOrder[0];
+            expect(mockOrderRefillService.processMany.mock.invocationCallOrder[0]).toBeLessThan(
+                repairCall,
+            );
+            expect(mockStpRecoveryService.recoverMany.mock.invocationCallOrder[0]).toBeLessThan(
+                repairCall,
+            );
+        });
+
+        it('should not repair levels of a grid stopped by stop-loss in this cycle', async () => {
+            const grid = createTestGrid({ stopLossEnabled: true, stopLossPrice: 40000 });
+            mockStopLossProcessor.process.mockResolvedValue(true);
+
+            await useCase.executeForGrids('0x123', [grid], [], new Map([['BTC', 39000]]));
+
+            expect(mockEmptyLevelRepairService.repair).not.toHaveBeenCalled();
+        });
+
+        it('should return an empty result when every grid is stopped by stop-loss', async () => {
+            const grid1 = createTestGrid({ stopLossEnabled: true, stopLossPrice: 40000 });
+            const grid2 = createTestGrid({ stopLossEnabled: true, stopLossPrice: 40000 });
+            mockStopLossProcessor.process.mockResolvedValue(true);
+
+            const result = await useCase.executeForGrids(
+                '0x123',
+                [grid1, grid2],
+                [],
+                new Map([['BTC', 39000]]),
+            );
+
+            expect(mockGrids.findPlacedOrdersByGridIds).toHaveBeenCalledWith([]);
+            expect(mockOrderStatusSyncService.process).not.toHaveBeenCalled();
+            expect(mockEmptyLevelRepairService.repair).not.toHaveBeenCalled();
+            expect(result.gridsProcessed).toBe(0);
+            expect(result.errors).toEqual([]);
+        });
+
+        it('should record level repair errors and continue with other grids', async () => {
+            const grid1 = createTestGrid();
+            const grid2 = createTestGrid();
+            mockEmptyLevelRepairService.repair
+                .mockRejectedValueOnce(new Error('DB down'))
+                .mockResolvedValueOnce(1);
+
+            const result = await useCase.executeForGrids('0x123', [grid1, grid2], [], new Map());
+
+            expect(result.errors).toEqual([`Grid ${grid1.id} level repair: DB down`]);
+            expect(result.levelsRepaired).toBe(1);
         });
 
         it('should process grids with pre-fetched exchange orders', async () => {

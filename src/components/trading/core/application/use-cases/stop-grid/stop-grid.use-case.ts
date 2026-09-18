@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@/infra/logger/logger';
-import { OrderStatus } from '@domain/models/order/order-status';
+import { GridStatus } from '@domain/models/grid/grid-status';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
     ExchangePort,
 } from '@components/trading/core/application/ports/exchange.port';
 import { TradingSymbol } from '@domain/models/primitives/trading-symbol';
-import { OrderDto } from '@components/grids/api/dto/order.dto';
+import { OrderCancellationService } from '@components/trading/core/application/services/order-cancellation/order-cancellation.service';
 
 @Injectable()
 export class StopGridUseCase {
@@ -16,6 +16,7 @@ export class StopGridUseCase {
     constructor(
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
+        private readonly orderCancellation: OrderCancellationService,
     ) {}
 
     async execute(gridId: string, accountAddress: string): Promise<void> {
@@ -28,13 +29,17 @@ export class StopGridUseCase {
 
         this.logger.info({ gridId, symbol: grid.symbol }, 'Stopping grid');
 
-        const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
-        for (const order of activeOrders) {
-            await this.cancelOrder(order, accountAddress);
+        // Marked stopped first so that concurrent order placement stops; skipped for a grid that is
+        // already stopped, so a stop interrupted before (or during) the cancel loop can be retried.
+        if (grid.status !== GridStatus.Stopped) {
+            const stopPrice = await this.fetchCurrentPriceSafe(grid.symbol);
+            await this.grids.markStopped(gridId, stopPrice);
         }
 
-        const stopPrice = await this.fetchCurrentPriceSafe(grid.symbol);
-        await this.grids.markStopped(gridId, stopPrice);
+        const activeOrders = await this.grids.findActiveOrdersByGridId(gridId);
+        for (const order of activeOrders) {
+            await this.orderCancellation.cancelOrder(order, accountAddress);
+        }
 
         this.logger.info(
             { gridId, cancelledOrders: activeOrders.length },
@@ -53,34 +58,5 @@ export class StopGridUseCase {
             );
             return undefined;
         }
-    }
-
-    private async cancelOrder(order: OrderDto, accountAddress: string): Promise<void> {
-        if (!order.exchangeOrderId) {
-            await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
-            return;
-        }
-
-        try {
-            const result = await this.exchange.cancelSpotOrder({
-                symbol: TradingSymbol.create(order.symbol),
-                exchangeOrderId: order.exchangeOrderId,
-                accountAddress,
-            });
-
-            if (!result.success) {
-                this.logger.warn(
-                    { orderId: order.id, error: result.error },
-                    'Exchange cancel failed, marking order as cancelled in DB',
-                );
-            }
-        } catch (error) {
-            this.logger.warn(
-                { error, orderId: order.id },
-                'Failed to cancel order on exchange during grid stop',
-            );
-        }
-
-        await this.grids.updateOrderStatus(order.id, OrderStatus.Cancelled);
     }
 }

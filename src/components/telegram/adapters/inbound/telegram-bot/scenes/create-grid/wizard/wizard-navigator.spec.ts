@@ -15,6 +15,7 @@ describe('WizardNavigator', () => {
     let mockSwapStep: WizardStep;
     let mockInvestmentStep: WizardStep;
     let mockQuickStep: WizardStep;
+    let mockAiStep: WizardStep;
 
     const pairView: StepView = {
         body: 'Select pair',
@@ -38,6 +39,11 @@ describe('WizardNavigator', () => {
 
     const quickView: StepView = {
         body: 'Quick setup',
+        keyboard: [[{ text: 'Cancel', action: 'create_grid:cancel' }]],
+    };
+
+    const aiView: StepView = {
+        body: 'AI setup',
         keyboard: [[{ text: 'Cancel', action: 'create_grid:cancel' }]],
     };
 
@@ -76,12 +82,19 @@ describe('WizardNavigator', () => {
             rollbackState: vi.fn(),
         } as unknown as WizardStep;
 
+        mockAiStep = {
+            id: SceneStep.Ai,
+            buildView: vi.fn().mockResolvedValue(aiView),
+            rollbackState: vi.fn(),
+        } as unknown as WizardStep;
+
         navigator = new WizardNavigator(mockBoardRenderer);
         navigator.registerStep(mockPairStep);
         navigator.registerStep(mockModeStep);
         navigator.registerStep(mockSwapStep);
         navigator.registerStep(mockInvestmentStep);
         navigator.registerStep(mockQuickStep);
+        navigator.registerStep(mockAiStep);
     });
 
     function createMockContext(): BotContext {
@@ -276,6 +289,22 @@ describe('WizardNavigator', () => {
             expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Quick);
             expect(mockQuickStep.buildView).toHaveBeenCalledWith(ctx);
             expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, quickView);
+        });
+
+        it('falls back to Ai when currentStep is Swap, detourReturnStep is missing, and mode is Ai (stale pre-migration session)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                currentStep: SceneStep.Swap,
+                stepHistory: [SceneStep.Pair, SceneStep.Mode],
+                mode: CreateGridMode.Ai,
+            };
+
+            await navigator.handleBack(ctx);
+
+            expect(mockSwapStep.rollbackState).toHaveBeenCalledWith(ctx);
+            expect(ctx.session.createGrid?.currentStep).toBe(SceneStep.Ai);
+            expect(mockAiStep.buildView).toHaveBeenCalledWith(ctx);
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(ctx, aiView);
         });
 
         it('falls back to Investment when currentStep is Swap, detourReturnStep and mode are both missing (stale pre-migration session)', async () => {

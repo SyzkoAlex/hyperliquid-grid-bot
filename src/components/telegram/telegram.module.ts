@@ -12,6 +12,7 @@ import { ConnectAccountSceneHandler } from './adapters/inbound/telegram-bot/scen
 import { SelectPairStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-pair.step';
 import { SelectModeStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/select-mode.step';
 import { QuickStartStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/quick-start.step';
+import { AiStartStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/ai-start.step';
 import { AdvancedUpperStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-upper.step';
 import { AdvancedLowerStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-lower.step';
 import { AdvancedOrdersStep } from './adapters/inbound/telegram-bot/scenes/create-grid/steps/advanced-orders.step';
@@ -50,12 +51,20 @@ import { TELEGRAM_NOTIFICATION_PORT } from '@components/telegram/core/applicatio
 import { GridsModule } from '@components/grids/grids.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { UsersModule } from '@components/users/users.module';
+import { PredictionModule } from '@components/prediction/prediction.module';
 import { EventPublisherModule } from '@adapters/outbound/events/event-publisher.module';
 import { EventSubscriberModule } from '@adapters/inbound/events/event-subscriber.module';
 import { EventDeserializer } from '@domain/models/events/event-deserializer';
 
 @Module({
-    imports: [GridsModule, TradingModule, UsersModule, EventPublisherModule, EventSubscriberModule],
+    imports: [
+        GridsModule,
+        TradingModule,
+        UsersModule,
+        PredictionModule,
+        EventPublisherModule,
+        EventSubscriberModule,
+    ],
     providers: [
         TelegramBotService,
         ManagedLockService,
@@ -95,6 +104,7 @@ import { EventDeserializer } from '@domain/models/events/event-deserializer';
         SelectPairStep,
         SelectModeStep,
         QuickStartStep,
+        AiStartStep,
         AdvancedUpperStep,
         AdvancedLowerStep,
         AdvancedOrdersStep,

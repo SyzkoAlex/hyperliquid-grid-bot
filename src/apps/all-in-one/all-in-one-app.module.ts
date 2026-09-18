@@ -9,6 +9,7 @@ import { HealthModule } from '@adapters/inbound/health/health.module';
 import { GridsModule } from '../../components/grids/grids.module';
 import { TradingModule } from '../../components/trading/trading.module';
 import { TelegramModule } from '../../components/telegram/telegram.module';
+import { PredictionModule } from '../../components/prediction/prediction.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -26,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         // Components
         GridsModule,
         TradingModule,
+        PredictionModule,
         TelegramModule,
     ],
 })

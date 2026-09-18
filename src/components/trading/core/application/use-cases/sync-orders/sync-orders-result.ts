@@ -3,6 +3,7 @@ export class SyncOrdersResult {
     public fillsDetected: number;
     public refillsPlaced: number;
     public stpRecovered: number;
+    public levelsRepaired: number;
     public errors: string[];
 
     constructor(
@@ -10,12 +11,14 @@ export class SyncOrdersResult {
         fillsDetected: number = 0,
         refillsPlaced: number = 0,
         stpRecovered: number = 0,
+        levelsRepaired: number = 0,
         errors: string[] = [],
     ) {
         this.gridsProcessed = gridsProcessed;
         this.fillsDetected = fillsDetected;
         this.refillsPlaced = refillsPlaced;
         this.stpRecovered = stpRecovered;
+        this.levelsRepaired = levelsRepaired;
         this.errors = errors;
     }
 
@@ -28,5 +31,9 @@ export class SyncOrdersResult {
         this.fillsDetected += gridResult.fills;
         this.refillsPlaced += gridResult.refills;
         this.stpRecovered += gridResult.stpRecovered;
+    }
+
+    addLevelsRepaired(count: number): void {
+        this.levelsRepaired += count;
     }
 }

@@ -56,4 +56,17 @@ export class RefillParams {
             );
         }
     }
+
+    /**
+     * Find an active opposite-side order this order would cross (a buy priced at or above
+     * a resting sell, or a sell at or below a resting buy). Placing it triggers Hyperliquid's
+     * self-trade prevention, which cancels one of the two.
+     */
+    findCrossingOrder(activeOrders: OrderDto[]): OrderDto | undefined {
+        const price = this.price.toNumber();
+        return activeOrders.find((o) => {
+            if (o.side === this.side || o.price === null) return false;
+            return this.side === OrderSide.Buy ? o.price <= price : o.price >= price;
+        });
+    }
 }

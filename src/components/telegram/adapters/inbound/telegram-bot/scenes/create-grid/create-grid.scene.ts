@@ -4,6 +4,7 @@ import { CreateGridMode } from './create-grid-mode';
 import { SelectPairStep } from './steps/select-pair.step';
 import { SelectModeStep } from './steps/select-mode.step';
 import { QuickStartStep } from './steps/quick-start.step';
+import { AiStartStep } from './steps/ai-start.step';
 import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedOrdersStep } from './steps/advanced-orders.step';
@@ -16,7 +17,9 @@ import { BotContext } from '../../types/bot-context';
 import { CREATE_GRID_ACTIONS, CREATE_GRID_PATTERNS } from './create-grid-actions';
 import { SceneStep } from './create-grid-scene-step';
 import { WizardNavigator } from './wizard/wizard-navigator';
+import { BoardRenderer } from './wizard/board-renderer';
 import { StepResult } from './wizard/step-result';
+import { AiStartMessages } from '@components/telegram/core/domain/models/messages/wizard/ai-start.messages';
 import { isReplyMenuText } from '../../handlers/main-menu.keyboard';
 import { SceneHandler } from '../scene-handler';
 import { CommonTexts } from '@components/telegram/core/domain/models/messages/common.texts';
@@ -31,9 +34,11 @@ export class CreateGridSceneHandler implements SceneHandler {
 
     constructor(
         private readonly navigator: WizardNavigator,
+        private readonly boardRenderer: BoardRenderer,
         private readonly selectPairStep: SelectPairStep,
         private readonly selectModeStep: SelectModeStep,
         private readonly quickStartStep: QuickStartStep,
+        private readonly aiStartStep: AiStartStep,
         private readonly advancedUpperStep: AdvancedUpperStep,
         private readonly advancedLowerStep: AdvancedLowerStep,
         private readonly advancedOrdersStep: AdvancedOrdersStep,
@@ -46,6 +51,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         this.navigator.registerStep(selectPairStep);
         this.navigator.registerStep(selectModeStep);
         this.navigator.registerStep(quickStartStep);
+        this.navigator.registerStep(aiStartStep);
         this.navigator.registerStep(advancedUpperStep);
         this.navigator.registerStep(advancedLowerStep);
         this.navigator.registerStep(advancedOrdersStep);
@@ -69,6 +75,7 @@ export class CreateGridSceneHandler implements SceneHandler {
         scene.action(CREATE_GRID_ACTIONS.MODE_ADVANCED, (ctx) =>
             this.handleModeAction(ctx, CreateGridMode.Advanced),
         );
+        scene.action(CREATE_GRID_ACTIONS.MODE_AI, (ctx) => this.handleAiModeAction(ctx));
 
         scene.action(CREATE_GRID_PATTERNS.ORDERS, (ctx) => this.handleOrdersAction(ctx));
 
@@ -76,6 +83,9 @@ export class CreateGridSceneHandler implements SceneHandler {
         scene.action(CREATE_GRID_PATTERNS.LOWER_PRESET, (ctx) => this.handleLowerPresetAction(ctx));
         scene.action(CREATE_GRID_PATTERNS.QUICK_INVESTMENT_PRESET, (ctx) =>
             this.handleQuickInvestmentPresetAction(ctx),
+        );
+        scene.action(CREATE_GRID_PATTERNS.AI_INVESTMENT_PRESET, (ctx) =>
+            this.handleAiInvestmentPresetAction(ctx),
         );
         scene.action(CREATE_GRID_PATTERNS.ADV_INVESTMENT_PRESET, (ctx) =>
             this.handleAdvInvestmentPresetAction(ctx),
@@ -136,6 +146,30 @@ export class CreateGridSceneHandler implements SceneHandler {
 
     private async handleModeAction(ctx: BotContext, mode: CreateGridMode): Promise<void> {
         return this.runStepAction(ctx, () => this.selectModeStep.handleModeSelection(ctx, mode));
+    }
+
+    /**
+     * Does not use runStepAction: entering SceneStep.Ai triggers a seconds-scale
+     * /suggest fetch inside AiStartStep.buildView, so the callback query must be
+     * answered first (Telegram cb queries expire) and a loading board rendered
+     * before the slow work.
+     */
+    private async handleAiModeAction(ctx: BotContext): Promise<void> {
+        await ctx.answerCbQuery();
+        const symbol = ctx.session.createGrid?.symbol ?? '';
+        await this.boardRenderer.render(ctx, {
+            body: AiStartMessages.loading(symbol),
+            keyboard: [],
+        });
+        const result = await this.selectModeStep.handleModeSelection(ctx, CreateGridMode.Ai);
+        if (result) {
+            await this.navigator.completeStep(ctx, result);
+        }
+    }
+
+    private async handleAiInvestmentPresetAction(ctx: BotContext): Promise<void> {
+        const key = ctx.match![1];
+        return this.runStepAction(ctx, () => this.aiStartStep.handleInvestmentPreset(ctx, key));
     }
 
     private async handleOrdersAction(ctx: BotContext): Promise<void> {

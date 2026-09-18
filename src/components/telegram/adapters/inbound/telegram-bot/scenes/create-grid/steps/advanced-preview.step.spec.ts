@@ -3,6 +3,7 @@ import { AdvancedPreviewStep } from './advanced-preview.step';
 import { BotContext } from '../../../types/bot-context';
 import { CreateGridMode } from '../create-grid-mode';
 import { CREATE_GRID_ACTIONS } from '../create-grid-actions';
+import { AiSuggestionSource } from '../ai-suggestion-source';
 
 describe('AdvancedPreviewStep', () => {
     let step: AdvancedPreviewStep;
@@ -113,6 +114,32 @@ describe('AdvancedPreviewStep', () => {
             expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
             expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
             expect(ctx.session.createGrid?.orderCount).toBeUndefined();
+        });
+
+        it('clears ai mode fields but keeps aiSuggestion for a cheap re-render', () => {
+            const ctx = createMockContext();
+            const aiSuggestion = {
+                source: AiSuggestionSource.Prediction,
+                lowerPrice: 40,
+                upperPrice: 60,
+                orderCount: 15,
+            };
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Ai,
+                totalInvestmentUSDC: 1000,
+                upperPrice: 60,
+                lowerPrice: 40,
+                orderCount: 15,
+                aiSuggestion,
+            };
+
+            step.rollbackState(ctx);
+
+            expect(ctx.session.createGrid?.totalInvestmentUSDC).toBeUndefined();
+            expect(ctx.session.createGrid?.upperPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.lowerPrice).toBeUndefined();
+            expect(ctx.session.createGrid?.orderCount).toBeUndefined();
+            expect(ctx.session.createGrid?.aiSuggestion).toEqual(aiSuggestion);
         });
 
         it('only clears investment for advanced mode', () => {

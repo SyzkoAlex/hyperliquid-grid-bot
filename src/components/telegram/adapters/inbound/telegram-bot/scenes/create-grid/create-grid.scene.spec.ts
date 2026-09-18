@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Scenes } from 'telegraf';
 import { CreateGridSceneHandler } from './create-grid.scene';
 import { WizardNavigator } from './wizard/wizard-navigator';
+import { BoardRenderer } from './wizard/board-renderer';
 import { WizardStep } from './wizard/wizard-step';
 import { SelectPairStep } from './steps/select-pair.step';
 import { SelectModeStep } from './steps/select-mode.step';
 import { QuickStartStep } from './steps/quick-start.step';
+import { AiStartStep } from './steps/ai-start.step';
 import { AdvancedUpperStep } from './steps/advanced-upper.step';
 import { AdvancedLowerStep } from './steps/advanced-lower.step';
 import { AdvancedOrdersStep } from './steps/advanced-orders.step';
@@ -22,6 +24,7 @@ import { CommonTexts } from '@components/telegram/core/domain/models/messages/co
 describe('CreateGridSceneHandler', () => {
     let handler: CreateGridSceneHandler;
     let mockNavigator: WizardNavigator;
+    let mockBoardRenderer: BoardRenderer;
     let mockConfirmStep: ConfirmStep;
     let mockSelectPairStep: SelectPairStep;
     let mockSelectModeStep: SelectModeStep;
@@ -30,6 +33,7 @@ describe('CreateGridSceneHandler', () => {
     let mockAdvancedLowerStep: AdvancedLowerStep;
     let mockAdvancedStopLossStep: AdvancedStopLossStep;
     let mockQuickStartStep: QuickStartStep;
+    let mockAiStartStep: AiStartStep;
     let mockAdvancedInvestmentStep: AdvancedInvestmentStep;
     let mockSwapStep: SwapStep;
 
@@ -44,6 +48,10 @@ describe('CreateGridSceneHandler', () => {
             registerStep: vi.fn(),
             renderCurrentStep: vi.fn().mockResolvedValue(undefined),
         } as unknown as WizardNavigator;
+
+        mockBoardRenderer = {
+            render: vi.fn().mockResolvedValue(undefined),
+        } as unknown as BoardRenderer;
 
         mockConfirmStep = {
             execute: vi.fn().mockResolvedValue(undefined),
@@ -105,6 +113,14 @@ describe('CreateGridSceneHandler', () => {
             handleTextInput: vi.fn().mockResolvedValue(null),
         } as unknown as QuickStartStep;
 
+        mockAiStartStep = {
+            id: SceneStep.Ai,
+            buildView: vi.fn().mockResolvedValue({ body: '', keyboard: [] }),
+            rollbackState: vi.fn(),
+            handleInvestmentPreset: vi.fn().mockResolvedValue(null),
+            handleTextInput: vi.fn().mockResolvedValue(null),
+        } as unknown as AiStartStep;
+
         mockAdvancedInvestmentStep = {
             id: SceneStep.Investment,
             buildView: vi.fn().mockResolvedValue({ body: '', keyboard: [] }),
@@ -131,9 +147,11 @@ describe('CreateGridSceneHandler', () => {
 
         handler = new CreateGridSceneHandler(
             mockNavigator,
+            mockBoardRenderer,
             mockSelectPairStep,
             mockSelectModeStep,
             mockQuickStartStep,
+            mockAiStartStep,
             mockAdvancedUpperStep,
             mockAdvancedLowerStep,
             mockAdvancedOrdersStep,
@@ -293,6 +311,84 @@ describe('CreateGridSceneHandler', () => {
                 }
             ).handleModeAction(ctx, CreateGridMode.Quick);
 
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+        });
+    });
+
+    describe('handleAiModeAction', () => {
+        it('answers callback query, renders a loading board, then selects AI mode', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+            vi.mocked(mockSelectModeStep.handleModeSelection).mockResolvedValue(null);
+
+            await (
+                handler as unknown as { handleAiModeAction(ctx: BotContext): Promise<void> }
+            ).handleAiModeAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockBoardRenderer.render).toHaveBeenCalledWith(
+                ctx,
+                expect.objectContaining({
+                    body: expect.stringContaining('HYPE'),
+                    keyboard: [],
+                }),
+            );
+            expect(mockSelectModeStep.handleModeSelection).toHaveBeenCalledWith(
+                ctx,
+                CreateGridMode.Ai,
+            );
+            expect(mockNavigator.completeStep).not.toHaveBeenCalled();
+        });
+
+        it('renders the loading board before mode selection runs', async () => {
+            const callOrder: string[] = [];
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+            vi.mocked(mockBoardRenderer.render).mockImplementation(async () => {
+                callOrder.push('render');
+            });
+            vi.mocked(mockSelectModeStep.handleModeSelection).mockImplementation(async () => {
+                callOrder.push('mode');
+                return null;
+            });
+
+            await (
+                handler as unknown as { handleAiModeAction(ctx: BotContext): Promise<void> }
+            ).handleAiModeAction(ctx);
+
+            expect(callOrder).toEqual(['render', 'mode']);
+        });
+
+        it('completes the step when mode selection returns a result', async () => {
+            const result = { nextStep: SceneStep.Ai };
+            const ctx = createMockContext();
+            ctx.session.createGrid = { symbol: 'HYPE' };
+            vi.mocked(mockSelectModeStep.handleModeSelection).mockResolvedValue(result);
+
+            await (
+                handler as unknown as { handleAiModeAction(ctx: BotContext): Promise<void> }
+            ).handleAiModeAction(ctx);
+
+            expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
+        });
+    });
+
+    describe('handleAiInvestmentPresetAction', () => {
+        it('calls aiStartStep.handleInvestmentPreset with the matched key and completes step', async () => {
+            const result = { nextStep: SceneStep.Preview };
+            const ctx = createMockContext({
+                match: [undefined, 'max'] as unknown as RegExpExecArray,
+            });
+            vi.mocked(mockAiStartStep.handleInvestmentPreset).mockResolvedValue(result);
+
+            await (
+                handler as unknown as {
+                    handleAiInvestmentPresetAction(ctx: BotContext): Promise<void>;
+                }
+            ).handleAiInvestmentPresetAction(ctx);
+
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+            expect(mockAiStartStep.handleInvestmentPreset).toHaveBeenCalledWith(ctx, 'max');
             expect(mockNavigator.completeStep).toHaveBeenCalledWith(ctx, result);
         });
     });

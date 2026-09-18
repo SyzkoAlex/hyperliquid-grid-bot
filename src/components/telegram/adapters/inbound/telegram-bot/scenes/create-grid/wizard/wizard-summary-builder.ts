@@ -5,6 +5,12 @@ import { CreateGridMode } from '../create-grid-mode';
 import { formatFiat } from '@components/telegram/core/domain/models/formatters/format-fiat';
 import { PriceFormatter } from '@components/telegram/core/domain/models/formatters/price.formatter';
 
+const MODE_LABELS: Record<CreateGridMode, string> = {
+    [CreateGridMode.Quick]: 'Quick',
+    [CreateGridMode.Advanced]: 'Advanced',
+    [CreateGridMode.Ai]: 'AI',
+};
+
 @Injectable()
 export class WizardSummaryBuilder {
     buildSummaryFromSession(state: CreateGridWizardState | undefined): string {
@@ -33,8 +39,7 @@ export class WizardSummaryBuilder {
             }
             case SceneStep.Mode: {
                 if (!state.mode) return null;
-                const modeLabel = state.mode === CreateGridMode.Quick ? 'Quick' : 'Advanced';
-                return `✓ <b>Mode</b> · ${modeLabel}`;
+                return `✓ <b>Mode</b> · ${MODE_LABELS[state.mode]}`;
             }
             case SceneStep.Upper: {
                 if (state.upperPrice === undefined) return null;
@@ -48,7 +53,8 @@ export class WizardSummaryBuilder {
                 if (state.orderCount === undefined) return null;
                 return `✓ <b>Orders</b> · ${state.orderCount}`;
             }
-            case SceneStep.Quick: {
+            case SceneStep.Quick:
+            case SceneStep.Ai: {
                 if (state.totalInvestmentUSDC === undefined) return null;
                 const lines: string[] = [];
                 if (state.upperPrice !== undefined)

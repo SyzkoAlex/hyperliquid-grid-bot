@@ -278,6 +278,42 @@ describe('BoardRenderer', () => {
             expect(text).toMatch(/^Step 4 of 4\n\n/);
         });
 
+        it('renders "Step 3 of 4" for Ai + currentStep Ai', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Ai,
+                currentStep: SceneStep.Ai,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 3 of 4\n\n/);
+        });
+
+        it('renders "Step 3 of 4" for Ai + currentStep Swap (detour borrows the investment position)', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Ai,
+                currentStep: SceneStep.Swap,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 3 of 4\n\n/);
+        });
+
+        it('renders "Step 4 of 4" for Ai + currentStep Preview', async () => {
+            const ctx = createMockContext();
+            ctx.session.createGrid = {
+                mode: CreateGridMode.Ai,
+                currentStep: SceneStep.Preview,
+            };
+
+            const text = await renderAndGetText(ctx);
+
+            expect(text).toMatch(/^Step 4 of 4\n\n/);
+        });
+
         it('renders "Step 6 of 8" for Advanced + currentStep Investment', async () => {
             const ctx = createMockContext();
             ctx.session.createGrid = {

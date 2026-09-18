@@ -18,7 +18,7 @@ This runs: typecheck → lint → format:check → build → test
 
 When the pre-commit hook blocks `git commit` for code review, do exactly:
 
-1. Run the `code-review` subagent on the current `git diff` and show its
+1. Run the `reviewer` subagent (or `/review`) on the current `git diff` and show its
    report to the user.
 2. Wait for the user's decision (commit / fix / skip).
 3. Retry the commit as ONE Bash command:

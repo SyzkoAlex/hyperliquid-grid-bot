@@ -1,11 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BotContext } from '../../../types/bot-context';
-import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
-import {
-    CREATE_GRID_ACTIONS,
-    InvestmentPresetKey,
-    buildAdvInvestmentPreset,
-} from '../create-grid-actions';
+import { buildAdvInvestmentPreset } from '../create-grid-actions';
 import { WizardStep } from '../wizard/wizard-step';
 import { SceneStep } from '../create-grid-scene-step';
 import { StepResult } from '../wizard/step-result';
@@ -13,12 +8,12 @@ import { StepView } from '../wizard/step-view';
 import { TRADING_API_PORT, TradingApiPort } from '@components/trading/api/trading-api.port';
 import { logger } from '@/infra/logger/logger';
 import { WIZARD_CONFIG } from '@components/telegram/core/domain/models/constants/wizard-config';
-import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
-import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
 import { AdvancedInvestmentPromptMessage } from '@components/telegram/core/domain/models/messages/wizard/advanced-investment.messages';
 import { ValidationTexts } from '@components/telegram/core/domain/models/messages/wizard/validation.texts';
 import { buildInvestmentView } from '../helpers/investment-view-builder';
 import { validateInvestment } from '../helpers/investment-validator';
+import { buildInvestmentPresetKeyboard } from '../helpers/investment-preset-keyboard';
+import { handleInvestmentPresetSelection } from '../helpers/investment-preset-selection';
 import { awaitSwapBalanceSettle, persistSwapOffer } from '../helpers/swap-session.helpers';
 
 @Injectable()
@@ -107,84 +102,16 @@ export class AdvancedInvestmentStep implements WizardStep {
 
         return {
             body,
-            keyboard: this.buildKeyboard(suggestedMax, hasSwapOffer),
+            keyboard: buildInvestmentPresetKeyboard(
+                suggestedMax,
+                hasSwapOffer,
+                buildAdvInvestmentPreset,
+            ),
         };
     }
 
-    private buildKeyboard(suggestedMax: number | null, hasSwapOffer = false): InlineButton[][] {
-        const isProactiveSwap = suggestedMax !== null && hasSwapOffer;
-        const rows: InlineButton[][] = [];
-        if (suggestedMax !== null) {
-            rows.push(
-                [
-                    {
-                        text: `25% ($${Math.round(suggestedMax * 0.25)})`,
-                        action: buildAdvInvestmentPreset(InvestmentPresetKey.P25),
-                    },
-                    {
-                        text: `50% ($${Math.round(suggestedMax * 0.5)})`,
-                        action: buildAdvInvestmentPreset(InvestmentPresetKey.P50),
-                    },
-                ],
-                [
-                    {
-                        text: `75% ($${Math.round(suggestedMax * 0.75)})`,
-                        action: buildAdvInvestmentPreset(InvestmentPresetKey.P75),
-                    },
-                    {
-                        text: `Max ($${suggestedMax})`,
-                        action: buildAdvInvestmentPreset(InvestmentPresetKey.Max),
-                    },
-                ],
-            );
-        }
-        if (hasSwapOffer) {
-            const swapLabel = isProactiveSwap
-                ? `${EMOJI.REFRESH} Swap to maximize`
-                : `${EMOJI.REFRESH} Swap to fit grid`;
-            rows.push([{ text: swapLabel, action: CREATE_GRID_ACTIONS.SWAP_OFFER }]);
-        }
-        rows.push([
-            {
-                text: BUTTON_LABELS.CUSTOM,
-                action: buildAdvInvestmentPreset(InvestmentPresetKey.Custom),
-            },
-        ]);
-        rows.push([
-            { text: BUTTON_LABELS.BACK, action: CREATE_GRID_ACTIONS.BACK },
-            { text: BUTTON_LABELS.CANCEL, action: CREATE_GRID_ACTIONS.CANCEL },
-        ]);
-        return rows;
-    }
-
     async handleInvestmentPreset(ctx: BotContext, key: string): Promise<StepResult> {
-        if (key === InvestmentPresetKey.Custom) {
-            if (ctx.session.createGrid) {
-                ctx.session.createGrid.pendingError = ValidationTexts.enterCustomInvestment();
-            }
-            return null;
-        }
-        const snapshot = ctx.session.createGrid?.balanceSnapshot;
-        if (!snapshot) return null;
-        const { suggestedMax } = snapshot;
-        let investment: number;
-        switch (key) {
-            case InvestmentPresetKey.P25:
-                investment = Math.round(suggestedMax * 0.25);
-                break;
-            case InvestmentPresetKey.P50:
-                investment = Math.round(suggestedMax * 0.5);
-                break;
-            case InvestmentPresetKey.P75:
-                investment = Math.round(suggestedMax * 0.75);
-                break;
-            case InvestmentPresetKey.Max:
-                investment = suggestedMax;
-                break;
-            default:
-                return null;
-        }
-        return this.applyTextInput(ctx, String(investment));
+        return handleInvestmentPresetSelection(ctx, key, (text) => this.applyTextInput(ctx, text));
     }
 
     async handleTextInput(ctx: BotContext, text: string): Promise<StepResult> {
