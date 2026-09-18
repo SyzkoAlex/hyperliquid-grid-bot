@@ -17,11 +17,10 @@ import { ExchangeOpenOrder } from '@components/trading/core/domain/models/exchan
 import { ExchangeOrderStatus } from '@components/trading/core/domain/models/exchange-order/exchange-order-status';
 import { Config } from '@/config/config.schema';
 import { OrderFeeSyncService } from '../order-fee-sync/order-fee-sync.service';
-import { OrderRefillResult } from '../order-refill/order-refill-result';
-import { OrderRefillService } from '../order-refill/order-refill.service';
 import { RefillParams } from '../order-refill/refill-params';
 import { PlaceRefillOrderResult } from '../refill-order-placement/place-refill-order-result';
 import { RefillOrderPlacementService } from '../refill-order-placement/refill-order-placement.service';
+import { TradeEventPublisher } from '../trade-event-publisher/trade-event-publisher.service';
 
 const ACCOUNT_ADDRESS = '0x1234567890123456789012345678901234567890';
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -98,7 +97,7 @@ describe('EmptyLevelRepairService', () => {
     };
     let mockExchange: { getOrderStatus: ReturnType<typeof vi.fn> };
     let mockRefillPlacement: { placeRefillOrder: ReturnType<typeof vi.fn> };
-    let mockOrderRefill: { processOne: ReturnType<typeof vi.fn> };
+    let mockTradeEvents: { publishFillEvent: ReturnType<typeof vi.fn> };
     let mockFeeSync: { syncFee: ReturnType<typeof vi.fn> };
 
     const placedParams = (call = 0): RefillParams =>
@@ -123,12 +122,8 @@ describe('EmptyLevelRepairService', () => {
         mockExchange = {
             getOrderStatus: vi.fn().mockResolvedValue(null),
         };
-        mockOrderRefill = {
-            processOne: vi
-                .fn()
-                .mockResolvedValue(
-                    OrderRefillResult.success(createOrder({ status: OrderStatus.Pending })),
-                ),
+        mockTradeEvents = {
+            publishFillEvent: vi.fn().mockResolvedValue(null),
         };
         mockFeeSync = { syncFee: vi.fn().mockResolvedValue(undefined) };
         mockRefillPlacement = {
@@ -154,7 +149,7 @@ describe('EmptyLevelRepairService', () => {
             mockGrids as unknown as GridsApiPort,
             mockExchange as unknown as ExchangePort,
             mockRefillPlacement as unknown as RefillOrderPlacementService,
-            mockOrderRefill as unknown as OrderRefillService,
+            mockTradeEvents as unknown as TradeEventPublisher,
             mockFeeSync as unknown as OrderFeeSyncService,
             mockConfig as unknown as ConfigService<Config, true>,
         );
@@ -260,14 +255,7 @@ describe('EmptyLevelRepairService', () => {
             });
         });
 
-        it('books the fill and refills the level exactly once', async () => {
-            const result = await repair();
-
-            expect(result).toBe(1);
-            expect(mockExchange.getOrderStatus).toHaveBeenCalledWith(
-                ACCOUNT_ADDRESS,
-                ExchangeCloid.create(ghostOrder.id).toString(),
-            );
+        const expectBooked = (): void => {
             expect(mockGrids.updateOrderExchangeId).toHaveBeenCalledWith(
                 ghostOrder.id,
                 '111',
@@ -279,22 +267,34 @@ describe('EmptyLevelRepairService', () => {
                 OrderStatus.Filled,
                 new Date(LONG_AGO),
             );
-            expect(mockOrderRefill.processOne).toHaveBeenCalledOnce();
-            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        };
+
+        it('books the fill and refills the level exactly once', async () => {
+            const result = await repair();
+
+            expect(result).toBe(1);
+            expect(mockExchange.getOrderStatus).toHaveBeenCalledWith(
+                ACCOUNT_ADDRESS,
+                ExchangeCloid.create(ghostOrder.id).toString(),
+            );
+            expectBooked();
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
+            expect(placedParams().side).toBe(OrderSide.Sell);
+            expect(placedParams().orderIndex).toBe(5);
         });
 
-        it('runs the filled-order flow with the reconciled order', async () => {
+        it('publishes the fill event with the reconciled order', async () => {
             await repair();
 
-            const [bookedOrder, bookedGrid, address] = mockOrderRefill.processOne.mock.calls[0];
-            expect(bookedOrder).toMatchObject({
+            const [filledOrder, eventGrid] = mockTradeEvents.publishFillEvent.mock.calls[0];
+            expect(filledOrder).toMatchObject({
                 id: ghostOrder.id,
                 status: OrderStatus.Filled,
                 exchangeOrderId: '111',
                 filledAt: LONG_AGO,
             });
-            expect(bookedGrid.id).toBe(GRID_ID);
-            expect(address).toBe(ACCOUNT_ADDRESS);
+            expect(eventGrid.id).toBe(GRID_ID);
         });
 
         it('books the fee of the ghost fill', async () => {
@@ -308,19 +308,25 @@ describe('EmptyLevelRepairService', () => {
             );
         });
 
-        it('does not count the pair when the filled-order flow places no refill', async () => {
-            mockOrderRefill.processOne.mockResolvedValue(
-                OrderRefillResult.failure('Edge order - no refill needed'),
+        it('does not count the pair when the refill placement fails', async () => {
+            mockRefillPlacement.placeRefillOrder.mockResolvedValue(
+                PlaceRefillOrderResult.failure('Insufficient balance'),
             );
 
             const result = await repair();
 
             expect(result).toBe(0);
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                ghostOrder.id,
-                OrderStatus.Filled,
-                new Date(LONG_AGO),
-            );
+            expectBooked();
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+        });
+
+        it('places the refill even when the fill event cannot be published', async () => {
+            mockTradeEvents.publishFillEvent.mockRejectedValue(new Error('bus unavailable'));
+
+            const result = await repair();
+
+            expect(result).toBe(1);
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
         });
 
         it('books the fill but places no refill once the grid was stopped meanwhile', async () => {
@@ -329,12 +335,9 @@ describe('EmptyLevelRepairService', () => {
             const result = await repair();
 
             expect(result).toBe(0);
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                ghostOrder.id,
-                OrderStatus.Filled,
-                new Date(LONG_AGO),
-            );
-            expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+            expectBooked();
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
         });
 
         it('books the fill but places no refill that would cross an active order', async () => {
@@ -346,12 +349,36 @@ describe('EmptyLevelRepairService', () => {
             const result = await repair();
 
             expect(result).toBe(0);
-            expect(mockGrids.updateOrderStatus).toHaveBeenCalledWith(
-                ghostOrder.id,
-                OrderStatus.Filled,
-                new Date(LONG_AGO),
+            expectBooked();
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+            expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
+        });
+
+        it('repairs a pair blocked after booking on a later cycle, booking nothing twice', async () => {
+            mockGrids.findGridById.mockResolvedValueOnce(
+                createGrid({ status: GridStatus.Stopped }),
             );
-            expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+
+            expect(await repair()).toBe(0);
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+
+            mockGrids.findOrdersByGridId.mockResolvedValue(
+                createOrdersWithEmptyPair4({
+                    ...ghostOrder,
+                    status: OrderStatus.Filled,
+                    exchangeOrderId: '111',
+                    filledAt: LONG_AGO,
+                }),
+            );
+            vi.setSystemTime(NOW + INTERVAL_MS);
+
+            expect(await repair()).toBe(1);
+            expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
+            expect(placedParams().side).toBe(OrderSide.Sell);
+            expect(placedParams().orderIndex).toBe(5);
+            expect(mockTradeEvents.publishFillEvent).toHaveBeenCalledOnce();
+            expect(mockExchange.getOrderStatus).toHaveBeenCalledOnce();
+            expect(mockGrids.updateOrderExchangeId).toHaveBeenCalledOnce();
         });
     });
 
@@ -371,7 +398,7 @@ describe('EmptyLevelRepairService', () => {
 
         expect(result).toBe(0);
         expect(mockRefillPlacement.placeRefillOrder).not.toHaveBeenCalled();
-        expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+        expect(mockTradeEvents.publishFillEvent).not.toHaveBeenCalled();
         expect(mockGrids.updateOrderStatus).not.toHaveBeenCalled();
     });
 
@@ -391,7 +418,7 @@ describe('EmptyLevelRepairService', () => {
 
         expect(result).toBe(1);
         expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
-        expect(mockOrderRefill.processOne).not.toHaveBeenCalled();
+        expect(mockTradeEvents.publishFillEvent).not.toHaveBeenCalled();
     });
 
     it('does not re-place a failed order whose exchange status cannot be read', async () => {

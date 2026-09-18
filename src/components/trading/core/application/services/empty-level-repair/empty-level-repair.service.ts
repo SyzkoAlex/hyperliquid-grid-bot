@@ -19,24 +19,14 @@ import { Decimal } from '@domain/models/primitives/decimal';
 import { Config } from '@/config/config.schema';
 import { logger } from '@/infra/logger/logger';
 import { OrderFeeSyncService } from '../order-fee-sync/order-fee-sync.service';
-import { OrderRefillService } from '../order-refill/order-refill.service';
 import { RefillParams } from '../order-refill/refill-params';
 import { RefillOrderPlacementService } from '../refill-order-placement/refill-order-placement.service';
+import { TradeEventPublisher } from '../trade-event-publisher/trade-event-publisher.service';
 
 interface PairBackoff {
     attempts: number;
     nextAttemptAt: number;
 }
-
-/** What an empty pair needs: an order to place, or nothing (already handled, or left alone). */
-interface PairResolution {
-    params: RefillParams | null;
-    /** a ghost order reconciled to Filled while resolving the pair — its refill runs the
-     * filled-order flow instead of a plain placement */
-    filledGhost: OrderDto | null;
-}
-
-const PAIR_SKIPPED: PairResolution = { params: null, filledGhost: null };
 
 const ACTIVE_STATUSES = new Set([OrderStatus.Pending, OrderStatus.Placed]);
 const REPLACEABLE_STATUSES = new Set([OrderStatus.Failed, OrderStatus.Cancelled]);
@@ -64,10 +54,10 @@ const RESTING_EXCHANGE_STATUSES = new Set([
  * order without an exchangeOrderId is additionally looked up on the exchange by its cloid: the
  * exchange may have accepted a placement that was marked Failed locally (an HTTP timeout). Such a
  * ghost still resting is left alone — re-placing it would double the level's capital. A ghost the
- * exchange reports filled has already moved that capital, so its row is reconciled to Filled
- * unconditionally; its refill is then placed by the normal filled-order flow, but only behind the
- * same guards as any other placement. A refill a guard blocks is placed by the next cycle, which
- * reads the order as Filled by then.
+ * exchange reports filled has already moved that capital, so its row is booked unconditionally
+ * (status, fee and the fill event); the refill it owes is then placed like any other, behind the
+ * same guards. A refill a guard blocks is placed by the next cycle, which reads the order as
+ * Filled by then and books nothing a second time.
  *
  * The grid is re-read before every placement, so a grid stopped since the sync snapshot gets
  * nothing. That narrows, but does not close, the race with StopGridUseCase: it marks the grid
@@ -91,7 +81,7 @@ export class EmptyLevelRepairService {
         @Inject(GRIDS_API_PORT) private readonly grids: GridsApiPort,
         @Inject(EXCHANGE_PORT) private readonly exchange: ExchangePort,
         private readonly refillPlacement: RefillOrderPlacementService,
-        private readonly orderRefill: OrderRefillService,
+        private readonly tradeEventPublisher: TradeEventPublisher,
         private readonly feeSync: OrderFeeSyncService,
         configService: ConfigService<Config, true>,
     ) {
@@ -146,7 +136,7 @@ export class EmptyLevelRepairService {
                 continue;
             }
 
-            const { params, filledGhost } = await this.resolveMissingOrder(
+            const params = await this.resolveMissingOrder(
                 grid,
                 pairOrders,
                 openOrderIds,
@@ -162,15 +152,13 @@ export class EmptyLevelRepairService {
                 break;
             }
 
-            const repaired = filledGhost
-                ? await this.refillGhostFill(
-                      filledGhost,
-                      grid,
-                      pairKey,
-                      activeOrders,
-                      accountAddress,
-                  )
-                : await this.placeMissingOrder(grid, params, pairKey, activeOrders, accountAddress);
+            const repaired = await this.placeMissingOrder(
+                grid,
+                params,
+                pairKey,
+                activeOrders,
+                accountAddress,
+            );
             if (repaired) placed++;
         }
         return placed;
@@ -183,8 +171,8 @@ export class EmptyLevelRepairService {
         lowerIndex: number,
         now: number,
         accountAddress: string,
-    ): Promise<PairResolution> {
-        if (pairOrders.length === 0) return PAIR_SKIPPED;
+    ): Promise<RefillParams | null> {
+        if (pairOrders.length === 0) return null;
 
         const openOrder = pairOrders.find((o) => openOrderIds.has(o.id));
         if (openOrder) {
@@ -192,40 +180,39 @@ export class EmptyLevelRepairService {
                 { gridId: grid.id, orderId: openOrder.id, status: openOrder.status, lowerIndex },
                 'Empty level pair skipped: an order of the pair is still open on the exchange',
             );
-            return PAIR_SKIPPED;
+            return null;
         }
 
         const latest = pairOrders.reduce((a, b) =>
             this.getLastActivityAt(b) > this.getLastActivityAt(a) ? b : a,
         );
-        if (now - this.getLastActivityAt(latest) < this.intervalMs) return PAIR_SKIPPED;
+        if (now - this.getLastActivityAt(latest) < this.intervalMs) return null;
 
-        if (latest.status === OrderStatus.Filled) {
-            return { params: RefillParams.calc(latest, grid), filledGhost: null };
-        }
+        if (latest.status === OrderStatus.Filled) return RefillParams.calc(latest, grid);
 
         if (REPLACEABLE_STATUSES.has(latest.status) && latest.price !== null) {
             if (!latest.exchangeOrderId) {
-                const ghostResolution = await this.resolveGhostOrder(latest, grid, accountAddress);
-                if (ghostResolution) return ghostResolution;
+                return this.resolveGhostOrder(latest, grid, accountAddress);
             }
 
-            return {
-                params: new RefillParams(
-                    latest.side,
-                    latest.orderIndex,
-                    Price.from(latest.price),
-                    Decimal.from(latest.amount),
-                ),
-                filledGhost: null,
-            };
+            return this.buildReplacementParams(latest);
         }
 
         this.logger.debug(
             { gridId: grid.id, orderId: latest.id, status: latest.status, lowerIndex },
             'Empty level pair skipped: latest order is not repairable',
         );
-        return PAIR_SKIPPED;
+        return null;
+    }
+
+    private buildReplacementParams(order: OrderDto): RefillParams | null {
+        if (order.price === null) return null;
+        return new RefillParams(
+            order.side,
+            order.orderIndex,
+            Price.from(order.price),
+            Decimal.from(order.amount),
+        );
     }
 
     private isReadyToPlace(
@@ -295,44 +282,6 @@ export class EmptyLevelRepairService {
     }
 
     /**
-     * Places the refill of a reconciled ghost fill through the normal filled-order flow, which also
-     * publishes the fill event that books the trade's profit.
-     *
-     * @returns whether the refill was placed
-     */
-    private async refillGhostFill(
-        filledOrder: OrderDto,
-        grid: GridDto,
-        pairKey: string,
-        activeOrders: OrderDto[],
-        accountAddress: string,
-    ): Promise<boolean> {
-        const logContext = { gridId: grid.id, orderId: filledOrder.id };
-
-        try {
-            const result = await this.orderRefill.processOne(filledOrder, grid, accountAddress);
-
-            if (result.success) {
-                this.backoffByPairKey.delete(pairKey);
-                if (result.refillOrder && result.refillOrder.status !== OrderStatus.Filled) {
-                    activeOrders.push(result.refillOrder);
-                }
-                return true;
-            }
-
-            this.logger.warn(
-                { ...logContext, error: result.error },
-                'Empty level repair placed no refill for a ghost fill',
-            );
-        } catch (err) {
-            this.logger.warn({ ...logContext, err }, 'Empty level repair error');
-        }
-
-        this.registerFailedAttempt(pairKey, Date.now());
-        return false;
-    }
-
-    /**
      * A placement the exchange accepted can still end up Failed locally (an HTTP timeout, see
      * RefillOrderPlacementService.cleanupPendingOrder). Such an order has no exchangeOrderId, and
      * once it fills it is gone from the open orders too — only its cloid can reveal it.
@@ -340,14 +289,14 @@ export class EmptyLevelRepairService {
      * An order whose fate cannot be read is treated as still resting: re-placing it would double
      * the level's capital.
      *
-     * @returns how the pair is resolved, or null when the exchange does not know the order and it
-     * can be re-placed
+     * @returns what the pair needs: the refill the booked fill owes, the order itself when the
+     * exchange does not know it, or null when the pair is left alone
      */
     private async resolveGhostOrder(
         order: OrderDto,
         grid: GridDto,
         accountAddress: string,
-    ): Promise<PairResolution | null> {
+    ): Promise<RefillParams | null> {
         let info: ExchangeOrderInfo | null;
 
         try {
@@ -360,31 +309,34 @@ export class EmptyLevelRepairService {
                 { err, gridId: grid.id, orderId: order.id },
                 'Empty level pair skipped: order status lookup by cloid failed',
             );
-            return PAIR_SKIPPED;
+            return null;
         }
 
-        if (!info) return null;
+        if (!info) return this.buildReplacementParams(order);
 
         if (RESTING_EXCHANGE_STATUSES.has(info.status)) {
             this.logger.warn(
                 { gridId: grid.id, orderId: order.id, exchangeStatus: info.status },
                 'Empty level pair skipped: the order rests on the exchange despite its DB status',
             );
-            return PAIR_SKIPPED;
+            return null;
         }
 
-        if (info.status !== ExchangeOrderStatus.FILLED) return null;
+        if (info.status !== ExchangeOrderStatus.FILLED) return this.buildReplacementParams(order);
 
         const filledOrder = await this.bookGhostFill(order, grid, info, accountAddress);
 
-        return { params: RefillParams.calc(filledOrder, grid), filledGhost: filledOrder };
+        return RefillParams.calc(filledOrder, grid);
     }
 
     /**
      * The capital of a ghost order the exchange filled has already moved, so the DB row is brought
      * in line — nothing else reconciles it, as the order-status sync only looks at orders that
-     * carry an exchangeOrderId. This is bookkeeping, so it is not gated by the placement guards: a
-     * refill they block is placed by the next cycle, which reads the order as Filled by then.
+     * carry an exchangeOrderId. Status, fee and the fill event are all booked here, because this is
+     * the only pass that ever sees the order as a ghost: once the row is Filled it carries an
+     * exchangeOrderId, so a later cycle repairs the pair through the ordinary Filled branch and
+     * books nothing again. Booking is therefore not gated by the placement guards — a refill they
+     * block is placed by that later cycle, with the fill already published.
      *
      * @returns the reconciled order
      */
@@ -420,12 +372,23 @@ export class EmptyLevelRepairService {
             .syncFee(order.id, info.exchangeOrderId, info.statusTimestamp, accountAddress)
             .catch(() => {});
 
-        return {
+        const filledOrder: OrderDto = {
             ...order,
             status: OrderStatus.Filled,
             exchangeOrderId: info.exchangeOrderId,
             filledAt: info.statusTimestamp,
         };
+
+        try {
+            await this.tradeEventPublisher.publishFillEvent(filledOrder, grid);
+        } catch (err) {
+            this.logger.error(
+                { err, gridId: grid.id, orderId: order.id },
+                'Failed to publish the fill event of a booked ghost fill',
+            );
+        }
+
+        return filledOrder;
     }
 
     private async isGridRunning(gridId: string): Promise<boolean> {

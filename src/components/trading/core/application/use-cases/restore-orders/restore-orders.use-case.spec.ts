@@ -69,6 +69,14 @@ describe('RestoreOrdersUseCase', () => {
             expect(result.hasErrors).toBe(false);
         });
 
+        it('restores before sweeping, so a promoted leftover is swept in the same pass', async () => {
+            await execute();
+
+            expect(mockOrderRestoreService.restoreOrders.mock.invocationCallOrder[0]).toBeLessThan(
+                mockLeftoverOrderSweep.sweep.mock.invocationCallOrder[0],
+            );
+        });
+
         it('sweeps the leftover orders even when the restore pass fails', async () => {
             mockExchange.getOpenSpotOrders.mockRejectedValue(new Error('Network error'));
 
