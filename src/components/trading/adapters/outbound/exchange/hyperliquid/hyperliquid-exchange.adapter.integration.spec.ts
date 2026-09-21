@@ -12,6 +12,7 @@ import { ExchangePlaceOrderParams } from '@components/trading/core/domain/models
 import type { ExchangePort } from '@components/trading/core/application/ports/exchange.port';
 import { EXCHANGE_PORT } from '@components/trading/core/application/ports/exchange.port';
 import { METRICS_PORT } from '@/core/application/ports/outbound/metrics.port';
+import { USERS_API_PORT } from '@components/users/api/users-api.port';
 import { HyperliquidModule } from '@/infra/hyperliquid/hyperliquid.module';
 import { HyperliquidExchangeMapper } from './hyperliquid-exchange.mapper';
 import { HyperliquidExchangeAdapter } from './hyperliquid-exchange.adapter';
@@ -43,6 +44,14 @@ describe('HyperliquidExchangeAdapter (Integration)', () => {
                 {
                     provide: METRICS_PORT,
                     useValue: { observeExchangeApiDuration: () => {} },
+                },
+                {
+                    // Signing uses the testnet wallet key from .env.test for any account address
+                    provide: USERS_API_PORT,
+                    useValue: {
+                        findUserByAccountAddress: async () => ({ id: 'integration-test-user' }),
+                        getAgentPrivateKey: async () => process.env.HYPERLIQUID_PRIVATE_KEY,
+                    },
                 },
                 TokenDisplayResolverService,
                 TopSymbolsSelectorService,

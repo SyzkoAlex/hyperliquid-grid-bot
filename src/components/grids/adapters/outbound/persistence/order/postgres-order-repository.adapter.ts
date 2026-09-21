@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, DrizzleQueryError, eq, inArray } from 'drizzle-orm';
+import { DatabaseError } from 'pg';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { DRIZZLE_DB } from '@/infra/database/database.module';
 import { Order } from '../../../../core/domain/models/order/order';
@@ -40,11 +41,12 @@ export class PostgresOrderRepositoryAdapter implements OrderRepositoryPort {
 
     private isDuplicateActiveOrderError(error: unknown): boolean {
         const PG_UNIQUE_VIOLATION = '23505';
+        // drizzle-orm wraps driver errors in DrizzleQueryError; the pg error is in `cause`
+        const pgError = error instanceof DrizzleQueryError ? error.cause : error;
         return (
-            error instanceof Error &&
-            'code' in error &&
-            (error as NodeJS.ErrnoException).code === PG_UNIQUE_VIOLATION &&
-            error.message.includes('idx_orders_active_order')
+            pgError instanceof DatabaseError &&
+            pgError.code === PG_UNIQUE_VIOLATION &&
+            pgError.constraint === 'idx_orders_active_order'
         );
     }
 

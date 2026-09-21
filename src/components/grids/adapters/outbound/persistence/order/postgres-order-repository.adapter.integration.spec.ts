@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { DrizzleQueryError } from 'drizzle-orm';
+import { DatabaseError } from 'pg';
 import { DuplicateActiveOrderError } from '../../../../core/domain/errors/duplicate-active-order.error';
 import type { DrizzleDb } from '@/infra/database/drizzle-db';
 import { DatabaseTestHelper, TEST_USER_ID } from '@/infra/tests/database-test-helper';
@@ -328,6 +330,22 @@ describe('PostgresOrderRepositoryAdapter (Integration)', () => {
             });
             await orderRepo.save(buyOrder);
             await expect(orderRepo.save(sellOrder)).resolves.not.toThrow();
+        });
+
+        it('should rethrow other unique violations (duplicate id) as-is', async () => {
+            const id = OrderId.create();
+            await orderRepo.save(createOrder({ id, gridId: grid.id, orderIndex: 1 }));
+
+            const error = await orderRepo
+                .save(createOrder({ id, gridId: grid.id, orderIndex: 2 }))
+                .catch((e: unknown) => e);
+
+            expect(error).not.toBeInstanceOf(DuplicateActiveOrderError);
+            expect(error).toBeInstanceOf(DrizzleQueryError);
+            const cause = (error as DrizzleQueryError).cause;
+            expect(cause).toBeInstanceOf(DatabaseError);
+            expect((cause as DatabaseError).code).toBe('23505');
+            expect((cause as DatabaseError).constraint).not.toBe('idx_orders_active_order');
         });
     });
 

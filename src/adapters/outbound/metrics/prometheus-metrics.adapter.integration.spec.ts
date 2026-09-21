@@ -49,7 +49,8 @@ describe('PrometheusMetricsAdapter (Integration)', () => {
         name: string,
         labels?: Record<string, string>,
     ): Promise<{ sum: number; count: number }> {
-        const metric = await register.getSingleMetric(name)?.get();
+        // Default labels (env) are applied only on registry export, not by metric.get()
+        const metric = (await register.getMetricsAsJSON()).find((m) => m.name === name);
         if (!metric) return { sum: 0, count: 0 };
 
         const values = metric.values as Array<{
