@@ -36,7 +36,7 @@ jobs:
       sha: ${{ steps.image.outputs.sha }}
       name: ${{ steps.image.outputs.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set image name and tag
         id: image
@@ -82,7 +82,7 @@ jobs:
     outputs:
       bump_sha: ${{ steps.push.outputs.bump_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: SyzkoAlex/home-ops
           token: ${{ secrets.HOME_OPS_TOKEN }}
@@ -122,15 +122,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.HOME_OPS_TOKEN }}
           BUMP_SHA: ${{ needs.deploy.outputs.bump_sha }}
+          # Watch our own Kustomization's context, not the combined state:
+          # the other (fast) Kustomizations post success on the same commit
+          # within a minute, going green long before this app is healthy
+          CONTEXT_PREFIX: kustomization/hyperliquid-${{ inputs.environment }}/
         run: |
-          echo "Waiting for Flux to report status on home-ops@${BUMP_SHA}"
+          echo "Waiting for Flux status '${CONTEXT_PREFIX}*' on home-ops@${BUMP_SHA}"
           deadline=$(( $(date +%s) + 600 ))
           while [ "$(date +%s)" -lt "$deadline" ]; do
-            state=$(curl -sf \
+            resp=$(curl -s -w '\n%{http_code}' \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/SyzkoAlex/home-ops/commits/${BUMP_SHA}/status" \
-              | jq -r '.state')
+              "https://api.github.com/repos/SyzkoAlex/home-ops/commits/${BUMP_SHA}/status")
+            code=${resp##*$'\n'}
+            case "$code" in
+              200) ;;
+              401|403) echo "GitHub API returned HTTP ${code} — check HOME_OPS_TOKEN permissions (needs Commit statuses: read)"; exit 1 ;;
+              *) echo "$(date -u +%T) GitHub API returned HTTP ${code} — retrying"; sleep 20; continue ;;
+            esac
+            state=$(printf '%s' "${resp%$'\n'*}" \
+              | jq -r --arg p "$CONTEXT_PREFIX" \
+                '[.statuses[] | select(.context | startswith($p))][0].state // "absent"')
             echo "$(date -u +%T) state=${state}"
             case "$state" in
               success) echo "Flux reconciled successfully"; exit 0 ;;
