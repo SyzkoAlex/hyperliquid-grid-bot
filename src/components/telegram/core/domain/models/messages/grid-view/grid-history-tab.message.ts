@@ -1,5 +1,5 @@
 import { PriceFormatter } from '@components/telegram/core/domain/models/formatters/price.formatter';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { formatOrderLine } from '@components/telegram/core/domain/models/formatters/format-order-line';
 import { gridHeaderParts } from './grid-message.helpers';
 import { OrderSide } from '@domain/models/order/order-side';
@@ -10,7 +10,7 @@ const HISTORY_DISPLAY_LIMIT = 30;
 export class GridHistoryTabMessage {
     readonly text: string;
 
-    private constructor({ grid, filledOrders, currentPrice }: GridSnapshot, timezone: string) {
+    private constructor({ grid, filledOrders, currentPrice }: GridSnapshotDto, timezone: string) {
         const { pair, shortId } = gridHeaderParts(grid);
         const symbol = grid.symbol;
         const gridStep = (grid.upperPrice - grid.lowerPrice) / (grid.orderCount - 1);
@@ -42,7 +42,7 @@ export class GridHistoryTabMessage {
             `${lines.join('\n')}\n`;
     }
 
-    static create(snapshot: GridSnapshot, timezone: string): GridHistoryTabMessage {
+    static create(snapshot: GridSnapshotDto, timezone: string): GridHistoryTabMessage {
         return new GridHistoryTabMessage(snapshot, timezone);
     }
 }

@@ -6,11 +6,12 @@ import { GetGridWithPnlUseCase } from '@components/telegram/core/application/use
 import { GridAction } from '@components/telegram/core/domain/models/grid-action';
 import { GridViewTexts } from '@components/telegram/core/domain/models/messages/grid-view/grid-view.texts';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
+const USER_ID = 'user-1';
 
 function makeGrid(status = GridStatus.Running, startedAt?: number): GridDto {
     return {
@@ -32,7 +33,7 @@ function makeGrid(status = GridStatus.Running, startedAt?: number): GridDto {
     };
 }
 
-function makeSnapshot(status = GridStatus.Running, startedAt?: number): GridSnapshot {
+function makeSnapshot(status = GridStatus.Running, startedAt?: number): GridSnapshotDto {
     return {
         grid: makeGrid(status, startedAt),
         pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
@@ -51,7 +52,10 @@ function makeSnapshot(status = GridStatus.Running, startedAt?: number): GridSnap
     };
 }
 
-function createMockContext(match?: string[], user?: { timezone: string }): BotContext {
+function createMockContext(
+    match?: string[],
+    user: { id: string; timezone?: string } | undefined = { id: USER_ID },
+): BotContext {
     return {
         match,
         user,
@@ -101,11 +105,25 @@ describe('GridProfitTabHandler', () => {
             await actionCallbacks.get(GridAction.VIEW_PATTERN)!(ctx);
 
             expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(getGridWithPnlUseCase.execute).toHaveBeenCalledWith(GRID_ID);
+            expect(getGridWithPnlUseCase.execute).toHaveBeenCalledWith(USER_ID, GRID_ID);
             expect(ctx.editMessageText).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
             );
+        });
+
+        it('should reply NOT_FOUND without calling the use case when ctx.user is missing', async () => {
+            const ctx = {
+                ...createMockContext([`view:grid:${GRID_ID}:p:1`, GRID_ID, '1']),
+                user: undefined,
+            } as BotContext;
+
+            await actionCallbacks.get(GridAction.VIEW_PATTERN)!(ctx);
+
+            expect(getGridWithPnlUseCase.execute).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalledWith(GridViewTexts.NOT_FOUND, {
+                parse_mode: TelegramParseMode.HTML,
+            });
         });
 
         it('should reply NOT_FOUND when grid does not exist', async () => {
@@ -164,6 +182,7 @@ describe('GridProfitTabHandler', () => {
                 makeSnapshot(GridStatus.Running, TIMESTAMP),
             );
             const ctx = createMockContext([`view:grid:${GRID_ID}:p:1`, GRID_ID, '1'], {
+                id: USER_ID,
                 timezone: 'Asia/Tokyo',
             });
 

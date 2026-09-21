@@ -10,6 +10,7 @@ import { GridsModule } from '../../components/grids/grids.module';
 import { TradingModule } from '../../components/trading/trading.module';
 import { TelegramModule } from '../../components/telegram/telegram.module';
 import { PredictionModule } from '../../components/prediction/prediction.module';
+import { WebApiModule } from '../../components/web-api/web-api.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -29,6 +30,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         TradingModule,
         PredictionModule,
         TelegramModule,
+        WebApiModule.forRoot(),
     ],
 })
 export class AllInOneAppModule {}

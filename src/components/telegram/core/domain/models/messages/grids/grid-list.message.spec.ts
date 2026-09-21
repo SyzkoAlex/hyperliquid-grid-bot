@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GridListMessage } from './grid-list.message';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridPnl } from '../../grid-pnl';
-import { OrderStats } from '../../order-stats';
+import { GridPnlDto } from '@components/grids/api/dto/grid-pnl.dto';
+import { OrderStatsDto } from '@components/grids/api/dto/order-stats.dto';
 
 function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     return {
@@ -27,8 +27,8 @@ function makeGrid(overrides: Partial<GridDto> = {}): GridDto {
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 5.5, unrealizedPnl: -1.2, totalFees: 0 };
-const DEFAULT_ORDER_STATS: OrderStats = {
+const DEFAULT_PNL: GridPnlDto = { gridProfit: 5.5, unrealizedPnl: -1.2, totalFees: 0 };
+const DEFAULT_ORDER_STATS: OrderStatsDto = {
     activeBuys: 4,
     activeSells: 5,
     avgActiveBuyPrice: 91000,
@@ -38,7 +38,7 @@ const DEFAULT_ORDER_STATS: OrderStats = {
     filledCycles: 3,
 };
 
-function makeSnapshot(overrides: Partial<GridSnapshot> = {}): GridSnapshot {
+function makeSnapshot(overrides: Partial<GridSnapshotDto> = {}): GridSnapshotDto {
     return {
         grid: makeGrid(),
         pnl: DEFAULT_PNL,

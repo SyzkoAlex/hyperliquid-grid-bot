@@ -20,8 +20,9 @@ export class ActiveGridsViewBuilder {
         this.pageSize = configService.get('telegram', { infer: true }).pagination.activePageSize;
     }
 
-    async build(page: number): Promise<ActiveGridsView> {
+    async build(userId: string, page: number): Promise<ActiveGridsView> {
         const { items, totalCount, currentPage } = await this.getGridsWithPnlUseCase.execute(
+            userId,
             GridFilter.Running,
             page,
             this.pageSize,

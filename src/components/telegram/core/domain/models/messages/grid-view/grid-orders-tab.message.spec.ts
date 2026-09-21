@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { GridOrdersTabMessage } from './grid-orders-tab.message';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridPnl } from '@components/telegram/core/domain/models/grid-pnl';
-import { OrderStats } from '@components/telegram/core/domain/models/order-stats';
+import { GridPnlDto } from '@components/grids/api/dto/grid-pnl.dto';
+import { OrderStatsDto } from '@components/grids/api/dto/order-stats.dto';
 
 function makeGrid(status: GridStatus = GridStatus.Running): GridDto {
     return {
@@ -46,8 +46,8 @@ function makeOrder(side: OrderSide, status: OrderStatus, price = 95000, orderInd
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
-const DEFAULT_ORDER_STATS: OrderStats = {
+const DEFAULT_PNL: GridPnlDto = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
+const DEFAULT_ORDER_STATS: OrderStatsDto = {
     activeBuys: 4,
     activeSells: 5,
     avgActiveBuyPrice: 91000,
@@ -57,7 +57,7 @@ const DEFAULT_ORDER_STATS: OrderStats = {
     filledCycles: 5,
 };
 
-function makeData(grid: GridDto, activeOrders: OrderDto[] = []): GridSnapshot {
+function makeData(grid: GridDto, activeOrders: OrderDto[] = []): GridSnapshotDto {
     return {
         grid,
         pnl: DEFAULT_PNL,

@@ -40,7 +40,7 @@ export class LeftoverOrderSweepService {
 
         let cancelled = 0;
         for (const [gridId, orders] of ordersByGridId) {
-            const grid = await this.grids.findGridById(gridId);
+            const grid = await this.grids.findGridByIdForSystem(gridId);
             if (!grid || grid.userId !== userId || !TERMINAL_GRID_STATUSES.has(grid.status)) {
                 continue;
             }

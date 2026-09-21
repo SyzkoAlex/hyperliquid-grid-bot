@@ -7,7 +7,7 @@ import { StopGridUseCase } from '@components/telegram/core/application/use-cases
 import { GridAction } from '@components/telegram/core/domain/models/grid-action';
 import { GridViewTexts } from '@components/telegram/core/domain/models/messages/grid-view/grid-view.texts';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 
@@ -32,7 +32,7 @@ function makeGrid(): GridDto {
     };
 }
 
-function makeSnapshot(): GridSnapshot {
+function makeSnapshot(): GridSnapshotDto {
     return {
         grid: makeGrid(),
         pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },

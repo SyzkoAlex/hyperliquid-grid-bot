@@ -239,4 +239,41 @@ describe('GridSnapshotFactory', () => {
         expect(snapshot.orderStats.activeSells).toBe(1);
         expect(snapshot.orderStats.filledCycles).toBe(2);
     });
+    it('counts pending orders as active', () => {
+        const orders = [
+            makeOrder(OrderSide.Buy, OrderStatus.Placed),
+            makeOrder(OrderSide.Buy, OrderStatus.Pending),
+            makeOrder(OrderSide.Sell, OrderStatus.Placed),
+        ];
+
+        const snapshot = factory.create(makeGrid(), orders, 95000);
+
+        expect(snapshot.orderStats.activeBuys).toBe(2);
+        expect(snapshot.orderStats.activeSells).toBe(1);
+    });
+
+    it('computes weighted avg price for active orders', () => {
+        const orders = [
+            makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 1),
+            makeOrder(OrderSide.Buy, OrderStatus.Placed, 80000, 1),
+        ];
+
+        const snapshot = factory.create(makeGrid(), orders, 95000);
+
+        expect(snapshot.orderStats.avgActiveBuyPrice).toBeCloseTo(85000);
+    });
+
+    it('computes lowestActiveBuyPrice and highestActiveSellPrice', () => {
+        const orders = [
+            makeOrder(OrderSide.Buy, OrderStatus.Placed, 90000, 1),
+            makeOrder(OrderSide.Buy, OrderStatus.Placed, 85000, 1),
+            makeOrder(OrderSide.Sell, OrderStatus.Placed, 95000, 1),
+            makeOrder(OrderSide.Sell, OrderStatus.Placed, 100000, 1),
+        ];
+
+        const snapshot = factory.create(makeGrid(), orders, 95000);
+
+        expect(snapshot.orderStats.lowestActiveBuyPrice).toBe(85000);
+        expect(snapshot.orderStats.highestActiveSellPrice).toBe(100000);
+    });
 });

@@ -51,7 +51,7 @@ function makeOrder(overrides: Partial<OrderDto> = {}): OrderDto {
 describe('StopGridUseCase', () => {
     let sut: StopGridUseCase;
     let mockGrids: {
-        findGridById: ReturnType<typeof vi.fn>;
+        findGridByIdForUser: ReturnType<typeof vi.fn>;
         findActiveOrdersByGridId: ReturnType<typeof vi.fn>;
         markStopped: ReturnType<typeof vi.fn>;
     };
@@ -64,7 +64,7 @@ describe('StopGridUseCase', () => {
 
     beforeEach(() => {
         mockGrids = {
-            findGridById: vi.fn().mockResolvedValue(makeGrid()),
+            findGridByIdForUser: vi.fn().mockResolvedValue(makeGrid()),
             findActiveOrdersByGridId: vi.fn().mockResolvedValue([]),
             markStopped: vi.fn().mockResolvedValue(undefined),
         };
@@ -82,17 +82,29 @@ describe('StopGridUseCase', () => {
 
     describe('execute — grid not found', () => {
         it('returns without calling markStopped when grid does not exist', async () => {
-            mockGrids.findGridById.mockResolvedValue(null);
+            mockGrids.findGridByIdForUser.mockResolvedValue(null);
 
-            await sut.execute('missing-grid', accountAddress);
+            await sut.execute('user-1', 'missing-grid', accountAddress);
 
             expect(mockGrids.markStopped).not.toHaveBeenCalled();
         });
     });
 
+    describe('execute — grid owned by another user', () => {
+        it('does not stop a grid owned by another user', async () => {
+            mockGrids.findGridByIdForUser.mockResolvedValue(null);
+
+            await sut.execute('user-2', 'grid-1', accountAddress);
+
+            expect(mockGrids.findGridByIdForUser).toHaveBeenCalledWith('user-2', 'grid-1');
+            expect(mockGrids.markStopped).not.toHaveBeenCalled();
+            expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
+        });
+    });
+
     describe('execute — happy path', () => {
         it('fetches current price and calls markStopped with it', async () => {
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockExchange.getCurrentPrice).toHaveBeenCalledOnce();
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', 2600);
@@ -102,7 +114,7 @@ describe('StopGridUseCase', () => {
             const order = makeOrder();
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
 
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             const markStopped = mockGrids.markStopped.mock.invocationCallOrder[0];
             const loadOrders = mockGrids.findActiveOrdersByGridId.mock.invocationCallOrder[0];
@@ -116,7 +128,7 @@ describe('StopGridUseCase', () => {
             const second = makeOrder({ id: 'order-2', orderIndex: 1 });
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([first, second]);
 
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledTimes(2);
             expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(first, accountAddress);
@@ -126,7 +138,7 @@ describe('StopGridUseCase', () => {
         it('calls markStopped even when there are no active orders', async () => {
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([]);
 
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', 2600);
             expect(mockOrderCancellation.cancelOrder).not.toHaveBeenCalled();
@@ -136,10 +148,12 @@ describe('StopGridUseCase', () => {
     describe('execute — retry of an interrupted stop', () => {
         it('cancels the orders of an already stopped grid without marking it stopped again', async () => {
             const order = makeOrder();
-            mockGrids.findGridById.mockResolvedValue(makeGrid({ status: GridStatus.Stopped }));
+            mockGrids.findGridByIdForUser.mockResolvedValue(
+                makeGrid({ status: GridStatus.Stopped }),
+            );
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([order]);
 
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockGrids.markStopped).not.toHaveBeenCalled();
             expect(mockOrderCancellation.cancelOrder).toHaveBeenCalledWith(order, accountAddress);
@@ -151,11 +165,15 @@ describe('StopGridUseCase', () => {
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([first, second]);
             mockOrderCancellation.cancelOrder.mockRejectedValueOnce(new Error('db unavailable'));
 
-            await expect(sut.execute('grid-1', accountAddress)).rejects.toThrow('db unavailable');
+            await expect(sut.execute('user-1', 'grid-1', accountAddress)).rejects.toThrow(
+                'db unavailable',
+            );
 
-            mockGrids.findGridById.mockResolvedValue(makeGrid({ status: GridStatus.Stopped }));
+            mockGrids.findGridByIdForUser.mockResolvedValue(
+                makeGrid({ status: GridStatus.Stopped }),
+            );
             mockGrids.findActiveOrdersByGridId.mockResolvedValue([second]);
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledOnce();
             expect(mockOrderCancellation.cancelOrder).toHaveBeenLastCalledWith(
@@ -169,7 +187,7 @@ describe('StopGridUseCase', () => {
         it('calls markStopped with undefined when getCurrentPrice throws', async () => {
             mockExchange.getCurrentPrice.mockRejectedValue(new Error('network error'));
 
-            await sut.execute('grid-1', accountAddress);
+            await sut.execute('user-1', 'grid-1', accountAddress);
 
             expect(mockGrids.markStopped).toHaveBeenCalledWith('grid-1', undefined);
         });
@@ -177,7 +195,7 @@ describe('StopGridUseCase', () => {
         it('does not rethrow when getCurrentPrice throws', async () => {
             mockExchange.getCurrentPrice.mockRejectedValue(new Error('network error'));
 
-            await expect(sut.execute('grid-1', accountAddress)).resolves.not.toThrow();
+            await expect(sut.execute('user-1', 'grid-1', accountAddress)).resolves.not.toThrow();
         });
     });
 });

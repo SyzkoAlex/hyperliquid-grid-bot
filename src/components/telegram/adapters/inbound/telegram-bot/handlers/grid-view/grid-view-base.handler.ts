@@ -1,6 +1,6 @@
 import { GetGridWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
 import { BotContext } from '../../types/bot-context';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridViewTexts } from '@components/telegram/core/domain/models/messages/grid-view/grid-view.texts';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -26,9 +26,14 @@ export abstract class GridViewBaseHandler implements Handler {
     protected async fetchGridSnapshot(
         ctx: BotContext,
         gridId: string,
-    ): Promise<GridSnapshot | null> {
+    ): Promise<GridSnapshotDto | null> {
+        const userId = ctx.user?.id;
+        if (!userId) {
+            await ctx.reply(GridViewTexts.NOT_FOUND, { parse_mode: TelegramParseMode.HTML });
+            return null;
+        }
         try {
-            const snapshot = await this.getGridWithPnlUseCase.execute(gridId);
+            const snapshot = await this.getGridWithPnlUseCase.execute(userId, gridId);
             if (!snapshot) {
                 await ctx.reply(GridViewTexts.NOT_FOUND, { parse_mode: TelegramParseMode.HTML });
                 return null;

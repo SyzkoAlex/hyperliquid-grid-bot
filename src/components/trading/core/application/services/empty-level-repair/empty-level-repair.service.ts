@@ -392,7 +392,7 @@ export class EmptyLevelRepairService {
     }
 
     private async isGridRunning(gridId: string): Promise<boolean> {
-        const grid = await this.grids.findGridById(gridId);
+        const grid = await this.grids.findGridByIdForSystem(gridId);
         return grid?.status === GridStatus.Running;
     }
 

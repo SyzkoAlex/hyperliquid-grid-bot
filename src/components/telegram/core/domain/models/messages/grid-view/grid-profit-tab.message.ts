@@ -1,6 +1,6 @@
 import { PriceFormatter } from '@components/telegram/core/domain/models/formatters/price.formatter';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import {
     formatPnl,
@@ -14,7 +14,7 @@ export class GridProfitTabMessage {
     readonly text: string;
 
     private constructor(
-        { grid, pnl, currentPrice, orderStats, activeOrders }: GridSnapshot,
+        { grid, pnl, currentPrice, orderStats, activeOrders }: GridSnapshotDto,
         timezone: string,
     ) {
         const { pair, shortId, emoji, label, duration } = gridHeaderParts(grid);
@@ -64,7 +64,7 @@ export class GridProfitTabMessage {
             `<b>Started:</b> ${startedStr}\n`;
     }
 
-    static create(snapshot: GridSnapshot, timezone: string): GridProfitTabMessage {
+    static create(snapshot: GridSnapshotDto, timezone: string): GridProfitTabMessage {
         return new GridProfitTabMessage(snapshot, timezone);
     }
 }

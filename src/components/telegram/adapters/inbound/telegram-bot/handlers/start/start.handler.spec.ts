@@ -119,7 +119,7 @@ describe('StartHandler', () => {
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(viewBuilder.build).toHaveBeenCalledWith(1);
+            expect(viewBuilder.build).toHaveBeenCalledWith('user-1', 1);
             expect(ctx.reply).toHaveBeenCalledTimes(1);
             const [text, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
             expect(text).toContain('Welcome back, @alice!');
@@ -138,7 +138,7 @@ describe('StartHandler', () => {
 
             await registeredCallbacks.get(`cmd:${TelegramCommand.Start}`)!(ctx);
 
-            expect(viewBuilder.build).toHaveBeenCalledWith(1);
+            expect(viewBuilder.build).toHaveBeenCalledWith('user-1', 1);
             const [text] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0];
             expect(text).toContain('Welcome back!');
             expect(text).not.toContain('@');

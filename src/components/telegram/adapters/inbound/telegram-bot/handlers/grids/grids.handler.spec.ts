@@ -94,7 +94,7 @@ describe('GridsHandler', () => {
 
             await commandCallbacks.get(TelegramCommand.Grids)!(ctx);
 
-            expect(viewBuilder.build).toHaveBeenCalledWith(1);
+            expect(viewBuilder.build).toHaveBeenCalledWith('user-1', 1);
             expect(ctx.reply).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
@@ -138,7 +138,7 @@ describe('GridsHandler', () => {
             await actionCallbacks.get(TelegramAction.ListGrids)!(ctx);
 
             expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(viewBuilder.build).toHaveBeenCalledWith(1);
+            expect(viewBuilder.build).toHaveBeenCalledWith('user-1', 1);
             expect(ctx.editMessageText).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
@@ -167,7 +167,12 @@ describe('GridsHandler', () => {
 
             await hearsCallbacks.get(BUTTON_LABELS.STOPPED_GRIDS)!(ctx);
 
-            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(GridFilter.Stopped, 1, 5);
+            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(
+                'user-1',
+                GridFilter.Stopped,
+                1,
+                5,
+            );
             expect(ctx.reply).toHaveBeenCalled();
         });
 
@@ -194,7 +199,7 @@ describe('GridsHandler', () => {
 
             await actionCallbacks.get(GridsAction.ACTIVE_PAGE_PATTERN)!(ctx);
 
-            expect(viewBuilder.build).toHaveBeenCalledWith(2);
+            expect(viewBuilder.build).toHaveBeenCalledWith('user-1', 2);
         });
 
         it('should parse page from stopped page action', async () => {
@@ -205,7 +210,12 @@ describe('GridsHandler', () => {
 
             await actionCallbacks.get(GridsAction.STOPPED_PAGE_PATTERN)!(ctx);
 
-            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(GridFilter.Stopped, 3, 5);
+            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(
+                'user-1',
+                GridFilter.Stopped,
+                3,
+                5,
+            );
         });
     });
 
@@ -214,7 +224,7 @@ describe('GridsHandler', () => {
             reply: vi.fn(),
             answerCbQuery: vi.fn(),
             editMessageText: vi.fn(),
-            user: { status: UserStatus.Active, accountAddress: '0xtest' },
+            user: { id: 'user-1', status: UserStatus.Active, accountAddress: '0xtest' },
             ...overrides,
         } as unknown as BotContext;
     }

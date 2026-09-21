@@ -40,7 +40,7 @@ export class StartHandler implements Handler {
 
         // Active user
         const username = ctx.from?.username;
-        const view = await this.viewBuilder.build(1);
+        const view = await this.viewBuilder.build(ctx.user.id, 1);
 
         if (view.totalCount === 0) {
             await ctx.reply(EmptyGridsMessage.create({ username }).text, {

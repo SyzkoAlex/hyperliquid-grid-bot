@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { GridProfitTabMessage } from './grid-profit-tab.message';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderSide } from '@domain/models/order/order-side';
 import { OrderType } from '@domain/models/order/order-type';
-import { GridPnl } from '../../../../../core/domain/models/grid-pnl';
-import { OrderStats } from '../../../../../core/domain/models/order-stats';
+import { GridPnlDto } from '@components/grids/api/dto/grid-pnl.dto';
+import { OrderStatsDto } from '@components/grids/api/dto/order-stats.dto';
 
 function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): GridDto {
     return {
@@ -31,8 +31,8 @@ function makeGrid(status: GridStatus = GridStatus.Running, startedAt?: number): 
     };
 }
 
-const DEFAULT_PNL: GridPnl = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
-const DEFAULT_ORDER_STATS: OrderStats = {
+const DEFAULT_PNL: GridPnlDto = { gridProfit: 0, unrealizedPnl: 0, totalFees: 0 };
+const DEFAULT_ORDER_STATS: OrderStatsDto = {
     activeBuys: 4,
     activeSells: 5,
     avgActiveBuyPrice: 91000,
@@ -60,16 +60,16 @@ function makeOrder(id: string, price: number, side: OrderSide): OrderDto {
 
 function makeData(
     grid: GridDto,
-    pnl: GridPnl = DEFAULT_PNL,
-    orderStats: OrderStats = DEFAULT_ORDER_STATS,
+    pnl: GridPnlDto = DEFAULT_PNL,
+    orderStats: OrderStatsDto = DEFAULT_ORDER_STATS,
     activeOrders: OrderDto[] = [],
-): GridSnapshot {
+): GridSnapshotDto {
     return { grid, pnl, currentPrice: 95000, orderStats, activeOrders, filledOrders: [] };
 }
 
 describe('GridProfitTabMessage', () => {
     it('shows Total PnL, Grid Profit, Unrealized sections', () => {
-        const pnl: GridPnl = { gridProfit: 4.5, unrealizedPnl: -2.1, totalFees: 0 };
+        const pnl: GridPnlDto = { gridProfit: 4.5, unrealizedPnl: -2.1, totalFees: 0 };
         const result = GridProfitTabMessage.create(makeData(makeGrid(), pnl), 'UTC').text;
         expect(result).toContain('Total PnL:');
         expect(result).toContain('Grid Profit:');
@@ -93,7 +93,7 @@ describe('GridProfitTabMessage', () => {
         // APR = (36.5 / 595 / 3) * 365 * 100 ≈ 746.6%
         const startedAt = Date.now() - 72 * 60 * 60 * 1000;
         const grid = makeGrid(GridStatus.Running, startedAt);
-        const pnl: GridPnl = { gridProfit: 36.5, unrealizedPnl: 0, totalFees: 0 };
+        const pnl: GridPnlDto = { gridProfit: 36.5, unrealizedPnl: 0, totalFees: 0 };
         const result = GridProfitTabMessage.create(makeData(grid, pnl), 'UTC').text;
         expect(result).toContain('Grid APR:');
         expect(result).toMatch(/Grid APR:.*\+7[0-9]{2}\./); // 7xx.x%
@@ -179,7 +179,7 @@ describe('GridProfitTabMessage', () => {
 
         it('shows Stop Price: for a stopped grid with stopPrice set', () => {
             const grid: GridDto = { ...makeGrid(GridStatus.Stopped), stopPrice: 92000 };
-            const snapshot: GridSnapshot = { ...makeData(grid), currentPrice: 92000 };
+            const snapshot: GridSnapshotDto = { ...makeData(grid), currentPrice: 92000 };
             const result = GridProfitTabMessage.create(snapshot, 'UTC').text;
             expect(result).toContain('Stop Price:</b> $92000');
             expect(result).not.toContain('Current Price:');

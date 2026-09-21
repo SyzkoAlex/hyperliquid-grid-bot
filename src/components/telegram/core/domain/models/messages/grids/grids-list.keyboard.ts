@@ -1,12 +1,12 @@
 import { GridAction } from '@components/telegram/core/domain/models/grid-action';
 import { BUTTON_LABELS } from '@components/telegram/core/domain/models/constants/button-labels';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { InlineButton } from '@components/telegram/core/domain/models/inline-button';
 
 export class GridsListKeyboard {
     static create(
-        items: GridSnapshot[],
+        items: GridSnapshotDto[],
         startIndex: number,
         paginationActionFn: (page: number) => string,
         page: number,
@@ -19,7 +19,7 @@ export class GridsListKeyboard {
     }
 
     private static detailButtons(
-        items: GridSnapshot[],
+        items: GridSnapshotDto[],
         startIndex: number,
         page: number,
     ): InlineButton[][] {

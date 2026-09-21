@@ -50,7 +50,7 @@ describe('LeftoverOrderSweepService', () => {
     let sut: LeftoverOrderSweepService;
     let mockGrids: {
         findOrdersByStatus: ReturnType<typeof vi.fn>;
-        findGridById: ReturnType<typeof vi.fn>;
+        findGridByIdForSystem: ReturnType<typeof vi.fn>;
     };
     let mockOrderCancellation: { cancelOrder: ReturnType<typeof vi.fn> };
 
@@ -63,7 +63,7 @@ describe('LeftoverOrderSweepService', () => {
     beforeEach(() => {
         mockGrids = {
             findOrdersByStatus: vi.fn().mockResolvedValue([]),
-            findGridById: vi.fn().mockResolvedValue(createGrid()),
+            findGridByIdForSystem: vi.fn().mockResolvedValue(createGrid()),
         };
         mockOrderCancellation = { cancelOrder: vi.fn().mockResolvedValue(undefined) };
 
@@ -95,7 +95,9 @@ describe('LeftoverOrderSweepService', () => {
 
     it('leaves the orders of a running grid alone', async () => {
         givenActiveOrders([createOrder()]);
-        mockGrids.findGridById.mockResolvedValue(createGrid({ status: GridStatus.Running }));
+        mockGrids.findGridByIdForSystem.mockResolvedValue(
+            createGrid({ status: GridStatus.Running }),
+        );
 
         const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
@@ -107,7 +109,7 @@ describe('LeftoverOrderSweepService', () => {
         'leaves the orders of a %s grid alone',
         async (status) => {
             givenActiveOrders([createOrder()]);
-            mockGrids.findGridById.mockResolvedValue(createGrid({ status }));
+            mockGrids.findGridByIdForSystem.mockResolvedValue(createGrid({ status }));
 
             const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
@@ -118,7 +120,7 @@ describe('LeftoverOrderSweepService', () => {
 
     it('leaves the orders of another user alone', async () => {
         givenActiveOrders([createOrder()]);
-        mockGrids.findGridById.mockResolvedValue(createGrid({ userId: 'user-2' }));
+        mockGrids.findGridByIdForSystem.mockResolvedValue(createGrid({ userId: 'user-2' }));
 
         const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
@@ -144,13 +146,13 @@ describe('LeftoverOrderSweepService', () => {
 
         await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
-        expect(mockGrids.findGridById).toHaveBeenCalledOnce();
+        expect(mockGrids.findGridByIdForSystem).toHaveBeenCalledOnce();
     });
 
     it('does nothing when no orders are active', async () => {
         const cancelled = await sut.sweep(ACCOUNT_ADDRESS, USER_ID);
 
         expect(cancelled).toBe(0);
-        expect(mockGrids.findGridById).not.toHaveBeenCalled();
+        expect(mockGrids.findGridByIdForSystem).not.toHaveBeenCalled();
     });
 });
