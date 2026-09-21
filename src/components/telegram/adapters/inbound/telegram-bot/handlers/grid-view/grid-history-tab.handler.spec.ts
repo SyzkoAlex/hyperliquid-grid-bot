@@ -5,7 +5,8 @@ import { BotContext } from '../../types/bot-context';
 import { GetGridWithPnlUseCase } from '@components/telegram/core/application/use-cases/get-grid-with-pnl/get-grid-with-pnl.use-case';
 import { GridAction } from '@components/telegram/core/domain/models/grid-action';
 import { TelegramParseMode } from '@components/telegram/core/domain/models/telegram-parse-mode';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridViewTexts } from '@components/telegram/core/domain/models/messages/grid-view/grid-view.texts';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
@@ -14,6 +15,7 @@ import { OrderStatus } from '@domain/models/order/order-status';
 import { OrderType } from '@domain/models/order/order-type';
 
 const GRID_ID = '550e8400-e29b-41d4-a716-446655440000';
+const USER_ID = 'user-1';
 
 function makeGrid(): GridDto {
     return {
@@ -34,7 +36,7 @@ function makeGrid(): GridDto {
     };
 }
 
-function makeSnapshot(): GridSnapshot {
+function makeSnapshot(): GridSnapshotDto {
     return {
         grid: makeGrid(),
         pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
@@ -70,7 +72,10 @@ function makeFilledOrder(filledAt: number): OrderDto {
     };
 }
 
-function createMockContext(match?: string[], user?: { timezone: string }): BotContext {
+function createMockContext(
+    match?: string[],
+    user: { id: string; timezone?: string } | undefined = { id: USER_ID },
+): BotContext {
     return {
         match,
         user,
@@ -120,22 +125,37 @@ describe('GridHistoryTabHandler', () => {
             await actionCallbacks.get(GridAction.VIEW_HISTORY_PATTERN)!(ctx);
 
             expect(ctx.answerCbQuery).toHaveBeenCalled();
-            expect(getGridWithPnlUseCase.execute).toHaveBeenCalledWith(GRID_ID);
+            expect(getGridWithPnlUseCase.execute).toHaveBeenCalledWith(USER_ID, GRID_ID);
             expect(ctx.editMessageText).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({ parse_mode: TelegramParseMode.HTML }),
             );
         });
 
+        it('should reply NOT_FOUND without calling the use case when ctx.user is missing', async () => {
+            const ctx = {
+                ...createMockContext([`view:grid:${GRID_ID}:p:1:history`, GRID_ID, '1']),
+                user: undefined,
+            } as BotContext;
+
+            await actionCallbacks.get(GridAction.VIEW_HISTORY_PATTERN)!(ctx);
+
+            expect(getGridWithPnlUseCase.execute).not.toHaveBeenCalled();
+            expect(ctx.reply).toHaveBeenCalledWith(GridViewTexts.NOT_FOUND, {
+                parse_mode: TelegramParseMode.HTML,
+            });
+        });
+
         it('should format filled order dates in the user timezone', async () => {
             // May 9 2025 14:32 UTC = May 9 2025 23:32 Asia/Tokyo (UTC+9)
             const TIMESTAMP = Date.UTC(2025, 4, 9, 14, 32);
-            const snapshotWithOrder: GridSnapshot = {
+            const snapshotWithOrder: GridSnapshotDto = {
                 ...makeSnapshot(),
                 filledOrders: [makeFilledOrder(TIMESTAMP)],
             };
             vi.mocked(getGridWithPnlUseCase.execute).mockResolvedValueOnce(snapshotWithOrder);
             const ctx = createMockContext([`view:grid:${GRID_ID}:p:1:history`, GRID_ID, '1'], {
+                id: USER_ID,
                 timezone: 'Asia/Tokyo',
             });
 

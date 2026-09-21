@@ -1,6 +1,6 @@
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { formatDuration } from '@components/telegram/core/domain/models/formatters/format-duration';
 
 const STATUS_EMOJI: Record<GridStatus, string> = {
@@ -19,7 +19,7 @@ const STATUS_LABEL: Record<GridStatus, string> = {
     [GridStatus.Error]: 'Error',
 };
 
-export function gridHeaderParts(grid: GridSnapshot['grid']) {
+export function gridHeaderParts(grid: GridSnapshotDto['grid']) {
     return {
         pair: `${grid.symbol}/USDC`,
         shortId: grid.id.slice(0, 8),

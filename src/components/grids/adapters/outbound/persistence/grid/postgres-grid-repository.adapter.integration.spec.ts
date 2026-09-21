@@ -11,6 +11,7 @@ import { Timestamp } from '@domain/models/primitives/timestamp';
 import { PostgresGridRepositoryAdapter } from './postgres-grid-repository.adapter';
 
 const TEST_ACCOUNT_ADDRESS = '0x0000000000000000000000000000000000000001';
+const OTHER_USER_ID = '00000000-0000-0000-0000-000000000002';
 
 function createGrid(
     overrides: Partial<{
@@ -143,20 +144,92 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
         });
     });
 
-    describe('findManyByStatusPaged', () => {
-        it('should return paginated results', async () => {
-            const grids: Grid[] = [];
-            for (let i = 0; i < 5; i++) {
-                const g = createGrid();
-                grids.push(g);
-            }
-            for (const g of grids) {
-                await repository.save(g);
-            }
+    describe('findOneByIdAndUserId', () => {
+        beforeEach(async () => {
+            await DatabaseTestHelper.seedTestUser({ id: OTHER_USER_ID, chatId: 100000002 });
+        });
 
-            const page1 = await repository.findManyByStatusPaged(GridStatus.Idle, 0, 2);
-            const page2 = await repository.findManyByStatusPaged(GridStatus.Idle, 2, 2);
-            const page3 = await repository.findManyByStatusPaged(GridStatus.Idle, 4, 2);
+        it('should return the grid for its owner', async () => {
+            const grid = createGrid();
+            await repository.save(grid);
+
+            const found = await repository.findOneByIdAndUserId(grid.id, TEST_USER_ID);
+
+            expect(found!.id.toString()).toBe(grid.id.toString());
+        });
+
+        it('should return null for another user', async () => {
+            const grid = createGrid();
+            await repository.save(grid);
+
+            const found = await repository.findOneByIdAndUserId(grid.id, OTHER_USER_ID);
+
+            expect(found).toBeNull();
+        });
+    });
+
+    describe('findManyByUserIdAndStatusPaged', () => {
+        beforeEach(async () => {
+            await DatabaseTestHelper.seedTestUser({ id: OTHER_USER_ID, chatId: 100000002 });
+        });
+
+        it('should return only the owner grids', async () => {
+            const own = createGrid();
+            const foreign = createGrid({ userId: OTHER_USER_ID });
+            await repository.save(own);
+            await repository.save(foreign);
+
+            const result = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                undefined,
+                0,
+                10,
+            );
+
+            expect(result.map((g) => g.id.toString())).toEqual([own.id.toString()]);
+        });
+
+        it('should filter by status', async () => {
+            const idle = createGrid();
+            const running = createGrid();
+            running.start();
+            await repository.save(idle);
+            await repository.save(running);
+
+            const result = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                GridStatus.Running,
+                0,
+                10,
+            );
+
+            expect(result.map((g) => g.id.toString())).toEqual([running.id.toString()]);
+        });
+
+        it('should return paginated results', async () => {
+            for (let i = 0; i < 5; i++) {
+                await repository.save(createGrid());
+            }
+            await repository.save(createGrid({ userId: OTHER_USER_ID }));
+
+            const page1 = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                GridStatus.Idle,
+                0,
+                2,
+            );
+            const page2 = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                GridStatus.Idle,
+                2,
+                2,
+            );
+            const page3 = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                GridStatus.Idle,
+                4,
+                2,
+            );
 
             expect(page1).toHaveLength(2);
             expect(page2).toHaveLength(2);
@@ -169,7 +242,6 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             g1.stop();
             await repository.save(g1);
 
-            // small delay so stoppedAt timestamps differ
             await new Promise((r) => setTimeout(r, 50));
 
             const g2 = createGrid();
@@ -177,27 +249,34 @@ describe('PostgresGridRepositoryAdapter (Integration)', () => {
             g2.stop();
             await repository.save(g2);
 
-            const result = await repository.findManyByStatusPaged(GridStatus.Stopped, 0, 10);
-            expect(result).toHaveLength(2);
-            expect(result[0].id.toString()).toBe(g2.id.toString());
-            expect(result[1].id.toString()).toBe(g1.id.toString());
+            const result = await repository.findManyByUserIdAndStatusPaged(
+                TEST_USER_ID,
+                GridStatus.Stopped,
+                0,
+                10,
+            );
+            expect(result.map((g) => g.id.toString())).toEqual([
+                g2.id.toString(),
+                g1.id.toString(),
+            ]);
         });
     });
 
-    describe('countByStatus', () => {
-        it('should count grids by status', async () => {
-            const g1 = createGrid();
-            const g2 = createGrid();
-            g2.start();
-            const g3 = createGrid();
+    describe('countByUserIdAndStatus', () => {
+        it('should count grids per user and status', async () => {
+            await DatabaseTestHelper.seedTestUser({ id: OTHER_USER_ID, chatId: 100000002 });
+            const running = createGrid();
+            running.start();
+            await repository.save(createGrid());
+            await repository.save(running);
+            await repository.save(createGrid({ userId: OTHER_USER_ID }));
 
-            await repository.save(g1);
-            await repository.save(g2);
-            await repository.save(g3);
-
-            expect(await repository.countByStatus(GridStatus.Idle)).toBe(2);
-            expect(await repository.countByStatus(GridStatus.Running)).toBe(1);
-            expect(await repository.countByStatus(GridStatus.Stopped)).toBe(0);
+            expect(await repository.countByUserIdAndStatus(TEST_USER_ID, undefined)).toBe(2);
+            expect(await repository.countByUserIdAndStatus(TEST_USER_ID, GridStatus.Idle)).toBe(1);
+            expect(await repository.countByUserIdAndStatus(OTHER_USER_ID, GridStatus.Idle)).toBe(1);
+            expect(await repository.countByUserIdAndStatus(OTHER_USER_ID, GridStatus.Running)).toBe(
+                0,
+            );
         });
     });
 

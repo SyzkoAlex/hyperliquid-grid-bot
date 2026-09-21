@@ -59,7 +59,7 @@ export class GridsHandler implements Handler {
             });
             return;
         }
-        const view = await this.viewBuilder.build(1);
+        const view = await this.viewBuilder.build(ctx.user.id, 1);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -74,7 +74,7 @@ export class GridsHandler implements Handler {
             });
             return;
         }
-        const view = await this.viewBuilder.build(page);
+        const view = await this.viewBuilder.build(ctx.user.id, page);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -89,7 +89,7 @@ export class GridsHandler implements Handler {
             return;
         }
         const currentPage = 1;
-        const view = await this.buildStoppedView(currentPage);
+        const view = await this.buildStoppedView(ctx.user.id, currentPage);
         await ctx.reply(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
@@ -104,15 +104,16 @@ export class GridsHandler implements Handler {
             });
             return;
         }
-        const view = await this.buildStoppedView(page);
+        const view = await this.buildStoppedView(ctx.user.id, page);
         await ctx.editMessageText(view.text, {
             parse_mode: TelegramParseMode.HTML,
             ...toInlineKeyboard(view.keyboard),
         });
     }
 
-    private async buildStoppedView(page: number) {
+    private async buildStoppedView(userId: string, page: number) {
         const { items, totalCount, currentPage } = await this.getGridsWithPnlUseCase.execute(
+            userId,
             GridFilter.Stopped,
             page,
             this.stoppedPageSize,

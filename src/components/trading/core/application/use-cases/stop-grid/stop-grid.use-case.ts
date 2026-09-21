@@ -19,11 +19,11 @@ export class StopGridUseCase {
         private readonly orderCancellation: OrderCancellationService,
     ) {}
 
-    async execute(gridId: string, accountAddress: string): Promise<void> {
-        const grid = await this.grids.findGridById(gridId);
+    async execute(userId: string, gridId: string, accountAddress: string): Promise<void> {
+        const grid = await this.grids.findGridByIdForUser(userId, gridId);
 
         if (!grid) {
-            this.logger.warn({ gridId }, 'Grid not found for stop command');
+            this.logger.warn({ userId, gridId }, 'Grid not found for stop command');
             return;
         }
 

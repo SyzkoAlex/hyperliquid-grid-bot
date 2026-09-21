@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { ActiveGridsViewBuilder } from './active-grids-view-builder.service';
 import { GetGridsWithPnlUseCase } from '../../use-cases/get-grids-with-pnl/get-grids-with-pnl.use-case';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import { GridFilter } from '../../use-cases/get-grids-with-pnl/grid-filter';
@@ -26,7 +26,7 @@ function makeGrid(id: string, status = GridStatus.Running): GridDto {
     };
 }
 
-function makeSnapshot(id: string, status = GridStatus.Running): GridSnapshot {
+function makeSnapshot(id: string, status = GridStatus.Running): GridSnapshotDto {
     return {
         grid: makeGrid(id, status),
         pnl: { gridProfit: 10, unrealizedPnl: -2, totalFees: 0 },
@@ -67,9 +67,14 @@ describe('ActiveGridsViewBuilder', () => {
 
     describe('build', () => {
         it('should return empty keyboard and header when totalCount is 0', async () => {
-            const view = await service.build(1);
+            const view = await service.build('user-1', 1);
 
-            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(GridFilter.Running, 1, 5);
+            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(
+                'user-1',
+                GridFilter.Running,
+                1,
+                5,
+            );
             expect(view.totalCount).toBe(0);
             expect(view.keyboard).toEqual([]);
             expect(view.text).toContain('No active grids running.');
@@ -83,7 +88,7 @@ describe('ActiveGridsViewBuilder', () => {
                 currentPage: 1,
             });
 
-            const view = await service.build(1);
+            const view = await service.build('user-1', 1);
 
             expect(view.totalCount).toBe(2);
             expect(view.text).toContain('BTC/USDC');
@@ -98,9 +103,14 @@ describe('ActiveGridsViewBuilder', () => {
                 currentPage: 2,
             });
 
-            const view = await service.build(2);
+            const view = await service.build('user-1', 2);
 
-            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(GridFilter.Running, 2, 5);
+            expect(getGridsWithPnlUseCase.execute).toHaveBeenCalledWith(
+                'user-1',
+                GridFilter.Running,
+                2,
+                5,
+            );
             expect(view.totalCount).toBe(10);
             // With 10 items and pageSize 5, should have pagination row
             const flatButtons = view.keyboard.flat();

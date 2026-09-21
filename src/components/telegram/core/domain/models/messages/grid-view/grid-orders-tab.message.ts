@@ -1,12 +1,12 @@
 import { PriceFormatter } from '@components/telegram/core/domain/models/formatters/price.formatter';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { formatOrderLine } from '@components/telegram/core/domain/models/formatters/format-order-line';
 import { gridHeaderParts } from './grid-message.helpers';
 
 export class GridOrdersTabMessage {
     readonly text: string;
 
-    private constructor({ grid, currentPrice, activeOrders }: GridSnapshot) {
+    private constructor({ grid, currentPrice, activeOrders }: GridSnapshotDto) {
         const { pair, shortId } = gridHeaderParts(grid);
         const symbol = grid.symbol;
 
@@ -26,7 +26,7 @@ export class GridOrdersTabMessage {
             `${lines.join('\n')}\n`;
     }
 
-    static create(snapshot: GridSnapshot): GridOrdersTabMessage {
+    static create(snapshot: GridSnapshotDto): GridOrdersTabMessage {
         return new GridOrdersTabMessage(snapshot);
     }
 }

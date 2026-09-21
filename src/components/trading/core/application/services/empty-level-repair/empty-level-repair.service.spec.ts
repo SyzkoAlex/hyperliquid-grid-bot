@@ -91,7 +91,7 @@ describe('EmptyLevelRepairService', () => {
     let sut: EmptyLevelRepairService;
     let mockGrids: {
         findOrdersByGridId: ReturnType<typeof vi.fn>;
-        findGridById: ReturnType<typeof vi.fn>;
+        findGridByIdForSystem: ReturnType<typeof vi.fn>;
         updateOrderStatus: ReturnType<typeof vi.fn>;
         updateOrderExchangeId: ReturnType<typeof vi.fn>;
     };
@@ -115,7 +115,7 @@ describe('EmptyLevelRepairService', () => {
 
         mockGrids = {
             findOrdersByGridId: vi.fn().mockResolvedValue([]),
-            findGridById: vi.fn().mockResolvedValue(createGrid()),
+            findGridByIdForSystem: vi.fn().mockResolvedValue(createGrid()),
             updateOrderStatus: vi.fn().mockResolvedValue(undefined),
             updateOrderExchangeId: vi.fn().mockResolvedValue(undefined),
         };
@@ -330,7 +330,9 @@ describe('EmptyLevelRepairService', () => {
         });
 
         it('books the fill but places no refill once the grid was stopped meanwhile', async () => {
-            mockGrids.findGridById.mockResolvedValue(createGrid({ status: GridStatus.Stopped }));
+            mockGrids.findGridByIdForSystem.mockResolvedValue(
+                createGrid({ status: GridStatus.Stopped }),
+            );
 
             const result = await repair();
 
@@ -355,7 +357,7 @@ describe('EmptyLevelRepairService', () => {
         });
 
         it('repairs a pair blocked after booking on a later cycle, booking nothing twice', async () => {
-            mockGrids.findGridById.mockResolvedValueOnce(
+            mockGrids.findGridByIdForSystem.mockResolvedValueOnce(
                 createGrid({ status: GridStatus.Stopped }),
             );
 
@@ -578,7 +580,7 @@ describe('EmptyLevelRepairService', () => {
             createOrder({ side: OrderSide.Buy, orderIndex: 0, status: OrderStatus.Filled }),
             createOrder({ side: OrderSide.Sell, orderIndex: 2, status: OrderStatus.Failed }),
         ]);
-        mockGrids.findGridById
+        mockGrids.findGridByIdForSystem
             .mockResolvedValueOnce(createGrid())
             .mockResolvedValueOnce(createGrid({ status: GridStatus.Stopped }));
 
@@ -586,7 +588,7 @@ describe('EmptyLevelRepairService', () => {
 
         expect(result).toBe(1);
         expect(mockRefillPlacement.placeRefillOrder).toHaveBeenCalledOnce();
-        expect(mockGrids.findGridById).toHaveBeenCalledTimes(2);
+        expect(mockGrids.findGridByIdForSystem).toHaveBeenCalledTimes(2);
     });
 
     it('checks a grid at most once per interval', async () => {

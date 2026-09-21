@@ -1,0 +1,474 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Grid bot internal web API",
+        "version": "1.0.0",
+        "description": "Read-only, user-scoped API for the website backend. Cluster-internal only. Any field change is a breaking change for the frontend."
+    },
+    "servers": [
+        {
+            "url": "http://{env}-bot:3000/internal/web/v1",
+            "variables": {
+                "env": {
+                    "default": "staging"
+                }
+            }
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/me": {
+            "get": {
+                "operationId": "getMe",
+                "summary": "Current user",
+                "responses": {
+                    "200": {
+                        "description": "Current user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebUserDto"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing/invalid token, or unknown / non-whitelisted user"
+                    }
+                }
+            }
+        },
+        "/grids": {
+            "get": {
+                "operationId": "listGrids",
+                "summary": "Grids owned by the current user",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/GridStatus"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "description": "Defaults to 1; clamped to the last page",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "required": false,
+                        "description": "Defaults to 20",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Page of grids",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebGridsPageDto"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters"
+                    },
+                    "401": {
+                        "description": "Missing/invalid token, or unknown / non-whitelisted user"
+                    }
+                }
+            }
+        },
+        "/grids/{id}": {
+            "get": {
+                "operationId": "getGrid",
+                "summary": "Grid detail with orders",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Grid detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebGridDetailDto"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing/invalid token, or unknown / non-whitelisted user"
+                    },
+                    "404": {
+                        "description": "Malformed, unknown or foreign grid id"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "JWT signed with EdDSA (Ed25519); only alg EdDSA is accepted. Required claims: iss = WEB_API_JWT_ISSUER, aud = WEB_API_JWT_AUDIENCE, iat, exp (token age at most 5 minutes, 30 s clock tolerance), telegramId (integer, the user's Telegram chat id)."
+            }
+        },
+        "schemas": {
+            "GridStatus": {
+                "type": "string",
+                "enum": ["idle", "running", "paused", "stopped", "error"]
+            },
+            "UserStatus": {
+                "type": "string",
+                "enum": ["pending_approval", "active", "disconnected", "agent_expired"]
+            },
+            "OrderSide": {
+                "type": "string",
+                "enum": ["buy", "sell"]
+            },
+            "OrderStatus": {
+                "type": "string",
+                "enum": ["pending", "placed", "filled", "cancelled", "failed", "missing"]
+            },
+            "WebUserDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["telegramId", "status", "accountAddress", "isConnected"],
+                "properties": {
+                    "telegramId": {
+                        "type": "integer"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/UserStatus"
+                    },
+                    "accountAddress": {
+                        "type": "string"
+                    },
+                    "isConnected": {
+                        "type": "boolean",
+                        "description": "status === 'active'"
+                    }
+                }
+            },
+            "GridPnlDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["gridProfit", "unrealizedPnl", "totalFees"],
+                "properties": {
+                    "gridProfit": {
+                        "type": "number"
+                    },
+                    "unrealizedPnl": {
+                        "type": "number"
+                    },
+                    "totalFees": {
+                        "type": "number"
+                    }
+                }
+            },
+            "OrderStatsDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "activeBuys",
+                    "activeSells",
+                    "avgActiveBuyPrice",
+                    "avgActiveSellPrice",
+                    "lowestActiveBuyPrice",
+                    "highestActiveSellPrice",
+                    "filledCycles"
+                ],
+                "properties": {
+                    "activeBuys": {
+                        "type": "integer"
+                    },
+                    "activeSells": {
+                        "type": "integer"
+                    },
+                    "avgActiveBuyPrice": {
+                        "type": "number"
+                    },
+                    "avgActiveSellPrice": {
+                        "type": "number"
+                    },
+                    "lowestActiveBuyPrice": {
+                        "type": "number"
+                    },
+                    "highestActiveSellPrice": {
+                        "type": "number"
+                    },
+                    "filledCycles": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "WebGridDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "id",
+                    "symbol",
+                    "status",
+                    "lowerPrice",
+                    "upperPrice",
+                    "orderCount",
+                    "investmentUSDC",
+                    "investmentBase",
+                    "stopLossEnabled",
+                    "currentPrice",
+                    "pnl",
+                    "orderStats"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/GridStatus"
+                    },
+                    "lowerPrice": {
+                        "type": "number"
+                    },
+                    "upperPrice": {
+                        "type": "number"
+                    },
+                    "orderCount": {
+                        "type": "integer"
+                    },
+                    "investmentUSDC": {
+                        "type": "number"
+                    },
+                    "investmentBase": {
+                        "type": "number"
+                    },
+                    "creationPrice": {
+                        "type": "number"
+                    },
+                    "createdAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "startedAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "stoppedAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "stopPrice": {
+                        "type": "number"
+                    },
+                    "stopLossEnabled": {
+                        "type": "boolean"
+                    },
+                    "stopLossPrice": {
+                        "type": "number"
+                    },
+                    "stopLossTriggeredAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "currentPrice": {
+                        "type": "number"
+                    },
+                    "pnl": {
+                        "$ref": "#/components/schemas/GridPnlDto"
+                    },
+                    "orderStats": {
+                        "$ref": "#/components/schemas/OrderStatsDto"
+                    }
+                }
+            },
+            "WebGridDetailDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                    "id",
+                    "symbol",
+                    "status",
+                    "lowerPrice",
+                    "upperPrice",
+                    "orderCount",
+                    "investmentUSDC",
+                    "investmentBase",
+                    "stopLossEnabled",
+                    "currentPrice",
+                    "pnl",
+                    "orderStats",
+                    "activeOrders",
+                    "filledOrders"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "symbol": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/GridStatus"
+                    },
+                    "lowerPrice": {
+                        "type": "number"
+                    },
+                    "upperPrice": {
+                        "type": "number"
+                    },
+                    "orderCount": {
+                        "type": "integer"
+                    },
+                    "investmentUSDC": {
+                        "type": "number"
+                    },
+                    "investmentBase": {
+                        "type": "number"
+                    },
+                    "creationPrice": {
+                        "type": "number"
+                    },
+                    "createdAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "startedAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "stoppedAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "stopPrice": {
+                        "type": "number"
+                    },
+                    "stopLossEnabled": {
+                        "type": "boolean"
+                    },
+                    "stopLossPrice": {
+                        "type": "number"
+                    },
+                    "stopLossTriggeredAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "currentPrice": {
+                        "type": "number"
+                    },
+                    "pnl": {
+                        "$ref": "#/components/schemas/GridPnlDto"
+                    },
+                    "orderStats": {
+                        "$ref": "#/components/schemas/OrderStatsDto"
+                    },
+                    "activeOrders": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WebOrderDto"
+                        }
+                    },
+                    "filledOrders": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WebOrderDto"
+                        }
+                    }
+                }
+            },
+            "WebOrderDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "side", "status", "orderIndex", "price", "amount", "createdAt"],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "side": {
+                        "$ref": "#/components/schemas/OrderSide"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/OrderStatus"
+                    },
+                    "orderIndex": {
+                        "type": "integer"
+                    },
+                    "price": {
+                        "type": ["number", "null"]
+                    },
+                    "amount": {
+                        "type": "number"
+                    },
+                    "createdAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "placedAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "filledAt": {
+                        "type": "integer",
+                        "description": "Epoch milliseconds"
+                    },
+                    "feeUsdc": {
+                        "type": "number"
+                    }
+                }
+            },
+            "WebGridsPageDto": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["items", "totalCount", "currentPage"],
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WebGridDto"
+                        }
+                    },
+                    "totalCount": {
+                        "type": "integer"
+                    },
+                    "currentPage": {
+                        "type": "integer"
+                    }
+                }
+            }
+        }
+    }
+}

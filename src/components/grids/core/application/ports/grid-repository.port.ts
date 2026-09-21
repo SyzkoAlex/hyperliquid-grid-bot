@@ -10,13 +10,15 @@ export const GRID_REPOSITORY_PORT = Symbol('GRID_REPOSITORY_PORT');
 export interface GridRepositoryPort {
     save(grid: Grid): Promise<void>;
     findOneById(id: GridId): Promise<Grid | null>;
+    findOneByIdAndUserId(id: GridId, userId: string): Promise<Grid | null>;
     findManyActive(): Promise<Grid[]>;
     findManyActiveByUserId(userId: string): Promise<Grid[]>;
-    findManyByStatusPaged(
+    findManyByUserIdAndStatusPaged(
+        userId: string,
         status: GridStatus | undefined,
         offset: number,
         limit: number,
     ): Promise<Grid[]>;
-    countByStatus(status: GridStatus | undefined): Promise<number>;
+    countByUserIdAndStatus(userId: string, status: GridStatus | undefined): Promise<number>;
     findManyActiveByCursor(afterId: string | null, limit: number): Promise<GridWithAccount[]>;
 }

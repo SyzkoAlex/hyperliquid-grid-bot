@@ -6,11 +6,16 @@ import { GridsApiAdapter } from './api/grids-api.adapter';
 import { GRIDS_API_PORT } from './api/grids-api.port';
 import { GRID_REPOSITORY_PORT } from './core/application/ports/grid-repository.port';
 import { ORDER_REPOSITORY_PORT } from './core/application/ports/order-repository.port';
+import { GridPnlCalculatorService } from './core/domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
+import { GridSnapshotFactory } from './core/application/services/grid-snapshot-factory/grid-snapshot.factory';
+
 @Module({
     imports: [DatabaseModule],
     providers: [
         { provide: GRID_REPOSITORY_PORT, useClass: PostgresGridRepositoryAdapter },
         { provide: ORDER_REPOSITORY_PORT, useClass: PostgresOrderRepositoryAdapter },
+        GridPnlCalculatorService,
+        GridSnapshotFactory,
         { provide: GRIDS_API_PORT, useClass: GridsApiAdapter },
     ],
     exports: [GRIDS_API_PORT],

@@ -48,6 +48,21 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
         }
     }
 
+    async findOneByIdAndUserId(id: GridId, userId: string): Promise<Grid | null> {
+        try {
+            const result = await this.db
+                .select()
+                .from(grids)
+                .where(and(eq(grids.id, id.toString()), eq(grids.userId, userId)))
+                .limit(1);
+            if (result.length === 0) return null;
+            return PostgresGridMapper.toDomain(result[0]);
+        } catch (error) {
+            this.logger.error({ error, gridId: id.toString(), userId }, 'Failed to find user grid');
+            return null;
+        }
+    }
+
     async findManyActive(): Promise<Grid[]> {
         try {
             const result = await this.db
@@ -74,7 +89,8 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
         }
     }
 
-    async findManyByStatusPaged(
+    async findManyByUserIdAndStatusPaged(
+        userId: string,
         status: GridStatus | undefined,
         offset: number,
         limit: number,
@@ -85,29 +101,39 @@ export class PostgresGridRepositoryAdapter implements GridRepositoryPort {
             const result = await this.db
                 .select()
                 .from(grids)
-                .where(status !== undefined ? eq(grids.status, status) : undefined)
+                .where(
+                    and(
+                        eq(grids.userId, userId),
+                        status !== undefined ? eq(grids.status, status) : undefined,
+                    ),
+                )
                 .orderBy(orderExpr)
                 .limit(limit)
                 .offset(offset);
             return result.map((row) => PostgresGridMapper.toDomain(row));
         } catch (error) {
             this.logger.error(
-                { error, status, offset, limit },
-                'Failed to find paged grids by status',
+                { error, userId, status, offset, limit },
+                'Failed to find paged user grids by status',
             );
             return [];
         }
     }
 
-    async countByStatus(status: GridStatus | undefined): Promise<number> {
+    async countByUserIdAndStatus(userId: string, status: GridStatus | undefined): Promise<number> {
         try {
             const result = await this.db
                 .select({ count: count() })
                 .from(grids)
-                .where(status !== undefined ? eq(grids.status, status) : undefined);
+                .where(
+                    and(
+                        eq(grids.userId, userId),
+                        status !== undefined ? eq(grids.status, status) : undefined,
+                    ),
+                );
             return result[0].count;
         } catch (error) {
-            this.logger.error({ error, status }, 'Failed to count grids by status');
+            this.logger.error({ error, userId, status }, 'Failed to count user grids by status');
             return 0;
         }
     }

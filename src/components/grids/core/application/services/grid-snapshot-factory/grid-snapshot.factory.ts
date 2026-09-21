@@ -3,7 +3,7 @@ import { GridDto } from '@components/grids/api/dto/grid.dto';
 import { OrderDto } from '@components/grids/api/dto/order.dto';
 import { OrderStatus } from '@domain/models/order/order-status';
 import { GridStatus } from '@domain/models/grid/grid-status';
-import { GridSnapshot } from '../../../domain/models/grid-snapshot';
+import { GridSnapshotDto } from '../../../../api/dto/grid-snapshot.dto';
 import { GridPnlCalculatorService } from '../../../domain/services/grid-pnl-calculator/grid-pnl-calculator.service';
 import { computeOrderStats } from '../../../domain/models/order-stats';
 
@@ -11,7 +11,7 @@ import { computeOrderStats } from '../../../domain/models/order-stats';
 export class GridSnapshotFactory {
     constructor(private readonly pnlCalculator: GridPnlCalculatorService) {}
 
-    create(grid: GridDto, orders: OrderDto[], currentPrice: number): GridSnapshot {
+    create(grid: GridDto, orders: OrderDto[], currentPrice: number): GridSnapshotDto {
         const effectivePrice =
             grid.status === GridStatus.Stopped && grid.stopPrice != null
                 ? grid.stopPrice

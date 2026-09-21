@@ -13,6 +13,7 @@ export { stopLossSchema, type StopLossConfig } from './schemas/stop-loss.schema'
 export { tokensSchema, type TokensConfig } from './schemas/tokens.schema';
 export { swapSchema, type SwapConfig } from './schemas/swap.schema';
 export { predictionSchema, type PredictionConfig } from './schemas/prediction.schema';
+export { webApiSchema, type WebApiConfig } from './schemas/web-api.schema';
 
 // Import for combined schema
 import { appSchema } from './schemas/app.schema';
@@ -27,6 +28,7 @@ import { stopLossSchema } from './schemas/stop-loss.schema';
 import { tokensSchema } from './schemas/tokens.schema';
 import { swapSchema } from './schemas/swap.schema';
 import { predictionSchema } from './schemas/prediction.schema';
+import { webApiSchema } from './schemas/web-api.schema';
 
 // Combined schema
 export const configSchema = z.object({
@@ -42,6 +44,7 @@ export const configSchema = z.object({
     tokens: tokensSchema,
     swap: swapSchema,
     prediction: predictionSchema,
+    webApi: webApiSchema,
 });
 
 export type Config = z.infer<typeof configSchema>;

@@ -1,6 +1,6 @@
 import { PriceFormatter } from '@components/telegram/core/domain/models/formatters/price.formatter';
 import { EMOJI } from '@components/telegram/core/domain/models/constants/emoji';
-import { GridSnapshot } from '@components/telegram/core/domain/models/grid-snapshot';
+import { GridSnapshotDto } from '@components/grids/api/dto/grid-snapshot.dto';
 import { GridStatus } from '@domain/models/grid/grid-status';
 import {
     formatPnl,
@@ -11,7 +11,7 @@ import { isGridOutOfRange } from '../grid-view/grid-message.helpers';
 export class GridListMessage {
     readonly text: string;
 
-    private constructor(header: string, items: GridSnapshot[], startIndex: number) {
+    private constructor(header: string, items: GridSnapshotDto[], startIndex: number) {
         if (items.length === 0) {
             this.text = header;
             return;
@@ -20,11 +20,14 @@ export class GridListMessage {
         this.text = [header, '', ...lines].join('\n');
     }
 
-    static create(header: string, items: GridSnapshot[], startIndex: number): GridListMessage {
+    static create(header: string, items: GridSnapshotDto[], startIndex: number): GridListMessage {
         return new GridListMessage(header, items, startIndex);
     }
 
-    private static compactLine(index: number, { grid, pnl, currentPrice }: GridSnapshot): string {
+    private static compactLine(
+        index: number,
+        { grid, pnl, currentPrice }: GridSnapshotDto,
+    ): string {
         const shortId = grid.id.slice(0, 8);
         const totalPnl = pnl.gridProfit + pnl.unrealizedPnl;
         const totalInvestment =

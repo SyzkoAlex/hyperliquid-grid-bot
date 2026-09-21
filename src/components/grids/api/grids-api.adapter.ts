@@ -17,6 +17,8 @@ import {
     OrderRepositoryPort,
 } from '../core/application/ports/order-repository.port';
 import { GridsApiPort } from './grids-api.port';
+import { GridSnapshotFactory } from '../core/application/services/grid-snapshot-factory/grid-snapshot.factory';
+import { GridSnapshotDto } from './dto/grid-snapshot.dto';
 import { GridWithAccountDto } from './dto/grid-with-account.dto';
 import { GridsApiMapper } from './grids-api.mapper';
 import { GridDto } from './dto/grid.dto';
@@ -29,6 +31,7 @@ export class GridsApiAdapter implements GridsApiPort {
     constructor(
         @Inject(GRID_REPOSITORY_PORT) private readonly gridRepo: GridRepositoryPort,
         @Inject(ORDER_REPOSITORY_PORT) private readonly orderRepo: OrderRepositoryPort,
+        private readonly snapshotFactory: GridSnapshotFactory,
     ) {}
 
     // ── Grids — write ──────────────────────────────────────────────
@@ -81,8 +84,13 @@ export class GridsApiAdapter implements GridsApiPort {
 
     // ── Grids — read ───────────────────────────────────────────────
 
-    async findGridById(id: string): Promise<GridDto | null> {
+    async findGridByIdForSystem(id: string): Promise<GridDto | null> {
         const grid = await this.gridRepo.findOneById(GridId.from(id));
+        return grid ? GridsApiMapper.toGridDto(grid) : null;
+    }
+
+    async findGridByIdForUser(userId: string, id: string): Promise<GridDto | null> {
+        const grid = await this.gridRepo.findOneByIdAndUserId(GridId.from(id), userId);
         return grid ? GridsApiMapper.toGridDto(grid) : null;
     }
 
@@ -96,17 +104,23 @@ export class GridsApiAdapter implements GridsApiPort {
         return grids.map((g) => GridsApiMapper.toGridDto(g));
     }
 
-    async findGridsPaged(filter: {
+    async findGridsPagedForUser(filter: {
+        userId: string;
         status?: GridStatus;
         page: number;
         pageSize: number;
     }): Promise<{ items: GridDto[]; totalCount: number; currentPage: number }> {
-        const { status, page, pageSize } = filter;
-        const totalCount = await this.gridRepo.countByStatus(status);
+        const { userId, status, page, pageSize } = filter;
+        const totalCount = await this.gridRepo.countByUserIdAndStatus(userId, status);
         const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
         const currentPage = Math.min(Math.max(1, page), totalPages);
         const offset = (currentPage - 1) * pageSize;
-        const gridList = await this.gridRepo.findManyByStatusPaged(status, offset, pageSize);
+        const gridList = await this.gridRepo.findManyByUserIdAndStatusPaged(
+            userId,
+            status,
+            offset,
+            pageSize,
+        );
         return { items: gridList.map((g) => GridsApiMapper.toGridDto(g)), totalCount, currentPage };
     }
 
@@ -167,14 +181,30 @@ export class GridsApiAdapter implements GridsApiPort {
         return orders.map((o) => GridsApiMapper.toOrderDto(o));
     }
 
-    async findOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]> {
-        const orders = await this.orderRepo.findManyByGridIds(gridIds);
-        return orders.map((o) => GridsApiMapper.toOrderDto(o));
-    }
-
     async findPlacedOrdersByGridIds(gridIds: string[]): Promise<OrderDto[]> {
         const orders = await this.orderRepo.findManyPlacedByGridIds(gridIds);
         return orders.map((o) => GridsApiMapper.toOrderDto(o));
+    }
+
+    buildGridSnapshot(grid: GridDto, orders: OrderDto[], currentPrice: number): GridSnapshotDto {
+        return this.snapshotFactory.create(grid, orders, currentPrice);
+    }
+
+    async buildGridSnapshots(
+        grids: GridDto[],
+        currentPrices: number[],
+    ): Promise<GridSnapshotDto[]> {
+        const orders = await this.orderRepo.findManyByGridIds(grids.map((g) => g.id));
+        const ordersByGridId = new Map<string, OrderDto[]>();
+        for (const order of orders) {
+            const dto = GridsApiMapper.toOrderDto(order);
+            const list = ordersByGridId.get(dto.gridId) ?? [];
+            list.push(dto);
+            ordersByGridId.set(dto.gridId, list);
+        }
+        return grids.map((grid, i) =>
+            this.snapshotFactory.create(grid, ordersByGridId.get(grid.id) ?? [], currentPrices[i]),
+        );
     }
 
     async findActiveGridsByCursor(
