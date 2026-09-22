@@ -125,6 +125,37 @@ describe('ManagedLockService', () => {
             expect(mockLock.extend).toHaveBeenCalledWith(HANDLE, TTL_MS);
         });
 
+        it('should keep renewing while onAcquired is still pending', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            const onAcquired = vi.fn(() => new Promise<void>(() => {}));
+
+            service.hold({ lockName: LOCK_NAME, ttlMs: TTL_MS, onAcquired });
+            await flushAsync();
+
+            const renewalIntervalMs = Math.floor(TTL_MS / 3);
+            await vi.advanceTimersByTimeAsync(renewalIntervalMs * 2);
+
+            expect(mockLock.extend).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not release again when onAcquired throws after the lock was lost', async () => {
+            vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
+            vi.mocked(mockLock.extend).mockResolvedValue(false);
+            let failOnAcquired: (err: Error) => void = () => {};
+            const onAcquired = vi.fn(
+                () => new Promise<void>((_, reject) => (failOnAcquired = reject)),
+            );
+
+            service.hold({ lockName: LOCK_NAME, ttlMs: TTL_MS, onAcquired });
+            await flushAsync();
+
+            await vi.advanceTimersByTimeAsync(Math.floor(TTL_MS / 3));
+            failOnAcquired(new Error('stopped'));
+            await flushAsync();
+
+            expect(mockLock.release).not.toHaveBeenCalled();
+        });
+
         it('should restart retry when extend returns false', async () => {
             vi.mocked(mockLock.tryAcquire).mockResolvedValue(HANDLE);
             vi.mocked(mockLock.extend).mockResolvedValue(false);
