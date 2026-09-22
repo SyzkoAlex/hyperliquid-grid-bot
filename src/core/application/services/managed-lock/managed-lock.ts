@@ -50,40 +50,43 @@ export class ManagedLock implements ManagedLockHandle {
 
         this.isAcquiring = true;
 
+        let acquired: LockHandle | null;
         try {
-            let acquired: LockHandle | null;
-            try {
-                acquired = await this.distributedLockPort.tryAcquire(
-                    this.options.lockName,
-                    this.options.ttlMs,
-                );
-            } catch (err) {
-                this.logger.error({ err }, 'Lock acquisition threw');
-                return;
-            }
-
-            if (!acquired) {
-                this.logger.debug('Lock not acquired, will retry');
-                return;
-            }
-
-            this.handle = acquired;
-            this.clearAcquireInterval();
-            this.logger.info('Lock acquired');
-
-            try {
-                await this.options.onAcquired();
-            } catch (err) {
-                this.logger.error({ err }, 'onAcquired threw, releasing distributedLockPort');
-                await this.distributedLockPort.release(this.handle);
-                this.handle = null;
-                this.scheduleRetry();
-                return;
-            }
-
-            this.renewInterval = setInterval(() => void this.renew(), this.renewalIntervalMs);
+            acquired = await this.distributedLockPort.tryAcquire(
+                this.options.lockName,
+                this.options.ttlMs,
+            );
+        } catch (err) {
+            this.logger.error({ err }, 'Lock acquisition threw');
+            return;
         } finally {
             this.isAcquiring = false;
+        }
+
+        if (!acquired) {
+            this.logger.debug('Lock not acquired, will retry');
+            return;
+        }
+
+        this.handle = acquired;
+        this.clearAcquireInterval();
+        this.logger.info('Lock acquired');
+
+        // onAcquired may run for the whole lock lifetime (e.g. Telegram long polling),
+        // so renewal must start before awaiting it
+        this.renewInterval = setInterval(() => void this.renew(), this.renewalIntervalMs);
+
+        try {
+            await this.options.onAcquired();
+        } catch (err) {
+            // Lock was lost or disposed meanwhile — that path already cleaned up
+            if (this.handle !== acquired) return;
+
+            this.logger.error({ err }, 'onAcquired threw, releasing distributedLockPort');
+            this.clearRenewInterval();
+            this.handle = null;
+            await this.distributedLockPort.release(acquired);
+            this.scheduleRetry();
         }
     }
 
