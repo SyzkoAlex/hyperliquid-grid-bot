@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { handleInvestmentPresetSelection } from './investment-preset-selection';
 import { BotContext } from '../../../types/bot-context';
 import { SceneStep } from '../create-grid-scene-step';
+import { StepResult } from '../wizard/step-result';
 
 describe('handleInvestmentPresetSelection', () => {
-    let applyInvestment: ReturnType<typeof vi.fn>;
+    let applyInvestment: Mock<(text: string) => Promise<StepResult>>;
 
     beforeEach(() => {
         applyInvestment = vi.fn().mockResolvedValue({ nextStep: SceneStep.Preview });

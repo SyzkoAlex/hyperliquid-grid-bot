@@ -6,6 +6,7 @@ import { HttpModule } from '@/infra/http/http.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { OrdersRestoreAdapter } from './orders-restore.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
+import { TestCacheModule } from '@/infra/tests/test-cache.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import { USERS_API_PORT } from '@components/users/api/users-api.port';
 import { UserStatus } from '@domain/models/user/user-status';
@@ -295,6 +296,7 @@ describe('OrdersRestoreAdapter (Integration)', () => {
         const moduleBuilder = Test.createTestingModule({
             imports: [
                 MockDistributedLockModule,
+                TestCacheModule,
                 ScheduleModule.forRoot(),
                 AppConfigModule.forRoot(),
                 DatabaseModule,

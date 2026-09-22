@@ -11,11 +11,14 @@ export default defineConfig({
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],
+            // v4 dropped `coverage.all`: without `include` only files loaded by tests are reported
+            include: ['src/**/*.ts'],
             exclude: [
                 'node_modules/',
                 'dist/',
                 '**/*.config.ts',
                 '**/*.d.ts',
+                '**/*.spec.ts',
                 '**/*.test.ts',
                 '**/types/',
             ],

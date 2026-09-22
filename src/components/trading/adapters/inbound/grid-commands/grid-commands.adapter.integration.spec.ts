@@ -7,6 +7,7 @@ import { AppConfigModule } from '@/config/app-config.module';
 import { TradingModule } from '@components/trading/trading.module';
 import { GridCommandsAdapter } from './grid-commands.adapter';
 import { MockDistributedLockModule } from '@/infra/tests/mock-distributed-lock.module';
+import { TestCacheModule } from '@/infra/tests/test-cache.module';
 import { GRIDS_API_PORT, GridsApiPort } from '@components/grids/api/grids-api.port';
 import {
     EXCHANGE_PORT,
@@ -165,9 +166,8 @@ describe('GridCommandsAdapter (Integration)', () => {
 
         it('should use default values when not provided', async () => {
             // Mock Hyperliquid responses
-            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
-            //   total = withdrawableBalance + eth * price = 17500 + 5*3500 = 35000
-            //   investmentUSDC = 17500, investmentBase = 5 — exactly balanced
+            // Portfolio = 17500 USDC + 5 ETH * 3500 = 35000. Investment is half of it so the
+            // sell-size buffer (base per sell order × (1 + sellSizeBuffer)) fits the ETH balance.
             const mockUserState = UserState.create({
                 withdrawableBalance: Decimal.from(17500),
                 assetPositions: [
@@ -204,12 +204,13 @@ describe('GridCommandsAdapter (Integration)', () => {
                 );
             });
 
-            // Command with only required params (uses defaults)
+            // Command without orderCount/trailing (uses defaults)
             const command = CreateGridCommandEvent.create({
                 userId: TEST_USER_ID,
                 symbol: 'ETH',
                 lowerPrice: 3000,
                 upperPrice: 4000,
+                totalInvestmentUSDC: 17500,
                 accountAddress: '0xtest',
             });
 
@@ -229,9 +230,7 @@ describe('GridCommandsAdapter (Integration)', () => {
         });
 
         it('should create grid with trailing enabled', async () => {
-            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
-            //   total = withdrawableBalance + sol * price = 12500 + 100*125 = 25000
-            //   investmentUSDC = 12500, investmentBase = 100 — exactly balanced
+            // Portfolio = 12500 USDC + 100 SOL * 125 = 25000; invest half so the sell buffer fits
             const mockUserState = UserState.create({
                 withdrawableBalance: Decimal.from(12500),
                 assetPositions: [
@@ -274,6 +273,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 100,
                 upperPrice: 150,
                 orderCount: 10,
+                totalInvestmentUSDC: 12500,
                 trailing: true,
                 accountAddress: '0xtest',
             });
@@ -365,9 +365,7 @@ describe('GridCommandsAdapter (Integration)', () => {
         });
 
         it('should handle order placement failure gracefully', async () => {
-            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
-            //   total = withdrawableBalance + btc * price = 4000 + 0.08*50000 = 8000
-            //   investmentUSDC = 4000, investmentBase = 0.08 — exactly balanced
+            // Portfolio = 4000 USDC + 0.08 BTC * 50000 = 8000; invest half so the sell buffer fits
             const mockUserState = UserState.create({
                 withdrawableBalance: Decimal.from(4000),
                 assetPositions: [
@@ -406,6 +404,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 symbol: 'BTC',
                 lowerPrice: 45000,
                 upperPrice: 55000,
+                totalInvestmentUSDC: 4000,
                 accountAddress: '0xtest',
             });
 
@@ -428,9 +427,9 @@ describe('GridCommandsAdapter (Integration)', () => {
 
     describe('Multiple Grids', () => {
         it('should create multiple grids for different symbols', async () => {
-            // For neutral mode with auto-calculated total (no totalInvestmentUSDC):
-            //   BTC: total = 35000 + 0.7*50000 = 70000, investmentUSDC=35000, investmentBase=0.7 — balanced
-            //   ETH: total = 35000 + 10*3500 = 70000, investmentUSDC=35000, investmentBase=10 — balanced
+            // Balances are mocked per call, so each grid sees the full portfolio:
+            //   BTC: 35000 + 0.7*50000 = 70000; ETH: 35000 + 10*3500 = 70000
+            // Each grid invests half so the sell buffer fits the base balance.
             const mockUserState = UserState.create({
                 withdrawableBalance: Decimal.from(35000),
                 assetPositions: [
@@ -487,6 +486,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 45000,
                 upperPrice: 55000,
                 orderCount: 5,
+                totalInvestmentUSDC: 35000,
                 accountAddress: '0xtest',
             });
 
@@ -499,6 +499,7 @@ describe('GridCommandsAdapter (Integration)', () => {
                 lowerPrice: 3000,
                 upperPrice: 4000,
                 orderCount: 5,
+                totalInvestmentUSDC: 35000,
                 accountAddress: '0xtest',
             });
 
@@ -543,6 +544,7 @@ async function setupTestEnvironment() {
     const moduleBuilder = Test.createTestingModule({
         imports: [
             MockDistributedLockModule,
+            TestCacheModule,
             ScheduleModule.forRoot(),
             AppConfigModule.forRoot(),
             DatabaseModule,
